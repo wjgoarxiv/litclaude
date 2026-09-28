@@ -749,19 +749,32 @@ const runJevHud = (cwd, env) => {
 
 const hinted = { calls: 1, noted: false, last: { skill: "lit-humanizer", latency_ms: 270 } };
 
-test("LitClaude HUD shows no Jev segment while the feature is off", (t) => {
+// The Jev badge sits right after the model label; "" means the model label stands alone.
+const jevBadge = (line) => /\| O4\.8(.*?) │ ctx /u.exec(stripAnsi(line))?.[1] ?? null;
+
+test("LitClaude HUD shows no Jev badge while the feature is off", (t) => {
   const cwd = jevProject(t, hinted);
   for (const overrides of [{}, { TYPESAFE_API_KEY: JEV_FAKE_KEY }, { LITCLAUDE_JEV: "0", TYPESAFE_API_KEY: JEV_FAKE_KEY }]) {
-    assert.doesNotMatch(runJevHud(cwd, jevEnv(overrides)), /Jev/u);
+    const line = runJevHud(cwd, jevEnv(overrides));
+    assert.doesNotMatch(line, /Jev|✦/u);
+    assert.equal(jevBadge(line), "");
   }
 });
 
-test("LitClaude HUD shows the Jev state, the hinted skill and its latency", (t) => {
-  assert.match(runJevHud(jevProject(t), jevEnv(jevOn)), / 1w \[░░\] --% │ Jev ✓$/u);
-  assert.match(runJevHud(jevProject(t, hinted), jevEnv(jevOn)), / │ Jev ✓ lit-humanizer 0\.27s$/u);
-  assert.match(runJevHud(jevProject(t, { ...hinted, last: null }), jevEnv(jevOn)), / │ Jev ✓$/u);
-  assert.match(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1" })), / │ Jev ⚠ key missing$/u);
-  assert.match(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: " " })), / │ Jev ⚠ key missing$/u);
+test("LitClaude HUD shows the Jev badge and the hinted skill next to the model name", (t) => {
+  assert.equal(jevBadge(runJevHud(jevProject(t), jevEnv(jevOn))), " ✦Jev");
+  assert.equal(jevBadge(runJevHud(jevProject(t, hinted), jevEnv(jevOn))), " ✦Jev → lit-humanizer");
+  assert.equal(jevBadge(runJevHud(jevProject(t, { ...hinted, last: null }), jevEnv(jevOn))), " ✦Jev");
+  assert.equal(jevBadge(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1" }))), " ✦Jev ⚠ key");
+  assert.equal(jevBadge(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: " " }))), " ✦Jev ⚠ key");
+});
+
+test("LitClaude HUD no longer ends with a Jev segment or shows the hint latency", (t) => {
+  for (const [record, env] of [[undefined, jevOn], [hinted, jevOn], [hinted, { LITCLAUDE_JEV: "1" }]]) {
+    const line = runJevHud(jevProject(t, record), jevEnv(env));
+    assert.match(line, / 1w \[░░\] --%$/u, line);
+    assert.doesNotMatch(line, /│ Jev|Jev ✓|key missing|0\.27s/u, line);
+  }
 });
 
 test("LitClaude HUD shows only a validated skill ID from the Jev state file", (t) => {
@@ -771,7 +784,7 @@ test("LitClaude HUD shows only a validated skill ID from the Jev state file", (t
     { skill: "lit-humanizer", latency_ms: "270" },
     { skill: "lit-humanizer", latency_ms: -1 },
   ]) {
-    assert.match(runJevHud(jevProject(t, { ...hinted, last }), jevEnv(jevOn)), / │ Jev ✓$/u, JSON.stringify(last));
+    assert.equal(jevBadge(runJevHud(jevProject(t, { ...hinted, last }), jevEnv(jevOn))), " ✦Jev", JSON.stringify(last));
   }
 });
 
@@ -780,18 +793,38 @@ test("LitClaude HUD keeps the compact line within the constrained width with Jev
   assert.equal([...line].length <= 85, true, line);
 });
 
-test("LitClaude HUD paints the Jev marks with the status colours and keeps text readable", (t) => {
+const jevTone = {
+  truecolor: { gold: "\x1b[38;2;255;215;90m", green: "\x1b[38;2;110;235;120m", amber: "\x1b[38;2;255;175;60m" },
+  256: { gold: "\x1b[38;5;222m", green: "\x1b[38;5;120m", amber: "\x1b[38;5;215m" },
+  16: { gold: "\x1b[93m", green: "\x1b[92m", amber: "\x1b[33m" },
+};
+const dimArrow = { truecolor: "\x1b[38;5;245m→\x1b[0m", 256: "\x1b[38;5;245m→\x1b[0m", 16: "\x1b[90m→\x1b[0m" };
+
+test("LitClaude HUD paints the Jev badge gold, the hinted skill green and a missing key amber", (t) => {
+  const onOnly = jevProject(t);
+  const withHint = jevProject(t, hinted);
+  for (const depth of ["truecolor", "256", "16"]) {
+    const tone = jevTone[depth];
+    const env = (overrides = {}) => jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", LITCLAUDE_HUD_COLOR_DEPTH: depth, ...overrides });
+    const on = runJevHud(onOnly, env());
+    assert.ok(on.includes(`O4.8\x1b[0m ${tone.gold}✦\x1b[0m${jevWord(on)} `), `${depth}: ${JSON.stringify(on)}`);
+    const hint = runJevHud(withHint, env());
+    assert.ok(hint.includes(`${tone.gold}✦\x1b[0m${jevWord(hint)} ${dimArrow[depth]} ${tone.green}lit-humanizer\x1b[0m `), `${depth}: ${JSON.stringify(hint)}`);
+    const missing = runJevHud(withHint, env({ TYPESAFE_API_KEY: undefined }));
+    assert.ok(missing.includes(`O4.8\x1b[0m ${tone.amber}✦Jev ⚠ key\x1b[0m `), `${depth}: ${JSON.stringify(missing)}`);
+    assert.equal(jevWord(missing), null, "no shimmer while the key is missing");
+  }
+});
+
+test("LitClaude HUD keeps Jev words on the default foreground for light appearances", (t) => {
   const cwd = jevProject(t, hinted);
-  const color = { LITCLAUDE_HUD_NO_COLOR: "", NO_COLOR: undefined, COLORTERM: "", TERM: "xterm-256color", LITCLAUDE_HUD_COLOR_DEPTH: "256" };
-  const clean = (env) => Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined));
-  const dark = runJevHud(cwd, clean(jevEnv({ ...jevOn, ...color, LITCLAUDE_HUD_APPEARANCE: "dark" })));
-  assert.match(dark, /\x1b\[38;5;71m✓\x1b\[0m/u);
-  assert.match(dark, /\x1b\[1m\x1b\[38;5;\d+mJ\x1b\[38;5;\d+me\x1b\[38;5;\d+mv\x1b\[0m/u);
-  assertColoredTokens(dark, ["lit-humanizer", "0.27s"]);
-  const light = runJevHud(cwd, clean(jevEnv({ ...jevOn, ...color, LITCLAUDE_HUD_APPEARANCE: "light" })));
-  assertDefaultForeground(light, ["Jev", "lit-humanizer", "0.27s"]);
-  const missing = runJevHud(cwd, clean(jevEnv({ LITCLAUDE_JEV: "1", ...color, LITCLAUDE_HUD_APPEARANCE: "dark" })));
-  assert.match(missing, /\x1b\[38;5;178m⚠\x1b\[0m/u);
+  const light = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", LITCLAUDE_HUD_APPEARANCE: "light" }));
+  assert.equal(jevWord(light), null, "light appearances keep Jev on the default foreground");
+  assertDefaultForeground(light, ["Jev", "lit-humanizer"]);
+  assert.match(light, /\x1b\[38;2;255;215;90m✦\x1b\[0mJev /u, "the mark keeps its colour");
+  const missing = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_APPEARANCE: "light", TYPESAFE_API_KEY: undefined }));
+  assertDefaultForeground(missing, ["Jev", " key"]);
+  assert.equal(jevBadge(missing), " ✦Jev ⚠ key");
 });
 
 test("LitClaude HUD follows the prompt hook's Jev state turn by turn", (t) => {
@@ -812,10 +845,10 @@ test("LitClaude HUD follows the prompt hook's Jev state turn by turn", (t) => {
   };
   const answer = (choice) => ({ status: 200, body: JSON.stringify({ answers: { which: { choice, confidence: 0.9 } } }) });
 
-  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / │ Jev ✓ lit-humanizer \d+\.\d{2}s$/u);
-  assert.match(turn("lit plan the billing migration", answer("lit-humanizer")), / │ Jev ✓$/u, "a routed turn clears the last hint");
-  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / │ Jev ✓ lit-humanizer /u);
-  assert.match(turn("what is the capital of France?", answer("none")), / │ Jev ✓$/u, "a turn without a hint shows no skill");
+  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / O4\.8 ✦Jev → lit-humanizer │ ctx /u);
+  assert.match(turn("lit plan the billing migration", answer("lit-humanizer")), / O4\.8 ✦Jev │ ctx /u, "a routed turn clears the last hint");
+  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / O4\.8 ✦Jev → lit-humanizer │ /u);
+  assert.match(turn("what is the capital of France?", answer("none")), / O4\.8 ✦Jev │ ctx /u, "a turn without a hint shows no skill");
 });
 
 // The word Jev shimmers: a per-letter rainbow whose starting hue follows the clock.
@@ -858,12 +891,9 @@ test("LitClaude HUD follows the colour tiers for the Jev rainbow", (t) => {
   for (const overrides of [{ NO_COLOR: "" }, { NO_COLOR: "1" }, { LITCLAUDE_HUD_NO_COLOR: "1" }, { LITCLAUDE_HUD_COLOR_DEPTH: "plain" }]) {
     const line = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", ...overrides }));
     assert.equal(line.includes("\x1b"), false, JSON.stringify(overrides));
-    assert.match(line, / │ Jev ✓ lit-humanizer 0\.27s$/u);
+    assert.equal(jevBadge(line), " ✦Jev → lit-humanizer", JSON.stringify(overrides));
+    const missing = runJevHud(cwd, jevColorEnv({ ...overrides, TYPESAFE_API_KEY: undefined }));
+    assert.equal(missing.includes("\x1b"), false, JSON.stringify(overrides));
+    assert.equal(jevBadge(missing), " ✦Jev ⚠ key", JSON.stringify(overrides));
   }
-  const light = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", LITCLAUDE_HUD_APPEARANCE: "light" }));
-  assert.equal(jevWord(light), null, "light appearances keep Jev on the default foreground");
-  assertDefaultForeground(light, ["Jev", "lit-humanizer"]);
-  const missing = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", TYPESAFE_API_KEY: undefined }));
-  assert.equal(jevWord(missing), null, "no shimmer while the key is missing");
-  assert.match(stripAnsi(missing), / │ Jev ⚠ key missing$/u);
 });

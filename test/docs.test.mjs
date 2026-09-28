@@ -24,9 +24,13 @@ async function text(path) {
   return readFile(new URL(path, root), "utf8");
 }
 
-function assertCoverPresentation(readme, coverAlt) {
-  const motionStill = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.13/docs/assets/cover-motion-still.webp";
-  const motionCover = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.13/docs/assets/cover-motion.webp";
+// The GitHub README loads its cover from the repository; the npm README from jsDelivr at the release.
+const githubAssetBase = "./";
+const npmAssetBase = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.14/";
+
+function assertCoverPresentation(readme, coverAlt, assetBase = githubAssetBase) {
+  const motionStill = `${assetBase}docs/assets/cover-motion-still.webp`;
+  const motionCover = `${assetBase}docs/assets/cover-motion.webp`;
   assert.ok(readme.includes(`<source media="(prefers-reduced-motion: reduce)" srcset="${motionStill}" />`));
   assert.ok(readme.includes(`<img src="${motionCover}" width="100%" alt="${coverAlt}" />`));
   const hero = new RegExp(
@@ -242,7 +246,8 @@ test("README documents local Claude plugin usage and safety boundaries", async (
 
   assertCoverPresentation(readme, "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
   assert.match(readme, /<h1 align="center">LitClaude<\/h1>/u);
-  assert.match(readme, /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.13\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(readme, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(await text("README_npm.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.14\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readme, /README_ko-KR\.md/u);
   assert.match(readme, /lit-burnoff-file/u);
   assert.match(readme, /lit-code\/references/u);
@@ -260,10 +265,29 @@ test("README documents local Claude plugin usage and safety boundaries", async (
   assert.match(readme, /explicit user approval/i);
 });
 
+test("both READMEs state the install-time network pre-warm and the switches the code reads", async () => {
+  const postinstall = await text("scripts/postinstall.mjs");
+  const cli = await text("bin/litclaude-ai.js");
+  const switches = ["LITCLAUDE_MOTION_PREWARM=0", "LITCLAUDE_AUTO_INSTALL=0", "LITCLAUDE_POSTINSTALL_SKIP=1"];
+  for (const name of switches) {
+    const [key, value] = name.split("=");
+    assert.ok(`${postinstall}\n${cli}`.includes(`process.env.${key} === "${value}"`), `code still reads ${name}`);
+  }
+  for (const [path, heading] of [["README.md", "\n## Install\n"], ["README_ko-KR.md", "\n## 설치\n"]]) {
+    const readme = await text(path);
+    const start = readme.indexOf(heading);
+    assert.notEqual(start, -1, `${path} has an install section`);
+    const install = readme.slice(start, readme.indexOf("\n## ", start + 1));
+    for (const phrase of [...switches, "npm ci", "npm install -g", "scripts/postinstall.mjs", "--ignore-scripts", "litclaude-ai motion-runtime install"]) {
+      assert.ok(install.includes(phrase), `${path} install section names ${phrase}`);
+    }
+  }
+});
+
 test("English and Korean route tables retain browser-drive and omit removed skill learning", async () => {
   for (const [label, path, heading, inventory] of [
-    ["English README", "README.md", "## Core routes", /package's 35 skills/u],
-    ["Korean README", "README_ko-KR.md", "## 주요 라우트", /35개 skill/u],
+    ["English README", "README.md", "## What to type", /package's 35 skills/u],
+    ["Korean README", "README_ko-KR.md", "## 무엇을 입력하나요", /35개 skill/u],
   ]) {
     const readme = await text(path);
     const routeTable = readme.match(new RegExp(`${escapeRegExp(heading)}[\\s\\S]*?(?=\\n## |$)`, "u"))?.[0] ?? "";
@@ -381,7 +405,8 @@ test("Korean README mirrors install, usage, and release-boundary guidance", asyn
 
   assertCoverPresentation(readmeKo, "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
   assert.match(readmeKo, /<h1 align="center">LitClaude<\/h1>/u);
-  assert.match(readmeKo, /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.13\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(readmeKo, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(await text("README_npm_ko-KR.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.14\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readmeKo, /README\.md/u);
   assert.match(readmeKo, /lit-burnoff-file/u);
   assert.match(readmeKo, /debugging\/references/u);
@@ -718,7 +743,7 @@ test("documentation describes the v0.2.2 dynamic workflow hardening release", as
   const checklist = await text("RELEASE_CHECKLIST.md");
   const combined = `${readme}\n${readmeKo}\n${hooks}\n${agents}\n${migration}\n${changelog}\n${checklist}`;
 
-  assert.match(combined, /@litfamily\/litclaude@1\.0\.13/u);
+  assert.match(combined, /@litfamily\/litclaude@1\.0\.14/u);
   assert.match(combined, /resilient public-source research/i);
   assert.match(combined, /Dynamic workflow hardening/i);
   assert.match(combined, /\/litclaude:lit-loop/u);
@@ -744,7 +769,7 @@ test("documentation describes the v0.2.0 deep workflow parity release", async ()
   const audit = await text("docs/workflow-compatibility-audit.md");
   const combined = `${readme}\n${readmeKo}\n${hooks}\n${migration}\n${audit}`;
 
-  assert.match(combined, /@litfamily\/litclaude@1\.0\.13/u);
+  assert.match(combined, /@litfamily\/litclaude@1\.0\.14/u);
   assert.match(combined, /5-lane review/i);
   assert.match(combined, /scope\/diff verification/i);
   assert.match(combined, /tests\/evidence execution/i);
@@ -875,15 +900,20 @@ test("README cover matches the accepted Ignition vector master and raster fallba
   assert.equal(cover.subarray(0, 4).toString(), "RIFF");
   assert.equal(cover.subarray(8, 12).toString(), "WEBP");
   assert.ok(cover.length > 0, "cover.webp must contain the accepted raster bytes");
-  for (const name of ["README.md", "README_ko-KR.md"]) {
+  const englishAlt = "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.";
+  const koreanAlt = "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상";
+  for (const [name, alt, base] of [
+    ["README.md", englishAlt, githubAssetBase],
+    ["README_ko-KR.md", koreanAlt, githubAssetBase],
+    ["README_npm.md", englishAlt, npmAssetBase],
+    ["README_npm_ko-KR.md", koreanAlt, npmAssetBase],
+  ]) {
     const readme = await text(name);
-    assertCoverPresentation(
-      readme,
-      name === "README.md"
-        ? "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up."
-        : "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상",
-    );
-    assert.doesNotMatch(readme, /cdn\.jsdelivr\.net\/npm\/[^"\n]+\/cover\.png/u);
+    assertCoverPresentation(readme, alt, base);
+    assert.doesNotMatch(readme, /cdn\.jsdelivr\.net\/npm\/[^"\n]+\/cover\.png|\/cover\.png"/u);
+  }
+  for (const path of ["docs/assets/cover-motion.webp", "docs/assets/cover-motion-still.webp"]) {
+    assert.ok((await lstat(new URL(path, root))).isFile(), `${path} backs the GitHub README cover`);
   }
 });
 
@@ -907,10 +937,10 @@ test("release materials summarize the v0.2.2 dynamic workflow hardening release 
   assert.match(changelog, /start-work-next/u);
   assert.match(changelog, /context-pressure/u);
   assert.match(changelog, /subagent reliability/u);
-  assert.match(releaseChecklist, /@litfamily\/litclaude@1\.0\.13/u);
+  assert.match(releaseChecklist, /@litfamily\/litclaude@1\.0\.14/u);
   assert.match(releaseChecklist, /Dynamic workflow hardening/u);
-  assert.match(releaseChecklist, /package\.json.*1\.0\.13/is);
-  assert.match(releaseChecklist, /plugin\.json.*1\.0\.13/is);
+  assert.match(releaseChecklist, /package\.json.*1\.0\.14/is);
+  assert.match(releaseChecklist, /plugin\.json.*1\.0\.14/is);
   assert.match(releaseChecklist, /review-work/u);
   assert.match(releaseChecklist, new RegExp("litgoal\\s+runtime", "u"));
   assert.match(changelog, /## 0\.1\.18 - 2026-06-02/u);

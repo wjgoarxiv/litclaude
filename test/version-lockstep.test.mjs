@@ -67,14 +67,14 @@ test("the version lockstep guard accepts the committed repository", () => {
 });
 
 test("a drifted literal pin fails and names its file", () => {
-  const target = join(PRODUCT_ROOT, "README.md");
+  const target = join(PRODUCT_ROOT, "README_npm.md");
   const original = readFileSync(target, "utf8");
-  assert.ok(original.includes(VERSION), "fixture precondition: README.md pins the release");
+  assert.ok(original.includes(VERSION), "fixture precondition: README_npm.md pins the release");
   try {
     writeFileSync(target, original.replace(VERSION, "0.0.0"), "utf8");
     const result = runGuard();
     assert.notEqual(result.status, 0, "guard must reject a drifted literal pin");
-    assert.match(result.stdout + "\n" + result.stderr, /README\.md/u);
+    assert.match(result.stdout + "\n" + result.stderr, /README_npm\.md/u);
   } finally {
     writeFileSync(target, original, "utf8");
   }

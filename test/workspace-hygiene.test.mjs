@@ -88,16 +88,21 @@ test("workspace quarantines OMC local state outside package and git surfaces", (
 });
 
 test("npm pack dry-run includes runtime payload and excludes local state", () => {
+  const githubReadmes = ["README.md", "README_ko-KR.md"].map((name) => readFileSync(join(root, name)));
   const result = spawnSync("npm", ["pack", "--dry-run", "--json"], {
     cwd: root,
     encoding: "utf8",
+  });
+  // prepack swaps the npm README in and postpack must put the GitHub README back, byte for byte.
+  ["README.md", "README_ko-KR.md"].forEach((name, index) => {
+    assert.ok(readFileSync(join(root, name)).equals(githubReadmes[index]), `${name} must be restored after npm pack`);
   });
 
   assert.equal(result.status, 0, result.stderr);
   const [pack] = JSON.parse(result.stdout);
   const files = pack.files.map((file) => file.path);
 
-  assert.equal(pack.version, "1.0.13");
+  assert.equal(pack.version, "1.0.14");
 
   for (const required of [
     "bin/litclaude-ai.js",
@@ -174,29 +179,33 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
     assert.ok(files.includes(requiredLanding), `package should include ${requiredLanding}`);
   }
 
-  const readme = readFileSync(join(root, "README.md"), "utf8");
-  const cdnBase = `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@${pack.version}/`;
-  const references = [
-    ...[...readme.matchAll(/\b(?:src|srcset|href)="([^"]+)"/gu)].map((match) => match[1]),
-    ...[...readme.matchAll(/!?\[[^\]]*\]\(([^)\s]+)/gu)].map((match) => match[1]),
-  ];
-  const mediaReferences = [
-    ...[...readme.matchAll(/\b(?:src|srcset)="([^"]+)"/gu)].map((match) => match[1]),
-    ...[...readme.matchAll(/!\[[^\]]*\]\(([^)\s]+)/gu)].map((match) => match[1]),
-  ];
-  for (const reference of mediaReferences) {
-    assert.ok(reference.startsWith(cdnBase), `npm README media must use its version-pinned jsDelivr URL: ${reference}`);
-  }
-  for (const reference of references) {
-    if (reference.startsWith("#")) continue;
-    assert.match(reference, /^https:\/\//u, `npm README reference must be absolute: ${reference}`);
-    if (/\.(?:mp4|gif|png|webp)$/iu.test(new URL(reference).pathname)) {
-      assert.ok(reference.startsWith(cdnBase), `npm README film/poster links must use jsDelivr: ${reference}`);
+  // The npm README sources become README.md and README_ko-KR.md inside the tarball.
+  assert.equal(files.some((file) => /^README_npm/u.test(file)), false, "npm README sources must not ship as extra files");
+  for (const name of ["README_npm.md", "README_npm_ko-KR.md"]) {
+    const readme = readFileSync(join(root, name), "utf8");
+    const cdnBase = `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@${pack.version}/`;
+    const references = [
+      ...[...readme.matchAll(/\b(?:src|srcset|href)="([^"]+)"/gu)].map((match) => match[1]),
+      ...[...readme.matchAll(/!?\[[^\]]*\]\(([^)\s]+)/gu)].map((match) => match[1]),
+    ];
+    const mediaReferences = [
+      ...[...readme.matchAll(/\b(?:src|srcset)="([^"]+)"/gu)].map((match) => match[1]),
+      ...[...readme.matchAll(/!\[[^\]]*\]\(([^)\s]+)/gu)].map((match) => match[1]),
+    ];
+    for (const reference of mediaReferences) {
+      assert.ok(reference.startsWith(cdnBase), `npm README media must use its version-pinned jsDelivr URL: ${reference}`);
     }
-    if (!reference.startsWith("https://cdn.jsdelivr.net/npm/@litfamily/litclaude@")) continue;
-    assert.ok(reference.startsWith(cdnBase), `npm README CDN URL must pin ${pack.version}: ${reference}`);
-    const packagePath = decodeURIComponent(new URL(reference).pathname.slice(`/npm/@litfamily/litclaude@${pack.version}/`.length));
-    assert.ok(files.includes(packagePath), `npm README CDN URL must resolve to a packed file: ${packagePath}`);
+    for (const reference of references) {
+      if (reference.startsWith("#")) continue;
+      assert.match(reference, /^https:\/\//u, `npm README reference must be absolute: ${reference}`);
+      if (/\.(?:mp4|gif|png|webp)$/iu.test(new URL(reference).pathname)) {
+        assert.ok(reference.startsWith(cdnBase), `npm README film/poster links must use jsDelivr: ${reference}`);
+      }
+      if (!reference.startsWith("https://cdn.jsdelivr.net/npm/@litfamily/litclaude@")) continue;
+      assert.ok(reference.startsWith(cdnBase), `npm README CDN URL must pin ${pack.version}: ${reference}`);
+      const packagePath = decodeURIComponent(new URL(reference).pathname.slice(`/npm/@litfamily/litclaude@${pack.version}/`.length));
+      assert.ok(files.includes(packagePath), `npm README CDN URL must resolve to a packed file: ${packagePath}`);
+    }
   }
 
   assert.equal(
@@ -235,7 +244,7 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
 test("pack guard excludes non-README artwork and release sources while allowing native icons", () => {
   const excluded = [
     "cover.png", "generate_cover.py", "RELEASE_CHECKLIST.md", "docs/assets/cover.svg",
-    "docs/assets/readme/unreferenced-artwork.svg",
+    "docs/assets/readme/unreferenced-artwork.svg", "README_npm.md", "README_npm_ko-KR.md",
   ];
   assert.deepEqual(findOffenders(excluded).map(({ filePath }) => filePath), excluded);
   assert.deepEqual(findOffenders(["plugins/litclaude/assets/icon-512.png", "bin/litclaude-ai.js"]), []);

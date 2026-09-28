@@ -42,8 +42,9 @@ const APPROVED_PAYLOAD_PATHS = new Set([
   // them would break vendor integrity verification, so they ship by design.
   'plugins/litclaude/vendor/scientific-visualization/tests/test_figure_export.py',
   'plugins/litclaude/vendor/scientific-visualization/tests/test_style_presets.py',
-  // npm README resources: every referenced file is served from jsDelivr at the
-  // published version because the source repository is private.
+  // README artwork that ships in the package. The npm README (README_npm.md, swapped in
+  // as README.md at pack time) serves its media from these paths through jsDelivr at the
+  // published version; the GitHub README loads the same files from the repository.
   'docs/assets/cover.webp',
   'docs/assets/cover-motion.webp',
   'docs/assets/cover-motion-still.webp',
@@ -74,6 +75,7 @@ const APPROVED_PAYLOAD_PATHS = new Set([
 // real 332-file payload for false positives before being added.
 const FORBIDDEN_PATTERNS = [
   /^(?:cover\.png|generate_cover\.py|RELEASE_CHECKLIST\.md)$/,
+  /^README_npm/,          // npm README sources ship only as README.md / README_ko-KR.md
   /^docs\/assets\//,      // only the exact npm README resources above may ship
   /\/tests?\//,           // was /test/ — also catches /tests/
   /^tests?\//,

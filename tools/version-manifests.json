@@ -11,14 +11,26 @@
     {
       "path": "README.md",
       "kind": "pinned",
-      "occurrences": 124,
-      "why": "The npm-rendered English landing page pins its badge, package-owned jsDelivr media and document URLs, reproducible install examples, the A/B result images, and the skill-table snapshots."
+      "occurrences": 4,
+      "why": "The English GitHub page loads its images by relative path; it pins only the version badge's alt text and the reproducible install example (registry lookup, conditional, exact install)."
     },
     {
       "path": "README_ko-KR.md",
       "kind": "pinned",
-      "occurrences": 86,
-      "why": "The Korean landing page pins the local candidate badge description, reproducible install examples, jsDelivr landing-image URLs, the A/B result images, and the skill-table snapshots served from the published package version."
+      "occurrences": 4,
+      "why": "The Korean GitHub page loads its images by relative path; it pins only the version badge's alt text and the reproducible install example (registry lookup, conditional, exact install)."
+    },
+    {
+      "path": "README_npm.md",
+      "kind": "pinned",
+      "occurrences": 11,
+      "why": "The English npm card, swapped in as README.md at pack time, pins its cover, still frame, badges, Korean-page link and document links to the published package version on jsDelivr."
+    },
+    {
+      "path": "README_npm_ko-KR.md",
+      "kind": "pinned",
+      "occurrences": 11,
+      "why": "The Korean npm card, swapped in as README_ko-KR.md at pack time, pins its cover, still frame, badges, English-page link and document links to the published package version on jsDelivr."
     },
     {
       "path": "docs/assets/readme/badge-version.svg",
@@ -53,8 +65,8 @@
     {
       "path": "test/docs.test.mjs",
       "kind": "pinned",
-      "occurrences": 9,
-      "why": "Documentation contract tests pin release references and the npm README's versioned jsDelivr still-frame URL."
+      "occurrences": 8,
+      "why": "Documentation contract tests pin release references and the npm README's versioned jsDelivr asset base and badge URLs."
     },
     {
       "path": "test/litclaude-ai-bin.test.mjs",

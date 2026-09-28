@@ -13,6 +13,8 @@ import {
   JEV_ENDPOINT,
   buildJevCatalog,
   claimJevBanner,
+  clearJevTurn,
+  jevHudState,
   jevStatusLine,
   redactPromptForJev,
   suggestJevSkill,
@@ -254,6 +256,8 @@ describe("Jev skill hint adapter", () => {
     for (const [input, expected] of cases) assert.equal(redactPromptForJev(input), expected, input);
     assert.equal(redactPromptForJev("x".repeat(2100)).length <= 2000, true);
     assert.equal(Array.from(redactPromptForJev("가".repeat(2100))).length, 2000);
+    assert.equal(redactPromptForJev("I have a basic understanding of the codebase"), "I have a basic understanding of the codebase");
+    assert.equal(redactPromptForJev("auth Basic dXNlcjpwYXNzd29yZA== ok"), "auth [secret] ok");
     assert.equal(redactPromptForJev("fix the login page layout"), "fix the login page layout");
     assert.equal(redactPromptForJev(`${"a ".repeat(999)}/Users/zed/x`).includes("zed"), false);
   });
@@ -355,6 +359,32 @@ describe("Jev skill hint adapter", () => {
     symlinkSync(outside, join(jevDir, `session-s2.json.${process.pid}.tmp`));
     await run(t, { fetchImpl, stateRoot, sessionId: "s2" });
     assert.equal(readFileSync(outside, "utf8"), "", "the session write did not write through the link");
+  });
+
+  it("a symlinked state folder or parent is refused silently: no read, no write, no request", async (t) => {
+    const env = { LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: FAKE_KEY, LITCLAUDE_JEV_TRACE: "1" };
+    for (const linked of [".litclaude/jev", ".litclaude"]) {
+      const stateRoot = tempRoot(t);
+      const outside = tempRoot(t);
+      // Planted state behind the link: a used-up cap and a hinted skill that must never be read.
+      const planted = { calls: 999, noted: false, banner: false, last: { skill: "lit-humanizer", latency_ms: 5 } };
+      const outsideJev = linked === ".litclaude" ? join(outside, "jev") : outside;
+      mkdirSync(outsideJev, { recursive: true });
+      writeFileSync(join(outsideJev, "session-s1.json"), JSON.stringify(planted));
+      mkdirSync(join(stateRoot, ".litclaude"), { recursive: true });
+      if (linked === ".litclaude") rmSync(join(stateRoot, ".litclaude"), { recursive: true });
+      symlinkSync(linked === ".litclaude" ? outside : outsideJev, join(stateRoot, linked));
+      const before = readdirSync(outsideJev).sort();
+
+      const { calls, fetchImpl } = fakeFetch(reply(200, answer("lit-humanizer")));
+      assert.deepEqual(await run(t, { env, fetchImpl, stateRoot }), { hint: null, note: null }, linked);
+      assert.equal(calls.length, 0, `no request through a symlinked ${linked}`);
+      assert.equal(claimJevBanner({ env, stateRoot, sessionId: "s1" }), false, `no banner through ${linked}`);
+      assert.deepEqual(jevHudState({ env, stateRoot, sessionId: "s1" }), { keyMissing: false, last: null }, `no HUD read through ${linked}`);
+      clearJevTurn(stateRoot, "s1");
+      assert.deepEqual(readdirSync(outsideJev).sort(), before, `nothing written through ${linked}`);
+      assert.deepEqual(JSON.parse(readFileSync(join(outsideJev, "session-s1.json"), "utf8")), planted);
+    }
   });
 
   it("the catalog is the enrolled model-invocable skills", () => {

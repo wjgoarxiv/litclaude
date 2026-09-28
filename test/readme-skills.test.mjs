@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
 import test from "node:test";
 import { canonicalSkillIds } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { APPROVED_PAYLOAD_PATHS, README_SKILL_IMAGE_PATHS } from "../tools/check-pack-payload.mjs";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
-const version = JSON.parse(read("package.json")).version;
-const skillBase = `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@${version}/docs/assets/skills/`;
+// The skill gallery lives on the GitHub README, which loads each snapshot from the repository.
+const skillBase = "./docs/assets/skills/";
 const MAX_SNAPSHOT_BYTES = 81_920;
 
 // Table order. A grouped row stands for several hook-run skills that have no route of their own.
@@ -26,18 +26,18 @@ const LANG = {
   en: {
     path: "README.md",
     heading: "## Skills at a glance",
-    after: "## Core routes",
-    before: "## Troubleshooting",
-    nav: '<a href="#core-routes">Core routes</a> · <a href="#skills-at-a-glance">Skills</a> · ',
+    after: "## What to type",
+    before: "## A/B results",
+    nav: '<a href="#what-to-type">What to type</a> · <a href="#skills-at-a-glance">Skills</a> · ',
     header: "<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>",
     groupRoute: "runs on its own",
   },
   ko: {
     path: "README_ko-KR.md",
     heading: "## 스킬 한눈에 보기",
-    after: "## 주요 라우트",
-    before: "## 문제 해결",
-    nav: '<a href="#주요-라우트">주요 경로</a> · <a href="#스킬-한눈에-보기">스킬</a> · ',
+    after: "## 무엇을 입력하나요",
+    before: "## A/B 결과",
+    nav: '<a href="#무엇을-입력하나요">입력할 내용</a> · <a href="#스킬-한눈에-보기">스킬</a> · ',
     header: "<tr><th>이렇게 됩니다</th><th>스킬</th><th>얻는 것</th></tr>",
     groupRoute: "자동 실행",
   },
@@ -64,6 +64,7 @@ function assertSkillsSection(content, lang) {
   rows.forEach(([, src, alt, name, route, result], index) => {
     const id = ROWS[index];
     assert.equal(src, `${skillBase}${id}.webp`, `row ${index + 1} shows ${id}`);
+    assert.ok(lstatSync(new URL(src, root)).isFile(), `${src} must exist on disk`);
     const skills = GROUPS[id] ?? [id];
     assert.equal(name, skills.map((skill) => `<code>${skill}</code>`).join(" · "), `${id} name cell`);
     if (GROUPS[id]) assert.equal(route, spec.groupRoute, `${id} runs without a route`);
@@ -97,7 +98,7 @@ test("skill snapshots ship as exact package paths under their byte cap", () => {
   }
   assert.deepEqual(README_SKILL_IMAGE_PATHS, ROWS.map((id) => `docs/assets/skills/${id}.webp`));
   for (const path of README_SKILL_IMAGE_PATHS) assert.ok(APPROVED_PAYLOAD_PATHS.has(path), `${path} is an exact pack exception`);
-  assert.ok(JSON.parse(read("package.json")).files.includes("docs/assets/skills"), "skill snapshots ship for the npm README");
+  assert.ok(JSON.parse(read("package.json")).files.includes("docs/assets/skills"), "skill snapshots keep shipping in the package");
 });
 
 test("skill table check rejects a dropped row, a swapped picture, a lost group member or a moved section", () => {
@@ -108,7 +109,7 @@ test("skill table check rejects a dropped row, a swapped picture, a lost group m
     content.replace(pptxRow, ""),
     content.replace(`${skillBase}lit-docx.webp`, `${skillBase}lit-pptx.webp`),
     content.replace("<code>rules</code> · <code>lsp</code> · <code>comment-checker</code>", "<code>rules</code> · <code>lsp</code>"),
-    content.replace(section, "").replace("\n## Links\n", `\n${section}\n## Links\n`),
+    content.replace(section, "").replace("\n## Learn more\n", `\n${section}\n## Learn more\n`),
     content.replace('<a href="#skills-at-a-glance">Skills</a> · ', ""),
   ]) {
     assert.notEqual(mutation, content);

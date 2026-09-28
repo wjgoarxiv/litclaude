@@ -237,9 +237,22 @@ export async function installFonts({ env = process.env, log = () => {} } = {}) {
   return done;
 }
 
-function npm(args, options) {
+// npm exports its own settings to lifecycle scripts as npm_config_*, so an install started by the
+// postinstall of `npm install -g` would hand `global=true` to this child, and npm refuses `npm ci`
+// in global mode (ECIGLOBAL). Drop the inherited settings that change where or what `npm ci`
+// installs; registry, proxy and cache settings pass through.
+const NPM_INSTALL_SHAPE_SETTINGS = new Set([
+  "global", "location", "prefix", "dry_run", "package_lock_only", "include", "production",
+  "workspace", "workspaces", "include_workspace_root", "install_strategy", "global_style", "legacy_bundling",
+]);
+const npmChildEnv = (env) => Object.fromEntries(Object.entries(env).filter(([key]) => {
+  const setting = /^npm_config_(.+)$/iu.exec(key)?.[1].toLowerCase().replaceAll("-", "_");
+  return !NPM_INSTALL_SHAPE_SETTINGS.has(setting);
+}));
+
+function npm(args, { env, ...options }) {
   const bin = process.platform === "win32" ? "npm.cmd" : "npm";
-  return spawnSync(bin, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options });
+  return spawnSync(bin, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options, env: npmChildEnv(env) });
 }
 
 export async function installNode({ env = process.env, log = () => {} } = {}) {
@@ -264,12 +277,12 @@ export async function installNode({ env = process.env, log = () => {} } = {}) {
       if (createHash("sha512").update(bytes).digest("hex") !== integrity) throw new Error(`integrity mismatch for ${name}`);
       const tarball = path.join(cache, path.basename(new URL(pkg.resolved).pathname));
       writeAtomic(tarball, bytes);
-      const add = npm(["cache", "add", tarball, "--cache", cache], { env: { ...env } });
+      const add = npm(["cache", "add", tarball, "--cache", cache], { env });
       if (add.status !== 0) throw new Error(`npm cache add failed: ${add.stderr.trim().slice(-400)}`);
     }
     args.push("--offline", "--cache", cache);
   }
-  const result = npm(args, { cwd: dir, env: { ...env } });
+  const result = npm(args, { cwd: dir, env });
   if (cache) rmSync(cache, { recursive: true, force: true });
   if (result.error || result.status !== 0) {
     rmSync(dir, { recursive: true, force: true });

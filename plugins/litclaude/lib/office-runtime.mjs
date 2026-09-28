@@ -42,6 +42,19 @@ const HOST_TOOLS = [
 
 const run = (command, args, options = {}) => spawnSync(command, args, { encoding: "utf8", ...options });
 
+// npm exports its own settings as npm_config_* to every script it runs, so a caller started under
+// `npm install -g` would hand `global=true` to this child, and npm refuses `npm ci` in global mode
+// (ECIGLOBAL). Drop the inherited settings that change where or what `npm ci` installs; registry,
+// proxy and cache settings pass through.
+const NPM_INSTALL_SHAPE_SETTINGS = new Set([
+  "global", "location", "prefix", "dry_run", "package_lock_only", "include", "production",
+  "workspace", "workspaces", "include_workspace_root", "install_strategy", "global_style", "legacy_bundling",
+]);
+const npmChildEnv = (env) => Object.fromEntries(Object.entries(env).filter(([key]) => {
+  const setting = /^npm_config_(.+)$/iu.exec(key)?.[1].toLowerCase().replaceAll("-", "_");
+  return !NPM_INSTALL_SHAPE_SETTINGS.has(setting);
+}));
+
 export function pythonCommand() {
   return process.env.LITCLAUDE_OFFICE_PYTHON || "python3";
 }
@@ -136,6 +149,7 @@ export function ensureNode() {
     const result = run(npm, ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], {
       cwd: status.dir,
       stdio: ["ignore", "pipe", "pipe"],
+      env: npmChildEnv(process.env),
     });
     if (result.error || result.status !== 0) {
       throw new Error(`OFFICE_RUNTIME_NODE_INSTALL_FAILED: npm ci exited ${result.status}: ${(result.stderr || result.error?.message || "").trim().slice(-600)}`);

@@ -244,19 +244,22 @@ would be without the feature. The first such failure in a session shows one `sys
 Per-session counters live in `.litclaude/jev/session-<id>.json` under the project state
 root, with the current turn's hinted skill ID and latency in milliseconds; the prompt hook
 clears that pair at the start of every turn while the flag is on. The optional HUD status line
-(`plugins/litclaude/bin/litclaude-hud.js`) reads it and ends with `Jev ✓` while the hint is
-on, `Jev ✓ <skill> <latency>` on a hinted turn, or `Jev ⚠ key missing` when the flag is on
-without a key; it shows nothing while the flag is off and never shows the key or its length.
-While on, the HUD paints `Jev` as a rainbow whose starting hue follows the clock, so each refresh
-shifts it slightly (truecolor, 256- and 16-colour tiers; plain under `NO_COLOR`, the HUD's
-no-colour switch, or a light or unknown appearance). The session file also records that the
+(`plugins/litclaude/bin/litclaude-hud.js`) reads it and puts a badge right after the model
+label: `✦Jev` while the hint is on, `✦Jev → <skill>` on a hinted turn, or `✦Jev ⚠ key` when
+the flag is on without a key; it shows nothing while the flag is off, never shows the latency,
+and never shows the key or its length. While on, the HUD paints `✦` gold, the hinted skill green
+and the missing-key badge amber, and paints `Jev` as a rainbow whose starting hue follows the
+clock, so each refresh shifts it slightly (truecolor, 256- and 16-colour tiers; plain under
+`NO_COLOR` or the HUD's no-colour switch; a light or unknown appearance keeps the words on the
+default foreground and colours only the marks). The session file also records that the
 once-per-session `✦ Jev skill hint ON ✦` `systemMessage` was shown; the prompt hook writes that
 mark before it emits the line on the first turn with the flag and key set, puts the line ahead
 of any other visible message that turn, and shows no line when the mark cannot be written. The opt-in trace, `.litclaude/jev/trace.jsonl`, records the timestamp, the SHA-256 of the
 redacted `state` (never of the raw prompt), chosen ID, confidence, latency, HTTP status, and fallback reason; it holds no prompt text,
 key, or response body. Session and trace files are opened with `O_NOFOLLOW` (an `lstat` check
 where the platform lacks it), so a symlink planted at either path is refused rather than written
-through. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
+through. The `.litclaude` and `.litclaude/jev` folders must be real folders too: when either one
+is a symlink, the hint reads and writes nothing there, sends no request, and shows no hint or note. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
 agent's own tools can read it too; use a key dedicated to this feature, with a low spend limit.
 `litclaude doctor` prints `Jev skill hint: off`, `Jev skill hint: on`,
 or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The offline regression tests,

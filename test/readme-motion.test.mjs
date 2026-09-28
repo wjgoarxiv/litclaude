@@ -29,9 +29,11 @@ const assets = {
   "Lucide-LICENSE.txt": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
 };
 
-function assertPresentation(content, installAnchor, docsAnchor, npmReadme = false) {
-  const assetRef = (path) => npmReadme ? `${npmCdn}/${path}` : `./${path}`;
-  const motionStillSrc = staticCoverSrc;
+// The GitHub README: every asset loads from the repository by a relative path that exists.
+function assertPresentation(content, installAnchor, docsAnchor) {
+  const assetRef = (path) => `./${path}`;
+  const coverSrc = assetRef("docs/assets/cover-motion.webp");
+  const motionStillSrc = assetRef("docs/assets/cover-motion-still.webp");
   const coverAlt = coverAlts[installAnchor];
   const hero = /^<p align="center"><picture>[\s\S]*?<\/picture><\/p>\n\n<h1 align="center">LitClaude<\/h1>\n([\s\S]*?)\n<p align="center"><img src="[^"]+" width="480" alt="[^"]+" \/><\/p>/u.exec(content);
   assert.ok(hero, "title must precede the centered ASCII mark");
@@ -58,25 +60,56 @@ function assertPresentation(content, installAnchor, docsAnchor, npmReadme = fals
   assert.ok(content.includes(`href="#${docsAnchor}"><img src="${assetRef("docs/assets/readme/lucide-book-open.svg")}"`));
   assert.ok(content.includes(`href="${assetRef("docs/assets/readme/ignition-film.mp4")}"><img src="${assetRef("docs/assets/readme/lucide-play.svg")}"`));
   assert.ok(content.includes(`href="${assetRef("LICENSE")}"><img src="${assetRef("docs/assets/readme/lucide-shield-check.svg")}"`));
-  assert.ok(content.includes(`src="${npmCdn}/docs/assets/readme/badge-version.svg" alt="${version}"`));
+  assert.ok(content.includes(`src="${assetRef("docs/assets/readme/badge-version.svg")}" alt="${version}"`));
   assert.ok(content.includes(`](${assetRef("docs/assets/readme/ignition-poster.png")})](${assetRef("docs/assets/readme/ignition-film.mp4")})`));
   for (const name of [...Object.keys(assets), "badge-version.svg"]) {
-    const relative = `./docs/assets/readme/${name}`;
-    const cdn = `${npmCdn}/docs/assets/readme/${name}`;
-    assert.ok(content.includes(relative) || content.includes(cdn), `${name} must have a reader-facing use`);
+    assert.ok(content.includes(`./docs/assets/readme/${name}`), `${name} must have a reader-facing use`);
   }
+  for (const [, target] of content.matchAll(/\b(?:src|srcset|href)="(\.\/[^"#]+)"|\]\((\.\/[^)\s#]+)/gu)) {
+    if (target) assert.ok(lstatSync(new URL(target, root)).isFile(), `GitHub README target must exist on disk: ${target}`);
+  }
+  assert.doesNotMatch(content, /cdn\.jsdelivr\.net/u, "the GitHub README must not wait for an npm publish to show its images");
   assert.doesNotMatch(content, /https?:\/\/img\.shields\.io|<!-- README visual draft|(?:src|href)="assets\/readme\//u);
 }
 
+// The npm README: a short card whose cover and badge load from jsDelivr at the package version.
+function assertNpmCard(content, coverAlt, guide) {
+  assert.ok(
+    content.startsWith('<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="' + staticCoverSrc
+      + '" /><img src="' + coverSrc + '" width="100%" alt="' + coverAlt + '" /></picture></p>\n\n<h1 align="center">LitClaude</h1>'),
+    "the pinned motion cover must be the only picture above the title",
+  );
+  assert.match(content, /^<p align="center"><strong>Keep the work lit\.<\/strong><\/p>$/mu, "same tagline as the GitHub README");
+  assert.match(content, /^<p align="center">[^<\n]*Claude Code[^<\n]*<\/p>$/mu, "the card names its host");
+  assert.ok(content.includes(`src="${npmCdn}/docs/assets/readme/badge-version.svg" alt="${version}"`));
+  assert.ok(content.includes(`href="${guide}"`), "the card links the full GitHub guide");
+  assert.doesNotMatch(content, /(?:src|srcset|href)="\.{0,2}\/|\]\(\.{0,2}\//u, "no relative targets on the npm page");
+}
+
 test("bilingual README motion links preserve centered and copyable native ASCII", () => {
-  assertPresentation(read("README.md"), "install", "deeper-docs", true);
+  assertPresentation(read("README.md"), "install", "deeper-docs");
   assertPresentation(read("README_ko-KR.md"), "설치", "추가-문서");
+});
+
+test("bilingual npm READMEs open with the pinned cover, the same name and tagline, and the GitHub guide", () => {
+  assertNpmCard(read("README_npm.md"), coverAlts.install, "https://github.com/wjgoarxiv/litclaude#readme");
+  assertNpmCard(read("README_npm_ko-KR.md"), coverAlts.설치, "https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md");
+  const card = read("README_npm.md");
+  for (const mutation of [
+    card.replace(coverSrc, "./docs/assets/cover-motion.webp"),
+    card.replaceAll(`${npmCdn}/docs/assets/readme/badge-version.svg`, `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@0.0.0/docs/assets/readme/badge-version.svg`),
+    card.replace("https://github.com/wjgoarxiv/litclaude#readme", "#install"),
+    card.replace("Keep the work lit.", "Keep it lit."),
+  ]) {
+    assert.notEqual(mutation, card);
+    assert.throws(() => assertNpmCard(mutation, coverAlts.install, "https://github.com/wjgoarxiv/litclaude#readme"));
+  }
 });
 
 test("README presentation rejects missing, shifted, or disconnected visual resources", () => {
   const content = read("README.md");
-  assertPresentation(content, "install", "deeper-docs", true);
-  const mark = `<p align="center"><img src="${npmCdn}/docs/assets/readme/ascii-readme.svg" width="480" alt="LIT ASCII B mark" /></p>`;
+  assertPresentation(content, "install", "deeper-docs");
+  const mark = `<p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LIT ASCII B mark" /></p>`;
   const hostValue = content.match(/^<p align="center">[^<\n]*Claude Code[^<\n]*<\/p>$/mu)?.[0];
   assert.ok(hostValue);
   for (const mutation of [
@@ -92,9 +125,11 @@ test("README presentation rejects missing, shifted, or disconnected visual resou
     content.replace("## Install", "## Removed installation section"),
     content.replace("<details>", "<section>"),
     content.replace(ascii, ascii.replace("▄▄▄▄", "▄▄▄")),
-    content.replaceAll(`${npmCdn}/docs/assets/readme/ignition-film.mp4`, "missing.mp4"),
-    content.replaceAll(`${npmCdn}/docs/assets/readme/Lucide-LICENSE.txt`, "missing-license.txt"),
-  ]) assert.throws(() => assertPresentation(mutation, "install", "deeper-docs", true));
+    content.replaceAll("./docs/assets/readme/ignition-film.mp4", "missing.mp4"),
+    content.replaceAll("./docs/assets/readme/Lucide-LICENSE.txt", "missing-license.txt"),
+    content.replace('src="./docs/assets/readme/lucide-play.svg"', 'src="./docs/assets/readme/lucide-missing.svg"'),
+    content.replace("./docs/assets/cover-motion.webp", `${npmCdn}/docs/assets/cover-motion.webp`),
+  ]) assert.throws(() => assertPresentation(mutation, "install", "deeper-docs"));
 });
 
 test("README assets retain the approved outlined mark, motion bytes, and used icon licenses", () => {

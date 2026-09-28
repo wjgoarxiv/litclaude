@@ -277,6 +277,10 @@ describe('ci-hardening: pack:payload-guard', () => {
     try {
       cpSync(join(ROOT, 'package.json'), join(dir, 'package.json'));
       cpSync(join(ROOT, 'plugins'), join(dir, 'plugins'), { recursive: true });
+      // package.json's prepack/postpack swap the npm README in and out, so the fixture carries them.
+      for (const relativePath of ['tools/readme-for-npm.mjs', 'README.md', 'README_ko-KR.md', 'README_npm.md', 'README_npm_ko-KR.md']) {
+        cpSync(join(ROOT, relativePath), join(dir, relativePath));
+      }
       for (const relativePath of planted) {
         const path = join(dir, relativePath);
         mkdirSync(dirname(path), { recursive: true });

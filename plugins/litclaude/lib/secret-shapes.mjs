@@ -24,7 +24,11 @@ export const SECRET_SHAPE_PATTERNS = Object.freeze([
   /(?<![A-Za-z0-9_])SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}(?![A-Za-z0-9_])/u,
   /(?<![A-Za-z0-9_])(?:glpat|gldt|glrt)-[A-Za-z0-9_-]{8,}(?![A-Za-z0-9_])/u,
   /(?<![A-Za-z0-9_])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?![A-Za-z0-9_])/u,
-  /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{12,}(?=$|[^A-Za-z0-9._~+/=-])/iu,
+  /\bbearer\s+[A-Za-z0-9._~+/=-]{12,}(?=$|[^A-Za-z0-9._~+/=-])/iu,
+  // A Basic credential is standard base64 of at least 8 characters in whole 4-character groups,
+  // carrying a digit, `+`, `/`, padding, or mixed case with an inner capital. The scheme matches
+  // in any case; the credential is case-sensitive, so "basic understanding" is not a credential.
+  /\b[Bb][Aa][Ss][Ii][Cc]\s+(?=[A-Za-z0-9+/=]{8})(?=[A-Za-z0-9+/=]*[0-9+/=]|(?=[A-Za-z0-9+/=]*[a-z])[A-Za-z0-9+/=]+[A-Z])(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![A-Za-z0-9._~+/=-])/u,
   /(?<![A-Za-z0-9-])(?:proxy-)?authorization\s*:\s*[!#$%&'*+\-.^_`|~0-9A-Za-z]+\s+(?:[!#$%&'*+\-.^_`|~0-9A-Za-z]+\s*=\s*\S+|\S{12,})/iu,
   /\b(?:password|passwd|secret|token|api[_-]?key|access[_-]?token)\s*[:=]\s*[^\s,;]+/iu,
   /\b[A-Za-z][A-Za-z0-9]*(?:[_-][A-Za-z0-9]+)*[_-](?:token|secret|key)(?:[_-][A-Za-z0-9]+)*\s*[:=]\s*[^\s,;]+/iu,

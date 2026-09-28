@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { canonicalSkillIds, canonicalSkillResourceManifest } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { nodeStatus, pythonStatus } from "../plugins/litclaude/lib/office-runtime.mjs";
+import { fakeNpm, npmGlobalInstallEnv, npmGlobalModeKeys } from "./helpers/fake-npm.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginRoot = join(root, "plugins", "litclaude");
@@ -208,6 +209,27 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
     assert.deepEqual(report.hostTools.map((tool) => tool.id), ["soffice", "pandoc", "xelatex"]);
     assert.match(readFileSync(join(root, "scripts", "doctor.mjs"), "utf8"), /office-runtime\.mjs", "status"/u);
     assert.match(readFileSync(join(root, "bin", "litclaude-ai.js"), "utf8"), /OFFICE_RUNTIME: /u);
+  });
+});
+
+describe("office runtime first-use install", () => {
+  it("drops npm's global-install settings from the npm ci child", { skip: process.platform === "win32" ? "POSIX fake npm" : false }, (t) => {
+    const npm = fakeNpm();
+    const cache = mkdtempSync(join(tmpdir(), "lit-office-npm-env-"));
+    t.after(() => {
+      rmSync(npm.dir, { recursive: true, force: true });
+      rmSync(cache, { recursive: true, force: true });
+    });
+    const result = spawnSync(process.execPath, [join(libRoot, "office-runtime.mjs"), "ensure", "--node"], {
+      encoding: "utf8",
+      env: { ...process.env, ...npmGlobalInstallEnv, PATH: npm.path, LITCLAUDE_OFFICE_RUNTIME: cache },
+    });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /OFFICE_RUNTIME_NODE_INSTALL_FAILED: npm ci exited 1/u);
+    const [call] = npm.calls();
+    assert.equal(call.args, "ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error");
+    assert.deepEqual(npmGlobalModeKeys(call.env), [], "no global mode reaches npm ci");
+    assert.ok(call.env.includes("npm_config_registry=http://127.0.0.1:9/"), "registry settings pass through");
   });
 });
 

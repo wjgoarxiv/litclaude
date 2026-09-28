@@ -232,7 +232,29 @@ const safeSessionId = (sessionId) => {
   return cleaned || "unknown";
 };
 
-const jevStateDirectory = (stateRoot) => join(stateRoot, ".litclaude", "jev");
+// The `.litclaude` folder and its `jev` folder must both be real folders inside the project. A
+// symlink at either level would carry every read and write outside it, so the whole state path is
+// refused and the caller falls back to its silent no-hint path. `create` makes missing levels.
+const jevStateDirectory = (stateRoot, { create = false } = {}) => {
+  let directory = stateRoot;
+  for (const part of [".litclaude", "jev"]) {
+    directory = join(directory, part);
+    let stat;
+    try {
+      stat = lstatSync(directory);
+    } catch (error) {
+      if (error?.code !== "ENOENT" || !create) throw error;
+      try {
+        mkdirSync(directory, { mode: 0o700 });
+      } catch (mkdirError) {
+        if (mkdirError?.code !== "EEXIST") throw mkdirError;
+      }
+      stat = lstatSync(directory);
+    }
+    if (!stat.isDirectory()) throw new Error("state folder is not a real folder");
+  }
+  return directory;
+};
 
 // Opening with O_NOFOLLOW refuses a symlink planted at a state or trace path, so a write never
 // lands outside the state folder. Where the platform lacks the flag, lstat refuses it instead.
@@ -274,8 +296,7 @@ const readSession = (stateRoot, sessionId) => {
 
 const writeSession = (stateRoot, sessionId, session) => {
   try {
-    const directory = jevStateDirectory(stateRoot);
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const directory = jevStateDirectory(stateRoot, { create: true });
     const target = join(directory, `session-${safeSessionId(sessionId)}.json`);
     const temporary = `${target}.${process.pid}.tmp`;
     refuseSymlink(temporary);
@@ -293,8 +314,7 @@ const writeSession = (stateRoot, sessionId, session) => {
 
 const writeTrace = (stateRoot, record) => {
   try {
-    const directory = jevStateDirectory(stateRoot);
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const directory = jevStateDirectory(stateRoot, { create: true });
     const target = join(directory, "trace.jsonl");
     refuseSymlink(target);
     const fd = openSync(target, constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | NO_FOLLOW, 0o600);
@@ -340,8 +360,6 @@ export const jevHudState = ({ env = process.env, stateRoot, sessionId } = {}) =>
   if (!hasKey(env)) return { keyMissing: true, last: null };
   return { keyMissing: false, last: stateRoot ? readSession(stateRoot, sessionId).last : null };
 };
-
-export const formatJevLatency = (latencyMs) => `${(latencyMs / 1000).toFixed(2)}s`;
 
 /** Host-side eligibility that needs no router: a leading command character or too little text. */
 export const isJevEligibleText = (text) => {

@@ -43,8 +43,8 @@ ledgers, saved knowledge, and other feature-specific records. SessionStart
 context-pressure detection can inspect a supplied transcript path up to 256 KiB
 for a fixed set of pressure markers; it returns only a bounded advisory. No skill
 review reads transcript excerpts or sends them to a model. The optional Jev skill hint keeps
-per-session request counts, the current turn's hinted skill ID and latency (shown by the
-HUD), and whether the once-per-session "on" line was shown in `.litclaude/jev/` and, only with `LITCLAUDE_JEV_TRACE=1`, a trace
+per-session request counts, the current turn's hinted skill ID (shown by the HUD) and
+latency, and whether the once-per-session "on" line was shown in `.litclaude/jev/` and, only with `LITCLAUDE_JEV_TRACE=1`, a trace
 of hashes of the redacted prompt, timings, and status codes without prompt text. Existing
 `pending-review.json` and `skill-loop-state.json` files are inert after the
 automatic review feature's removal and may be deleted. No other state is affected.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.14 - 2026-09-29
+
+- A global `npm install -g` now actually pre-warms the motion runtime. The runtime's `npm ci` inherited the global-install settings that npm gives the postinstall step, and npm refused it; those settings are now dropped for that call and for the office runtime's first-use install.
+- HUD: the Jev skill hint now sits right after the model name as `✦Jev` (`O5.5 ✦Jev → lit-humanizer` on a hinted turn, `O5.5 ✦Jev ⚠ key` without a key) instead of at the end of the line, and no longer shows the hint latency. Nothing changes while the hint is off.
+- Jev skill hint: when the project's `.litclaude` or `.litclaude/jev` folder is a symlink, the hint no longer reads or writes through it; it stays silent and sends no request.
+- Credential redaction no longer treats ordinary prose such as "basic understanding" as a `Basic` credential. A real `Basic` authorization value (base64) is still redacted.
+- README (English and Korean): the install section now says that `litclaude install`, and the postinstall step of a global `npm install -g`, download the motion runtime's packages and fonts, and how to skip that.
+- README (English and Korean): rewritten to read like a person explaining the tool, with the reason before the mechanism. The GitHub page keeps the full guide, the skills gallery and the A/B results, and now loads its images from the repository, so they show before a release is published. The npm page is a shorter install-first card (`README_npm.md`, `README_npm_ko-KR.md`) that links to the GitHub guide; `prepack` swaps it in and `postpack` puts the GitHub page back.
+
 ## 1.0.13 - 2026-09-28
 
 - Add an optional Jev skill hint, off by default. Turn it on by setting `LITCLAUDE_JEV=1` and your own `TYPESAFE_API_KEY` in the environment that starts Claude Code. For a prompt that no route or skill name already covers, the prompt hook asks Jev, TypeSafe's hosted model, which LitClaude skill fits and adds one advisory line naming it; Claude still decides whether to load that skill.

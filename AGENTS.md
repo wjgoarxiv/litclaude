@@ -55,10 +55,14 @@ copies the assets, and every test still passes.
 `package.json` has a `files` allowlist that does not include `AGENTS.md`, so this file is
 tracked in git but never published. Verified with `npm pack --dry-run`.
 
-The npm-rendered `README.md` uses version-pinned jsDelivr URLs because the source repository is
-private. Every file referenced by its images, film/poster links, and local document links must
-ship in npm: see the explicit README resource entries in `package.json`, the exact-path exceptions
-in `tools/check-pack-payload.mjs`, and the packed-reference assertions in
+There are two READMEs. `README.md` / `README_ko-KR.md` are the GitHub pages and load every image
+by a relative path. The npm page is `README_npm.md` / `README_npm_ko-KR.md`, a shorter card with
+jsDelivr URLs pinned to the package version; `tools/readme-for-npm.mjs` swaps it in at `prepack`
+and back at `postpack`, and a publish must wrap `npm publish` in an explicit `apply` / `restore`
+(see `RELEASE_CHECKLIST.md`). The names avoid a `README.` prefix on purpose: npm always packs
+root files matching `README.*`, and a `files` negation cannot exclude them. Every file the npm
+card references must ship: see the explicit README resource entries in `package.json`, the
+exact-path exceptions in `tools/check-pack-payload.mjs`, and the packed-reference assertions in
 `test/workspace-hygiene.test.mjs`. Keep unrelated repository artwork under `docs/assets/` and
 `RELEASE_CHECKLIST.md` out of tarballs. Obsolete `cover.png` and `generate_cover.py` sources are
 archived outside the product root. The pack guard checks this boundary.

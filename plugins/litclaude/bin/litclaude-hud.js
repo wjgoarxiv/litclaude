@@ -11,10 +11,11 @@ import {
   litBrandPrefix,
   normalizeHudAppearance,
   rainbowText,
+  toneText,
 } from "../lib/hud-accent-palette.mjs";
 import { latestUsageTokens } from "../lib/cache-measurement.mjs";
 import { readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
-import { formatJevLatency, jevHudState } from "../lib/jev-skill-hint.mjs";
+import { jevHudState } from "../lib/jev-skill-hint.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 
 const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -246,8 +247,14 @@ const formatUsageSegment = (label, value, reset) => {
   return `${labelText} ${accent("[")}${makeBlockBar(pct, 2)}${accent("]")} ${pctText}${resetText ? ` ${text(resetText)}` : ""}`;
 };
 
-// Optional Jev skill hint: nothing while LITCLAUDE_JEV is off, and never the key or its length.
-const jevSegment = (status) => {
+// Optional Jev skill hint badge, attached to the model label: nothing while LITCLAUDE_JEV is
+// off, and never the key or its length.
+const JEV_GOLD = [255, 215, 90];
+const JEV_GREEN = [110, 235, 120];
+const JEV_AMBER = [255, 175, 60];
+const tone = (value, rgb, ansi16) => toneText(value, rgb, { depth: colorDepth, ansi16 });
+
+const jevBadge = (status) => {
   let state;
   try {
     const cwd = typeof status.cwd === "string" && status.cwd ? status.cwd : null;
@@ -260,14 +267,19 @@ const jevSegment = (status) => {
     return "";
   }
   if (!state) return "";
-  if (state.keyMissing) return `${text("Jev")} ${colors.yellow}⚠${colors.reset} ${text("key missing")}`;
+  // Light and unknown appearances keep the words on the default foreground; only the marks
+  // keep their colour, as the rest of the HUD does.
+  if (state.keyMissing) {
+    return coloredText ? tone("✦Jev ⚠ key", JEV_AMBER, 33) : `${tone("✦", JEV_AMBER, 33)}Jev ${tone("⚠", JEV_AMBER, 33)} key`;
+  }
   // While on, the word shimmers: each refresh starts the rainbow at a hue taken from the clock.
-  // Light and unknown appearances keep it on the default foreground like the rest of the text.
   const now = Number(process.env.LITCLAUDE_HUD_TEST_NOW);
   const phase = Math.floor((Number.isFinite(now) && now > 0 ? now : Date.now()) / 100) % 360;
-  const word = coloredText ? rainbowText("Jev", { depth: colorDepth, phase }) : text("Jev");
-  const mark = `${word} ${colors.green}✓${colors.reset}`;
-  return state.last ? `${mark} ${text(state.last.skill)} ${text(formatJevLatency(state.last.latency_ms))}` : mark;
+  const word = coloredText ? rainbowText("Jev", { depth: colorDepth, phase }) : "Jev";
+  const badge = `${tone("✦", JEV_GOLD, 93)}${word}`;
+  if (!state.last) return badge;
+  const skill = coloredText ? tone(state.last.skill, JEV_GREEN, 92) : state.last.skill;
+  return `${badge} ${colors.dim}→${colors.reset} ${skill}`;
 };
 
 const main = async () => {
@@ -294,8 +306,8 @@ const main = async () => {
   const ignition = renderIgnitionSegment(readIgnitionState(status.session_id), {
     depth: plainOutput ? "plain" : colorDepth,
   });
-  const jev = jevSegment(status);
-  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)} ${accent(sep)} ${contextText}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}${jev ? ` ${accent(sep)} ${jev}` : ""}`;
+  const jev = jevBadge(status);
+  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);

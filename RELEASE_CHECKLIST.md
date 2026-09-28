@@ -1,6 +1,6 @@
 # LitClaude Release Checklist
 
-Status: `@litfamily/litclaude@1.0.13` is the current release candidate — README Studio
+Status: `@litfamily/litclaude@1.0.14` is the current release candidate — README Studio
 with a bounded multi-round design interview, GPT-6 model defaults, and the bilingual
 family README layout; it also carries the exact canonical frontend corpus plus
 Claude-native `autoresearch`, `autoconference`, and `wikify`
@@ -47,9 +47,9 @@ side-effect-free, the launcher starts only a separate Claude Code
 print/background worker, and the release preserves the Korean polishing
 command, strict multi-agent review pipeline, fidelity guardrails, package
 hygiene checks, native route gates, and safe start-work handoff behavior.
-`package.json` is aligned to `1.0.13`,
-`plugins/litclaude/.claude-plugin/plugin.json` is aligned to `1.0.13`, and the
-plugin-local MCP server reports `1.0.13`.
+`package.json` is aligned to `1.0.14`,
+`plugins/litclaude/.claude-plugin/plugin.json` is aligned to `1.0.14`, and the
+plugin-local MCP server reports `1.0.14`.
 
 This release removes automatic skill review because it never completed a
 review in practice. Existing `.litclaude/pending-review.json` and
@@ -295,9 +295,9 @@ checkout and from an isolated install of the packed tarball:
 Before requesting publication approval, confirm these artifacts from the current
 checkout:
 
-- `package.json` version is `1.0.13`.
-- `plugins/litclaude/.claude-plugin/plugin.json` version is `1.0.13`.
-- `plugins/litclaude/bin/litclaude-mcp.js` reports server version `1.0.13`.
+- `package.json` version is `1.0.14`.
+- `plugins/litclaude/.claude-plugin/plugin.json` version is `1.0.14`.
+- `plugins/litclaude/bin/litclaude-mcp.js` reports server version `1.0.14`.
 - Prompt-hook tests cover bundled `SKILL.md` body injection for bare `lit-crucible`, `litresearch`, `lit research`, `lit-init`, and explicit leading `$start-work`; diagnostic/copy mentions stay inert while leading natural-language `lit start work` stays BLOCKED.
 - `lit search` and `lit query` route to `/litclaude:litresearch` without activating on slash mentions, code spans, or non-lit prompts.
 - Litresearch web lanes require public API/feed preference, validator-first checks, route traces, prompt-injection quarantine, and honest auth/paywall/private-data stop reasons.
@@ -373,6 +373,36 @@ version installable through `npm`, `npx`, and `bunx`.
 6. Ask for explicit user approval to publish.
 7. Only after approval, perform the selected publication path in a separate,
    auditable release step.
+
+### Two READMEs: GitHub page and npm page
+
+`README.md` and `README_ko-KR.md` are the GitHub pages: the full guide, with every image
+loaded by a relative path. The npm package page is a shorter card kept in `README_npm.md`
+and `README_npm_ko-KR.md`, whose images are jsDelivr URLs pinned to the package version.
+`tools/readme-for-npm.mjs` swaps the card in: `apply` backs up the GitHub pages under the
+git-ignored `tmp/readme-for-npm/` and copies the npm files over them, `restore` puts the
+originals back byte for byte, and `check` (`npm run check:npm-readme`) asserts the card's
+invariants: pins at the package version, no relative targets, the GitHub full-guide link,
+the same name and tagline, and size limits. The `README_npm*` sources never ship as extra
+files.
+
+`prepack` runs `apply` and `postpack` runs `restore`, so a plain `npm pack` produces a
+tarball whose `README.md` is the npm card and leaves the working tree unchanged. That is
+not enough for a publish: `npm publish` re-reads `README.md` from the working tree after
+postpack, and a flow run with `--ignore-scripts` skips both hooks. The publish step must
+therefore wrap the command explicitly (apply and restore nest, so the hooks inside
+`npm publish` do not undo the outer apply):
+
+```bash
+npm run check:npm-readme
+node tools/readme-for-npm.mjs apply
+npm publish --access public
+node tools/readme-for-npm.mjs restore
+git status --short   # must be empty
+```
+
+If a run is interrupted while applied, `node tools/readme-for-npm.mjs restore` recovers
+the GitHub pages.
 
 For the scoped `@litfamily/litclaude` candidate, `publishConfig.access` is `public`.
 Only after explicit release approval, the scoped package command is `npm publish --access public`.

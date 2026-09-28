@@ -129,6 +129,21 @@ const hueToRgb = (hue) => {
   return [r, g, b].map((channel) => Math.round(255 * (1 - s + s * channel)));
 };
 
+// Nearest 6x6x6 cube entry of the 256-colour palette.
+const rgbTo256 = ([r, g, b]) => {
+  const cube = (value) => Math.round((value / 255) * 5);
+  return 16 + 36 * cube(r) + 6 * cube(g) + cube(b);
+};
+
+// One fixed colour for `text`: the exact RGB on truecolor, its cube entry on 256 colours, the
+// given ANSI code on 16 colours, and the text untouched on plain.
+export const toneText = (text, rgb, { depth = "plain", ansi16 = 37 } = {}) => {
+  if (depth === "truecolor") return `\x1b[38;2;${rgb.join(";")}m${text}\x1b[0m`;
+  if (depth === "256") return `\x1b[38;5;${rgbTo256(rgb)}m${text}\x1b[0m`;
+  if (depth === "16") return `\x1b[${ansi16}m${text}\x1b[0m`;
+  return text;
+};
+
 export const rainbowText = (text, { depth = "plain", phase = 0 } = {}) => {
   if (!["truecolor", "256", "16"].includes(depth)) return text;
   const chars = [...text];
@@ -138,10 +153,7 @@ export const rainbowText = (text, { depth = "plain", phase = 0 } = {}) => {
     const hue = (((phase + index * step) % 360) + 360) % 360;
     if (depth === "16") return `\x1b[${RAINBOW_ANSI16[Math.floor(((hue + 30) % 360) / 60)]}m${char}`;
     const [r, g, b] = hueToRgb(hue);
-    if (depth === "256") {
-      const cube = (value) => Math.round((value / 255) * 5);
-      return `\x1b[38;5;${16 + 36 * cube(r) + 6 * cube(g) + cube(b)}m${char}`;
-    }
+    if (depth === "256") return `\x1b[38;5;${rgbTo256([r, g, b])}m${char}`;
     return `\x1b[38;2;${r};${g};${b}m${char}`;
   });
   return `\x1b[1m${painted.join("")}\x1b[0m`;

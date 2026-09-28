@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const version = JSON.parse(read("package.json")).version;
-const abBase = `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@${version}/docs/ab/`;
+// The A/B pictures live on the GitHub README, which loads them from the repository.
+const abBase = "./docs/ab/";
 
 // The maintainer's final verdicts and the blind judge's verdict from the same round.
 // W = LitClaude won, T = tie, L = baseline won. `eye: false` marks pairs the maintainer
@@ -124,8 +125,9 @@ test("every A/B image ships under docs/ab and both READMEs show all of them", ()
     assert.deepEqual([...used].sort(), files, `${lang} README must show every A/B image and nothing else under docs/ab`);
     for (const file of files) {
       assert.ok(body.includes(`src="${abBase}${file}"`), `${lang} README must embed ${file} in the A/B section`);
+      assert.ok(lstatSync(new URL(`${abBase}${file}`, root)).isFile(), `${abBase}${file} must exist on disk`);
     }
   }
   const packageJson = JSON.parse(read("package.json"));
-  assert.ok(packageJson.files.includes("docs/ab"), "A/B images must ship for the npm README");
+  assert.ok(packageJson.files.includes("docs/ab"), "A/B images keep shipping in the package");
 });

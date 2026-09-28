@@ -7,6 +7,7 @@ import { basename, join, resolve } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { fakeNpm, npmGlobalInstallEnv, npmGlobalModeKeys } from "./helpers/fake-npm.mjs";
 import { shortTypeTreatment, writeTreatment } from "./helpers/motion-treatment.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -216,6 +217,19 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     const receipt = r.stdout.split("\n").filter((l) => l.startsWith("MOTION_RUNTIME:"));
     assert.equal(receipt.length, 1);
     assert.match(receipt[0], /^MOTION_RUNTIME: not pre-warmed \(.+\); run: litclaude-ai motion-runtime install$/u);
+  });
+
+  it("the engine's npm ci drops npm's global-install settings inherited from a global postinstall", { skip: process.platform === "win32" ? "POSIX fake npm" : false }, async (t) => {
+    const npm = fakeNpm();
+    t.after(() => rmSync(npm.dir, { recursive: true, force: true }));
+    const env = { ...process.env, ...npmGlobalInstallEnv, PATH: npm.path, LITCLAUDE_MOTION_RUNTIME: temp("lit-motion-npm-env-") };
+    delete env.LITCLAUDE_MOTION_MIRROR;
+    await assert.rejects(runtime.installNode({ env }), /npm ci exited 1/u);
+    const [call] = npm.calls();
+    assert.equal(call.args, "ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error");
+    assert.deepEqual(npmGlobalModeKeys(call.env), [], "no global mode reaches npm ci");
+    assert.ok(call.env.includes("npm_config_registry=http://127.0.0.1:9/"), "registry settings pass through");
+    assert.equal(env.npm_config_global, "true", "the caller's env is left alone");
   });
 
   it("the doctor prints all five probes, naming the fix when the cache is cold", () => {

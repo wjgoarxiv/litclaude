@@ -49,6 +49,29 @@ describe("shared secret shapes", () => {
     assert.equal(containsSecret("Token ordinary-value"), false);
   });
 
+  it("recognizes a Basic credential in any scheme case without flagging prose that says basic", () => {
+    for (const sample of [
+      "Basic dXNlcjpwYXNzd29yZA==",
+      "basic YWRtaW46YWRtaW4=",
+      "BASIC QWxhZGRpbjpvcGVuIHNlc2FtZQ==",
+      "curl -H 'Authorization: Basic dXNlcjpwYXNz' https://example.invalid",
+      "send Basic c2VydmljZTpzM2NyM3Q= with the request",
+    ]) {
+      assert.equal(containsSecret(sample), true, `must flag: ${sample}`);
+    }
+    for (const sample of [
+      "I have a basic understanding of the codebase",
+      "Basic understanding of the codebase is enough",
+      "basic requirements for the release",
+      "Basic authentication is configured in the proxy",
+      "a basic configuration-management example",
+      "basic PostgreSQL setup",
+      "BASIC INSTRUCTIONS",
+    ]) {
+      assert.equal(containsSecret(sample), false, `must not flag: ${sample}`);
+    }
+  });
+
   it("leaves ordinary prose and short identifiers alone", () => {
     for (const sample of [
       "the user asked for a shorter summary",
