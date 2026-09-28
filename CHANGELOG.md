@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.13 - 2026-09-28
+
+- Add an optional Jev skill hint, off by default. Turn it on by setting `LITCLAUDE_JEV=1` and your own `TYPESAFE_API_KEY` in the environment that starts Claude Code. For a prompt that no route or skill name already covers, the prompt hook asks Jev, TypeSafe's hosted model, which LitClaude skill fits and adds one advisory line naming it; Claude still decides whether to load that skill.
+- While it is on, each eligible prompt is sent to TypeSafe (typesafe.ai), cut to 2,000 characters, with home paths, e-mail addresses and token-shaped strings redacted, along with the LitClaude skill names and descriptions. Other text in the prompt, such as a hostname or a customer name, is sent as written. Slash commands, routed prompts and prompts that name a skill are never sent, and no files, tool output or history are sent. Requests are billed to your key, so use a key kept for this feature with a low spend limit.
+- A request waits at most 1.5 seconds and the hint stops after 200 requests per session. On any failure the turn continues as before, with one short note the first time in a session.
+- The first prompt of each session with the hint on shows one `✦ Jev skill hint ON ✦` line. The HUD status line then ends with `Jev ✓`, adds the skill and latency on a hinted turn, and shows `Jev ⚠ key missing` without a key. `litclaude doctor` reports `Jev skill hint: off`, `on`, or `flag on but TYPESAFE_API_KEY missing`. Unset `LITCLAUDE_JEV` to turn the hint off.
+
 ## 1.0.12 - 2026-09-28
 
 - lit-pptx: the confidential stamp falls back to the bundled font.
