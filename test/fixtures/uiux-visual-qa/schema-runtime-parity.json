@@ -1,0 +1,363 @@
+{
+  "group_shapes": [
+    {
+      "property": "intent",
+      "required": [
+        "audiences",
+        "tasks",
+        "qualities",
+        "constraints",
+        "non_goals"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_INTENT"
+    },
+    {
+      "property": "direction",
+      "required": [
+        "name",
+        "principles",
+        "token_strategy",
+        "voice"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_DIRECTION"
+    },
+    {
+      "property": "accessibility",
+      "required": [
+        "target",
+        "keyboard",
+        "screen_reader",
+        "reduced_motion",
+        "forced_colors",
+        "zoom_percent"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_ACCESSIBILITY"
+    },
+    {
+      "property": "localization",
+      "required": [
+        "locales",
+        "text_expansion_percent",
+        "cjk_line_break_review",
+        "font_fallback_review",
+        "ime_review",
+        "rtl_review"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_LOCALIZATION"
+    },
+    {
+      "property": "performance",
+      "required": [
+        "lcp_ms",
+        "cls",
+        "inp_ms",
+        "initial_js_kb",
+        "initial_css_kb"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_PERFORMANCE"
+    },
+    {
+      "property": "evidence_policy",
+      "required": [
+        "independent_review_required",
+        "required_channels",
+        "cleanup_required"
+      ],
+      "runtime_code": "DESIGN_CONTRACT_EVIDENCE_POLICY"
+    }
+  ],
+  "inventory_shapes": [
+    [
+      "routes",
+      "route",
+      [
+        "id",
+        "path",
+        "primary",
+        "auth_required"
+      ]
+    ],
+    [
+      "regions",
+      "region",
+      [
+        "id",
+        "route_id",
+        "purpose"
+      ]
+    ],
+    [
+      "components",
+      "component",
+      [
+        "id",
+        "region_id",
+        "role"
+      ]
+    ],
+    [
+      "interactions",
+      "interaction",
+      [
+        "id",
+        "route_id",
+        "critical",
+        "input_modes"
+      ]
+    ],
+    [
+      "states",
+      "state",
+      [
+        "id",
+        "route_id",
+        "kind"
+      ]
+    ],
+    [
+      "viewports",
+      "viewport",
+      [
+        "id",
+        "category",
+        "width_px",
+        "height_px"
+      ]
+    ],
+    [
+      "references",
+      "reference",
+      [
+        "id",
+        "kind",
+        "sha256",
+        "provenance"
+      ]
+    ],
+    [
+      "authenticated_surfaces",
+      "authenticatedSurface",
+      [
+        "route_id",
+        "safe_test_account"
+      ]
+    ]
+  ],
+  "evidence_viewport": {
+    "width": {
+      "minimum": 1,
+      "maximum": 7680
+    },
+    "height": {
+      "minimum": 1,
+      "maximum": 4320
+    },
+    "scale_factor": {
+      "exclusiveMinimum": 0,
+      "maximum": 8
+    }
+  },
+  "conditional_branches": {
+    "evidence_inventory_exception": {
+      "trigger_property": "status",
+      "trigger_value": "accepted_exception",
+      "required_property": "exception",
+      "definition": "exception",
+      "required_fields": [
+        "id",
+        "owner",
+        "reason",
+        "expiry"
+      ],
+      "additional_properties": false
+    }
+  },
+  "collection_constraints": {
+    "design": {
+      "properties.direction.properties.principles": [
+        3,
+        7,
+        true
+      ],
+      "properties.inventory.properties.routes": [
+        1,
+        128,
+        false
+      ],
+      "properties.inventory.properties.regions": [
+        1,
+        256,
+        false
+      ],
+      "properties.inventory.properties.components": [
+        1,
+        512,
+        false
+      ],
+      "properties.inventory.properties.interactions": [
+        1,
+        256,
+        false
+      ],
+      "properties.inventory.properties.states": [
+        null,
+        512,
+        false
+      ],
+      "properties.inventory.properties.viewports": [
+        null,
+        32,
+        false
+      ],
+      "properties.inventory.properties.references": [
+        null,
+        64,
+        false
+      ],
+      "properties.inventory.properties.authenticated_surfaces": [
+        null,
+        128,
+        false
+      ],
+      "properties.localization.properties.locales": [
+        1,
+        32,
+        true
+      ],
+      "properties.evidence_policy.properties.required_channels": [
+        1,
+        7,
+        true
+      ],
+      "$defs.requiredPhrases": [
+        1,
+        32,
+        true
+      ],
+      "$defs.optionalPhrases": [
+        null,
+        32,
+        true
+      ],
+      "$defs.interaction.properties.input_modes": [
+        1,
+        5,
+        true
+      ],
+      "$defs.scopeRecords": [
+        null,
+        64,
+        false
+      ]
+    },
+    "evidence": {
+      "properties.capture_environment.properties.font_set": [
+        1,
+        64,
+        false
+      ],
+      "properties.inventory": [
+        1,
+        512,
+        false
+      ],
+      "properties.inventory.items.properties.evidence_ids": [
+        1,
+        512,
+        false
+      ],
+      "properties.artifacts": [
+        2,
+        512,
+        false
+      ],
+      "properties.mechanical_results": [
+        1,
+        512,
+        false
+      ],
+      "properties.mechanical_results.items.properties.artifact_ids": [
+        1,
+        512,
+        false
+      ],
+      "properties.review_receipts": [
+        0,
+        2,
+        false
+      ],
+      "properties.review_receipt_hashes": [
+        0,
+        2,
+        false
+      ],
+      "properties.accessibility_results": [
+        1,
+        256,
+        false
+      ],
+      "properties.accessibility_results.items.properties.evidence_ids": [
+        1,
+        128,
+        false
+      ],
+      "properties.open_findings": [
+        null,
+        256,
+        false
+      ],
+      "properties.exception_references": [
+        null,
+        128,
+        true
+      ],
+      "properties.cleanup.properties.resources": [
+        null,
+        128,
+        false
+      ],
+      "allOf.0.then.properties.review_receipts": [
+        null,
+        0,
+        false
+      ],
+      "allOf.0.then.properties.review_receipt_hashes": [
+        null,
+        0,
+        false
+      ],
+      "allOf.0.else.properties.review_receipts": [
+        2,
+        null,
+        false
+      ],
+      "allOf.0.else.properties.review_receipt_hashes": [
+        2,
+        null,
+        false
+      ],
+      "$defs.finding.properties.evidence_ids": [
+        1,
+        128,
+        false
+      ]
+    },
+    "review": {
+      "properties.reviewed_inventory": [
+        1,
+        512,
+        true
+      ],
+      "properties.findings": [
+        null,
+        256,
+        false
+      ],
+      "properties.findings.items.properties.evidence_ids": [
+        1,
+        128,
+        true
+      ]
+    }
+  }
+}

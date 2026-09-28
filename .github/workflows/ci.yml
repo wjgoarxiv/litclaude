@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      LITCLAUDE_AUTO_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Validate plugin
+        run: npm run validate:plugin
+
+      - name: Doctor
+        run: npm run doctor
+
+      # The only detector of an UNPINNED skill resource. `doctor` verifies the files the
+      # manifest already lists, so it structurally cannot see a resource that was added
+      # without regenerating — the file simply is not in the map it checks. Without this
+      # step that drift reaches a release silently.
+      - name: Skill-resource manifest drift check
+        run: npm run check:skill-resources
+
+      - name: Canonical runtime-closure drift check
+        run: npm run check:runtime-closures
+
+      - name: Version lockstep check
+        run: npm run check:version
+
+      - name: Assert CI workflow integrity
+        run: npm run assert:ci
+
+      - name: Legacy-token scan
+        run: npm run scan:legacy-tokens
+
+      - name: Pack dry-run
+        run: npm run pack:dry-run
+
+      - name: Pack payload guard
+        run: npm run pack:payload-guard
+
+      - name: QA negative gate matrix
+        run: npm run qa:matrix
+        env:
+          HOME: ${{ runner.temp }}/litclaude-qa-matrix-home
+
+      - name: QA installed tamper and repair
+        run: npm run qa:tamper
+        env:
+          HOME: ${{ runner.temp }}/litclaude-qa-tamper-home
+
+      # Excluded qa:tmux: requires the Claude Code host binary and a tmux server.
+      # Excluded qa:portable: its full plugin-details assertion requires the Claude Code host.
+      # Excluded qa:matrix-negative-control: it deliberately exits non-zero by design.
+      # Excluded qa:behaviors: it invokes Claude Code for installed plugin validation/details.
+      # Excluded qa:real-surface: it composes the host-dependent qa:behaviors layer.
+
+      - name: No release-command placeholder guard
+        run: |
+          set -euo pipefail
+          terms=(
+            "npm publi""sh"
+            "NPM_""TOKEN"
+            "NODE_AUTH_""TOKEN"
+            "git pu""sh"
+            "git ta""g"
+            "--access publi""c"
+          )
+          found=0
+          for term in "${terms[@]}"; do
+            if grep -R -n -F --exclude-dir=.git -- "$term" .github package.json bin lib plugins scripts test tools; then
+              found=1
+            fi
+          done
+          if [ "$found" -ne 0 ]; then
+            echo "release-command placeholder guard failed" >&2
+            exit 1
+          fi
+          echo "release-command placeholder guard passed"

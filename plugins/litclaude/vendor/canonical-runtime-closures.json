@@ -1,0 +1,443 @@
+{
+  "schema_version": "litclaude.canonical-runtime-closures/v1",
+  "families": [
+    {
+      "id": "autoresearch",
+      "source_commit": "58a65afc174cd8c2fa162bb0d1953b0a88e5d419",
+      "root": "vendor/autoresearch",
+      "file_count": 28,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 1066,
+          "mode": 420,
+          "sha256": "8b63387196e2fa43a40bfc4c7b8a367ed72ea9b421954a9f4e5050e43b91026e"
+        },
+        {
+          "path": "SKILL.md",
+          "size": 5496,
+          "mode": 420,
+          "sha256": "dfa21f9ddcf3c34964b7f45ea07dbf20ff9fbc6ccec368e4aea720ade124891c"
+        },
+        {
+          "path": "assets/report_template.md",
+          "size": 1495,
+          "mode": 420,
+          "sha256": "8c2498b3eb29b78ac5ccb4164f896c0cc05c02c6150a96f311d38db9ed55aef9"
+        },
+        {
+          "path": "assets/research_template.md",
+          "size": 1374,
+          "mode": 420,
+          "sha256": "726d175cd2db92dfe58a738117d9c6cc88211e519d3be8fb7cb05b66ba34c050"
+        },
+        {
+          "path": "assets/results_template.tsv",
+          "size": 124,
+          "mode": 420,
+          "sha256": "bcbdc938723f2cd8a4160000621d003a9b04c8e0aa6f67be8a64a572af7f58cc"
+        },
+        {
+          "path": "references/results-logging.md",
+          "size": 2520,
+          "mode": 420,
+          "sha256": "a7ba5f6bc47be1bb02877637be3de2d55c099c0fb31ef647b8478555d9e51653"
+        },
+        {
+          "path": "scripts/autoresearch-loop.sh",
+          "size": 11219,
+          "mode": 420,
+          "sha256": "4ea9ad9a040181511b97b84f80e2fd2bfc658800241fa3356837a3a3f678df94"
+        },
+        {
+          "path": "scripts/check_progress.sh",
+          "size": 5637,
+          "mode": 420,
+          "sha256": "a39aa9e3188f52db42f9b9184c507f0e2b9ea10d2e3e3dc191a092feab4c891e"
+        },
+        {
+          "path": "scripts/init_research.py",
+          "size": 7042,
+          "mode": 420,
+          "sha256": "5b30dfb8540f7fa532e887b598c8f793cc265698212f85096706a54adb485e74"
+        },
+        {
+          "path": "scripts/style_presets.py",
+          "size": 3320,
+          "mode": 420,
+          "sha256": "bdcb8fadf078a7bfc57acfec2c87239cff06e89ab0441a10313e6816e3e1a0a7"
+        },
+        {
+          "path": "skills/autoresearch/SKILL.md",
+          "size": 12493,
+          "mode": 420,
+          "sha256": "0dbeec4542df129896195cf15b88937ecd7cb02e89f90c46a52e51ef632c2709"
+        },
+        {
+          "path": "skills/autoresearch/evaluator-contract.md",
+          "size": 4297,
+          "mode": 420,
+          "sha256": "c4ca780fae3ad27a1f103bb4381661c42457a8b7ee383fda31269fea38a76f7a"
+        },
+        {
+          "path": "skills/autoresearch/stuck-detection.md",
+          "size": 3878,
+          "mode": 420,
+          "sha256": "75993251545bbd0b53faf95a7fb1a799e0bab187b61c4d35adc3d5852ab7be13"
+        },
+        {
+          "path": "skills/debug/SKILL.md",
+          "size": 8220,
+          "mode": 420,
+          "sha256": "278b70a378107da17db27eaffbc22388f2b727dba405b80b29dd679520b9bf12"
+        },
+        {
+          "path": "skills/debug/investigation-techniques.md",
+          "size": 10778,
+          "mode": 420,
+          "sha256": "331a8d267688448a59dd55d87fb85134b99b27be3350c0dfc89d4faf05fc64c8"
+        },
+        {
+          "path": "skills/fix/SKILL.md",
+          "size": 6235,
+          "mode": 420,
+          "sha256": "89b8cb023f95af1167c03a77b9bdf94a758605998877d1d341c8fc0d0c6f5b14"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "size": 3541,
+          "mode": 420,
+          "sha256": "c1eecd6bb18c5a8e7990d7872f7913789c769a749361c8de7c16589889b2c6d9"
+        },
+        {
+          "path": "skills/plan/SKILL.md",
+          "size": 9679,
+          "mode": 420,
+          "sha256": "af5d9d926b628d6566b10153ca9e5093814ac12fc38ab98bedb493cb425b4255"
+        },
+        {
+          "path": "skills/predict/SKILL.md",
+          "size": 9349,
+          "mode": 420,
+          "sha256": "f8fc62fec8a0f6db5ae948f807faedb165737c9255b2432c0dbeb89124742445"
+        },
+        {
+          "path": "skills/predict/persona-templates.md",
+          "size": 8966,
+          "mode": 420,
+          "sha256": "24cae443121a551087ae7981f5929329055180e07abacc2b902bbe67394b2b46"
+        },
+        {
+          "path": "skills/reason/SKILL.md",
+          "size": 6426,
+          "mode": 420,
+          "sha256": "f91e7e85060f564eaa6b5c61326533a1107caa0296702ef5cf902dfe9ac1807f"
+        },
+        {
+          "path": "skills/scenario/SKILL.md",
+          "size": 5578,
+          "mode": 420,
+          "sha256": "cb10e8106b190801d3990952264eacfe9bc65ed72db14534e0087f6142552265"
+        },
+        {
+          "path": "skills/scenario/dimensions.md",
+          "size": 9303,
+          "mode": 420,
+          "sha256": "20504587deb6d9473fefa2418c6dc66b691009bb93572ee3c6689be57535060b"
+        },
+        {
+          "path": "skills/security/SKILL.md",
+          "size": 10242,
+          "mode": 420,
+          "sha256": "f994dc26f17768d127a35055ea03d95ebe105eb1bec8c841390ca5d2169ee0f4"
+        },
+        {
+          "path": "skills/security/owasp-checklist.md",
+          "size": 11533,
+          "mode": 420,
+          "sha256": "71f2f912950f112a5ac9e8a01cac37502119fb88f70a5e501ee1fefeaae02af4"
+        },
+        {
+          "path": "skills/security/stride-model.md",
+          "size": 8880,
+          "mode": 420,
+          "sha256": "ec3f88d16c9596130c73dafe8db070e1eb7fe8e18bd1d4e6ed12d418a7d6ee8c"
+        },
+        {
+          "path": "skills/ship/SKILL.md",
+          "size": 7915,
+          "mode": 420,
+          "sha256": "053a6beaa249174cca903c74a25793f0e8a2f493c8c6632484251812e7e3d77f"
+        },
+        {
+          "path": "skills/ship/type-checklists.md",
+          "size": 7428,
+          "mode": 420,
+          "sha256": "72c8c83754996073fa89a36d32f6b12c656e7c43d34b580060efb4f1d3cdd19e"
+        }
+      ]
+    },
+    {
+      "id": "autoconference",
+      "source_commit": "58a65afc174cd8c2fa162bb0d1953b0a88e5d419",
+      "root": "vendor/autoconference",
+      "file_count": 29,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 1066,
+          "mode": 420,
+          "sha256": "8b63387196e2fa43a40bfc4c7b8a367ed72ea9b421954a9f4e5050e43b91026e"
+        },
+        {
+          "path": "SKILL.md",
+          "size": 6821,
+          "mode": 420,
+          "sha256": "94457485c421a09cb8f58c4ec08dc19ffd0d37beee0c5ac6459c014cca88bc71"
+        },
+        {
+          "path": "assets/conference_template.md",
+          "size": 2917,
+          "mode": 420,
+          "sha256": "c1b0a1bbfb52080384e9bf6d725a91d2165a2105a4f055820660a607c913c7e7"
+        },
+        {
+          "path": "assets/report_template.md",
+          "size": 1311,
+          "mode": 420,
+          "sha256": "3c17151697b09f0a476abf21e2509c766624beb5c258eeb88f40dc7dcdd9f0b3"
+        },
+        {
+          "path": "assets/synthesis_template.md",
+          "size": 1012,
+          "mode": 420,
+          "sha256": "a4afa040fe8d1a182c7a1d024bbfa119f4575bff1d4786e58358ff15177931e9"
+        },
+        {
+          "path": "references/agent-prompts.md",
+          "size": 19109,
+          "mode": 420,
+          "sha256": "06f48a0ffdf7bd5f49d5f7c6c2aaa61f7f9ad9f7c169f14806523d36f115f76b"
+        },
+        {
+          "path": "references/conference-protocol.md",
+          "size": 24830,
+          "mode": 420,
+          "sha256": "69d3271773ef3c4b3051e0c815f4bc0631290e57367e1414b8b13f8356248cf7"
+        },
+        {
+          "path": "references/core-principles.md",
+          "size": 7676,
+          "mode": 420,
+          "sha256": "629faa970819cd2b254bf0b45f5d179bb36899ae10067125975958513e6d4aee"
+        },
+        {
+          "path": "references/results-logging.md",
+          "size": 9227,
+          "mode": 420,
+          "sha256": "37f78a1045ea78c0230007e2b07a79e7e5f52588cfefacd2d1e6729cecdf2e00"
+        },
+        {
+          "path": "references/visualization-guide.md",
+          "size": 3340,
+          "mode": 420,
+          "sha256": "d151e16f6947b5989b18ce610d680eceb13209e96a14ad696f96e504d4121e0d"
+        },
+        {
+          "path": "scripts/autoconference-loop.sh",
+          "size": 11127,
+          "mode": 420,
+          "sha256": "fad05e65bf605c45a935892ace6688f9e4f73db65fa8a07be5c46fdf40b07957"
+        },
+        {
+          "path": "scripts/check_conference.sh",
+          "size": 8296,
+          "mode": 420,
+          "sha256": "7128243f6ffcae6bd00f7f0e2218c21df45fa011ce66dd1175e9c5ec58fa3a54"
+        },
+        {
+          "path": "scripts/init_conference.py",
+          "size": 15144,
+          "mode": 420,
+          "sha256": "33797e20bfcf576946d716dc0cfa8f1b6954b7b7bcf697d144c8ce30dd024680"
+        },
+        {
+          "path": "scripts/style_presets.py",
+          "size": 3320,
+          "mode": 420,
+          "sha256": "bdcb8fadf078a7bfc57acfec2c87239cff06e89ab0441a10313e6816e3e1a0a7"
+        },
+        {
+          "path": "skills/analyze/SKILL.md",
+          "size": 13703,
+          "mode": 420,
+          "sha256": "68ddcc660ea0c33ed7b8a39d2bba8efdb4d4f1583770843e98e6fa8941b6cf81"
+        },
+        {
+          "path": "skills/autoconference/SKILL.md",
+          "size": 20145,
+          "mode": 420,
+          "sha256": "d591115e5695dc64a3e51e4e27498a91ac7ef4ca6a2663b429b1e300bbeba6a4"
+        },
+        {
+          "path": "skills/autoconference/convergence-guide.md",
+          "size": 7699,
+          "mode": 420,
+          "sha256": "c8c03502c1c5321e6c13a64bfd3c47a2eeb30dfc6f2a979b49f8ebc82d2c47cb"
+        },
+        {
+          "path": "skills/autoconference/crash-recovery.md",
+          "size": 9278,
+          "mode": 420,
+          "sha256": "ece2b917419e1f7e3ece3f44befcab0d534f4478008fe49e7f8e32e1de391124"
+        },
+        {
+          "path": "skills/debate/SKILL.md",
+          "size": 17708,
+          "mode": 420,
+          "sha256": "e556e6e095aae66472a359530b22d42c3b456817eaaca541ce6282850553b0e1"
+        },
+        {
+          "path": "skills/plan/SKILL.md",
+          "size": 13763,
+          "mode": 420,
+          "sha256": "4e2f3c87fe6f2f5fb58a70ff856032011cc438fb4c00d7d1c20410e149909453"
+        },
+        {
+          "path": "skills/resume/SKILL.md",
+          "size": 13660,
+          "mode": 420,
+          "sha256": "f1e7da78e7f4d1957f12fcddf45d79357c81b726b43b6631747d4585a783cd16"
+        },
+        {
+          "path": "skills/ship/SKILL.md",
+          "size": 15545,
+          "mode": 420,
+          "sha256": "a5a60248c3be578ff217ce8a556388a3265f8ff0c13409e1f1553c214dbb66e8"
+        },
+        {
+          "path": "skills/survey/SKILL.md",
+          "size": 13981,
+          "mode": 420,
+          "sha256": "f5a750abd306f70361e96c2979ecffb4fee3758b2de2dbd336bc1e3374cbe9ed"
+        },
+        {
+          "path": "templates/code-performance.md",
+          "size": 2285,
+          "mode": 420,
+          "sha256": "a90d1425477d9aec002778ba695299cfabb593ccd3dbab82ed0d76038e17a4d5"
+        },
+        {
+          "path": "templates/debate-mode.md",
+          "size": 1851,
+          "mode": 420,
+          "sha256": "9c74435dc7eb2e2d24d32b0a80381aadc62890f4674d916022ce6ef220aab966"
+        },
+        {
+          "path": "templates/prompt-optimization.md",
+          "size": 2069,
+          "mode": 420,
+          "sha256": "8d78c233529533bb742986769941347eebc460fdb2a2dac63952e65883398e10"
+        },
+        {
+          "path": "templates/quick-conference.md",
+          "size": 1364,
+          "mode": 420,
+          "sha256": "35e92ccc202ed659ce30f1820fb53e7b6081f4bb01e7f3b3a301c014b9956d03"
+        },
+        {
+          "path": "templates/research-synthesis.md",
+          "size": 2375,
+          "mode": 420,
+          "sha256": "7dd182898b572826a614a1cd0239cd1a07d95b0c6cf022c79a5e842a4246ce81"
+        },
+        {
+          "path": "templates/survey-mode.md",
+          "size": 2723,
+          "mode": 420,
+          "sha256": "5862cebaf4458b0c411df900f739b0493f2c9583217caf4eff051206e87a10e5"
+        }
+      ]
+    },
+    {
+      "id": "wikify",
+      "source_commit": "dfe8f8bc372c3bc153dd57697f4a36f366a63e74",
+      "root": "vendor/llm-wikify",
+      "file_count": 12,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 1080,
+          "mode": 420,
+          "sha256": "34e4320b3853af090b81a43149cbca280384b074ca722e2929334efdd78f5e38"
+        },
+        {
+          "path": "SKILL.md",
+          "size": 39456,
+          "mode": 420,
+          "sha256": "00eeb07cf5612200d60df112b5f70f2ab9eb2133947062fdb5861023f5a4b175"
+        },
+        {
+          "path": "assets/home-template.md",
+          "size": 1412,
+          "mode": 420,
+          "sha256": "ff37dcc648e0c1d91a43ef9d619bf58b94bbd4b1a177e5c1979601a889ef044a"
+        },
+        {
+          "path": "assets/maintenance-report-template.md",
+          "size": 2057,
+          "mode": 420,
+          "sha256": "92acaded902c21645f6aa2c2a0e595618da7e9fad52151e61e923e61d0760060"
+        },
+        {
+          "path": "assets/paper-source-note-template.md",
+          "size": 4516,
+          "mode": 420,
+          "sha256": "e69a6a5ba61952f30acb997e1c131ffc013caf6f11dba9df45b78afaec9ba523"
+        },
+        {
+          "path": "assets/source-note-template.md",
+          "size": 1614,
+          "mode": 420,
+          "sha256": "5340433c01c5b9df2f060a9570e32293464815aa4c1addbe627e069cd211e494"
+        },
+        {
+          "path": "assets/wiki-rules-template.md",
+          "size": 6305,
+          "mode": 420,
+          "sha256": "0a495bff53940edb04371a8edaf966f3d71fcdd0fea8102b42151dd85a79a605"
+        },
+        {
+          "path": "src/commands/ingest.md",
+          "size": 1205,
+          "mode": 420,
+          "sha256": "f0ff4a39d77a0f5c1b3c9a6b33de90a4c3a457b74c95d06527a991573105fb4d"
+        },
+        {
+          "path": "src/commands/init.md",
+          "size": 1206,
+          "mode": 420,
+          "sha256": "2bce3eda981370744288654f70b676da2707b977795514899fd71a5c2bf2cabc"
+        },
+        {
+          "path": "src/commands/lint.md",
+          "size": 1039,
+          "mode": 420,
+          "sha256": "0608df17ab86a859bd98560353e1f60c4deab57012f2abe4175e4719921ea369"
+        },
+        {
+          "path": "src/commands/query.md",
+          "size": 894,
+          "mode": 420,
+          "sha256": "6e3d1459bae99e26758255668efcac92305b30b26b33faeb02603f90beba7038"
+        },
+        {
+          "path": "src/commands/save.md",
+          "size": 1144,
+          "mode": 420,
+          "sha256": "e4dfd5f439ef4dbb89fe11e4cf61ef7d7fb3d0e4b6c3c782e2742302fbf1594f"
+        }
+      ]
+    }
+  ]
+}

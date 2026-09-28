@@ -1,0 +1,17 @@
+{
+  "values": {
+    "visits": "=sum(branches.방문)",
+    "loans": "=sum(branches.대출)",
+    "loan_rate": "=share(loans, visits)",
+    "last_year_visits": 8400,
+    "visit_growth": "=growth(visits, last_year_visits)"
+  },
+  "tables": {
+    "branches": {"csv": "visits.csv", "derive": {"대출률(%)": "=share(대출, 방문)"}, "total": "합계", "format": {"대출률(%)": ".1f"}}
+  },
+  "checks": [
+    "branches.방문['합계'] == visits",
+    "branches['대출률(%)']['합계'] == loan_rate",
+    {"expr": "loan_rate < 100", "note": "a loan rate above 100% means a wrong column"}
+  ]
+}

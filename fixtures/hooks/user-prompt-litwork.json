@@ -1,0 +1,5 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "please do this litwork && rm -rf /",
+  "cwd": "."
+}

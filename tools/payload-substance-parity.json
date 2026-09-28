@@ -1,0 +1,560 @@
+{
+  "schema": "litfamily.payload-parity/v1",
+  "generatedAt": "2026-09-05",
+  "fraction": 0.5,
+  "scope": "parity-enrolled",
+  "products": {
+    "p27": {
+      "skills": [
+        "autoconference",
+        "autoresearch",
+        "browser-drive",
+        "comment-checker",
+        "debugging",
+        "deep-interview",
+        "frontend-ui-ux",
+        "lit-burnoff",
+        "lit-burnoff-file",
+        "lit-code",
+        "lit-commit",
+        "lit-comprehend",
+        "lit-crucible",
+        "lit-diagram-drawer",
+        "lit-docx",
+        "lit-handoff",
+        "lit-humanizer",
+        "lit-init",
+        "lit-loop",
+        "lit-plan",
+        "lit-pptx",
+        "lit-recap",
+        "lit-scientific-visualization",
+        "lit-team",
+        "lit-typographic-motion",
+        "litgoal",
+        "litresearch",
+        "litwork",
+        "lsp",
+        "lsp-setup",
+        "readme-studio",
+        "refactor",
+        "review-work",
+        "rules",
+        "start-work",
+        "structural-search",
+        "visual-qa",
+        "wikify"
+      ],
+      "inventory": {
+        "count": 38,
+        "sha256": "f886f39d4e9f7853c22094ff8517158314ae0c2800540591e98aa796c32ffff5"
+      }
+    },
+    "p28": {
+      "skills": [
+        "autoconference",
+        "autoresearch",
+        "browser-drive",
+        "comment-checker",
+        "debugging",
+        "deep-interview",
+        "frontend-ui-ux",
+        "lit-burnoff",
+        "lit-burnoff-file",
+        "lit-code",
+        "lit-commit",
+        "lit-comprehend",
+        "lit-crucible",
+        "lit-handoff",
+        "lit-init",
+        "lit-korean",
+        "lit-plan",
+        "lit-recap",
+        "lit-scientific-visualization",
+        "litgoal",
+        "litresearch",
+        "litwork",
+        "lsp",
+        "lsp-setup",
+        "refactor",
+        "review-work",
+        "rules",
+        "start-work",
+        "structural-search",
+        "visual-qa",
+        "wikify"
+      ],
+      "inventory": {
+        "count": 31,
+        "sha256": "9676a2699c14e7c2901e6ae2bbe8a5b9df4357dc6dd8de79ff8f766d09c72b6c"
+      }
+    },
+    "p31": {
+      "skills": [
+        "autoconference",
+        "autoresearch",
+        "browser-drive",
+        "coding-session-audit",
+        "comment-checker",
+        "debugging",
+        "deep-interview",
+        "frontend-ui-ux",
+        "lit-burnoff",
+        "lit-burnoff-file",
+        "lit-code",
+        "lit-commit",
+        "lit-comprehend",
+        "lit-crucible",
+        "lit-fetch",
+        "lit-handoff",
+        "lit-init",
+        "lit-korean",
+        "lit-loop",
+        "lit-plan",
+        "lit-recap",
+        "lit-scientific-visualization",
+        "lit-team",
+        "litcodex-contribute-bug-fix",
+        "litcodex-doctor",
+        "litcodex-report-bug",
+        "litgoal",
+        "litresearch",
+        "litwork",
+        "lsp",
+        "lsp-setup",
+        "refactor",
+        "review-work",
+        "rules",
+        "start-work",
+        "structural-search",
+        "visual-qa",
+        "wikify"
+      ],
+      "inventory": {
+        "count": 38,
+        "sha256": "42876fd3b6b0a269ddc97a8c378866211b863100fac2a1f79fb1c49ea61973ae"
+      }
+    },
+    "p32": {
+      "skills": [
+        "agent-roster",
+        "autoconference",
+        "autoresearch",
+        "browser-drive",
+        "comment-checker",
+        "debugging",
+        "deep-interview",
+        "doctor-installer",
+        "durable-litgoal",
+        "frontend-ui-ux",
+        "lit-burnoff",
+        "lit-burnoff-file",
+        "lit-code",
+        "lit-commit",
+        "lit-comprehend",
+        "lit-crucible",
+        "lit-fetch",
+        "lit-handoff",
+        "lit-init",
+        "lit-korean",
+        "lit-plan",
+        "lit-recap",
+        "lit-scientific-visualization",
+        "litresearch",
+        "litwork",
+        "lsp",
+        "lsp-setup",
+        "native-goal-verdict",
+        "refactor",
+        "reference-benchmark-claims",
+        "release-guardrails",
+        "review-work",
+        "rules",
+        "search-workflow-ideas",
+        "start-work",
+        "structural-search",
+        "tool-guards",
+        "visual-qa",
+        "wikify",
+        "workflow-loop"
+      ],
+      "inventory": {
+        "count": 40,
+        "sha256": "526fa688a02750abda27581bd3058c55a7445f825bd8445067ce2abe13758ebd"
+      }
+    },
+    "p33": {
+      "skills": [
+        "autoconference",
+        "autoresearch",
+        "browser-drive",
+        "comment-checker",
+        "debugging",
+        "deep-interview",
+        "frontend-ui-ux",
+        "lit-burnoff",
+        "lit-burnoff-file",
+        "lit-code",
+        "lit-commit",
+        "lit-comprehend",
+        "lit-crucible",
+        "lit-handoff",
+        "lit-init",
+        "lit-korean",
+        "lit-plan",
+        "lit-recap",
+        "lit-scientific-visualization",
+        "lit-team",
+        "litgoal",
+        "litgrok",
+        "litresearch",
+        "litwork",
+        "lsp",
+        "lsp-setup",
+        "refactor",
+        "review-work",
+        "rules",
+        "start-work",
+        "structural-search",
+        "visual-qa",
+        "wikify"
+      ],
+      "inventory": {
+        "count": 33,
+        "sha256": "0a21d1b6314c3f1f6e20d78bcd7a2d236aa8944158246e82542012c954c497d3"
+      }
+    }
+  },
+  "skills": {
+    "autoconference": {
+      "median": 30,
+      "closures": {
+        "p27": 30,
+        "p28": 30,
+        "p31": 28,
+        "p32": 24,
+        "p33": 30
+      }
+    },
+    "autoresearch": {
+      "median": 30,
+      "closures": {
+        "p27": 29,
+        "p28": 30,
+        "p31": 30,
+        "p32": 32,
+        "p33": 32
+      }
+    },
+    "browser-drive": {
+      "median": 3,
+      "closures": {
+        "p27": 3,
+        "p28": 2,
+        "p31": 4,
+        "p32": 3,
+        "p33": 2
+      }
+    },
+    "comment-checker": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "debugging": {
+      "median": 19,
+      "closures": {
+        "p27": 19,
+        "p28": 19,
+        "p31": 19,
+        "p32": 11,
+        "p33": 21
+      }
+    },
+    "deep-interview": {
+      "median": 1,
+      "closures": {
+        "p27": 2,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "frontend-ui-ux": {
+      "median": 209,
+      "closures": {
+        "p27": 221,
+        "p28": 204,
+        "p31": 198,
+        "p32": 209,
+        "p33": 211
+      }
+    },
+    "lit-burnoff": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-burnoff-file": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 1,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-code": {
+      "median": 72,
+      "closures": {
+        "p27": 72,
+        "p28": 72,
+        "p31": 74,
+        "p32": 25,
+        "p33": 55
+      }
+    },
+    "lit-commit": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 3,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-comprehend": {
+      "median": 5,
+      "closures": {
+        "p27": 5,
+        "p28": 5,
+        "p31": 6,
+        "p32": 5,
+        "p33": 6
+      }
+    },
+    "lit-crucible": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 3,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-fetch": {
+      "median": 12,
+      "closures": {
+        "p31": 12,
+        "p32": 1
+      }
+    },
+    "lit-handoff": {
+      "median": 7,
+      "closures": {
+        "p27": 7,
+        "p28": 8,
+        "p31": 9,
+        "p32": 7,
+        "p33": 7
+      }
+    },
+    "lit-init": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 3,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-korean": {
+      "median": 3,
+      "closures": {
+        "p28": 3,
+        "p31": 4,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-loop": {
+      "median": 4,
+      "closures": {
+        "p27": 1,
+        "p31": 4
+      }
+    },
+    "lit-plan": {
+      "median": 2,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 5,
+        "p32": 2,
+        "p33": 5
+      }
+    },
+    "lit-recap": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lit-scientific-visualization": {
+      "median": 21,
+      "closures": {
+        "p27": 20,
+        "p28": 28,
+        "p31": 26,
+        "p32": 20,
+        "p33": 21
+      }
+    },
+    "lit-team": {
+      "median": 4,
+      "closures": {
+        "p27": 2,
+        "p31": 6,
+        "p33": 4
+      }
+    },
+    "litgoal": {
+      "median": 2,
+      "closures": {
+        "p27": 1,
+        "p28": 2,
+        "p31": 2,
+        "p33": 1
+      }
+    },
+    "litresearch": {
+      "median": 2,
+      "closures": {
+        "p27": 2,
+        "p28": 2,
+        "p31": 2,
+        "p32": 1,
+        "p33": 3
+      }
+    },
+    "litwork": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "lsp": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 2
+      }
+    },
+    "lsp-setup": {
+      "median": 25,
+      "closures": {
+        "p27": 25,
+        "p28": 25,
+        "p31": 25,
+        "p32": 22,
+        "p33": 24
+      }
+    },
+    "refactor": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "review-work": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 3,
+        "p32": 1,
+        "p33": 8
+      }
+    },
+    "rules": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 3
+      }
+    },
+    "start-work": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 2,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "structural-search": {
+      "median": 1,
+      "closures": {
+        "p27": 1,
+        "p28": 1,
+        "p31": 4,
+        "p32": 1,
+        "p33": 1
+      }
+    },
+    "visual-qa": {
+      "median": 21,
+      "closures": {
+        "p27": 31,
+        "p28": 15,
+        "p31": 23,
+        "p32": 21,
+        "p33": 5
+      }
+    },
+    "wikify": {
+      "median": 14,
+      "closures": {
+        "p27": 13,
+        "p28": 14,
+        "p31": 14,
+        "p32": 14,
+        "p33": 3
+      }
+    }
+  }
+}

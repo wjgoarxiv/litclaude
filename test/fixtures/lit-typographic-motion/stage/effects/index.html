@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0e1a24; font-family: "Pretendard"; }
+  .fx { position: absolute; width: 260px; height: 260px; }
+  #blur { left: 120px; top: 120px; background: #e0a040; filter: blur(12px); }
+  #glass { left: 300px; top: 180px; background: rgba(255,255,255,0.15); backdrop-filter: blur(18px) saturate(1.4); border-radius: 24px; }
+  #blend { left: 620px; top: 140px; background: #40a0e0; mix-blend-mode: screen; border-radius: 50%; }
+  #under { left: 700px; top: 200px; background: #c04070; }
+  #shadow { left: 1020px; top: 140px; background: #f4efe6; box-shadow: 0 30px 60px rgba(0,0,0,0.6), 0 0 40px #40a0e0; border-radius: 32px; }
+  #gl { position: absolute; left: 1360px; top: 120px; width: 440px; height: 320px; }
+  #c2d { position: absolute; left: 120px; top: 500px; width: 700px; height: 220px; }
+  #svg { position: absolute; left: 900px; top: 480px; }
+  #copy { position: absolute; left: 200px; top: 800px; margin: 0; color: #f4efe6; font-size: 84px; font-weight: 700; text-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+</style>
+</head>
+<body>
+<div class="fx" id="blur"></div>
+<div class="fx" id="glass"></div>
+<div class="fx" id="under"></div>
+<div class="fx" id="blend"></div>
+<div class="fx" id="shadow"></div>
+<canvas id="gl" width="440" height="320"></canvas>
+<canvas id="c2d" width="700" height="220"></canvas>
+<svg id="svg" width="600" height="260" viewBox="0 0 600 260">
+  <defs><filter id="soft"><feGaussianBlur stdDeviation="8"/></filter></defs>
+  <circle id="dot" cx="120" cy="130" r="90" fill="#e0a040" filter="url(#soft)"/>
+  <rect x="300" y="60" width="160" height="140" fill="#40a0e0">
+    <animate attributeName="x" values="300;420;300" dur="2s" repeatCount="indefinite"/>
+  </rect>
+</svg>
+<h1 id="copy">Lanterns drift home</h1>
+<script>
+  LitStage.text(document.getElementById("copy"));
+  const gl = document.getElementById("gl").getContext("webgl", { preserveDrawingBuffer: true, antialias: false });
+  const vs = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs, "attribute vec2 p; varying vec2 uv; void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }");
+  gl.compileShader(vs);
+  const fs = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fs, "precision highp float; varying vec2 uv; uniform float t; void main(){ float w = 0.5 + 0.5 * sin(uv.x * 12.0 + t * 3.0) * cos(uv.y * 9.0 - t * 2.0); gl_FragColor = vec4(w * 0.9, 0.3 + 0.4 * uv.y, 1.0 - w * 0.6, 1.0); }");
+  gl.compileShader(fs);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const tLoc = gl.getUniformLocation(prog, "t");
+  const c2d = document.getElementById("c2d").getContext("2d");
+  LitStage.define({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    render(t) {
+      gl.uniform1f(tLoc, t);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      c2d.clearRect(0, 0, 700, 220);
+      c2d.shadowColor = "rgba(64,160,224,0.9)";
+      c2d.shadowBlur = 24;
+      c2d.fillStyle = "#f4efe6";
+      c2d.beginPath();
+      c2d.arc(120 + t * 110, 110, 70, 0, Math.PI * 2);
+      c2d.fill();
+      document.getElementById("dot").setAttribute("cx", String(120 + t * 60));
+      document.getElementById("glass").style.transform = `translateX(${t * 90}px)`;
+      document.getElementById("blend").style.transform = `translateY(${Math.sin(t * 2) * 40}px)`;
+    },
+  });
+</script>
+</body>
+</html>

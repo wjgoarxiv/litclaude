@@ -1,0 +1,61 @@
+{
+  "schema": "litfamily.payload-references/v1",
+  "surfaces": [
+    {
+      "prefix": ".litclaude/",
+      "reason": "The .litclaude tree is Claude Code session state created in the user's project, not an installed skill resource."
+    },
+    {
+      "prefix": "~/.litclaude/",
+      "reason": "The user-level .litclaude tree is host-managed session state and is intentionally outside the npm payload."
+    },
+    {
+      "prefix": ".claude/",
+      "reason": "Claude Code's project configuration and skill directories are host-provided surfaces, not package files."
+    },
+    {
+      "prefix": ".github/",
+      "reason": "Repository workflow and Copilot instruction files belong to the consuming project's host checkout."
+    },
+    {
+      "prefix": "test/",
+      "reason": "These are consuming-repository test paths used by verification commands; they are not installed skill assets."
+    },
+    {
+      "prefix": "tests/",
+      "reason": "These are consuming-repository test paths used by verification commands; they are not installed skill assets."
+    },
+    {
+      "prefix": "src/",
+      "reason": "Source paths in the instructions refer to the consuming project implementation, not this package payload."
+    },
+    {
+      "prefix": "docs/",
+      "reason": "Repository documentation paths are supplied by the consuming checkout and are not shipped skill resources."
+    },
+    {
+      "prefix": "dist/",
+      "reason": "Build output is produced by the consuming project and is deliberately not an installed skill resource."
+    },
+    {
+      "prefix": "SESSION_DIR/",
+      "reason": "SESSION_DIR is a runtime-owned temporary workspace whose evidence files are created by the host."
+    },
+    {
+      "token": "./target",
+      "reason": "The target path is a consuming-project binary or build artifact, not a file supplied by the skill package."
+    },
+    {
+      "prefix": "/tmp/",
+      "reason": "Absolute temporary paths are created by the host process and cannot be part of an npm package payload."
+    },
+    {
+      "prefix": "/assets/",
+      "reason": "This leading-slash form denotes a host-selected absolute asset directory, not the package-relative assets tree."
+    },
+    {
+      "token": "AGENTS.md/CLAUDE.md",
+      "reason": "This compact example names two host instruction files together; neither is a package-relative resource claim."
+    }
+  ]
+}

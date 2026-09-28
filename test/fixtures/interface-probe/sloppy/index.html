@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trail Status Board</title>
+<style>
+  body { margin: 0; font-family: Inter, sans-serif; color: #222; background: #fff; line-height: 1.2; }
+  .hero { background: linear-gradient(135deg, #6d28d9, #2563eb); color: #fff; min-height: 110vh; text-align: center; padding: 48px 24px; }
+  .hero h1 { font-size: 44px; line-height: 1.7; background: linear-gradient(90deg, #f0abfc, #93c5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cta { background: #7c3aed; color: #fff; border: 0; border-radius: 16px; padding: 10px 18px; box-shadow: 0 0 32px 6px rgba(124, 58, 237, 0.75); will-change: all; }
+  .row { display: flex; width: 1200px; gap: 16px; padding: 24px; }
+  .card { flex: 0 0 360px; border-radius: 24px; padding: 8px; background: #f7f7f7; box-shadow: 0 10px 30px rgba(0,0,0,.12); animation: pop 400ms ease-out both; }
+  .card .thumb { border-radius: 24px; height: 80px; background: #e5e5e5; }
+  .card p { color: #b9b9b9; }
+  .note { height: 38px; overflow: hidden; width: 220px; }
+  .icon-btn:focus { outline: none; }
+  .icon-btn { width: 18px; height: 18px; padding: 0; border: 0; background: #fb923c; border-radius: 4px; font-size: 10px; }
+  .card .share { opacity: 0; } .card:hover .share { opacity: 1; }
+  .trails a { display: block; padding: 12px 0; transition: background-color 400ms ease; }
+  .trails a:hover { background: #eee; }
+  .modal-scrim { position: fixed; inset: 0; backdrop-filter: blur(12px); background: rgba(255,255,255,.2); display: none; }
+  .search input { font-size: 13px; }
+  .long { max-width: none; }
+  .badge-ok { color: #16a34a; } .badge-bad { color: #dc2626; } .link-accent { color: #db2777; }
+  @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <h1>Explore Every Trail With Confidence</h1>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+    <button class="cta">Get Started Now</button>
+    <a href="#">Learn More</a>
+  </header>
+  <main>
+    <form class="search"><label>Find A Trail <input type="text" placeholder="Search"></label></form>
+    <section class="row">
+      <article class="card"><div class="thumb"></div><h3>🌲 Forest Loop</h3><p>Open, light mud after the rain.</p><button class="icon-btn" aria-label="Save">★</button><button class="share">Share</button></article>
+      <article class="card"><div class="thumb"></div><h3>⛰️ Ridge Path</h3><p>Closed at the upper switchbacks.</p><button class="icon-btn" aria-label="Save">★</button></article>
+      <article class="card"><div class="thumb"></div><h3>🌊 Lake Shore</h3><p>Open, busy on weekends.</p><button class="icon-btn" aria-label="Save">★</button></article>
+    </section>
+    <ul class="trails">
+      <li><a href="forest.html">Forest loop details</a></li>
+      <li><a href="ridge.html">Ridge path details</a></li>
+      <li><a href="lake.html">Lake shore details</a></li>
+      <li><a href="meadow.html">Meadow walk details</a></li>
+      <li><a href="falls.html">Falls trail details</a></li>
+    </ul>
+    <p class="note">Seasonal note — the north trailhead parking lot is under repair until further notice and overflow parking is at the school.</p>
+    <p class="long">Trail conditions are gathered each morning from ranger reports, visitor check-ins and the weather station at the upper lake, then summarised here so that anyone planning a walk can see at a glance which paths are open, which are muddy, and which are closed for maintenance or wildlife protection during the nesting season.</p>
+    <form class="alerts"><input type="email" placeholder="Email for seamless trail alerts"> <button>Send</button> <button>Preview</button></form>
+    <img class="map" src="" width="120" height="80">
+    <p><span class="badge-ok">Open</span> · <span class="badge-bad">Closed</span> · <a class="link-accent" href="javascript:void(0)">Report A Problem</a></p>
+  </main>
+  <div class="modal-scrim"></div>
+</body>
+</html>

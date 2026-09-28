@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trail status</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fbfbf9; --surface: #f4f4f2; --text: #1d1d1b; --muted: #55554f; --accent: #1f6f4a; --accent-text: #ffffff; --line: #d6d6d0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --surface: #20201e; --text: #ededea; --muted: #b4b4ad; --accent: #7fd1a4; --accent-text: #0d2a1b; --line: #3a3a36; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; color: var(--text); background: var(--bg); line-height: 1.55; }
+  .wrap { max-width: 68rem; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+  h2 { font-size: 1.25rem; line-height: 1.2; margin: 0 0 4px; }
+  p { max-width: 65ch; margin: 0 0 12px; text-wrap: pretty; }
+  .lede { color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 32px; }
+  .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; text-decoration: none; cursor: pointer; }
+  .button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .button:active { transform: scale(0.96); }
+  .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .search { display: grid; gap: 6px; margin-bottom: 32px; max-width: 28rem; }
+  .search input { font: inherit; font-size: 16px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 16px; }
+  .card { border-radius: 16px; padding: 12px; background: var(--surface); animation: enter 200ms ease-out both; }
+  .card .thumb { border-radius: 4px; height: 80px; background: var(--line); margin-bottom: 12px; }
+  .status { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .status strong { color: var(--text); }
+  @keyframes enter { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .card { animation: none; } .button:active { transform: none; } }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Trail status for this morning</h1>
+    <p class="lede">Ranger reports and visitor check-ins, gathered at 7:00 and summarised so you can pick a path before you leave home.</p>
+    <div class="actions">
+      <a class="button primary" href="#trails">See open trails</a>
+      <a class="button" href="report.html">Report a problem</a>
+    </div>
+    <form class="search" action="search.html">
+      <label for="trail-search">Find a trail</label>
+      <input id="trail-search" name="q" type="search" autocomplete="off">
+    </form>
+    <section id="trails" class="grid" aria-label="Trails">
+      <article class="card"><div class="thumb" role="img" aria-label="Forest loop map"></div><h2>Forest loop</h2><p class="status"><strong>Open</strong> · 4.2 km · light mud</p></article>
+      <article class="card"><div class="thumb" role="img" aria-label="Ridge path map"></div><h2>Ridge path</h2><p class="status"><strong>Closed</strong> above the switchbacks · 7.8 km</p></article>
+      <article class="card"><div class="thumb" role="img" aria-label="Lake shore map"></div><h2>Lake shore</h2><p class="status"><strong>Open</strong> · 3.1 km · busy on weekends</p></article>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #101820; font-family: "Pretendard"; }
+  #copy { position: absolute; left: 200px; top: 760px; margin: 0; color: #f4efe6; font-size: 84px; }
+  #leak { position: absolute; left: 200px; top: 200px; width: 600px; height: 300px; }
+</style>
+</head>
+<body>
+<div id="leak"></div>
+<h1 id="copy">Lanterns drift home</h1>
+<script>
+  LitStage.text(document.getElementById("copy"));
+  // A source the virtual clock does not drive: it differs between two Chrome processes.
+  const origin = performance.timeOrigin;
+  LitStage.define({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    render(t) {
+      document.getElementById("leak").style.background = `hsl(${Math.floor(origin * 7) % 360} 80% 50%)`;
+      document.getElementById("leak").textContent = String(origin);
+    },
+  });
+</script>
+</body>
+</html>

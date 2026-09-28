@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #202020; font-family: "Pretendard"; }
+  #disc { position: absolute; left: 1300px; top: 300px; width: 360px; height: 360px; border-radius: 50%; background: #e0a040; }
+  p { position: absolute; margin: 0; font-size: 44px; }
+  #dim { left: 200px; top: 200px; color: #2e2e2e; }
+  #edge { left: 20px; top: 420px; color: #f4efe6; }
+  #brief { left: 200px; top: 640px; color: #f4efe6; opacity: 0; }
+  #tag { left: 1320px; top: 700px; color: #303030; font-size: 28px; }
+  #corner { left: 4px; top: 1040px; color: #f4efe6; font-size: 28px; }
+</style>
+</head>
+<body>
+<div id="disc"></div>
+<p id="dim">Quiet lanterns wait</p>
+<p id="edge">The edge line runs long</p>
+<p id="brief">A line gone too soon</p>
+<p id="tag">SHELF 4</p>
+<p id="corner">ROW 12</p>
+<script>
+  for (const id of ["dim", "edge", "brief"]) LitStage.text(document.getElementById(id));
+  for (const id of ["tag", "corner"]) LitStage.text(document.getElementById(id), { decor: true });
+  LitStage.define({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    render(t) {
+      document.getElementById("brief").style.opacity = t > 1.9 && t < 2.2 ? "1" : "0";
+      document.getElementById("disc").style.transform = `scale(${1 + 0.05 * Math.sin(t * 3)})`;
+    },
+  });
+</script>
+</body>
+</html>

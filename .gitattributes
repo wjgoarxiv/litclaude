@@ -1,0 +1,11 @@
+plugins/litclaude/skills/frontend-ui-ux/references/design/** -text
+plugins/litclaude/skills/frontend-ui-ux/references/designpowers/** -text
+plugins/litclaude/skills/frontend-ui-ux/references/perfection/** -text
+plugins/litclaude/skills/frontend-ui-ux/references/ui-ux-db/** -text
+plugins/litclaude/skills/frontend-ui-ux/references/_canonical-corpus/legal/** -text
+plugins/litclaude/vendor/autoresearch/** -text
+plugins/litclaude/vendor/autoconference/** -text
+plugins/litclaude/vendor/llm-wikify/** -text
+plugins/litclaude/vendor/canonical-runtime-closures.json -text
+# Canonical generator sheet: trailing padding and final separator are source bytes.
+test/fixtures/litmark/round6.txt whitespace=-blank-at-eol,-blank-at-eof

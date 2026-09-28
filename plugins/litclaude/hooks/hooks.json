@@ -1,0 +1,102 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" session-start",
+            "timeout": 60,
+            "statusMessage": "checking LitClaude update and rules"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" user-prompt-submit",
+            "timeout": 5,
+            "statusMessage": "checking LitClaude workflow and bounded-authority lifecycle"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^(Read|Grep|Glob|Write|Edit|MultiEdit|NotebookEdit|Bash|Agent|Skill)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" pre-tool-use",
+            "timeout": 10,
+            "statusMessage": "checking LitClaude bounded authority"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" post-tool-use",
+            "timeout": 30,
+            "statusMessage": "running LitClaude post-edit checks"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" stop",
+            "timeout": 10,
+            "statusMessage": "checking LitClaude start-work and litgoal completion"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" subagent-start",
+            "timeout": 10,
+            "statusMessage": "registering LitClaude start-work lane"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" subagent-stop",
+            "timeout": 10,
+            "statusMessage": "finalizing LitClaude start-work lane"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" session-end",
+            "timeout": 10,
+            "statusMessage": "recording LitClaude session end"
+          }
+        ]
+      }
+    ]
+  }
+}

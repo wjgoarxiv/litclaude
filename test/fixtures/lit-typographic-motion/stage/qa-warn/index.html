@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #14202b; font-family: "Pretendard"; }
+  #disc { position: absolute; left: 1300px; top: 300px; width: 360px; height: 360px; border-radius: 50%; background: #e0a040; }
+  p { position: absolute; margin: 0; }
+  #copy { left: 200px; top: 200px; color: #f4efe6; font-size: 72px; font-weight: 700; }
+  #label { left: 200px; top: 400px; color: #f4efe6; font-size: 40px; }
+  #boxed { left: 200px; top: 560px; color: #f4efe6; font-size: 40px; border: 6px solid currentColor; padding: 12px; }
+  #decor { left: 1340px; top: 720px; color: #f4efe6; font-size: 36px; }
+  canvas { position: absolute; left: 200px; top: 760px; }
+</style>
+</head>
+<body>
+<div id="disc"></div>
+<p id="copy">Lanterns drift home</p>
+<p id="label">treatment.json</p>
+<p id="boxed">Tide table</p>
+<p id="decor">Lanterns drift home</p>
+<canvas id="cv" width="900" height="160"></canvas>
+<script>
+  LitStage.text(document.getElementById("copy"));
+  LitStage.text(document.getElementById("decor"), { decor: true });
+  const cv = document.getElementById("cv").getContext("2d");
+  LitStage.define({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    render(t) {
+      cv.clearRect(0, 0, 900, 160);
+      cv.fillStyle = "#f4efe6";
+      cv.font = "64px Pretendard";
+      cv.fillText("unregistered canvas words", 0, 100);
+      document.getElementById("disc").style.transform = `translateY(${Math.sin(t * 2) * 30}px)`;
+    },
+  });
+</script>
+</body>
+</html>

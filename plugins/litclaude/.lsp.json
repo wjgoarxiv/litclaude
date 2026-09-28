@@ -1,0 +1,13 @@
+{
+  "typescript": {
+    "command": ["typescript-language-server", "--stdio"],
+    "extensionToLanguage": {
+      ".ts": "typescript",
+      ".tsx": "typescriptreact",
+      ".js": "javascript",
+      ".jsx": "javascriptreact",
+      ".mjs": "javascript",
+      ".cjs": "javascript"
+    }
+  }
+}

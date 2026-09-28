@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0b1830; font-family: "Pretendard"; }
+  svg { position: absolute; left: 0; top: 0; }
+  .line { position: absolute; left: 150px; top: 860px; margin: 0; font-size: 64px; font-weight: 700; color: #f2f4f7; white-space: nowrap; }
+  #name { left: 150px; top: 800px; font-size: 104px; }
+  #sub { left: 150px; top: 940px; font-size: 48px; font-weight: 400; color: #ffd98a; }
+  [data-lit-part] { display: inline-block; }
+  #sea, #headland, #beam, #recap, .line:not(#name) { display: none; }
+</style>
+</head>
+<body>
+<svg width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="flame"><stop offset="0" stop-color="#fff6d8"/><stop offset="0.45" stop-color="#ffd98a"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="beamFill" x1="0" x2="1"><stop offset="0" stop-color="#ffd98a" stop-opacity="0.85"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0.08"/></linearGradient>
+    <linearGradient id="seaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#153a5c"/><stop offset="1" stop-color="#0b1f35"/></linearGradient>
+  </defs>
+  <g id="headland" opacity="0">
+    <path d="M0 560 C 60 548 150 540 230 556 C 280 566 320 590 340 606 L 0 606 Z" fill="#132a45"/>
+    <path d="M122 452 L 174 452 L 188 560 L 108 560 Z" fill="#23405f"/>
+    <rect x="110" y="446" width="76" height="8" rx="2" fill="#9fd3ea" opacity="0.7"/>
+  </g>
+  <g id="sea" opacity="0">
+    <rect x="0" y="600" width="1920" height="480" fill="url(#seaFill)"/>
+    <g id="waves" fill="none" stroke="#2b5d86" stroke-width="3"></g>
+    <path id="boat" d="M1600 588 L1700 588 L1682 604 L1618 604 Z M1646 588 L1646 548 L1672 584 Z" fill="#dfe8f0"/>
+  </g>
+  <polygon id="beam" points="" fill="url(#beamFill)" opacity="0"/>
+  <g id="lens">
+    <g id="scatter" stroke="#ffd98a" stroke-width="3" stroke-linecap="round"></g>
+    <g id="rays" fill="none" stroke="#ffd98a" stroke-width="4" stroke-linecap="round"></g>
+    <g id="rings" fill="none" stroke="#9fd3ea" stroke-width="10" stroke-linecap="round"></g>
+    <circle id="glow" cx="620" cy="440" r="120" fill="url(#flame)"/>
+    <circle id="core" cx="620" cy="440" r="16" fill="#fff6d8"/>
+  </g>
+  <g id="recap" opacity="0">
+    <g id="left" stroke="#ffd98a" stroke-width="4" stroke-linecap="round"></g>
+    <g id="right" stroke="#ffd98a" stroke-width="4" stroke-linecap="round" fill="none"></g>
+    <line x1="960" y1="170" x2="960" y2="690" stroke="#2b4a6a" stroke-width="3"/>
+  </g>
+</svg>
+<p class="line" id="q"></p>
+<p class="line" id="s1"></p>
+<p class="line" id="s2"></p>
+<p class="line" id="res"></p>
+<p class="line" id="name"></p>
+<p class="line" id="sub"></p>
+<script>
+  // A lamp group settling at the end of a slow scale while its glow breathes, then starting to fade,
+  // with faded spokes and dashed rays still updating inside it. Sampled 6 frames into the fade
+  // (frame 120), where the raster depends on whether every earlier frame was captured.
+  const COPY = {
+    question: "Quiet lanterns wait",
+    stepOne: "Harbour bells at dusk",
+    stepTwo: "Tide lines turn",
+    result: "One light reaches out",
+    name: "Lanterns drift home",
+    sub: "Small lights, far water",
+  };
+  const { define, text, ease, at, drawPath, splitText, rand, clamp, lerp } = LitStage;
+  const $ = (id) => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, parent, attrs = {}) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    parent.appendChild(e);
+    return e;
+  };
+  const lines = [["q", COPY.question], ["s1", COPY.stepOne], ["s2", COPY.stepTwo], ["res", COPY.result], ["name", COPY.name], ["sub", COPY.sub]].map(([id, words]) => {
+    const node = text($(id));
+    node.textContent = words;
+    return splitText(node, { by: "eojeol" });
+  });
+
+  const L = { x: 620, y: 440 };
+  // Where the lamp sits in the wide shot (the close-up lens scaled down onto the headland).
+  const W = { x: -330 + 0.55 * 870, y: 60 + 0.55 * 660 };
+  // Question: rays spill out in every direction.
+  const scatter = Array.from({ length: 40 }, (_, i) => ({ a: (i / 40) * Math.PI * 2, line: el("line", $("scatter")) }));
+  // The lens: prism rings on the sea side of the lamp, as arcs.
+  const RINGS = [150, 190, 230, 270, 310, 350];
+  const rings = RINGS.map((rad) => {
+    const a0 = -0.62;
+    const a1 = 0.62;
+    const d = `M ${L.x + rad * Math.cos(a0)} ${L.y + rad * Math.sin(a0)} A ${rad} ${rad} 0 0 1 ${L.x + rad * Math.cos(a1)} ${L.y + rad * Math.sin(a1)}`;
+    return el("path", $("rings"), { d });
+  });
+  // Bent rays: out from the lamp at an angle, turned parallel at the glass.
+  const ANGLES = [-0.5, -0.36, -0.22, -0.08, 0.08, 0.22, 0.36, 0.5];
+  const rays = ANGLES.map((a) => {
+    const hit = 330;
+    const hx = L.x + hit * Math.cos(a);
+    const hy = L.y + hit * Math.sin(a);
+    const d = `M ${L.x} ${L.y} L ${hx} ${hy} L 1320 ${hy}`;
+    // The whole bent path stays faintly visible; a bright packet runs along it.
+    const under = el("path", $("rays"), { d, opacity: 0, "stroke-width": 2 });
+    const packet = el("path", $("rays"), { d, opacity: 0 });
+    return { under, packet };
+  });
+  // Sea waves for the pull-back.
+  const wr = rand(33);
+  const waves = Array.from({ length: 9 }, (_, i) => ({ y: 640 + i * 44, phase: wr() * 6, path: el("path", $("waves")) }));
+  // Recap diagrams: scattered from a dot on the left, parallel through a ring on the right.
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    el("line", $("left"), { x1: 520 + Math.cos(a) * 20, y1: 430 + Math.sin(a) * 20, x2: 520 + Math.cos(a) * 170, y2: 430 + Math.sin(a) * 170, opacity: 0.8 });
+  }
+  el("circle", $("left"), { cx: 520, cy: 430, r: 12, fill: "#fff6d8", stroke: "none" });
+  el("circle", $("right"), { cx: 1180, cy: 430, r: 12, fill: "#fff6d8", stroke: "none" });
+  el("path", $("right"), { d: "M 1320 330 A 150 150 0 0 1 1320 530", stroke: "#9fd3ea", "stroke-width": 10 });
+  for (let i = 0; i < 6; i++) {
+    const y = 350 + i * 32;
+    el("path", $("right"), { d: `M 1180 430 L 1330 ${y} L 1560 ${y}` });
+  }
+
+  define({
+    width: 1920, height: 1080, fps: 60, duration: 4,
+    render(t0) {
+      const t = t0 + 11.5;
+      // The flame breathes slowly; a fast flicker would read as flashing.
+      $("glow").setAttribute("r", String(116 + Math.sin(t * 2.3) * 6 + Math.sin(t * 3.7 + 1) * 3));
+
+      // Beat 0: scattered rays, fading as they travel.
+      scatter.forEach((s, i) => {
+        const cycle = (t * 0.9 + (i % 5) * 0.2) % 1;
+        const r0 = 30 + cycle * 420;
+        const r1 = r0 + 60;
+        s.line.setAttribute("x1", String(L.x + Math.cos(s.a) * r0));
+        s.line.setAttribute("y1", String(L.y + Math.sin(s.a) * r0));
+        s.line.setAttribute("x2", String(L.x + Math.cos(s.a) * r1));
+        s.line.setAttribute("y2", String(L.y + Math.sin(s.a) * r1));
+        s.line.setAttribute("opacity", String((1 - cycle) * 0.8 * (1 - ease.inOutSine(at(t, 5.5, 1.5)))));
+      });
+
+      // Beat 1: rings draw on from the inside out.
+      rings.forEach((p, i) => drawPath(p, ease.outCubic(at(t, 4.1 + i * 0.22, 0.7))));
+
+      // Beat 2: light packets run out along each bent ray.
+      const backOut = 1 - ease.inOutCubic(at(t, 10.5, 1.2));
+      rays.forEach((r, i) => {
+        const on = at(t, 7.1 + i * 0.08, 0.4) * backOut;
+        r.under.setAttribute("opacity", String(0.35 * on));
+        r.packet.setAttribute("opacity", String(on));
+        const len = r.packet.getTotalLength();
+        const head = ((t - 7.1) * 520 + i * 70) % (len + 160);
+        r.packet.style.strokeDasharray = `160 ${len + 400}`;
+        r.packet.style.strokeDashoffset = String(-head + 160);
+      });
+
+      // Beat 3: pull back into the sea; the beam lands on the boat.
+      // The close-up drifts back a little as it dissolves; the wide shot dissolves in with the lens
+      // already small. Sweeping the ring pattern across the frame at speed would strobe.
+      const back = t >= 11.3 ? 1 : 0;
+      const drift = 1 - 0.06 * ease.inOutSine(at(t, 10.5, 0.8));
+      const lensFade = back ? ease.inOutSine(at(t, 11.3, 0.8)) : 1 - ease.inOutSine(at(t, 10.5, 0.8));
+      const lensOut = ease.inOutCubic(at(t, 13.4, 0.6));
+      // The wide shot keeps pulling back after the dissolve: the sea scales down faster than the
+      // headland and lens, so the waves slide under the lighthouse (parallax). The lamp is the anchor.
+      const pull = ease.inOutSine(at(t, 11.3, 2.2));
+      const nearS = 1.12 - 0.12 * pull;
+      const farS = 1.25 - 0.25 * pull;
+      const about = (k) => `translate(${W.x} ${W.y}) scale(${k}) translate(${-W.x} ${-W.y})`;
+      $("sea").setAttribute("transform", about(farS));
+      $("headland").setAttribute("transform", about(nearS));
+      $("lens").setAttribute("transform", back
+        ? `${about(nearS)} translate(-330 60) scale(0.55) translate(250 220)`
+        : `translate(${L.x} ${L.y}) scale(${drift}) translate(${-L.x} ${-L.y})`);
+      $("lens").setAttribute("opacity", String(lensFade * (1 - lensOut)));
+      $("sea").setAttribute("opacity", String(ease.inOutSine(at(t, 10.6, 2.0)) * (1 - lensOut)));
+      $("headland").setAttribute("opacity", String(ease.inOutSine(at(t, 10.8, 1.6)) * (1 - lensOut)));
+      waves.forEach((w, i) => {
+        let d = "";
+        for (let x = 0; x <= 1920; x += 40) d += `${x ? "L" : "M"} ${x} ${w.y + Math.sin(x * 0.012 + t * (1 + i * 0.1) + w.phase) * 6}`;
+        w.path.setAttribute("d", d);
+      });
+      const beamOn = ease.outCubic(at(t, 11.8, 1.0)) * (1 - lensOut);
+      const sweep = Math.sin((t - 11.8) * 1.3) * 18 * (1 - at(t, 12.8, 0.6));
+      // The beam leaves the lens face (where the pulled-back lens now sits) and reaches the boat.
+      const sc = (1 - back * 0.45) * (back ? nearS : 1);
+      const lx = back ? W.x : 620;
+      const ly = back ? W.y : 440;
+      const fx = lx + 350 * sc;
+      // The beam lands where the boat is now, as the sea scales under it.
+      const ex = lerp(fx, W.x + (1650 - W.x) * farS, beamOn);
+      const ey = lerp(ly, W.y + (575 + sweep - W.y) * farS, beamOn);
+      $("beam").setAttribute("points", `${fx},${ly - 110 * sc} ${fx},${ly + 110 * sc} ${ex},${ey + 38} ${ex},${ey - 38}`);
+      $("beam").setAttribute("opacity", String(beamOn));
+
+      // Beat 4: recap splits open from the centre.
+      const rc = ease.outCubic(at(t, 13.7, 0.8));
+      $("recap").setAttribute("opacity", String(rc));
+      $("left").setAttribute("transform", `translate(${(1 - rc) * 200} 0)`);
+      $("right").setAttribute("transform", `translate(${(1 - rc) * -200} 0)`);
+
+      const show = (i, start, end) => {
+        const out = end ? ease.inCubic(at(t, end - 0.3, 0.3)) : 0;
+        lines[i].forEach((w, k) => {
+          const p = ease.outCubic(at(t, start + k * 0.1, 0.45));
+          w.style.opacity = String(p * (1 - out));
+          w.style.transform = `translateY(${(1 - p) * 28}px)`;
+        });
+      };
+      show(4, 0, 0);
+    },
+  });
+</script>
+</body>
+</html>

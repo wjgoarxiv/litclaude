@@ -1,0 +1,12 @@
+{
+  "name": "litclaude-office-runtime",
+  "private": true,
+  "description": "Pinned Node runtime for the LitClaude lit-pptx engine. Installed on first use into a LitClaude-owned cache, never globally. image-size is overridden to a patched release; pptxgenjs declares it but its build never loads it.",
+  "dependencies": {
+    "pptxgenjs": "3.12.0",
+    "sharp": "0.35.4"
+  },
+  "overrides": {
+    "image-size": "2.0.4"
+  }
+}

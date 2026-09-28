@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #14202b; font-family: "Pretendard"; }
+  #path { position: absolute; left: 140px; top: 260px; }
+  #copy { position: absolute; left: 120px; top: 1420px; width: 840px; margin: 0; color: #f4efe6; font-size: 96px; font-weight: 700; line-height: 1.3; }
+</style>
+</head>
+<body>
+<svg id="path" width="800" height="800" viewBox="0 0 800 800">
+  <path id="shape" d="M400 80 C 620 80 720 260 720 400 C 720 600 580 720 400 720 C 200 720 80 580 80 400 C 80 220 200 80 400 80 Z" fill="none" stroke="#e0a040" stroke-width="18" stroke-linecap="round"/>
+  <path id="blob" d="M400 200 L 600 400 L 400 600 L 200 400 Z" fill="#40a0e0"/>
+</svg>
+<h1 id="copy"></h1>
+<script>
+  const COPY = { line: "Lanterns drift home" };
+  const copy = document.getElementById("copy");
+  copy.textContent = COPY.line;
+  LitStage.text(copy);
+  const shape = document.getElementById("shape");
+  const blob = document.getElementById("blob");
+  const morph = LitStage.morph("M400 200 L 600 400 L 400 600 L 200 400 Z", "M400 250 C 490 250 550 310 550 400 C 550 490 490 550 400 550 C 310 550 250 490 250 400 C 250 310 310 250 400 250 Z");
+  const words = LitStage.splitText(copy, { by: "word" });
+  LitStage.define({
+    width: 1080, height: 1920, fps: 30, duration: 4,
+    render(t) {
+      LitStage.drawPath(shape, LitStage.ease.outCubic(LitStage.clamp(t / 2)));
+      blob.setAttribute("d", morph(LitStage.ease.inOutCubic(LitStage.clamp((t - 1) / 1.5))));
+      words.forEach((w, i) => { w.style.opacity = String(LitStage.at(t, 0.4 + i * 0.15, 0.4)); });
+    },
+  });
+</script>
+</body>
+</html>

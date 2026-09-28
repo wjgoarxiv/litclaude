@@ -1,0 +1,154 @@
+{
+  "skill_name": "handoff",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-incomplete-session",
+      "prompt": "My context window is nearly full and I still have work left on the auth module refactor. Create a handoff document so a fresh agent can pick up where I left off.",
+      "expected_output": "Creates a handoff at the resolved handoff path with all seven required sections (Task, Current State, What Was Done, Key Decisions, Open Issues, Next Steps, Context for Continuation). Current State appears early so the next agent sees status first. Every factual claim is evidenced or tagged [UNKNOWN]/[UNVERIFIED].",
+      "files": [],
+      "expectations": [
+        "Resolves the handoff destination from workspace state before writing",
+        "Uses .handoff/HANDOFF.md for a new handoff in a git repository with no root handoff",
+        "Includes all seven required sections in order: Task, Current State, What Was Done, Key Decisions, Open Issues, Next Steps, Context for Continuation",
+        "Current State appears early in the document so the next agent sees status before details",
+        "Every factual claim about progress or state includes file paths, commands, commit hashes, or error output as evidence",
+        "Information gaps are tagged with [UNKNOWN] or [UNVERIFIED] rather than fabricated or guessed",
+        "Does NOT mention system-prompt-extraction as a destination for the generated handoff",
+        "Current State answers 'where am I' with the last completed action, not a vague summary",
+        "Next Steps first item is independently actionable (specific file, command, or test name), not a conceptual goal"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "blocked-session-handoff",
+      "prompt": "I'm stuck on a failing CI pipeline. The tests pass locally but fail in GitHub Actions. I've spent most of my context investigating. Write a handoff so someone else can debug this.",
+      "expected_output": "Creates or updates the resolved handoff path. Open Issues section contains the specific CI failure details, environment differences investigated, and dead ends already ruled out. Next Steps are ordered and independently actionable by a fresh agent.",
+      "files": [],
+      "expectations": [
+        "Writes to the resolved handoff path selected by the Destination Resolution policy",
+        "Open Issues section documents the CI failure with error output, not vague descriptions",
+        "Lists approaches already tried and ruled out under What Was Done -> Dead Ends, preventing the next agent from repeating dead ends",
+        "Next Steps section gives concrete, ordered actions (e.g., specific commands to run, files to inspect)",
+        "Verification Commands section includes commands the next agent can run to reproduce the failure and confirm the environment",
+        "No narrative storytelling about the debugging journey; structured sections only",
+        "Dead Ends section names each failed approach and why it failed, so the next agent can skip it",
+        "Open Issues tags any unverified hypothesis with [UNVERIFIED] rather than presenting it as confirmed"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "pre-existing-root-handoff-adaptive",
+      "prompt": "I need to hand off my work on the API rate limiter. There's already a HANDOFF.md in the project root from a previous session working on a different task (the caching layer). Update it for my current work.",
+      "prompt_note": "This eval covers the existing root HANDOFF.md compatibility path in a git repository.",
+      "expected_output": "Reads the existing root HANDOFF.md, evaluates each section for relevance to the current rate-limiter task, replaces stale caching-layer content fully, and writes a new root HANDOFF.md. Does not blindly append. Preserves any sections that are still relevant to continuation.",
+      "files": [
+        "HANDOFF.md"
+      ],
+      "expectations": [
+        "Reads the existing root HANDOFF.md before writing",
+        "Treats existing root HANDOFF.md as the resolved handoff file for compatibility unless migration is requested",
+        "Evaluates existing content: replaces fully if obsolete (different task/stale state), preserves selectively if sections materially help the next agent",
+        "Does NOT blindly append new content to the old file without reviewing relevance",
+        "Final document is a coherent handoff for the current rate-limiter task, not a confusing hybrid of two tasks",
+        "If the old handoff's Verification Commands or Key Files sections contained still-valid references, those may be carried forward",
+        "Writes the result back to root HANDOFF.md"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "minimal-complete-boundary",
+      "prompt": "Create a handoff. I barely started, I only read the README and identified the entry point file.",
+      "expected_output": "Creates a valid handoff at the resolved destination even with minimal progress. All seven required sections are present. Sections with no content say 'None at this time' rather than being omitted. Next Steps reflect the early stage appropriately.",
+      "files": [],
+      "expectations": [
+        "Includes all seven required sections even though most have minimal content",
+        "Empty sections contain a note like 'None at this time' rather than being omitted entirely",
+        "What Was Done section records the README review and entry-point identification as actual progress, however small",
+        "Next Steps are concrete and actionable given the early stage (e.g., 'Read src/index.ts and map module exports')",
+        "Does not fabricate progress or pad sections with generic observations to appear substantial",
+        "Writes to the resolved handoff path"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "negative-wrong-destination",
+      "prompt": "I need a handoff for my work on the payment service. Save it somewhere I can find it later.",
+      "prompt_note": "This eval tests that ambiguous destination wording does not override Destination Resolution. The sanctioned .handoff/HANDOFF.md path is allowed for new handoffs in git repositories.",
+      "expected_output": "Creates or updates only the resolved handoff path. Does not write into the skill directory, templates/, examples/, system-prompt-extraction/, outside the active project, or arbitrary unsafe destinations.",
+      "files": [],
+      "expectations": [
+        "Output lands only at the resolved handoff path from policy, including .handoff/HANDOFF.md when that is the sanctioned git-repo destination",
+        "Does NOT write to any path inside the skill directory or its subdirectories",
+        "Does NOT write to templates/ or examples/",
+        "Does NOT write to system-prompt-extraction/ under any circumstance",
+        "Does NOT write outside the active project or workspace root",
+        "Does NOT write to unapproved project subdirectories such as docs/HANDOFF.md or handoff/HANDOFF.md",
+        "Includes all seven required sections per the contract"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "resumability-audit",
+      "prompt": "I'm handing off mid-task. I've implemented the database migration and updated two models, but the API endpoint tests are failing with a 500 error I haven't diagnosed yet. Create a handoff so a fresh agent can pick this up.",
+      "prompt_note": "This eval tests the resumability criteria: the handoff must let a fresh agent answer all six resumability questions (where am I, what was done, what failed, what remains, how do I verify, what don't I know) without guessing.",
+      "expected_output": "Creates a handoff that passes the resumability audit. A fresh agent reading only this document can answer all six resumability questions. Unknowns are labeled, not fabricated. Verification commands let the next agent confirm state before proceeding.",
+      "files": [],
+      "expectations": [
+        "Current State specifies the last completed action (e.g., 'migration file created, models updated') not a vague progress summary",
+        "What Was Done lists specific file paths for the migration and model changes, with evidence (commit hash or file path)",
+        "Open Issues documents the 500 error with available error output or log excerpts, not just 'tests are failing'",
+        "Dead Ends lists any debugging approaches tried for the 500 error and why they didn't resolve it, or states 'None attempted yet' if no debugging occurred",
+        "Next Steps first item is a concrete action like 'run test X and capture full error output' or 'inspect file Y line Z', not a conceptual goal",
+        "Information gaps about the 500 error cause are tagged [UNKNOWN] rather than guessed or attributed to a specific cause without evidence",
+        "Includes at least one Verification Command the fresh agent can run to confirm the migration and model state before proceeding",
+        "Does not fabricate a root cause for the 500 error; the cause is genuinely unknown and tagged as such"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "bare-invocation-creates-missing-git-handoff",
+      "prompt": "handoff",
+      "prompt_note": "The active workspace is a git repository with no root HANDOFF.md and no existing .handoff/HANDOFF.md. This eval covers bare skill invocation with no additional user text.",
+      "expected_output": "Treats bare skill invocation with no additional user text as an explicit handoff request and creates .handoff/HANDOFF.md.",
+      "files": [],
+      "expectations": [
+        "Does not ask the user to clarify whether a handoff is requested",
+        "Creates .handoff/HANDOFF.md because the workspace is a git repository with no existing root handoff",
+        "Includes all seven required sections",
+        "Uses available workspace evidence and tags unknowns rather than inventing session detail"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "bare-invocation-updates-existing-git-handoff",
+      "prompt": "handoff",
+      "prompt_note": "The active workspace is a git repository with an existing .handoff/HANDOFF.md and no root HANDOFF.md. This eval covers bare skill invocation updating an existing resolved handoff.",
+      "expected_output": "Treats bare skill invocation as an update request, reads the existing .handoff/HANDOFF.md, classifies it, selectively carries forward still-material context, and writes a fresh updated handoff.",
+      "files": [
+        ".handoff/HANDOFF.md"
+      ],
+      "expectations": [
+        "Reads the existing .handoff/HANDOFF.md before writing",
+        "Classifies the existing handoff as obsolete, active continuation, or stale continuation",
+        "Does NOT blindly append new content to the old handoff",
+        "Carries forward only materially useful prior context with [PRIOR] markers",
+        "Writes the updated handoff back to .handoff/HANDOFF.md"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "non-git-root-destination",
+      "prompt": "Create a handoff for this non-git workspace.",
+      "prompt_note": "The active workspace has no .git directory.",
+      "expected_output": "Creates root HANDOFF.md because the workspace is non-git.",
+      "files": [],
+      "expectations": [
+        "Detects that the active workspace is non-git",
+        "Uses root HANDOFF.md as the resolved handoff path",
+        "Does not create .handoff/HANDOFF.md in the non-git workspace by default",
+        "Includes all seven required sections and evidence/unknown tags"
+      ]
+    }
+  ]
+}

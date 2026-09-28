@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #101820; font-family: "Pretendard"; }
+  #box { position: absolute; left: 0; top: 0; width: 220px; height: 220px; background: #e0a040; }
+  #spin { position: absolute; left: 1500px; top: 200px; width: 120px; height: 120px; background: #50b0e0; animation: spin 2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #copy { position: absolute; left: 200px; top: 760px; margin: 0; color: #f4efe6; font-size: 84px; font-weight: 700; }
+  #clock { position: absolute; left: 200px; top: 900px; margin: 0; color: #9fb3c8; font-size: 40px; }
+</style>
+</head>
+<body>
+<div id="box"></div>
+<div id="spin"></div>
+<h1 id="copy"></h1>
+<p id="clock"></p>
+<script>
+  const COPY = { line: "Lanterns drift home" };
+  const copy = document.getElementById("copy");
+  copy.textContent = COPY.line;
+  LitStage.text(copy);
+  const box = document.getElementById("box");
+  const clock = document.getElementById("clock");
+  let ticks = 0;
+  const loop = () => { ticks += 1; requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  setTimeout(() => { box.style.borderRadius = "50%"; }, 1300);
+  const jitter = LitStage.rand(7);
+  LitStage.define({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    render(t) {
+      box.style.transform = `translate(${200 + t * 300}px, ${300 + Math.sin(t * 2) * 100}px) rotate(${t * 40}deg)`;
+      box.style.background = `hsl(${Math.round(t * 60 + Math.random() * 20 + jitter() * 10) % 360} 70% 55%)`;
+      clock.textContent = `${new Date().toISOString().slice(11, 22)} · ${performance.now().toFixed(0)} ms · ${ticks} frames`;
+    },
+  });
+</script>
+</body>
+</html>

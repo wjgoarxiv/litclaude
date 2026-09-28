@@ -1,0 +1,25 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+.env
+.env.*
+dist/
+coverage/
+*.tgz
+tmp/
+reference/
+\# REFERENCE/
+.omc/
+.litcodex/
+.litclaude/
+.litopencode/
+.[o][m][o]/
+evidence/
+plans/
+.debug-journal.md
+__pycache__/
+*.pyc
+test/evidence/
+HANDOFF.md
+HANDOFF_litclaude.md
+!plugins/litclaude/vendor/handoff/templates/HANDOFF.md

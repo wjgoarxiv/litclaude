@@ -1,0 +1,30 @@
+[
+  {
+    "name": "plain-project-update",
+    "text": "The team reviewed the contract and added one testing step."
+  },
+  {
+    "name": "plain-data-description",
+    "text": "The table lists each observation for every sample."
+  },
+  {
+    "name": "korean-report-fact",
+    "text": "표에는 2023년과 2024년 측정값이 순서대로 정리되어 있다."
+  },
+  {
+    "name": "bounded-interpretation",
+    "text": "이 결과는 현재 자료의 범위 안에서만 해석한다."
+  },
+  {
+    "name": "figure-attribution",
+    "text": "Figure 3. Project totals\nSource: annual report, 2024."
+  },
+  {
+    "name": "quoted-attribution",
+    "text": "> Source: quoted wording from the supplied text."
+  },
+  {
+    "name": "fenced-example",
+    "text": "```text\nI hope this helps.\n```"
+  }
+]

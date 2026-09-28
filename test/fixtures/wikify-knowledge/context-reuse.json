@@ -1,0 +1,22 @@
+{
+  "noKnowledgeBaseline": {
+    "repeatCount": 4,
+    "projectContext": "The G10 implementation stores product-local knowledge only under .litclaude/knowledge. The append-only claims.jsonl ledger is authoritative. New structured claims start in review-needed state. Only an explicit save or review can accept a claim. Queries use deterministic local relevance. Queries return accepted claims only. Rejected and stale claims never enter the knowledge block. A no-match query stays silent. The normal output budget is 2048 UTF-8 bytes. The hard output limit is 4096 UTF-8 bytes. The runtime uses the Node standard library. The runtime does not use a network, daemon, watcher, vector database, embedding model, dependency, or external service. Raw chat, source bodies, fetched text, credentials, secrets, tokens, and instruction-shaped payloads never enter persistence."
+  },
+  "knowledgeEvent": {
+    "kind": "decision",
+    "text": "Store accepted G10 claims in an append-only local ledger and use deterministic local relevance.",
+    "provenance": {
+      "ref": "G10"
+    },
+    "evidence": {
+      "ref": "test/fixtures/wikify-knowledge/context-reuse.json"
+    }
+  },
+  "queries": [
+    "Where are accepted G10 claims stored?",
+    "What relevance method does G10 use?",
+    "Which G10 ledger is append-only?",
+    "How does G10 reuse accepted local claims?"
+  ]
+}

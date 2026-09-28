@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; font-family: "Pretendard"; }
+  #first { position: absolute; left: 100px; top: 100px; width: 200px; height: 200px; background: #fff; opacity: 0; }
+  #second { position: absolute; left: 100px; top: 500px; width: 100px; height: 100px; background: rgb(0, 255, 0); }
+  #copy { position: absolute; left: 200px; top: 800px; margin: 0; color: #fff; font-size: 84px; }
+</style>
+</head>
+<body>
+<div id="first"></div>
+<div id="second"></div>
+<h1 id="copy">Lanterns drift home</h1>
+<script>
+  LitStage.text(document.getElementById("copy"));
+  const first = document.getElementById("first").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" });
+  first.finished.then(() => {
+    document.getElementById("second").animate([{ transform: "translateX(0px)" }, { transform: "translateX(800px)" }], { duration: 1000, fill: "forwards", easing: "linear" });
+  });
+  LitStage.define({ width: 1920, height: 1080, fps: 60, duration: 4, render() {} });
+</script>
+</body>
+</html>

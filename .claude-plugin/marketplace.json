@@ -1,0 +1,12 @@
+{
+  "name": "litclaude-ai",
+  "metadata": { "description": "LitClaude native Claude Code plugin." },
+  "owner": { "name": "LitClaude contributors" },
+  "plugins": [
+    {
+      "name": "litclaude",
+      "source": "./plugins/litclaude",
+      "description": "Claude Code-native workflows for planning, execution, research, and review."
+    }
+  ]
+}

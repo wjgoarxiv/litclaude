@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0b1830; font-family: "Pretendard"; }
+  .line { position: absolute; left: 200px; margin: 0; white-space: nowrap; }
+  #head { top: 700px; font-size: 104px; font-weight: 700; color: #f2f4f7; }
+  #sub { top: 850px; font-size: 48px; font-weight: 400; color: #ffd98a; }
+  [data-lit-part] { display: inline-block; }
+</style>
+</head>
+<body>
+<p class="line" id="head"></p>
+<p class="line" id="sub"></p>
+<script>
+  // Copy rising in word by word: opacity and a translate on the same element, the most common entrance.
+  const COPY = { head: "Lanterns drift home", sub: "Harbour bells at dusk" };
+  const { define, text, ease, at, splitText } = LitStage;
+  const lines = [["head", COPY.head], ["sub", COPY.sub]].map(([id, words]) => {
+    const node = text(document.getElementById(id));
+    node.textContent = words;
+    return splitText(node, { by: "eojeol" });
+  });
+  define({
+    width: 1920, height: 1080, fps: 60, duration: 4,
+    render(t) {
+      const show = (i, start) => lines[i].forEach((w, k) => {
+        const p = ease.outCubic(at(t, start + k * 0.06, 0.3));
+        w.style.opacity = String(p);
+        w.style.transform = `translateY(${(1 - p) * 28}px)`;
+      });
+      // Both lines rise and settle between two determinism samples (3.33 s and the last frame).
+      show(0, 3.36);
+      show(1, 3.42);
+    },
+  });
+</script>
+</body>
+</html>

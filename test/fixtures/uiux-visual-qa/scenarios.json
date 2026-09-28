@@ -1,0 +1,80 @@
+{
+  "schema_version": "litfamily.uiux-visual-qa-scenarios/v1",
+  "scenarios": [
+    {
+      "id": "public-service-form-ko",
+      "seeded_finding": "WCAG_LABEL_MISSING",
+      "severity": "critical",
+      "surface": "web",
+      "signals": { "keyboard_focus_visible": false, "text_contrast_ratio": 3.2 }
+    },
+    {
+      "id": "fintech-dashboard",
+      "seeded_finding": "VISUAL_DATA_CLIPPED",
+      "severity": "high",
+      "surface": "web",
+      "signals": { "chart_color_only": true, "nonvisual_fallback_present": false }
+    },
+    {
+      "id": "healthcare-mobile",
+      "seeded_finding": "WCAG_TARGET_SIZE",
+      "severity": "critical",
+      "surface": "mobile",
+      "signals": {
+        "production_mutations": 0,
+        "destructive_action_safe": false,
+        "minimum_touch_target": 32
+      }
+    },
+    {
+      "id": "saas-landing-responsive",
+      "seeded_finding": "RESPONSIVE_OVERFLOW",
+      "severity": "high",
+      "surface": "web",
+      "signals": { "mobile_overflow_pixels": 24, "reduced_motion_respected": false }
+    },
+    {
+      "id": "brownfield-design-system",
+      "seeded_finding": "DESIGN_TOKEN_DRIFT",
+      "severity": "high",
+      "surface": "web",
+      "signals": {
+        "token_bypass": true,
+        "duplicated_primitive": true,
+        "source_pointer": "src/components/Dashboard.tsx:42"
+      }
+    },
+    {
+      "id": "reference-fidelity",
+      "seeded_finding": "REFERENCE_ALPHA_MISMATCH",
+      "severity": "critical",
+      "surface": "web",
+      "signals": {
+        "target_dimensions": [1440, 900],
+        "reference_dimensions": [1280, 720],
+        "screenshot_substitution": true
+      }
+    },
+    {
+      "id": "cjk-terminal-dashboard",
+      "seeded_finding": "TUI_BORDER_TOPOLOGY_BROKEN",
+      "severity": "high",
+      "surface": "terminal",
+      "signals": {
+        "capture": "┌──┐\n│\u001b]8;;unterminated한👩‍💻│\n└─ ┘\n",
+        "columns": 4
+      }
+    },
+    {
+      "id": "missing-capture-auth-review",
+      "seeded_finding": "BLOCKED_RENDERER_UNAVAILABLE",
+      "severity": "critical",
+      "surface": "web",
+      "signals": {
+        "capture": false,
+        "auth": false,
+        "independent_review": false
+      }
+    }
+  ]
+}

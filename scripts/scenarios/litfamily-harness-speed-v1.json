@@ -1,0 +1,38 @@
+{
+  "schema": "litfamily.harness-speed-scenario/v1",
+  "scenario_id": "litfamily-speed-lit-activation-v1",
+  "encoding": "UTF-8",
+  "prompt_trailing_newline": false,
+  "records": [
+    {
+      "id": "B0",
+      "measured": false,
+      "prompt": "Reply with exactly this ASCII token and nothing else: LIT_SPEED_B0_OK",
+      "prompt_bytes": 69,
+      "prompt_sha256": "a5f634868cc6e20375f60803dcbe850eeb3d2709d6bb2c0efee204b9b5534904",
+      "sentinel": "LIT_SPEED_B0_OK",
+      "sentinel_bytes": 15,
+      "sentinel_sha256": "7652e386a8825b8459833ec8aa7d19fa6a55bf82652f63f45cc4ae29bcfee17b"
+    },
+    {
+      "id": "S1",
+      "measured": true,
+      "prompt": "lit\nReply with exactly this ASCII token and nothing else: LIT_SPEED_S1_OK",
+      "prompt_bytes": 73,
+      "prompt_sha256": "a52e0ec9444cc2195c1c8dbb638862251f1f07df0512c505d06b43d44d4a4e78",
+      "sentinel": "LIT_SPEED_S1_OK",
+      "sentinel_bytes": 15,
+      "sentinel_sha256": "8a655cd5ccd93b2727d641b5ca444e0f72bc09016115b7b6b16aa29e8457414a"
+    },
+    {
+      "id": "S2",
+      "measured": true,
+      "prompt": "Continue the active workflow. Reply with exactly this ASCII token and nothing else: LIT_SPEED_S2_OK",
+      "prompt_bytes": 99,
+      "prompt_sha256": "7b6712f5542798968a74a56241689f40475d50851d5a4d80f877d9a2589983a0",
+      "sentinel": "LIT_SPEED_S2_OK",
+      "sentinel_bytes": 15,
+      "sentinel_sha256": "482d6b2f6dc3a90d5feb4aef7615f715ef2ffbceea5e5ffde90f070175c22dc8"
+    }
+  ]
+}
