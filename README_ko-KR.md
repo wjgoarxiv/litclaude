@@ -606,6 +606,36 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok을 아머드 머신으로 �
 
 </details>
 
+## Jev 스킬 힌트 (선택)
+
+LitClaude는 TypeSafe가 호스팅하는 선택 모델 Jev에게 프롬프트에 맞는 LitClaude 스킬을 물어볼 수 있습니다.
+Jev가 스킬 하나를 고르면 `UserPromptSubmit` 훅이 그 스킬 이름을 담은 권고 한 줄을 덧붙입니다.
+스킬을 불러올지는 여전히 Claude가 정합니다. 이 줄은 권한을 주지 않고 도구를 실행하지도 않습니다.
+
+기본값은 꺼짐입니다. 켜려면 Claude Code를 실행하는 환경에 두 변수를 모두 설정합니다.
+
+```bash
+export LITCLAUDE_JEV=1
+export TYPESAFE_API_KEY=<본인의 TypeSafe 키>
+```
+
+켜 두면 해당하는 프롬프트마다 2,000자로 자르고 홈 경로, 이메일 주소, 토큰 모양의 문자열을 가린 뒤
+TypeSafe(typesafe.ai)로 보냅니다. 슬래시 명령, `lit` 라우터가 이미 처리한 프롬프트, 스킬 이름을 직접 적은
+프롬프트는 보내지 않습니다. 파일, 도구 출력, 대화 기록처럼 세션의 다른 내용도 보내지 않습니다.
+호스트 이름, 고객 이름, `password=…` 꼴이 아닌 비밀번호처럼 토큰 모양이 아닌 내용은 적힌 그대로 전송됩니다.
+`TYPESAFE_API_KEY`는 Claude Code를 실행하는 셸에 export되므로 에이전트의 도구도 이 키를 읽을 수 있습니다.
+이 기능 전용 키를 만들고 사용 한도를 낮게 잡아 두세요. 요청 비용은
+본인의 TypeSafe 계정에 청구되며, 입력 토큰 100만 개당 약 0.04달러입니다. 요청은 최대 1.5초만 기다립니다.
+실패하면 평소처럼 진행하고, 세션에서 처음 한 번만 짧게 알립니다.
+
+`litclaude doctor`는 `Jev skill hint: off`, `on`, `flag on but TYPESAFE_API_KEY missing` 중 하나를 출력합니다.
+켜 두면 LitClaude HUD 상태 줄 끝에 `Jev ✓`가 붙고, 힌트가 나온 턴에는 스킬과 지연 시간(`Jev ✓ lit-humanizer 0.27s`)이,
+키가 없으면 `Jev ⚠ key missing`이 표시됩니다.
+색을 쓸 수 있으면 이 `Jev`가 무지개색으로 은은하게 반짝이고, 플래그와 키가 모두 설정된 세션의 첫 프롬프트에서
+`✦ Jev skill hint ON ✦` 한 줄이 한 번 표시됩니다(`NO_COLOR`에서는 색 없이 표시).
+끄려면 `LITCLAUDE_JEV`를 해제하거나 `1`이 아닌 값으로 바꿉니다. 세부 조정 변수와 로컬 디버그 기록은
+`docs/hooks.md`에 설명되어 있습니다.
+
 ## 안전 모델
 
 - Hook은 제한된 Claude Code event JSON을 읽고 사용자 prompt text를 실행하지

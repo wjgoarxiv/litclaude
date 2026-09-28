@@ -10,9 +10,12 @@ import {
   hudColorDepth,
   litBrandPrefix,
   normalizeHudAppearance,
+  rainbowText,
 } from "../lib/hud-accent-palette.mjs";
 import { latestUsageTokens } from "../lib/cache-measurement.mjs";
 import { readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
+import { formatJevLatency, jevHudState } from "../lib/jev-skill-hint.mjs";
+import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 
 const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pluginManifestPath = join(pluginRoot, ".claude-plugin", "plugin.json");
@@ -243,6 +246,30 @@ const formatUsageSegment = (label, value, reset) => {
   return `${labelText} ${accent("[")}${makeBlockBar(pct, 2)}${accent("]")} ${pctText}${resetText ? ` ${text(resetText)}` : ""}`;
 };
 
+// Optional Jev skill hint: nothing while LITCLAUDE_JEV is off, and never the key or its length.
+const jevSegment = (status) => {
+  let state;
+  try {
+    const cwd = typeof status.cwd === "string" && status.cwd ? status.cwd : null;
+    state = jevHudState({
+      env: process.env,
+      stateRoot: cwd ? resolveProjectStateRoot(cwd) : null,
+      sessionId: status.session_id,
+    });
+  } catch {
+    return "";
+  }
+  if (!state) return "";
+  if (state.keyMissing) return `${text("Jev")} ${colors.yellow}⚠${colors.reset} ${text("key missing")}`;
+  // While on, the word shimmers: each refresh starts the rainbow at a hue taken from the clock.
+  // Light and unknown appearances keep it on the default foreground like the rest of the text.
+  const now = Number(process.env.LITCLAUDE_HUD_TEST_NOW);
+  const phase = Math.floor((Number.isFinite(now) && now > 0 ? now : Date.now()) / 100) % 360;
+  const word = coloredText ? rainbowText("Jev", { depth: colorDepth, phase }) : text("Jev");
+  const mark = `${word} ${colors.green}✓${colors.reset}`;
+  return state.last ? `${mark} ${text(state.last.skill)} ${text(formatJevLatency(state.last.latency_ms))}` : mark;
+};
+
 const main = async () => {
   const input = await readStdin();
   const status = input.trim() ? JSON.parse(input) : {};
@@ -267,7 +294,8 @@ const main = async () => {
   const ignition = renderIgnitionSegment(readIgnitionState(status.session_id), {
     depth: plainOutput ? "plain" : colorDepth,
   });
-  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)} ${accent(sep)} ${contextText}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
+  const jev = jevSegment(status);
+  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)} ${accent(sep)} ${contextText}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}${jev ? ` ${accent(sep)} ${jev}` : ""}`;
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);

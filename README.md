@@ -649,6 +649,40 @@ questions. Their Node and Python packages install on first use from pinned lockf
 `~/.cache/litclaude/office-runtime`, and `litclaude doctor` shows whether that runtime
 and the optional LibreOffice, pandoc, and XeLaTeX tools are ready.
 
+## Jev skill hint (optional)
+
+LitClaude can ask Jev, TypeSafe's hosted choice model, which LitClaude skill fits a prompt.
+When Jev names one, the `UserPromptSubmit` hook adds one advisory line with that skill's name.
+Claude still decides whether to load it; the line grants no permission and starts no tool.
+
+It is off by default. To turn it on, set both variables in the environment that launches
+Claude Code:
+
+```bash
+export LITCLAUDE_JEV=1
+export TYPESAFE_API_KEY=<your own TypeSafe key>
+```
+
+While it is on, each eligible prompt is sent to TypeSafe (typesafe.ai), truncated to 2,000
+characters, with home paths, e-mail addresses, and token-shaped strings redacted. Slash
+commands, prompts the `lit` router already handled, and prompts that name a skill are not
+sent, and nothing else from the session is sent: no files, tool output, or history. Anything in
+the prompt without a token shape, such as a hostname, a customer name, or a password not
+written as `password=…`, is sent as written. Because `TYPESAFE_API_KEY` is exported in the
+shell that starts Claude Code, the agent's own tools can read it too, so use a key dedicated to
+this feature, with a low spend limit. TypeSafe
+bills your account for each request, at about $0.04 per million input tokens. A request waits
+at most 1.5 seconds; on any failure the turn continues as before, with one short note the
+first time in a session.
+
+`litclaude doctor` prints `Jev skill hint: off`, `on`, or `flag on but TYPESAFE_API_KEY missing`.
+While it is on, the LitClaude HUD status line ends with `Jev ✓`, adds the skill and latency
+(`Jev ✓ lit-humanizer 0.27s`) on a hinted turn, and shows `Jev ⚠ key missing` without a key.
+When colour is allowed, `Jev` there shimmers in rainbow colours, and the first prompt of each session
+with the flag and key set shows one `✦ Jev skill hint ON ✦` line (plain text under `NO_COLOR`).
+To turn it off, unset `LITCLAUDE_JEV` or set it to any value other than `1`. Tuning variables
+and the local debug trace are described in `docs/hooks.md`.
+
 ## Safety
 
 - Hooks read bounded Claude Code event JSON and do not execute user prompt text.

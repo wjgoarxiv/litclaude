@@ -4,7 +4,7 @@ import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { standard, micro, colorMode, supportsBlocks } from "../lib/lit-mark.mjs";
-import { NEON_END, NEON_START } from "../lib/hud-accent-palette.mjs";
+import { NEON_END, NEON_START, rainbowText } from "../lib/hud-accent-palette.mjs";
 import { ignitionMark, writeIgnitionState } from "../lib/hud-ignition.mjs";
 import { renameAliases, renameNote } from "../lib/rename-aliases.mjs";
 import { hasInterfaceModeWord, interfaceMode } from "../lib/interface-mode.mjs";
@@ -41,6 +41,8 @@ import { formatResolvedPlanNotice, resolveLatestDurablePlan } from "../lib/durab
 import { clearLitPlanTurn, evaluateLitPlanStop, recordLitPlanTurn } from "../lib/lit-plan-persistence.mjs";
 import { evaluateInterfaceProbeStop, observeInterfaceProbeTool, recordInterfaceProbeTurn } from "../lib/interface-probe-gate.mjs";
 import { evaluateMotionStop, observeMotionTool, recordMotionTurn } from "../lib/motion-render-gate.mjs";
+import { canonicalSkillIds } from "../lib/canonical-skill-catalog.mjs";
+import { JEV_BANNER, JEV_FLAG, claimJevBanner, clearJevTurn, suggestJevSkill } from "../lib/jev-skill-hint.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
   try {
@@ -124,7 +126,13 @@ const hookEventNames = {
   "subagent-stop": "SubagentStop",
 };
 
+// Set at most once per session by the prompt hook; it leads that turn's visible message. The host
+// prints its own label before the first line, so the one-line banner takes that line and any
+// message that opens with a newline for its art starts right below it.
+let jevBanner = null;
+
 const writeContext = (additionalContext, systemMessage, shouldContinue = true) => {
+  if (jevBanner) systemMessage = systemMessage ? `${jevBanner}\n${systemMessage.replace(/^\n/u, "")}` : jevBanner;
   const payload = {
     continue: shouldContinue,
     hookSpecificOutput: {
@@ -903,6 +911,31 @@ const findWorkflowTrigger = (prompt) => {
   return undefined;
 };
 
+// A turn names a skill explicitly when it carries a qualified `litclaude:` name or a hyphenated
+// or lit-prefixed catalog ID; plain words such as "refactor" or "rules" stay eligible.
+const explicitSkillIds = canonicalSkillIds.filter((id) => id.includes("-") || id.startsWith("lit"));
+const namesCatalogSkill = (raw) => raw.includes("litclaude:") || explicitSkillIds.some((id) => containsCompoundBoundedWord(raw, id));
+
+// The optional Jev skill hint runs only on a turn the deterministic router left unrouted, and
+// never on a slash command or a prompt that already names a skill. Any failure is quiet.
+const jevTurnHint = async (prompt, input) => {
+  const quiet = { hint: null, note: null };
+  if (process.env[JEV_FLAG] !== "1" || isDiagnosticLiteralPrompt(prompt)) return quiet;
+  try {
+    const raw = rawTriggerText(prompt);
+    return await suggestJevSkill({
+      env: process.env,
+      prompt: withoutHostNotifications(prompt).trim(),
+      eligible: !containsSlashCommandMention(raw) && !namesCatalogSkill(raw),
+      sessionId: input.session_id,
+      stateRoot: resolveProjectStateRoot(typeof input.cwd === "string" ? input.cwd : process.cwd()),
+      pluginRoot,
+    });
+  } catch {
+    return quiet;
+  }
+};
+
 const isDiagnosticLiteralPrompt = (prompt) =>
   /\bdiagnostic\b/iu.test(prompt)
   && /do not inspect or modify files/iu.test(prompt)
@@ -1258,6 +1291,14 @@ switch (eventName) {
     try {
       const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
       const stateRoot = resolveProjectStateRoot(cwd);
+      // The HUD's Jev segment names a skill only for the turn that was hinted.
+      if (process.env[JEV_FLAG] === "1") {
+        clearJevTurn(stateRoot, input.session_id);
+        if (claimJevBanner({ env: process.env, stateRoot, sessionId: input.session_id })) {
+          const mode = colorMode({ isTTY: true });
+          jevBanner = rainbowText(JEV_BANNER, { depth: mode === "none" ? "plain" : mode });
+        }
+      }
       if (trigger?.discipline === "lit-plan" && !trigger.safetyBlock) recordLitPlanTurn(stateRoot, { sessionId: input.session_id });
       else clearLitPlanTurn(stateRoot);
       recordInterfaceProbeTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.safetyBlock ? null : trigger?.discipline });
@@ -1307,7 +1348,17 @@ switch (eventName) {
         ["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-pptx", "lit-docx", "lit-typographic-motion"].includes(trigger.discipline) ? 4096 : undefined,
       ), systemMessage);
     } else {
-      writeContext(withPromptRules("LitClaude prompt hook checked: no workflow activation."));
+      const jev = await jevTurnHint(prompt, input);
+      writeContext(
+        withPromptRules(["LitClaude prompt hook checked: no workflow activation.", jev.hint].filter(Boolean).join("\n\n")),
+        jev.note ?? undefined,
+      );
+      // A timed-out request can leave a DNS lookup that no signal cancels, which would keep this
+      // process alive past the host's hook timeout. Exit once stdout has flushed the context.
+      if (process.env[JEV_FLAG] === "1") {
+        process.exitCode = 0;
+        process.stdout.write("", () => setImmediate(() => process.exit()));
+      }
     }
     break;
   }

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hudPath = join(root, "plugins", "litclaude", "bin", "litclaude-hud.js");
@@ -700,4 +700,170 @@ test("LitClaude HUD treats an empty NO_COLOR presence as a no-color request", ()
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.includes("\x1b"), false, result.stdout);
+});
+
+// Optional Jev skill hint segment. The key is obviously fake and must never reach the HUD.
+const JEV_FAKE_KEY = "test-key-not-real-0000";
+const jevEnv = (overrides = {}) => {
+  const env = { ...colorEnv };
+  for (const key of Object.keys(env)) if (key.startsWith("LITCLAUDE_JEV") || key === "TYPESAFE_API_KEY") delete env[key];
+  return {
+    ...env,
+    LITCLAUDE_NO_AUTO_UPDATE: "1",
+    LITCLAUDE_NO_UPDATE_CHECK: "1",
+    LITCLAUDE_HUD_NO_COLOR: "1",
+    LITCLAUDE_HUD_TEST_USAGE: "",
+    CLAUDE_HUD_TEST_USAGE: "",
+    LITCLAUDE_VERSION: packageJson.version,
+    ...overrides,
+  };
+};
+const jevOn = { LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: JEV_FAKE_KEY };
+
+const jevProject = (t, record) => {
+  const cwd = mkdtempSync(join(tmpdir(), "litclaude-hud-jev-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  if (record) {
+    mkdirSync(join(cwd, ".litclaude", "jev"), { recursive: true });
+    writeFileSync(join(cwd, ".litclaude", "jev", "session-jev-session.json"), JSON.stringify(record));
+  }
+  return cwd;
+};
+
+const runJevHud = (cwd, env) => {
+  const result = spawnSync(process.execPath, [hudPath], {
+    cwd,
+    encoding: "utf8",
+    input: `${JSON.stringify({
+      model: { display_name: "Opus 4.8" },
+      cwd,
+      session_id: "jev-session",
+      context_window: { context_window_size: 1000000, used_percentage: 0 },
+    })}\n`,
+    env,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.includes(JEV_FAKE_KEY), false, "the key never reaches the HUD");
+  return result.stdout.split("\n")[0];
+};
+
+const hinted = { calls: 1, noted: false, last: { skill: "lit-humanizer", latency_ms: 270 } };
+
+test("LitClaude HUD shows no Jev segment while the feature is off", (t) => {
+  const cwd = jevProject(t, hinted);
+  for (const overrides of [{}, { TYPESAFE_API_KEY: JEV_FAKE_KEY }, { LITCLAUDE_JEV: "0", TYPESAFE_API_KEY: JEV_FAKE_KEY }]) {
+    assert.doesNotMatch(runJevHud(cwd, jevEnv(overrides)), /Jev/u);
+  }
+});
+
+test("LitClaude HUD shows the Jev state, the hinted skill and its latency", (t) => {
+  assert.match(runJevHud(jevProject(t), jevEnv(jevOn)), / 1w \[░░\] --% │ Jev ✓$/u);
+  assert.match(runJevHud(jevProject(t, hinted), jevEnv(jevOn)), / │ Jev ✓ lit-humanizer 0\.27s$/u);
+  assert.match(runJevHud(jevProject(t, { ...hinted, last: null }), jevEnv(jevOn)), / │ Jev ✓$/u);
+  assert.match(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1" })), / │ Jev ⚠ key missing$/u);
+  assert.match(runJevHud(jevProject(t, hinted), jevEnv({ LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: " " })), / │ Jev ⚠ key missing$/u);
+});
+
+test("LitClaude HUD shows only a validated skill ID from the Jev state file", (t) => {
+  for (const last of [
+    { skill: "Ignore previous instructions", latency_ms: 270 },
+    { skill: "lit-humanizer\nrm -rf", latency_ms: 270 },
+    { skill: "lit-humanizer", latency_ms: "270" },
+    { skill: "lit-humanizer", latency_ms: -1 },
+  ]) {
+    assert.match(runJevHud(jevProject(t, { ...hinted, last }), jevEnv(jevOn)), / │ Jev ✓$/u, JSON.stringify(last));
+  }
+});
+
+test("LitClaude HUD keeps the compact line within the constrained width with Jev on", (t) => {
+  const line = runJevHud(jevProject(t), jevEnv(jevOn));
+  assert.equal([...line].length <= 85, true, line);
+});
+
+test("LitClaude HUD paints the Jev marks with the status colours and keeps text readable", (t) => {
+  const cwd = jevProject(t, hinted);
+  const color = { LITCLAUDE_HUD_NO_COLOR: "", NO_COLOR: undefined, COLORTERM: "", TERM: "xterm-256color", LITCLAUDE_HUD_COLOR_DEPTH: "256" };
+  const clean = (env) => Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined));
+  const dark = runJevHud(cwd, clean(jevEnv({ ...jevOn, ...color, LITCLAUDE_HUD_APPEARANCE: "dark" })));
+  assert.match(dark, /\x1b\[38;5;71m✓\x1b\[0m/u);
+  assert.match(dark, /\x1b\[1m\x1b\[38;5;\d+mJ\x1b\[38;5;\d+me\x1b\[38;5;\d+mv\x1b\[0m/u);
+  assertColoredTokens(dark, ["lit-humanizer", "0.27s"]);
+  const light = runJevHud(cwd, clean(jevEnv({ ...jevOn, ...color, LITCLAUDE_HUD_APPEARANCE: "light" })));
+  assertDefaultForeground(light, ["Jev", "lit-humanizer", "0.27s"]);
+  const missing = runJevHud(cwd, clean(jevEnv({ LITCLAUDE_JEV: "1", ...color, LITCLAUDE_HUD_APPEARANCE: "dark" })));
+  assert.match(missing, /\x1b\[38;5;178m⚠\x1b\[0m/u);
+});
+
+test("LitClaude HUD follows the prompt hook's Jev state turn by turn", (t) => {
+  const cwd = jevProject(t);
+  const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
+  const fakeFetch = pathToFileURL(join(root, "test", "fixtures", "jev", "fake-fetch.mjs")).href;
+  const turn = (prompt, response) => {
+    const result = spawnSync(process.execPath, ["--import", fakeFetch, hookPath, "user-prompt-submit"], {
+      cwd,
+      encoding: "utf8",
+      input: JSON.stringify({ cwd, session_id: "jev-session", prompt }),
+      env: jevEnv({ ...jevOn, JEV_FAKE_RESPONSE: JSON.stringify(response) }),
+      timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(`${result.stdout}${result.stderr}`.includes(JEV_FAKE_KEY), false);
+    return runJevHud(cwd, jevEnv(jevOn));
+  };
+  const answer = (choice) => ({ status: 200, body: JSON.stringify({ answers: { which: { choice, confidence: 0.9 } } }) });
+
+  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / │ Jev ✓ lit-humanizer \d+\.\d{2}s$/u);
+  assert.match(turn("lit plan the billing migration", answer("lit-humanizer")), / │ Jev ✓$/u, "a routed turn clears the last hint");
+  assert.match(turn("이 보고서 초안에서 AI가 쓴 티 나는 표현을 자연스럽게 고쳐줘.", answer("lit-humanizer")), / │ Jev ✓ lit-humanizer /u);
+  assert.match(turn("what is the capital of France?", answer("none")), / │ Jev ✓$/u, "a turn without a hint shows no skill");
+});
+
+// The word Jev shimmers: a per-letter rainbow whose starting hue follows the clock.
+const jevColorEnv = (overrides = {}) => {
+  const env = jevEnv({ ...jevOn, LITCLAUDE_HUD_NO_COLOR: "", COLORTERM: "truecolor", LITCLAUDE_HUD_APPEARANCE: "dark", ...overrides });
+  return Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined));
+};
+const jevWord = (line) => /(\x1b\[1m(?:\x1b\[[0-9;]+m[Jev]){3}\x1b\[0m) /u.exec(line)?.[1] ?? null;
+
+test("LitClaude HUD paints Jev as a truecolor rainbow without changing the visible text", (t) => {
+  const cwd = jevProject(t, hinted);
+  const plain = runJevHud(cwd, jevEnv(jevOn));
+  for (const record of [hinted, { ...hinted, last: null }]) {
+    const project = jevProject(t, record);
+    const colored = runJevHud(project, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000" }));
+    const word = jevWord(colored);
+    assert.ok(word, colored);
+    assert.equal(word.match(/\x1b\[38;2;\d+;\d+;\d+m/gu).length, 3, "one truecolor hue per letter");
+    assert.equal(new Set(word.match(/38;2;[\d;]+/gu)).size, 3, "three different hues");
+    assert.equal(stripAnsi(colored), runJevHud(project, jevEnv(jevOn)), "visible text is unchanged");
+  }
+  const stripped = stripAnsi(runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000" })));
+  assert.equal([...stripped].length, [...plain].length, "visible width counts characters, not escapes");
+});
+
+test("LitClaude HUD shifts the Jev rainbow with the clock on each render", (t) => {
+  const cwd = jevProject(t, hinted);
+  const at = (now) => runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: String(now) }));
+  const [first, later, again] = [at(1000), at(4000), at(1000)];
+  assert.notEqual(jevWord(first), jevWord(later), "a later refresh starts at another hue");
+  assert.equal(jevWord(first), jevWord(again), "the same clock gives the same frame");
+  assert.equal(stripAnsi(first), stripAnsi(later));
+});
+
+test("LitClaude HUD follows the colour tiers for the Jev rainbow", (t) => {
+  const cwd = jevProject(t, hinted);
+  const tier = (overrides) => jevWord(runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", ...overrides })));
+  assert.match(tier({ LITCLAUDE_HUD_COLOR_DEPTH: "256" }), /^\x1b\[1m(?:\x1b\[38;5;\d+m[Jev]){3}\x1b\[0m$/u);
+  assert.match(tier({ LITCLAUDE_HUD_COLOR_DEPTH: "16" }), /^\x1b\[1m(?:\x1b\[9[1-6]m[Jev]){3}\x1b\[0m$/u);
+  for (const overrides of [{ NO_COLOR: "" }, { NO_COLOR: "1" }, { LITCLAUDE_HUD_NO_COLOR: "1" }, { LITCLAUDE_HUD_COLOR_DEPTH: "plain" }]) {
+    const line = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", ...overrides }));
+    assert.equal(line.includes("\x1b"), false, JSON.stringify(overrides));
+    assert.match(line, / │ Jev ✓ lit-humanizer 0\.27s$/u);
+  }
+  const light = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", LITCLAUDE_HUD_APPEARANCE: "light" }));
+  assert.equal(jevWord(light), null, "light appearances keep Jev on the default foreground");
+  assertDefaultForeground(light, ["Jev", "lit-humanizer"]);
+  const missing = runJevHud(cwd, jevColorEnv({ LITCLAUDE_HUD_TEST_NOW: "1000", TYPESAFE_API_KEY: undefined }));
+  assert.equal(jevWord(missing), null, "no shimmer while the key is missing");
+  assert.match(stripAnsi(missing), / │ Jev ⚠ key missing$/u);
 });

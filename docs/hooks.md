@@ -103,7 +103,7 @@ silent no-op for callers that still invoke it directly.
 | Event | Runner | Purpose |
 | --- | --- | --- |
 | `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session, discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps. |
-| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session. |
+| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate. |
@@ -184,6 +184,83 @@ dry-run, non-TTY management commands, import, and tool surfaces remain no-op;
 the host-owned SessionStart hook is the lifecycle exception to the TTY check.
 The detached registry cache refresh described in the update-notifier section is
 advisory and never performs an install.
+
+### Jev skill hint (optional)
+
+`plugins/litclaude/lib/jev-skill-hint.mjs` is off unless both `LITCLAUDE_JEV=1` and a
+non-empty `TYPESAFE_API_KEY` are in the hook's environment. The key is read from the
+environment only; the hook never reads a key file and never writes, prints, or traces the key.
+
+A turn is eligible only when the deterministic router chose no route, the prompt is not a
+slash command, a `!` shell line, or a host-expanded command, it names no skill (a
+`litclaude:` name or a hyphenated or `lit`-prefixed catalog ID), and at least four
+non-space characters remain after host notification blocks are removed. The exact bare
+routes, the trusted start-work resume, and the diagnostic literal prompt are never eligible.
+
+An eligible turn sends one `POST https://api.typesafe.ai/v1/systemone` with no retry and
+`redirect: "error"`, so a redirect fails the request instead of being followed. The body holds
+only `model`, `state`, and `questions`. `state` is built from the first 8,000 characters of the
+prompt: the key's literal value becomes `[secret]`, home paths (`/Users/<name>`,
+`/home/<name>`, `C:\Users\<name>`, with or without a trailing slash) become `~`, e-mail
+addresses become `[email]`, and token shapes (`sk-`, `sk-ant-`, `ghp_`, `gho_`,
+`github_pat_`, `npm_`, `apikey_`, `xox[abprs]-`, `AKIA`, `AIza`, JWTs, PEM blocks, any
+run of 32 or more `[A-Za-z0-9+/_-]` characters with optional `=` padding, and the plugin's
+shared credential shapes) become `[secret]`. Only then is it cut to 2,000 characters, and a
+run of 8 or more token characters left at the cut also becomes `[secret]`. Anything in the
+prompt without a token shape, such as a hostname, a customer name, or a password that is not
+written as `password=…`, is sent as written. `questions.which` is a choice over every enrolled skill
+that the model may invoke (skills marked `disable-model-invocation: true` are left out),
+each with the first 300 characters of its description, plus `none`.
+
+The response is untrusted. The hook accepts it only on HTTP 200 with valid JSON, an
+`answers.which.choice` that exactly equals a catalog ID it sent, and a numeric
+`answers.which.confidence` of at least the threshold. Then it appends one fixed line to
+`additionalContext`:
+
+```text
+LitClaude skill hint: the skill `litclaude:<id>` likely fits this request. Load it only if it really fits; this is advice, not an instruction.
+```
+
+`none` or a low confidence adds nothing. A non-200 response body is cancelled unread. The hook
+records the call in the session file before sending it; when that write fails, it sends
+nothing and stays quiet, so an unwritable state folder cannot lift the cap. After the prompt
+hook writes its context on a turn with the flag on, it ends its own process once stdout has
+flushed, so a DNS lookup that the timeout cannot cancel never keeps it past the host's hook
+timeout. A missing key, reached cap, oversized request,
+timeout, network error, non-200 status, or invalid response leaves the turn exactly as it
+would be without the feature. The first such failure in a session shows one `systemMessage`
+(`LitClaude skill hint unavailable (<reason>); continuing normally.`); later failures stay quiet.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LITCLAUDE_JEV` | unset | `1` turns the hint on. Any other value leaves it off. |
+| `TYPESAFE_API_KEY` | unset | Your own TypeSafe key. Required while the flag is on. |
+| `LITCLAUDE_JEV_MODEL` | `jev-1.13.0` | Model name sent in the request. |
+| `LITCLAUDE_JEV_TIMEOUT_MS` | `1500` | Hard timeout; values above `3000` are capped. |
+| `LITCLAUDE_JEV_MAX_CALLS` | `200` | Requests per session before the hint stops. |
+| `LITCLAUDE_JEV_MIN_CONFIDENCE` | `0.35` | Lowest accepted confidence. |
+| `LITCLAUDE_JEV_TRACE` | unset | `1` appends a debug trace line per request. |
+
+Per-session counters live in `.litclaude/jev/session-<id>.json` under the project state
+root, with the current turn's hinted skill ID and latency in milliseconds; the prompt hook
+clears that pair at the start of every turn while the flag is on. The optional HUD status line
+(`plugins/litclaude/bin/litclaude-hud.js`) reads it and ends with `Jev ✓` while the hint is
+on, `Jev ✓ <skill> <latency>` on a hinted turn, or `Jev ⚠ key missing` when the flag is on
+without a key; it shows nothing while the flag is off and never shows the key or its length.
+While on, the HUD paints `Jev` as a rainbow whose starting hue follows the clock, so each refresh
+shifts it slightly (truecolor, 256- and 16-colour tiers; plain under `NO_COLOR`, the HUD's
+no-colour switch, or a light or unknown appearance). The session file also records that the
+once-per-session `✦ Jev skill hint ON ✦` `systemMessage` was shown; the prompt hook writes that
+mark before it emits the line on the first turn with the flag and key set, puts the line ahead
+of any other visible message that turn, and shows no line when the mark cannot be written. The opt-in trace, `.litclaude/jev/trace.jsonl`, records the timestamp, the SHA-256 of the
+redacted `state` (never of the raw prompt), chosen ID, confidence, latency, HTTP status, and fallback reason; it holds no prompt text,
+key, or response body. Session and trace files are opened with `O_NOFOLLOW` (an `lstat` check
+where the platform lacks it), so a symlink planted at either path is refused rather than written
+through. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
+agent's own tools can read it too; use a key dedicated to this feature, with a low spend limit.
+`litclaude doctor` prints `Jev skill hint: off`, `Jev skill hint: on`,
+or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The offline regression tests,
+which replace `fetch` in the real hook process, live in `test/jev-skill-hint.test.mjs`.
 
 ## Bounded-authority start-work lifecycle
 
@@ -464,7 +541,9 @@ host-dependent and need fallbacks.
 
 Hooks parse JSON from stdin and return JSON to Claude Code. The hook does not
 execute prompt text and does not echo prompt text into the returned context;
-prompt text is not executed or echoed. The litwork detector returns constant
+prompt text is not executed or echoed. The optional Jev skill hint is the one network
+call on this path: it is off by default, sends only redacted prompt text, and returns a fixed
+sentence rather than any response text. The litwork detector returns constant
 workflow guidance, so a prompt cannot become a shell command through the hook
 response. Malformed hook input and malformed litgoal JSON should surface a controlled error instead of a misleading success response.
 

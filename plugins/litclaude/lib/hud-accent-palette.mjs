@@ -113,3 +113,36 @@ export const litBrandPrefix = (version, { noColor = false, truecolor = false, de
   out += `\x1b[38;2;${NEON_END[0]};${NEON_END[1]};${NEON_END[2]}m v${version}]\x1b[0m`;
   return out;
 };
+
+// --- Rainbow text (Jev skill hint) ------------------------------------------
+// Per-character hue sweep starting at `phase` degrees: truecolor paints exact hues, 256-color
+// snaps each hue to the 6x6x6 cube, 16-color picks the nearest bright hue, plain returns the
+// text untouched. Spaces get no escape, and stripping the escapes always gives back `text`.
+const RAINBOW_ANSI16 = Object.freeze([91, 93, 92, 96, 94, 95]);
+
+const hueToRgb = (hue) => {
+  // HSV with a softened saturation so every hue stays legible on a dark terminal.
+  const h = ((hue % 360) + 360) % 360 / 60;
+  const s = 0.65;
+  const x = 1 - Math.abs((h % 2) - 1);
+  const [r, g, b] = [[1, x, 0], [x, 1, 0], [0, 1, x], [0, x, 1], [x, 0, 1], [1, 0, x]][Math.floor(h) % 6];
+  return [r, g, b].map((channel) => Math.round(255 * (1 - s + s * channel)));
+};
+
+export const rainbowText = (text, { depth = "plain", phase = 0 } = {}) => {
+  if (!["truecolor", "256", "16"].includes(depth)) return text;
+  const chars = [...text];
+  const step = chars.length > 1 ? Math.min(60, 300 / (chars.length - 1)) : 0;
+  const painted = chars.map((char, index) => {
+    if (char === " ") return char;
+    const hue = (((phase + index * step) % 360) + 360) % 360;
+    if (depth === "16") return `\x1b[${RAINBOW_ANSI16[Math.floor(((hue + 30) % 360) / 60)]}m${char}`;
+    const [r, g, b] = hueToRgb(hue);
+    if (depth === "256") {
+      const cube = (value) => Math.round((value / 255) * 5);
+      return `\x1b[38;5;${16 + 36 * cube(r) + 6 * cube(g) + cube(b)}m${char}`;
+    }
+    return `\x1b[38;2;${r};${g};${b}m${char}`;
+  });
+  return `\x1b[1m${painted.join("")}\x1b[0m`;
+};
