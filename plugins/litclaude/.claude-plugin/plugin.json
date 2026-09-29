@@ -1,7 +1,7 @@
 {
   "name": "litclaude",
   "description": "Claude Code-native workflow plugin with a bounded-authority start-work lifecycle.",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "author": {
     "name": "LitClaude contributors"
   },

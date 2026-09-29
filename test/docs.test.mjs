@@ -26,7 +26,7 @@ async function text(path) {
 
 // The GitHub README loads its cover from the repository; the npm README from jsDelivr at the release.
 const githubAssetBase = "./";
-const npmAssetBase = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.14/";
+const npmAssetBase = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.15/";
 
 function assertCoverPresentation(readme, coverAlt, assetBase = githubAssetBase) {
   const motionStill = `${assetBase}docs/assets/cover-motion-still.webp`;
@@ -247,7 +247,7 @@ test("README documents local Claude plugin usage and safety boundaries", async (
   assertCoverPresentation(readme, "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
   assert.match(readme, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(readme, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
-  assert.match(await text("README_npm.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.14\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(await text("README_npm.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.15\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readme, /README_ko-KR\.md/u);
   assert.match(readme, /lit-burnoff-file/u);
   assert.match(readme, /lit-code\/references/u);
@@ -406,7 +406,7 @@ test("Korean README mirrors install, usage, and release-boundary guidance", asyn
   assertCoverPresentation(readmeKo, "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
   assert.match(readmeKo, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(readmeKo, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
-  assert.match(await text("README_npm_ko-KR.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.14\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assert.match(await text("README_npm_ko-KR.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.15\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readmeKo, /README\.md/u);
   assert.match(readmeKo, /lit-burnoff-file/u);
   assert.match(readmeKo, /debugging\/references/u);
@@ -743,7 +743,7 @@ test("documentation describes the v0.2.2 dynamic workflow hardening release", as
   const checklist = await text("RELEASE_CHECKLIST.md");
   const combined = `${readme}\n${readmeKo}\n${hooks}\n${agents}\n${migration}\n${changelog}\n${checklist}`;
 
-  assert.match(combined, /@litfamily\/litclaude@1\.0\.14/u);
+  assert.match(combined, /@litfamily\/litclaude@1\.0\.15/u);
   assert.match(combined, /resilient public-source research/i);
   assert.match(combined, /Dynamic workflow hardening/i);
   assert.match(combined, /\/litclaude:lit-loop/u);
@@ -769,7 +769,7 @@ test("documentation describes the v0.2.0 deep workflow parity release", async ()
   const audit = await text("docs/workflow-compatibility-audit.md");
   const combined = `${readme}\n${readmeKo}\n${hooks}\n${migration}\n${audit}`;
 
-  assert.match(combined, /@litfamily\/litclaude@1\.0\.14/u);
+  assert.match(combined, /@litfamily\/litclaude@1\.0\.15/u);
   assert.match(combined, /5-lane review/i);
   assert.match(combined, /scope\/diff verification/i);
   assert.match(combined, /tests\/evidence execution/i);
@@ -937,10 +937,10 @@ test("release materials summarize the v0.2.2 dynamic workflow hardening release 
   assert.match(changelog, /start-work-next/u);
   assert.match(changelog, /context-pressure/u);
   assert.match(changelog, /subagent reliability/u);
-  assert.match(releaseChecklist, /@litfamily\/litclaude@1\.0\.14/u);
+  assert.match(releaseChecklist, /@litfamily\/litclaude@1\.0\.15/u);
   assert.match(releaseChecklist, /Dynamic workflow hardening/u);
-  assert.match(releaseChecklist, /package\.json.*1\.0\.14/is);
-  assert.match(releaseChecklist, /plugin\.json.*1\.0\.14/is);
+  assert.match(releaseChecklist, /package\.json.*1\.0\.15/is);
+  assert.match(releaseChecklist, /plugin\.json.*1\.0\.15/is);
   assert.match(releaseChecklist, /review-work/u);
   assert.match(releaseChecklist, new RegExp("litgoal\\s+runtime", "u"));
   assert.match(changelog, /## 0\.1\.18 - 2026-06-02/u);

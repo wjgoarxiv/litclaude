@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.15 - 2026-09-29
+
+- `litclaude install` and updates no longer fail with an ownership conflict while Claude Code is using the plugin. Claude Code marks the version it has in use with an empty `.in_use` folder inside the version folder, and LitClaude now leaves that folder out of its ownership check. A file with that name still counts as a change LitClaude did not make.
+- README (English and Korean) and the npm install card: rewritten in plainer language, with the reason before the switches. The npm page stays a short install card that links to the full guide on GitHub.
+
 ## 1.0.14 - 2026-09-29
 
 - A global `npm install -g` now actually pre-warms the motion runtime. The runtime's `npm ci` inherited the global-install settings that npm gives the postinstall step, and npm refused it; those settings are now dropped for that call and for the office runtime's first-use install.

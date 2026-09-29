@@ -102,7 +102,7 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
   const [pack] = JSON.parse(result.stdout);
   const files = pack.files.map((file) => file.path);
 
-  assert.equal(pack.version, "1.0.14");
+  assert.equal(pack.version, "1.0.15");
 
   for (const required of [
     "bin/litclaude-ai.js",

@@ -41,7 +41,7 @@
 <p align="center"><img src="./docs/assets/litclaude-clay-icon.png" width="160" alt="LitClaude clay mark" /></p>
 
 <p align="center">
-  <img src="./docs/assets/readme/badge-version.svg" alt="1.0.14" />
+  <img src="./docs/assets/readme/badge-version.svg" alt="1.0.15" />
   <a href="./LICENSE"><img src="./docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 
@@ -831,13 +831,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 For a reproducible install, pin the current package version:
 
 ```bash
-npm view @litfamily/litclaude@1.0.14 version
+npm view @litfamily/litclaude@1.0.15 version
 ```
 
-If that lookup returns `1.0.14`, the exact install is available:
+If that lookup returns `1.0.15`, the exact install is available:
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.14 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.15 -- litclaude install
 ```
 
 Otherwise, wait for explicit human publication before using that pin. Check the
