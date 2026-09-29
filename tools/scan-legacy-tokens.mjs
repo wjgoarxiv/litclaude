@@ -37,7 +37,6 @@ import {
   verifyCanonicalFrontendCorpus,
 } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import {
-  MAX_BOUNDED_AGGREGATE_BYTES,
   MAX_BOUNDED_FILE_BYTES,
   readDirectoryStable,
   readRegularStable,
@@ -83,7 +82,9 @@ export const DEFAULT_MATCH_MODES = Object.freeze({
 
 const SELF_PATH = fileURLToPath(import.meta.url);
 export const MAX_SCAN_FILE_BYTES = MAX_BOUNDED_FILE_BYTES;
-export const MAX_SCAN_AGGREGATE_BYTES = MAX_BOUNDED_AGGREGATE_BYTES;
+// The scan reads every repository file, images and film included, so its total budget is wider than the
+// canonical-corpus budget; the per-file limit is unchanged.
+export const MAX_SCAN_AGGREGATE_BYTES = 48 * 1024 * 1024;
 
 // --- Error type -------------------------------------------------------------------------------
 

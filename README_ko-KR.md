@@ -123,6 +123,18 @@ lit
 달라고 하세요. 그래야 무엇을 직접 해 봐야 하는지 알 수 있습니다. 처음에 뜬 로고는 작업이 시작됐다는
 표시입니다.
 
+## 움직이는 모습 보기
+
+이 영상은 작은 작업 하나가 LitClaude의 작업 흐름을 끝까지 지나가는 모습을 보여 줍니다. 누군가 할 일 목록을
+부탁하면 LitClaude가 목표와 먼저 실패하는 확인 항목 세 가지를 고정하고, 확인 항목이 통과할 때까지 페이지를
+눌러 보고, 그 결과를 새 세션이 열어서 이어 갈 수 있는 기록에 남깁니다. 길이는 약 25초입니다. 화면에 나오는
+모든 것은 영상을 위해 그린 것이고, 마지막의 상태 표시줄도 실제 HUD를 흉내 낸 그림입니다. 미리보기는 소리
+없이 반복되고, MP4에는 생성한 배경 음악이 들어 있습니다.
+
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-still.webp" /><img src="./docs/assets/promo/litclaude-promo-preview.webp" width="100%" alt="홍보 영상. 'Ask for the work.'라는 제목 아래에서 터미널이 할 일 목록을 부탁하고 lit으로 끝나는 프롬프트를 입력합니다. 터미널은 add, complete, delete 세 가지 확인 항목에 가위표가 그려진 목표 카드로 커집니다. 작은 할 일 페이지를 눌러 보면 가위표가 체크 표시로 바뀝니다. 확인 항목은 목표, 확인한 내용, 다음 단계를 담은 기록이 되고, 불꽃 하나가 그 기록을 인수인계를 읽으라고 요청하는 새 터미널로 실어 나릅니다. 영상은 'Keep the work lit.', 상태 표시줄 위의 불꽃, 설치 명령으로 끝납니다." /></picture></p>
+
+[소리와 함께 MP4 재생](./docs/assets/promo/litclaude-promo.mp4)
+
 ## 무엇을 입력하나요
 
 ### 작은 작업 하나로 시작하기
@@ -617,7 +629,7 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok을 아머드 머신으로 �
 ## 발표자료, 보고서, 다이어그램, README
 
 발표자료나 보고서를 부탁하면서 끝에 `lit`을 붙이면(`팀 워크숍 발표자료 만들어줘 lit`,
-`사내 교육 결과 보고서 써줘 lit`) Markdown이 아니라 Office 파일을 받습니다. `lit-pptx`는
+`사내 교육 결과 보고서 써줘 lit`) Office 파일을 받습니다. `lit-pptx`는
 슬라이드 원고를 Markdown으로 쓰고, 디자인된 템플릿(기본은 파란색·흰색의 AZURE-PRO,
 그 밖에 A2Z, 4:3 기본형)으로 컴파일합니다. 숫자는 PowerPoint에서 바로 고칠 수 있는
 차트와 핵심 수치 카드로 그리고, Pretendard 글꼴을 넣습니다. 건네기 전에는 QA 게이트가 넘친
@@ -680,13 +692,53 @@ TypeSafe(typesafe.ai)로 보냅니다. 나머지는 적힌 그대로 갑니다. 
 1.5초만 기다리고, 실패하면 평소처럼 진행하면서 세션에서 처음 한 번만 짧게 알립니다.
 
 켜졌는지 보려면 `litclaude doctor`를 실행하세요. `Jev skill hint: off`, `on`,
-`flag on but TYPESAFE_API_KEY missing` 중 하나를 출력합니다. LitClaude HUD 상태 줄에도
-보입니다. 모델 이름 바로 옆에 `✦Jev`가 붙고(`O5.5 ✦Jev`), 힌트가 나온 턴에는 스킬 이름이 붙으며
-(`O5.5 ✦Jev → lit-humanizer`), 키가 없으면 `O5.5 ✦Jev ⚠ key`가 뜹니다. 색을 쓸 수 있으면 이
-`Jev`가 무지개색으로 은은하게 반짝이고, 플래그와 키가 모두 설정된 세션의 첫 프롬프트에서
-`✦ Jev skill hint ON ✦` 한 줄이 한 번 나옵니다(`NO_COLOR`에서는 색 없이 표시). 끄려면
-`LITCLAUDE_JEV`를 해제하거나 `1`이 아닌 값으로 바꿉니다. 세부 조정 변수와 로컬 디버그 기록은
-`docs/hooks.md`에 있습니다.
+`flag on but TYPESAFE_API_KEY missing` 중 하나를 출력합니다. 끄려면 `LITCLAUDE_JEV`를 해제하거나
+`1`이 아닌 값으로 바꿉니다. 세부 조정 변수와 로컬 디버그 기록은 `docs/hooks.md`에 있습니다.
+
+### 화면에서 보이는 모습
+
+Jev는 세 곳에 모습을 드러냅니다. HUD 상태 줄, 세션 첫 프롬프트에 나오는 한 줄,
+`litclaude doctor`입니다. 아래 그림은 LitClaude의 실제 상태 줄과 프롬프트 훅을 작은 데모
+프로젝트에서 자리표시용 키로 돌려 얻은 예시 출력입니다. 네트워크 호출은 저장소의 테스트용
+대역으로 바꿔 두었으므로 TypeSafe로는 아무것도 나가지 않았습니다. 프롬프트와 스킬 이름은 예시입니다.
+그림은 페이지 테마를 따라 바뀝니다. 밝은 터미널에서는 `Jev`라는 글자가 기본 색을 유지하고 기호만
+색이 입혀집니다.
+
+Jev가 꺼져 있으면 상태 줄에는 모델 이름만 보입니다. 두 변수를 모두 설정하기 전까지는 이 모습입니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-off-dark.webp" /><img src="./docs/assets/jev/jev-status-off-light.webp" width="100%" alt="claude라는 제목의 터미널 창. 상태 줄: [불꽃 아이콘]LITCLAUDE vX.Y.Z] | O5.5 │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. 둘째 줄: └─ Sketch a plan for moving our nightly jobs to a queue. 그 아래에 O5.5라고 적힌 확대 라벨." /></picture></p>
+
+*LitClaude의 실제 상태 줄로 렌더링한 예시 출력입니다.*
+
+Jev를 켜면 세션의 첫 프롬프트에 무지개색 한 줄이 나옵니다(`NO_COLOR`에서는 색 없는 글자). 이
+세션에서 조건에 맞는 프롬프트가 TypeSafe로 나간다는 것을 알려 주는 줄입니다.
+
+<p align="center"><img src="./docs/assets/jev/jev-first-prompt-notice.webp" width="100%" alt="claude라는 제목의 터미널 창에 무지개색으로 표시된 한 줄: ✦ Jev skill hint ON ✦" /></p>
+
+*LitClaude의 실제 프롬프트 훅으로 렌더링한 예시 출력입니다.*
+
+그다음부터는 모델 이름 바로 옆에 `✦Jev`가 붙고, 터미널이 색을 지원하면 글자가 은은하게 반짝입니다.
+Jev가 충분히 맞는 스킬을 찾지 못하면 이 표시가 유일한 변화이고, 그 턴은 평소처럼 진행됩니다. 상태 줄
+그림 아래의 확대 라벨은 작은 화면에서도 모델 이름을 읽을 수 있게 해 줍니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-quiet-dark.webp" /><img src="./docs/assets/jev/jev-status-quiet-light.webp" width="100%" alt="claude라는 제목의 터미널 창. 상태 줄: [불꽃 아이콘]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. 둘째 줄: └─ Rename the config loader and update its imports. 그 아래에 O5.5 ✦Jev라고 적힌 확대 라벨." /></picture></p>
+
+*LitClaude의 실제 상태 줄로 렌더링한 예시 출력입니다.*
+
+Jev가 스킬을 고르면 그 턴 동안 화살표 뒤에 스킬 이름이 나오고, Claude는 그 스킬을 제안하는 한
+줄을 받습니다. 스킬을 불러올지는 Claude가 정합니다. 여기 나온 이름은 예시입니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-hint-dark.webp" /><img src="./docs/assets/jev/jev-status-hint-light.webp" width="100%" alt="claude라는 제목의 터미널 창. 상태 줄: [불꽃 아이콘]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev → lit-plan │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. 둘째 줄: └─ Sketch a plan for moving our nightly jobs to a queue. 그 아래에 O5.5 ✦Jev → lit-plan이라고 적힌 확대 라벨." /></picture></p>
+
+*힌트가 나온 턴 뒤의 LitClaude 실제 상태 줄로 렌더링한 예시 출력입니다.*
+
+플래그는 켜져 있는데 키가 비어 있으면 표시가 주황색으로 바뀌며 `⚠ key`가 뜨고, 조건에 맞는 첫
+프롬프트에 짧은 안내가 한 번 나옵니다. TypeSafe로는 아무것도 나가지 않고, 프롬프트는 평소처럼 Claude에게
+전달됩니다. 키를 설정하면 표시가 `✦Jev`로 돌아오고, 플래그를 해제하면 사라집니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-key-dark.webp" /><img src="./docs/assets/jev/jev-status-key-light.webp" width="100%" alt="claude라는 제목의 터미널 창. 첫 줄: LitClaude skill hint unavailable (key-missing); continuing normally. 상태 줄: [불꽃 아이콘]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev ⚠ key │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. 둘째 줄: └─ Sketch a plan for moving our nightly jobs to a queue. 그 아래에 O5.5 ✦Jev ⚠ key라고 적힌 확대 라벨." /></picture></p>
+
+*LitClaude의 실제 프롬프트 훅과 상태 줄로 렌더링한 예시 출력입니다.*
 
 ## 안전
 

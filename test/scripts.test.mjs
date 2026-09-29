@@ -29,8 +29,8 @@ async function json(path) {
 test("package exposes local validation, doctor, QA, and pack scripts", async () => {
   const pkg = await json("package.json");
 
-  // The preload turns the install-time motion pre-warm off, so installer tests stay offline.
-  assert.equal(pkg.scripts.test, "node --test --test-concurrency=1 --import ./test/helpers/motion-offline-prewarm.mjs test/*.test.mjs");
+  // The preloads turn the install-time motion pre-warm off (installer tests stay offline) and drop any Jev settings the developer exported.
+  assert.equal(pkg.scripts.test, "node --test --test-concurrency=1 --import ./test/helpers/scrub-ambient-jev-env.mjs --import ./test/helpers/motion-offline-prewarm.mjs test/*.test.mjs");
   assert.equal(pkg.scripts.postinstall, "node scripts/postinstall.mjs");
   assert.equal(pkg.scripts["validate:plugin"], "node scripts/validate-plugin.mjs");
   assert.equal(pkg.scripts.doctor, "node scripts/doctor.mjs");

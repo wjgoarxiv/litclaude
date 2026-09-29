@@ -166,3 +166,62 @@ test("version badge identifies the current scoped release and stays in lockstep"
   assert.equal(entry?.kind, "pinned");
   assert.equal(entry?.occurrences, 3);
 });
+
+// The promo film sits beside the cover, not inside the packed README asset folder, and follows the same 2.5 MiB rule.
+const promoRoot = new URL("docs/assets/promo/", root);
+const promoFiles = {
+  "litclaude-promo.mp4": "85db8cf334e622038aa6064ba52a398cb5c4bd94bc254ff1e1959943dec5e23b",
+  "litclaude-promo-preview.webp": "ac984366ea5b4bdd38223ee3aa8452f4cdb413e5150e3db76b5634818a1a352b",
+  "litclaude-promo-still.webp": "37dd3a043936068b370c1ddfcef03c810163ca5a85d504332d3db79cbb6ec5ce",
+};
+const promoSource = {
+  "index.html": "21232a58a8bf6d8d02101d5ddaba06e68855a721c62dda14a624c76ae97fa6a0",
+  "treatment.json": "133a36f1e753dd228f58232f85189b3204a5bf4c88c44516b10e6868b268ee6b",
+  "wordmark.svg": "e71bad9421648bcabbdf728136e029eba7b5e283becf4bee4f046de35eef5945",
+};
+
+test("promo film files keep their formats, sizes and approved bytes", () => {
+  assert.deepEqual(readdirSync(promoRoot).sort(), [...Object.keys(promoFiles), "source"].sort());
+  for (const [name, expected] of Object.entries(promoFiles)) {
+    const bytes = readFileSync(new URL(name, promoRoot));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected, name);
+  }
+  const preview = readFileSync(new URL("litclaude-promo-preview.webp", promoRoot));
+  assert.ok(preview.length <= 2_621_440, "the inline preview must stay under 2.5 MiB");
+  assert.equal(preview.subarray(0, 4).toString(), "RIFF");
+  assert.equal(preview.subarray(8, 12).toString(), "WEBP");
+  assert.ok(preview.includes(Buffer.from("ANIM")), "the preview must be an animated WebP");
+  const still = readFileSync(new URL("litclaude-promo-still.webp", promoRoot));
+  assert.ok(still.length <= 262_144, "the reduced-motion still stays small");
+  assert.equal(still.subarray(8, 12).toString(), "WEBP");
+  assert.ok(!still.includes(Buffer.from("ANIM")), "the reduced-motion still is not animated");
+  const film = readFileSync(new URL("litclaude-promo.mp4", promoRoot));
+  assert.ok(film.length <= 8 * 1_048_576, "the master stays under 8 MiB");
+  assert.equal(film.subarray(4, 8).toString(), "ftyp");
+  assert.deepEqual(readdirSync(new URL("source/", promoRoot)).sort(), Object.keys(promoSource).sort());
+  for (const [name, expected] of Object.entries(promoSource)) {
+    const bytes = readFileSync(new URL(`source/${name}`, promoRoot));
+    assert.ok(bytes.length < 65_536, `${name} stays small`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected, `source/${name}`);
+  }
+});
+
+test("both GitHub pages embed the promo like the cover and the npm cards leave it out", () => {
+  for (const [file, heading] of [["README.md", "## Watch it in motion"], ["README_ko-KR.md", "## 움직이는 모습 보기"]]) {
+    const content = read(file);
+    assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${file} has one motion section`);
+    const section = content.slice(content.indexOf(heading), content.indexOf("\n## ", content.indexOf(heading) + 4));
+    const picture = /<picture><source media="\(prefers-reduced-motion: reduce\)" srcset="\.\/docs\/assets\/promo\/litclaude-promo-still\.webp" \/><img src="\.\/docs\/assets\/promo\/litclaude-promo-preview\.webp" width="100%" alt="([^"]{80,})" \/><\/picture>/u.exec(section);
+    assert.ok(picture, `${file} uses the cover's picture pattern with the still first and the preview as the image`);
+    assert.ok(section.includes("](./docs/assets/promo/litclaude-promo.mp4)"), `${file} links the MP4 separately`);
+    assert.ok(content.indexOf(heading) > content.indexOf("\n## "), `${file} places the section after the opening sections`);
+    const cover = content.indexOf("cover-motion.webp");
+    assert.ok(cover >= 0 && cover < content.indexOf(heading), `${file} keeps the cover first`);
+    for (const [, target] of section.matchAll(/(?:src|srcset)="(\.\/[^"]+)"|\]\((\.\/[^)\s]+)\)/gu)) {
+      if (target) assert.ok(lstatSync(new URL(target, root)).isFile(), `promo target must exist: ${target}`);
+    }
+  }
+  for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /assets\/promo|promo/u, `${card} does not embed the film`);
+  const pkg = JSON.parse(read("package.json"));
+  assert.equal(pkg.files.some((entry) => /docs\/assets\/promo|^docs$|^docs\/assets$/u.test(entry)), false, "the promo film stays out of the tarball");
+});

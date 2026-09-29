@@ -262,7 +262,9 @@ through. The `.litclaude` and `.litclaude/jev` folders must be real folders too:
 is a symlink, the hint reads and writes nothing there, sends no request, and shows no hint or note. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
 agent's own tools can read it too; use a key dedicated to this feature, with a low spend limit.
 `litclaude doctor` prints `Jev skill hint: off`, `Jev skill hint: on`,
-or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The offline regression tests,
+or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The GitHub README shows each
+visible state in sample output under
+[What you will see](https://github.com/wjgoarxiv/litclaude#what-you-will-see). The offline regression tests,
 which replace `fetch` in the real hook process, live in `test/jev-skill-hint.test.mjs`.
 
 ## Bounded-authority start-work lifecycle

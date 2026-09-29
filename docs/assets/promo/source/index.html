@@ -1,0 +1,469 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/stage-kit.js"></script>
+<style>
+  :root { --bg:#070b10; --panel:#0f141b; --panel2:#131922; --line:#2a323c; --cream:#f1ecdc; --orange:#ff6a2a; --lime:#d8f552; --muted:#9aa39a; --soft:#cfc9b8; }
+  html, body { margin:0; width:1920px; height:1080px; overflow:hidden; background:var(--bg); }
+  #stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; font-synthesis:none; }
+  .abs { position:absolute; }
+  #grid { position:absolute; left:-96px; top:-96px; width:2112px; height:1272px;
+    background-image:linear-gradient(rgba(241,236,220,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(241,236,220,.05) 1px, transparent 1px);
+    background-size:96px 96px; }
+  #vig { position:absolute; inset:0; background:radial-gradient(ellipse 70% 70% at 62% 50%, rgba(255,106,42,.07), rgba(7,11,16,0) 60%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(7,11,16,0) 55%, rgba(0,0,0,.55) 100%); }
+  #frame { position:absolute; left:0; top:0; }
+  #brand { position:absolute; left:120px; top:74px; height:30px; }
+  .hl { position:absolute; left:120px; top:360px; margin:0; font:900 116px/0.96 "Archivo", sans-serif; text-transform:uppercase; color:var(--cream); white-space:nowrap; letter-spacing:-0.004em; }
+  .hl .ln { display:inline-block; overflow:hidden; vertical-align:top; padding:0.05em 0.03em 0.03em 0.02em; margin:-0.05em -0.03em -0.03em -0.02em; }
+  .hl .in { display:inline-block; }
+  .hl .o { color:var(--orange); }
+  .hl.big { font-size:150px; top:238px; }
+  #h1, #h2, #h3, #h4 { top:300px; }
+  .sub { position:absolute; left:120px; top:544px; width:780px; text-wrap:balance; margin:0; font:400 38px/1.32 "Pretendard", sans-serif; color:var(--soft); }
+  #chain { position:absolute; left:120px; top:966px; height:40px; }
+  #chain .lab { position:absolute; top:0; font:400 22px/30px "MesloLGS NF", monospace; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+  #chainbar { position:absolute; left:0; top:36px; height:4px; background:var(--orange); }
+  .panel { position:absolute; background:var(--panel); border:2px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 34px 70px rgba(0,0,0,.55); }
+  .hdr { position:absolute; left:0; right:0; top:0; height:46px; background:var(--panel2); border-bottom:2px solid var(--line); }
+  .dots { position:absolute; left:18px; top:16px; height:12px; width:60px; }
+  .dots i { position:absolute; top:0; width:12px; height:12px; border-radius:6px; background:#3a434f; }
+  .ttl { position:absolute; left:0; right:0; top:0; height:46px; line-height:46px; text-align:center; font:400 18px/46px "MesloLGS NF", monospace; color:var(--muted); letter-spacing:.08em; }
+  .body { position:absolute; left:0; right:0; top:46px; bottom:0; }
+  .layer { position:absolute; left:0; top:0; width:746px; }
+  .mono { font-family:"MesloLGS NF", monospace; }
+  .prompt { position:absolute; left:34px; top:34px; width:650px; padding-left:40px; box-sizing:border-box; font:400 27px/1.55 "MesloLGS NF", monospace; color:var(--cream); white-space:pre-wrap; }
+  .prompt .mk { position:absolute; left:0; top:0; color:var(--orange); }
+  .prompt .ch { display:inline-block; }
+  .cur { position:absolute; width:15px; height:31px; background:var(--lime); }
+  .lab { font:700 20px/24px "Silkscreen", monospace; letter-spacing:.2em; text-transform:uppercase; }
+  .row { position:absolute; left:44px; width:660px; height:64px; background:#151c25; border:2px solid #222a35; border-radius:12px; }
+  .row .t { position:absolute; left:64px; top:0; line-height:60px; font:400 28px/60px "MesloLGS NF", monospace; color:var(--cream); }
+  .row .g { position:absolute; right:22px; top:0; font:400 18px/60px "MesloLGS NF", monospace; color:var(--muted); }
+  .chip { position:absolute; top:14px; width:212px; height:56px; background:#151c25; border:2px solid #222a35; border-radius:12px; }
+  .chip .t { position:absolute; left:58px; top:0; font:400 25px/52px "MesloLGS NF", monospace; color:var(--cream); }
+  .svgm { position:absolute; overflow:visible; }
+  .rec { position:absolute; left:44px; width:660px; }
+  .rec .k { position:absolute; left:0; top:0; font:400 20px/30px "MesloLGS NF", monospace; color:var(--muted); letter-spacing:.06em; }
+  .rec .v { position:absolute; left:150px; top:-3px; font:400 27px/36px "MesloLGS NF", monospace; color:var(--cream); white-space:nowrap; }
+  #browser { position:absolute; background:#f4f0e2; border:2px solid #cfc8b3; border-radius:16px; overflow:hidden; box-shadow:0 34px 70px rgba(0,0,0,.55); color:#17130b; }
+  #browser .bh { position:absolute; left:0; right:0; top:0; height:46px; background:#e6dfca; border-bottom:2px solid #cfc8b3; }
+  #browser .bh i { position:absolute; top:17px; width:12px; height:12px; border-radius:6px; background:#b9b19a; }
+  #browser .pill { position:absolute; left:110px; right:110px; top:9px; height:28px; border-radius:14px; background:#f4f0e2; border:2px solid #cfc8b3; box-sizing:border-box; }
+  .pg { font-family:"Pretendard", sans-serif; }
+  .item { position:absolute; left:40px; width:668px; height:64px; overflow:hidden; }
+  .ring { position:absolute; border-radius:50%; border:3px solid var(--orange); width:20px; height:20px; margin:-10px 0 0 -10px; }
+  #hud { position:absolute; background:var(--panel); border:2px solid var(--line); border-radius:14px; overflow:hidden; }
+  #hud .line { position:absolute; left:30px; top:0; height:92px; line-height:92px; font:400 25px/92px "MesloLGS NF", monospace; color:#5fd7ff; white-space:pre; }
+  .glow { position:absolute; border-radius:50%; }
+</style>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <div id="vig"></div>
+  <svg id="frame" width="1920" height="1080" viewBox="0 0 1920 1080">
+    <path id="fr-top" d="M60 140H1860" stroke="#2a323c" stroke-width="2" fill="none"/>
+    <path id="fr-bot" d="M60 940H1860" stroke="#2a323c" stroke-width="2" fill="none"/>
+    <g stroke="#d8f552" stroke-width="2" opacity=".55" fill="none">
+      <path d="M48 60H72M60 48V72"/><path d="M1848 60H1872M1860 48V72"/><path d="M48 1020H72M60 1008V1032"/><path d="M1848 1020H1872M1860 1008V1032"/>
+    </g>
+    <rect id="prog" x="60" y="138.5" width="0" height="3" fill="#d8f552"/>
+  </svg>
+  <img id="brand" src="wordmark.svg" alt="">
+
+  <h1 class="hl" id="h1"></h1>
+  <h1 class="hl" id="h2"></h1>
+  <h1 class="hl" id="h3"></h1>
+  <h1 class="hl" id="h4"></h1>
+  <h1 class="hl big" id="h5"></h1>
+  <p class="sub" id="s2" style="top:566px"></p>
+  <p class="sub" id="s4" style="top:566px"></p>
+  <p class="sub" id="s5" style="top:560px"></p>
+  <div id="cta" class="abs" style="left:120px;top:704px;height:64px;"></div>
+
+  <div id="chain"></div>
+
+  <div id="browser" style="left:1050px;top:190px;width:750px;height:540px;">
+    <div class="bh"><i style="left:18px"></i><i style="left:38px"></i><i style="left:58px"></i><div class="pill"></div></div>
+    <div class="abs pg" style="left:0;top:46px;width:746px;height:490px;" id="bpage"></div>
+  </div>
+
+  <div id="panel" class="panel" style="left:1050px;top:320px;width:750px;height:300px;">
+    <div class="hdr"><div class="dots"><i style="left:0"></i><i style="left:20px"></i><i style="left:40px"></i></div>
+      <div class="ttl" id="tt1">claude</div><div class="ttl" id="tt2">goal</div><div class="ttl" id="tt3">checks</div><div class="ttl" id="tt4">handoff</div></div>
+    <div class="body" id="pbody"></div>
+  </div>
+
+  <svg id="link" class="abs" width="1920" height="1080" viewBox="0 0 1920 1080" style="left:0;top:0;pointer-events:none">
+    <path id="linkline" d="M1425 592V700" stroke="#d8f552" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path id="linkarrow" d="M1414 686L1425 700L1436 686" stroke="#d8f552" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div id="spark" class="abs" style="left:1416px;top:583px;width:18px;height:18px;border-radius:9px;background:#d8f552;box-shadow:0 0 22px 6px rgba(216,245,82,.55);"></div>
+  <div id="nextlab" class="abs lab" style="left:1447px;top:630px;color:var(--orange);"></div>
+
+  <div id="winb" class="panel" style="left:1050px;top:706px;width:750px;height:180px;">
+    <div class="hdr"><div class="dots"><i style="left:0"></i><i style="left:20px"></i><i style="left:40px"></i></div><div class="ttl">claude</div></div>
+    <div class="body" id="wbody"></div>
+  </div>
+
+  <div id="rings"></div>
+  <div id="flamewrap" class="abs" style="left:1225px;top:210px;width:400px;height:500px;"></div>
+  <div id="hud" style="left:1050px;top:780px;width:750px;height:96px;"><div class="line" id="hudline"></div></div>
+  <div id="cursor" class="abs" style="left:0;top:0;width:34px;height:34px;">
+    <svg width="34" height="34" viewBox="0 0 24 24"><path d="M4 2L4 19L8.6 14.6L11.6 21.4L14.4 20.2L11.5 13.6L18 13.4Z" fill="#f1ecdc" stroke="#070b10" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  </div>
+</div>
+<script>
+const COPY = {
+  h1: ["Ask for", "the work."],
+  prompt1: "Build a to-do list in a single HTML file. lit",
+  h2: ["Pin the", "goal."],
+  s2: "Write the failing test first.",
+  h3: ["Check the", "real page."],
+  h4: ["Hand it", "off."],
+  s4: "The next session reads the record and carries on.",
+  promptB: "Read the handoff. What is next?",
+  nextSession: "Next session",
+  h5: ["Keep the", "work lit."],
+  s5: "Plan, build and check your work in Claude Code.",
+  cta: "npm install -g @litfamily/litclaude"
+};
+const { define, text, ease, at, kf, clipRect, drawPath, lerp, clamp, spring, mix } = LitStage;
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const CREAM = "#f1ecdc", ORANGE = "#ff6a2a", LIME = "#d8f552", MUTED = "#9aa39a";
+
+// ---------- headlines ----------
+const H = [];
+function buildHeadline(id, lines, accent, start, end) {
+  const el = $(id);
+  el.innerHTML = lines.map((l, i) => {
+    let inner = l;
+    if (accent && accent.line === i) inner = l.replace(accent.word, `<span class="o">${accent.word}</span>`);
+    return `<span class="ln"><span class="in">${inner}</span></span>`;
+  }).join("<br>");
+  text(el);
+  H.push({ el, ins: [...el.querySelectorAll(".in")], start, end });
+}
+buildHeadline("h1", COPY.h1, { line: 1, word: "work." }, -0.35, 5);
+buildHeadline("h2", COPY.h2, { line: 1, word: "goal." }, 5, 10);
+buildHeadline("h3", COPY.h3, { line: 1, word: "real page." }, 10, 15);
+buildHeadline("h4", COPY.h4, { line: 1, word: "off." }, 15, 20);
+buildHeadline("h5", COPY.h5, { line: 1, word: "lit." }, 20, 999);
+for (const [id, k] of [["s2", "s2"], ["s4", "s4"], ["s5", "s5"]]) { $(id).textContent = COPY[k]; text($(id)); }
+$("nextlab").textContent = COPY.nextSession; text($("nextlab"));
+$("cta").innerHTML = `<div style="display:inline-block;height:64px;padding:0 26px;border:2px solid ${LIME};border-radius:12px;font:400 28px/60px 'MesloLGS NF',monospace;color:${LIME};white-space:nowrap;" id="ctatxt"></div>`;
+$("ctatxt").textContent = COPY.cta; text($("ctatxt"));
+
+// ---------- step chain (diagram) ----------
+const chainLabels = ["Plan", "Build", "Check", "Hand off"];
+const chainEl = $("chain");
+const chainX = [];
+{
+  let x = 0;
+  chainLabels.forEach((l, i) => {
+    const s = document.createElement("span"); s.className = "lab"; s.textContent = l; s.style.left = x + "px"; chainEl.appendChild(s);
+    text(s, { decor: true });
+    const w = s.getBoundingClientRect().width; chainX.push({ x, w, s }); x += w;
+    if (i < 3) {
+      const a = document.createElementNS(NS, "svg"); a.setAttribute("class", "svgm"); a.setAttribute("width", "40"); a.setAttribute("height", "30"); a.style.left = (x + 12) + "px"; a.style.top = "0";
+      a.innerHTML = '<path d="M4 15H30M23 8L30 15L23 22" stroke="#4a5563" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+      chainEl.appendChild(a); x += 64;
+    }
+  });
+  const bar = document.createElement("div"); bar.id = "chainbar"; chainEl.appendChild(bar);
+}
+const chainBar = $("chainbar");
+function chainActive(t) { return t < 5 ? -1 : t < 10 ? 0 : t < 12.5 ? 1 : t < 15 ? 2 : t < 20 ? 3 : 4; }
+
+// ---------- glyph helpers ----------
+const FLAME = (id, size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="overflow:visible"><defs><linearGradient id="fg${id}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a1f"/><stop offset="1" stop-color="#ffb02e"/></linearGradient></defs><path d="M12.6 1.5c.5 3.2-1 4.9-2.4 6.6C8.6 10 7 11.9 7 15a6 6 0 0 0 12 0c0-2.2-.9-3.8-2-5.2-.2 1.1-.8 2-1.8 2.4.5-3.6-.9-8.1-2.6-10.7z" fill="url(#fg${id})"/><path d="M12 22a3.5 3.5 0 0 1-3.5-3.5c0-1.8 1.2-2.8 2.1-3.9.5-.6.9-1.3.9-2.3 1.9 1.3 4 3.3 4 6.2A3.5 3.5 0 0 1 12 22z" fill="#ffe29a"/></svg>`;
+function markSvg(parent, x, y, size) {
+  const s = document.createElementNS(NS, "svg"); s.setAttribute("class", "svgm"); s.setAttribute("width", size); s.setAttribute("height", size); s.setAttribute("viewBox", "0 0 36 36");
+  s.style.left = x + "px"; s.style.top = y + "px";
+  s.innerHTML = `<path class="c1" d="M9 9L27 27" stroke="${ORANGE}" stroke-width="4.5" stroke-linecap="round" fill="none"/><path class="c2" d="M27 9L9 27" stroke="${ORANGE}" stroke-width="4.5" stroke-linecap="round" fill="none"/><path class="tk" d="M7 19L15 27L30 9" stroke="${LIME}" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  parent.appendChild(s);
+  const c1 = s.querySelector(".c1"), c2 = s.querySelector(".c2"), tk = s.querySelector(".tk");
+  return { s, set(cross, tick) { drawPath(c1, clamp(cross * 2)); drawPath(c2, clamp(cross * 2 - 1)); drawPath(tk, tick); c1.style.opacity = c2.style.opacity = cross > 0.001 ? 1 : 0; tk.style.opacity = tick > 0.001 ? 1 : 0; } };
+}
+
+// ---------- terminal panel layers ----------
+const pbody = $("pbody");
+// L1: prompt
+const L1 = document.createElement("div"); L1.className = "layer"; L1.style.height = "260px"; pbody.appendChild(L1);
+const promptEl = document.createElement("div"); promptEl.className = "prompt";
+promptEl.innerHTML = '<span class="mk">&gt;</span>';
+L1.appendChild(promptEl);
+function makeTyper(container, str, limeFrom) {
+  const spans = [];
+  const holder = document.createElement("span"); container.appendChild(holder);
+  let word = null;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === " ") { holder.appendChild(document.createTextNode(" ")); spans.push(null); word = null; continue; }
+    if (!word) { word = document.createElement("span"); word.style.whiteSpace = "nowrap"; word.style.display = "inline-block"; holder.appendChild(word); }
+    const sp = document.createElement("span"); sp.className = "ch"; sp.textContent = ch; if (limeFrom !== undefined && i >= limeFrom) sp.style.color = LIME;
+    word.appendChild(sp); spans.push(sp);
+  }
+  return spans;
+}
+const typed1 = makeTyper(promptEl, COPY.prompt1, COPY.prompt1.length - 3);
+text(promptEl);
+const cur1 = document.createElement("div"); cur1.className = "cur"; promptEl.appendChild(cur1);
+const litBar = document.createElement("div"); litBar.className = "abs"; litBar.style.cssText = `height:4px;background:${LIME};left:0;top:0;width:0`; promptEl.appendChild(litBar);
+function typeStep(spans, cur, t, start, cps, blink) {
+  let last = -1;
+  for (let i = 0; i < spans.length; i++) {
+    const on = t >= start + i / cps;
+    if (spans[i]) spans[i].style.opacity = on ? 1 : 0;
+    if (on) last = i;
+  }
+  let l = 0, tp = 0;
+  const ref = last >= 0 ? (() => { for (let j = last; j >= 0; j--) if (spans[j]) return spans[j]; return null; })() : null;
+  if (ref) { l = ref.offsetLeft + ref.offsetWidth; tp = ref.offsetTop; }
+  else { l = 40; tp = 0; }
+  cur.style.left = l + 2 + "px"; cur.style.top = tp + 2 + "px";
+  cur.style.opacity = t < start ? 0 : (last >= spans.length - 1 ? (Math.floor(t * 2.4) % 2 === 0 ? 1 : 0.15) : 1);
+}
+
+// L2: goal card
+const L2 = document.createElement("div"); L2.className = "layer"; L2.style.height = "594px"; pbody.appendChild(L2);
+L2.innerHTML = `
+  <div class="lab abs" style="left:44px;top:34px;color:${ORANGE}" id="g-lab">Goal</div>
+  <div class="abs pg" style="left:44px;top:70px;width:670px;font:700 34px/44px 'Pretendard',sans-serif;color:${CREAM};" id="g-title">To-do list in one HTML file</div>
+  <div class="abs mono" style="left:44px;top:122px;font:400 20px/26px 'MesloLGS NF',monospace;color:${MUTED};" id="g-sub">no external dependencies</div>
+  <div class="abs" id="g-rule" style="left:44px;top:176px;width:660px;height:2px;background:#2a323c;transform-origin:0 0;"></div>
+  <div class="lab abs" style="left:44px;top:200px;color:${MUTED};font-size:18px" id="g-checks">Checks</div>
+  <div class="abs mono" id="g-chip" style="left:520px;top:194px;height:34px;padding:0 14px;border:2px solid ${ORANGE};border-radius:17px;font:400 17px/30px 'MesloLGS NF',monospace;color:${CREAM};">written first</div>`;
+const goalRows = ["add", "complete", "delete"].map((name, i) => {
+  const r = document.createElement("div"); r.className = "row"; r.style.top = 250 + i * 80 + "px";
+  r.innerHTML = `<div class="t">${name}</div><div class="g">fails</div>`;
+  L2.appendChild(r);
+  const m = markSvg(r, 14, 12, 36);
+  return { r, m };
+});
+for (const id of ["g-lab", "g-title", "g-sub", "g-checks", "g-chip"]) text($(id), { decor: true });
+goalRows.forEach(({ r }) => { text(r.querySelector(".t"), { decor: true }); text(r.querySelector(".g"), { decor: true }); });
+
+// L3: strip
+const L3 = document.createElement("div"); L3.className = "layer"; L3.style.height = "84px"; pbody.appendChild(L3);
+const chips = ["add", "complete", "delete"].map((name, i) => {
+  const c = document.createElement("div"); c.className = "chip"; c.style.left = 28 + i * 238 + "px"; c.innerHTML = `<div class="t">${name}</div>`;
+  L3.appendChild(c); const m = markSvg(c, 12, 9, 34); text(c.querySelector(".t"), { decor: true }); return { c, m };
+});
+
+// L4: record
+const L4 = document.createElement("div"); L4.className = "layer"; L4.style.height = "354px"; pbody.appendChild(L4);
+const recRows = [["goal", "To-do list in one HTML file", 36], ["checked", "add · complete · delete", 112], ["next", "keyboard shortcuts", 188]].map(([k, v, y]) => {
+  const d = document.createElement("div"); d.className = "rec"; d.style.top = y + "px"; d.innerHTML = `<div class="k">${k}</div><div class="v">${v}</div>`; L4.appendChild(d);
+  text(d.querySelector(".k"), { decor: true }); text(d.querySelector(".v"), { decor: true }); return d;
+});
+const recTicks = [0, 1, 2].map((i) => { const m = markSvg(L4, 610 + i * 34, 106, 30); return m; });
+const folder = document.createElement("div"); folder.className = "abs"; folder.style.cssText = "left:44px;top:276px;height:40px;";
+folder.innerHTML = `<svg width="30" height="26" viewBox="0 0 30 26" style="position:absolute;left:0;top:4px"><path d="M2 5.5H11L14 9H28V23H2Z" fill="none" stroke="${LIME}" stroke-width="2.4" stroke-linejoin="round"/></svg><div class="mono" id="folder-t" style="position:absolute;left:44px;top:0;font:400 23px/34px 'MesloLGS NF',monospace;color:${LIME};white-space:nowrap;">.litclaude/litgoal/</div>`;
+L4.appendChild(folder); text($("folder-t"), { decor: true });
+const folderRule = document.createElement("div"); folderRule.className = "abs"; folderRule.style.cssText = "left:44px;top:258px;width:660px;height:2px;background:#2a323c;transform-origin:0 0;"; L4.appendChild(folderRule);
+
+// ---------- browser page ----------
+const bpage = $("bpage");
+bpage.innerHTML = `
+  <div class="abs" style="left:40px;top:28px;font:700 46px/56px 'Pretendard',sans-serif;color:#17130b;" id="b-title">To-do</div>
+  <div class="abs" id="b-input" style="left:40px;top:104px;width:492px;height:64px;border:3px solid #17130b;border-radius:12px;box-sizing:border-box;background:#fbf9f1;"></div>
+  <div class="abs pg" id="b-ph" style="left:60px;top:104px;font:400 28px/64px 'Pretendard',sans-serif;color:#8b846f;">What needs doing?</div>
+  <div class="abs pg" id="b-typed" style="left:60px;top:104px;font:400 28px/64px 'Pretendard',sans-serif;color:#17130b;white-space:pre;"></div>
+  <div class="abs" id="b-btn" style="left:548px;top:104px;width:160px;height:64px;border-radius:12px;background:${ORANGE};font:700 28px/64px 'Pretendard',sans-serif;color:#17130b;text-align:center;">Add</div>
+  <div class="abs" id="b-list" style="left:0;top:196px;width:746px;height:260px;"></div>`;
+for (const id of ["b-title", "b-ph", "b-typed", "b-btn"]) text($(id), { decor: true });
+const bItem = document.createElement("div"); bItem.className = "item"; bItem.style.top = "0px";
+bItem.innerHTML = `<div class="abs" style="left:0;top:0;width:668px;height:64px;border-bottom:2px solid #d9d2bd;box-sizing:border-box;"></div>
+  <div class="abs" id="b-cb" style="left:6px;top:14px;width:32px;height:32px;border-radius:16px;border:3px solid #17130b;box-sizing:border-box;"></div>
+  <svg class="svgm" style="left:6px;top:14px" width="32" height="32" viewBox="0 0 32 32"><path id="b-cbtick" d="M8 17L14 23L25 9" stroke="#17130b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+  <div class="abs pg" id="b-item" style="left:60px;top:0;font:400 30px/58px 'Pretendard',sans-serif;color:#17130b;white-space:nowrap;">Buy milk</div>
+  <div class="abs" id="b-strike" style="left:60px;top:29px;height:3px;background:#17130b;width:0;"></div>
+  <svg class="svgm" id="b-x" style="left:622px;top:14px" width="32" height="32" viewBox="0 0 32 32"><path d="M8 8L24 24M24 8L8 24" stroke="#8b846f" stroke-width="3.6" stroke-linecap="round" fill="none"/></svg>`;
+$("b-list").appendChild(bItem); text($("b-item"), { decor: true });
+const cbTick = $("b-cbtick");
+const bTypedSpans = (() => { const box = $("b-typed"); return makeTyper(box, "Buy milk"); })();
+// click timing (seconds)
+const CLICK = [12.1875, 13.4375, 14.375];
+
+// ---------- window B ----------
+const wbody = $("wbody");
+const promptB = document.createElement("div"); promptB.className = "prompt"; promptB.style.top = "40px"; promptB.innerHTML = '<span class="mk">&gt;</span>'; wbody.appendChild(promptB);
+const typedB = makeTyper(promptB, COPY.promptB); text(promptB);
+const curB = document.createElement("div"); curB.className = "cur"; promptB.appendChild(curB);
+
+// ---------- flame, rings, HUD ----------
+$("flamewrap").innerHTML = `<div id="flamebox" style="position:absolute;left:0;top:0;width:400px;height:500px;transform-origin:50% 88%;">${FLAME("big", 400).replace('width="400" height="400"', 'width="400" height="500" preserveAspectRatio="xMidYMid meet"')}</div>`;
+const ringHost = $("rings");
+const ringEls = [0, 1, 2].map(() => { const d = document.createElement("div"); d.className = "glow"; d.style.border = `3px solid ${ORANGE}`; ringHost.appendChild(d); return d; });
+{
+  const brand = "LITCLAUDE";
+  const stops = [[255, 45, 149], [0, 229, 255]];
+  const letters = [...brand].map((c, i) => { const p = i / (brand.length - 1); const rgb = stops[0].map((v, k) => Math.round(lerp(v, stops[1][k], p))); return `<span style="color:rgb(${rgb})">${c}</span>`; }).join("");
+  $("hudline").innerHTML = `<span style="color:#f1ecdc">[</span><span style="display:inline-block;vertical-align:-6px;width:28px">${FLAME("hud", 26)}</span>${letters}<span style="color:#f1ecdc">]</span> <span style="color:#5fd7ff">|</span> <span style="color:#f1ecdc">O5.5</span> <span style="color:#5fd7ff">│ ctx [</span><span style="color:#5fd7ff">▊</span><span style="color:#444c58">░░</span><span style="color:#5fd7ff">] 23%/200k</span>`;
+  text($("hudline"), { decor: true });
+}
+const cursorEl = $("cursor");
+
+// ---------- render ----------
+const DUR = 25;
+const R1 = [1050, 320, 750, 300], R2 = [1050, 190, 750, 560], R3 = [1050, 770, 750, 130], R4 = [1050, 190, 750, 400];
+const panelRect = [{ t: 0, v: R1 }, { t: 5, v: R1, ease: "emphasized" }, { t: 6.1, v: R2 }, { t: 10, v: R2, ease: "emphasized" }, { t: 11.1, v: R3 }, { t: 15, v: R3, ease: "emphasized" }, { t: 16.3, v: R4 }, { t: 19.6, v: R4 }];
+const panel = $("panel"), browser = $("browser"), winb = $("winb"), hud = $("hud"), spark = $("spark"), linkline = $("linkline"), linkarrow = $("linkarrow"), nextlab = $("nextlab");
+const titles = [$("tt1"), $("tt2"), $("tt3"), $("tt4")];
+const grid = $("grid");
+const pulse = (t, t0, dur) => { const p = at(t, t0, dur, ease.outCubic); return p > 0 && p < 1 ? Math.sin(p * Math.PI) : 0; };
+
+function render(t) {
+  // ground
+  grid.style.transform = `translate(${-(t * 6) % 96}px, ${-(t * 2.5) % 96}px)`;
+  $("prog").setAttribute("width", String(1800 * clamp(t / DUR)));
+
+  // headlines
+  H.forEach((h, k) => {
+    h.ins.forEach((el, i) => {
+      const pin = at(t, h.start - 0.06 + i * 0.09, 0.8, ease.emphasized);
+      const pout = at(t, h.end - 0.4 + i * 0.05, 0.42, ease.accelerate);
+      el.style.transform = `translateY(${(1 - pin) * 108 - pout * 108}%)`;
+    });
+  });
+  const subIn = (id, s, e) => { const el = $(id); const a = at(t, s, 0.7, ease.decelerate), b = at(t, e - 0.45, 0.4, ease.accelerate); el.style.opacity = a * (1 - b); el.style.transform = `translateY(${(1 - a) * 26 + b * -20}px)`; };
+  subIn("s2", 6.0, 10); subIn("s4", 16.0, 20); subIn("s5", 20.9, 999);
+  { const a = at(t, 21.5, 0.6, ease.decelerate); $("cta").style.opacity = a; $("cta").style.transform = `translateY(${(1 - a) * 26}px)`; }
+  // LIT glow at the close
+  { const g = pulse(t, 23.0, 1.3); const lit = H[4].el.querySelector(".o"); lit.style.textShadow = t > 21.0 ? `0 0 ${18 + g * 30}px rgba(255,106,42,${0.35 + g * 0.45})` : "none"; }
+
+  // chain
+  const ca = chainActive(t);
+  chainX.forEach((c, i) => { c.s.style.color = (ca === 4 || i === ca) ? CREAM : (i < ca ? "#c9c3b2" : MUTED); });
+  const barKey = ca === 4 ? { x: 0, w: chainX[3].x + chainX[3].w } : ca >= 0 ? { x: chainX[ca].x, w: chainX[ca].w } : { x: 0, w: 0 };
+  chainBar.dataset.x = barKey.x;
+  const bx = lerpBar(t, ca, barKey);
+  chainBar.style.left = bx.x + "px"; chainBar.style.width = bx.w + "px";
+
+  // panel rect
+  const r = kf(t, panelRect);
+  panel.style.left = r[0] + "px"; panel.style.top = r[1] + "px"; panel.style.width = r[2] + "px"; panel.style.height = r[3] + "px";
+  const floaty = Math.sin(t * 1.3) * 3;
+  const pIn = at(t, -0.35, 0.9, ease.emphasized);
+  const pOut = at(t, 19.6, 0.6, ease.accelerate);
+  panel.style.transform = `translateY(${floaty}px)`;
+  panel.style.clipPath = pOut > 0 ? `inset(0 0 ${pOut * 100}% 0)` : (pIn < 1 ? `inset(0 ${(1 - pIn) * 100}% 0 0)` : "none");
+  panel.style.visibility = pOut >= 1 ? "hidden" : "visible";
+  // titles
+  const tv = [1 - at(t, 4.9, 0.4), at(t, 5.4, 0.5) * (1 - at(t, 9.9, 0.4)), at(t, 10.7, 0.5) * (1 - at(t, 14.9, 0.4)), at(t, 15.9, 0.5) * (1 - at(t, 19.4, 0.3))];
+  titles.forEach((el, i) => { el.style.opacity = tv[i]; });
+  // L1 prompt
+  L1.style.opacity = 1 - at(t, 4.95, 0.5, ease.accelerate);
+  typeStep(typed1, cur1, t, 0.55, 30);
+  { const p = at(t, 2.6, 0.5, ease.emphasized); const last3 = typed1.slice(-3); const a = last3[0], b = last3[2];
+    const left = a.offsetLeft, right = b.offsetLeft + b.offsetWidth;
+    litBar.style.left = left + "px"; litBar.style.top = a.offsetTop + 34 + "px"; litBar.style.width = (right - left) * p + "px"; }
+  // L2 goal card
+  L2.style.opacity = at(t, 5.5, 0.4) * (1 - at(t, 9.95, 0.4, ease.accelerate));
+  { const a = at(t, 5.7, 0.7, ease.emphasized); $("g-rule").style.transform = `scaleX(${a})`; }
+  goalRows.forEach(({ r, m }, i) => {
+    const s = 6.0 + i * 0.16; const a = at(t, s, 0.6, ease.emphasized);
+    r.style.opacity = a; r.style.transform = `translateX(${(1 - a) * 46}px)`;
+    m.set(at(t, s + 0.45, 0.4, ease.outCubic), 0);
+  });
+  // L3 strip
+  L3.style.opacity = at(t, 10.9, 0.4) * (1 - at(t, 15.0, 0.35, ease.accelerate));
+  const tickAt = [CLICK[0] + 0.1, CLICK[1] + 0.1, CLICK[2] + 0.1];
+  chips.forEach(({ c, m }, i) => {
+    const a = at(t, 11.0 + i * 0.1, 0.5, ease.emphasized);
+    c.style.transform = `translateY(${(1 - a) * 18}px)`; c.style.opacity = a;
+    const flip = at(t, tickAt[i], 0.14);
+    m.set(1 - flip, at(t, tickAt[i] + 0.1, 0.4, ease.outCubic));
+    c.style.borderColor = t >= tickAt[i] ? mix("#222a35", LIME, Math.min(1, pulse(t, tickAt[i], 0.9) + (t > tickAt[i] + 0.5 ? 0.25 : 0))) : "#222a35";
+  });
+  // L4 record
+  L4.style.opacity = at(t, 16.2, 0.4) * (1 - at(t, 19.5, 0.3));
+  recRows.forEach((d, i) => { const a = at(t, 16.5 + i * 0.22, 0.6, ease.emphasized); d.style.opacity = a; d.style.transform = `translateX(${(1 - a) * 36}px)`; });
+  recTicks.forEach((m, i) => m.set(0, at(t, 17.0 + i * 0.12, 0.35, ease.outCubic)));
+  folder.style.opacity = at(t, 17.15, 0.5); folderRule.style.transform = `scaleX(${at(t, 16.9, 0.6, ease.emphasized)})`;
+
+  // browser
+  { const a = at(t, 10.45, 0.85, ease.emphasized), b = at(t, 15.0, 0.55, ease.accelerate);
+    browser.style.clipPath = b > 0 ? `inset(${b * 100}% 0 0 0)` : `inset(0 0 ${(1 - a) * 100}% 0)`;
+    browser.style.visibility = (t < 10.45 || b >= 1) ? "hidden" : "visible"; browser.style.transform = `translateY(${Math.sin(t * 1.1 + 1) * 3}px)`; }
+  // browser page choreography
+  { const n = bTypedSpans.length; const start = 11.15, cps = 13;
+    bTypedSpans.forEach((s, i) => { const on = t >= start + i / cps && t < CLICK[0] + 0.06; if (s) s.style.opacity = on ? 1 : 0; });
+    $("b-typed").style.opacity = t < CLICK[0] + 0.06 ? 1 : 0;
+    $("b-ph").style.opacity = t < start ? 1 : 0;
+    // button press
+    const press = pulse(t, CLICK[0], 0.3); $("b-btn").style.transform = `scale(${1 - press * 0.05})`;
+    // item entrance
+    const ia = at(t, CLICK[0] + 0.05, 0.4, ease.emphasized); const del = at(t, CLICK[2], 0.4, ease.accelerate);
+    bItem.style.opacity = ia * (1 - del); bItem.style.height = 64 * (1 - del) + "px"; bItem.style.transform = `translateY(${(1 - ia) * -16}px)`;
+    // complete
+    const ca2 = at(t, CLICK[1], 0.35, ease.emphasized);
+    $("b-cb").style.background = mix("#fbf9f1", LIME, ca2); 
+    drawPath(cbTick, ca2); cbTick.style.opacity = ca2 > 0.01 ? 1 : 0;
+    $("b-strike").style.width = 176 * at(t, CLICK[1] + 0.1, 0.35, ease.emphasized) + "px";
+    $("b-item").style.color = mix("#17130b", "#8b846f", ca2);
+  }
+  // cursor path
+  { const keys = [
+      { t: 11.5, v: [1610, 760], ease: "emphasized" },
+      { t: CLICK[0], v: [1610, 392] },
+      { t: CLICK[0] + 0.25, v: [1610, 392], ease: "emphasized" },
+      { t: CLICK[1], v: [1112, 500] },
+      { t: CLICK[1] + 0.3, v: [1112, 500], ease: "emphasized" },
+      { t: CLICK[2], v: [1740, 500] },
+      { t: CLICK[2] + 0.3, v: [1740, 500], ease: "accelerate" },
+      { t: 14.95, v: [1900, 700] }];
+    const p = kf(t, keys);
+    cursorEl.style.left = p[0] + "px"; cursorEl.style.top = p[1] + "px";
+    const show = at(t, 11.5, 0.25) * (1 - at(t, 14.7, 0.25));
+    const down = Math.max(pulse(t, CLICK[0], 0.28), pulse(t, CLICK[1], 0.28), pulse(t, CLICK[2], 0.28));
+    cursorEl.style.opacity = show; cursorEl.style.transform = `scale(${1 - down * 0.14})`;
+    // click rings
+    ringClicks(t);
+  }
+
+  // link and window B
+  { const a = at(t, 16.7, 0.5, ease.emphasized); const b = at(t, 19.6, 0.4, ease.accelerate);
+    drawPath(linkline, a); linkarrow.style.opacity = at(t, 17.2, 0.3) * (1 - b); linkline.style.opacity = 1 - b;
+    const sp = at(t, 16.9, 0.75, ease.inOutSine); const sy = lerp(592, 692, sp);
+    spark.style.top = sy - 9 + "px"; spark.style.opacity = t < 16.9 ? 0 : (t < 17.65 ? 1 : Math.max(0, 1 - (t - 17.65) / 0.4));
+    nextlab.style.opacity = at(t, 17.1, 0.5) * (1 - b); nextlab.style.transform = `translateX(${(1 - at(t, 17.1, 0.5, ease.decelerate)) * 20}px)`;
+    const w = at(t, 17.35, 0.8, ease.emphasized);
+    winb.style.clipPath = b > 0 ? `inset(0 0 ${b * 100}% 0)` : `inset(0 ${(1 - w) * 100}% 0 0)`;
+    winb.style.visibility = (t < 17.35 || b >= 1) ? "hidden" : "visible";
+    typeStep(typedB, curB, t, 18.1, 22);
+    const lit = pulse(t, 17.55, 0.7); winb.style.borderColor = mix("#2a323c", LIME, lit); }
+
+  // flame, rings, hud
+  { const s = spring({ damping: 11, stiffness: 120 }); const p = t < 20.3 ? 0 : s(t - 20.3);
+    const fl = 1 + 0.03 * Math.sin(t * 8.5) + 0.015 * Math.sin(t * 13.1);
+    const box = $("flamebox"); box.style.transform = `scale(${Math.max(0, p) * fl}, ${Math.max(0, p) * (fl + 0.02 * Math.sin(t * 6.7))})`;
+    box.style.opacity = t < 20.3 ? 0 : 1;
+    box.style.filter = `drop-shadow(0 0 ${28 + 10 * Math.sin(t * 5)}px rgba(255,106,42,.55))`;
+    ringEls.forEach((el, i) => { const s0 = 20.5 + i * 0.32; const q = at(t, s0, 1.9, ease.decelerate); const rr = lerp(160, 470, q);
+      el.style.left = 1425 - rr + "px"; el.style.top = 470 - rr + "px"; el.style.width = rr * 2 + "px"; el.style.height = rr * 2 + "px";
+      el.style.opacity = t < s0 ? 0 : 0.55 * (1 - q); el.style.borderWidth = 3 - q * 2 + "px"; });
+    const h = at(t, 21.4, 0.8, ease.emphasized); hud.style.clipPath = `inset(${(1 - h) * 100}% 0 0 0)`; hud.style.visibility = t < 21.4 ? "hidden" : "visible";
+  }
+}
+function lerpBar(t, ca, target) {
+  // the bar glides from the previous step to the current one over 0.5 s
+  const starts = [5, 10, 12.5, 15, 20];
+  const idx = ca; if (idx < 0) return { x: 0, w: 0 };
+  const prev = idx === 0 ? { x: chainX[0].x, w: 0 } : (idx === 4 ? { x: chainX[3].x, w: chainX[3].w } : { x: chainX[idx - 1].x, w: chainX[idx - 1].w });
+  const p = at(t, starts[idx], 0.5, ease.emphasized);
+  return { x: lerp(prev.x, target.x, p), w: lerp(prev.w, target.w, p) };
+}
+const ringClickEls = CLICK.map(() => { const d = document.createElement("div"); d.className = "ring"; $("stage").appendChild(d); return d; });
+const clickPos = [[1610 + 6, 392 + 6], [1112 + 6, 500 + 6], [1740 + 6, 500 + 6]];
+function ringClicks(t) {
+  CLICK.forEach((c, i) => {
+    const q = at(t, c, 0.45, ease.decelerate); const el = ringClickEls[i];
+    el.style.left = clickPos[i][0] + "px"; el.style.top = clickPos[i][1] + "px";
+    const s = 1 + q * 3.2; el.style.transform = `scale(${s})`; el.style.opacity = (q > 0 && q < 1) ? 0.9 * (1 - q) : 0;
+  });
+}
+define({ width: 1920, height: 1080, fps: 30, duration: DUR, render });
+</script>
+</body>

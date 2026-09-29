@@ -124,7 +124,20 @@ Implement add, complete, and delete. Record what you checked and the next step.
 When it finishes, open the HTML yourself and click through all three actions; that is the
 only way to know the buttons work. If Claude has no browser to test with, ask it to mark
 the look and the clicks as unverified so you know what is left to try. The logo you saw at
-the start only tells you the loop began.
+the start marks the moment the loop began.
+
+## Watch it in motion
+
+This film follows one small job through the loop LitClaude runs. Someone asks for a to-do
+list, LitClaude pins the goal and three checks that fail first, the page gets clicked until
+the checks pass, and the result goes into a record that a fresh session opens and carries on
+from. It runs about 25 seconds. Everything on screen is drawn for the film, including the
+status bar at the end, which imitates the real HUD. The preview loops without sound; the MP4
+carries a generated music bed.
+
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-still.webp" /><img src="./docs/assets/promo/litclaude-promo-preview.webp" width="100%" alt="Promo film. A terminal types a prompt asking for a to-do list and ending in lit, under the headline Ask for the work. The terminal grows into a goal card with three crossed-out checks named add, complete and delete. A small to-do page is clicked, and the crosses turn into ticks. The checks become a record with the goal, what was checked and the next step, and a spark carries it to a new terminal that asks to read the handoff. The film ends on Keep the work lit, a flame above a status bar, and the install command." /></picture></p>
+
+[Play the MP4 with sound](./docs/assets/promo/litclaude-promo.mp4)
 
 ## What to type
 
@@ -631,7 +644,7 @@ Concept art; each product runs in its own host.
 
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office
-files, not Markdown. `lit-pptx` writes the slide source in Markdown and compiles it
+files. `lit-pptx` writes the slide source in Markdown and compiles it
 through designed templates: AZURE-PRO blue and white by default, plus A2Z and plain 4:3
 variants. Numbers become native charts and KPI cards you can still edit, and Pretendard is
 embedded. Before you get the deck, a QA gate looks for text that overflows, weak contrast,
@@ -703,13 +716,57 @@ turn carries on as usual and you see one short note, the first time it happens i
 session.
 
 To check that it is on, run `litclaude doctor`. It prints `Jev skill hint: off`, `on`, or
-`flag on but TYPESAFE_API_KEY missing`. The LitClaude HUD status line shows it too: `✦Jev`
-right after the model name (`O5.5 ✦Jev`), the suggested skill on a turn that got one
-(`O5.5 ✦Jev → lit-humanizer`), and `O5.5 ✦Jev ⚠ key` when the key is missing. When colour
-is allowed, `Jev` there shimmers in rainbow colours, and the first prompt of each session
-with the flag and key set shows one `✦ Jev skill hint ON ✦` line (plain text under
-`NO_COLOR`). To turn it off, unset `LITCLAUDE_JEV` or set it to anything other than `1`.
-`docs/hooks.md` covers the tuning variables and the local debug trace.
+`flag on but TYPESAFE_API_KEY missing`. To turn Jev off, unset `LITCLAUDE_JEV` or set it to
+anything other than `1`. `docs/hooks.md` covers the tuning variables and the local debug
+trace.
+
+### What you will see
+
+Jev shows itself in three places: the HUD status line, one line on the first prompt of a
+session, and `litclaude doctor`. The pictures below are sample output from LitClaude's own
+status line and prompt hook, run on a small demo project with a placeholder key. The
+network call was replaced by the repository's test stand-in, so nothing went to TypeSafe.
+The prompts and the skill name are examples. Each picture follows your page theme; on a
+light terminal the word Jev keeps the default colour and only the marks are coloured.
+
+With Jev off, the model name stands alone on the status line. This is what you see until
+you set both variables.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-off-dark.webp" /><img src="./docs/assets/jev/jev-status-off-light.webp" width="100%" alt="Terminal window titled claude. Status line: [flame icon]LITCLAUDE vX.Y.Z] | O5.5 │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. Second line: └─ Sketch a plan for moving our nightly jobs to a queue. Below it, an enlarged label reading O5.5." /></picture></p>
+
+*Sample output, rendered from LitClaude's own status line.*
+
+Turn Jev on, and the first prompt of each session shows one line in rainbow colours (plain
+text when `NO_COLOR` is set). It reminds you that eligible prompts in this session go to
+TypeSafe.
+
+<p align="center"><img src="./docs/assets/jev/jev-first-prompt-notice.webp" width="100%" alt="Terminal window titled claude showing one line in rainbow colours: ✦ Jev skill hint ON ✦" /></p>
+
+*Sample output, rendered from LitClaude's own prompt hook.*
+
+From then on, `✦Jev` sits right after the model name, and the word shimmers when your
+terminal allows colour. When Jev finds no skill that fits well enough, this badge is the
+only change and the turn runs as usual. The enlarged label under each status-line picture keeps
+the model name readable on a small screen.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-quiet-dark.webp" /><img src="./docs/assets/jev/jev-status-quiet-light.webp" width="100%" alt="Terminal window titled claude. Status line: [flame icon]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. Second line: └─ Rename the config loader and update its imports. Below it, an enlarged label reading O5.5 ✦Jev." /></picture></p>
+
+*Sample output, rendered from LitClaude's own status line.*
+
+When Jev names a skill, the name follows an arrow for that turn, and Claude gets one line
+suggesting it. Claude decides whether to load the skill. The name here is an example.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-hint-dark.webp" /><img src="./docs/assets/jev/jev-status-hint-light.webp" width="100%" alt="Terminal window titled claude. Status line: [flame icon]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev → lit-plan │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. Second line: └─ Sketch a plan for moving our nightly jobs to a queue. Below it, an enlarged label reading O5.5 ✦Jev → lit-plan." /></picture></p>
+
+*Sample output, rendered from LitClaude's own status line after a hinted turn.*
+
+If the flag is on and the key is empty, the badge turns amber and reads `⚠ key`, and the
+first eligible prompt shows one short note. Nothing goes to TypeSafe, and your prompts reach Claude
+as usual. Set the key and the badge returns to `✦Jev`; unset the flag and it disappears.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/jev/jev-status-key-dark.webp" /><img src="./docs/assets/jev/jev-status-key-light.webp" width="100%" alt="Terminal window titled claude. First line: LitClaude skill hint unavailable (key-missing); continuing normally. Status line: [flame icon]LITCLAUDE vX.Y.Z] | O5.5 ✦Jev ⚠ key │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%. Second line: └─ Sketch a plan for moving our nightly jobs to a queue. Below it, an enlarged label reading O5.5 ✦Jev ⚠ key." /></picture></p>
+
+*Sample output, rendered from LitClaude's own prompt hook and status line.*
 
 ## Safety
 

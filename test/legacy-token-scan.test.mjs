@@ -218,7 +218,7 @@ test("scanner retains captured buffers directly and enforces typed per-file and 
     assert.equal(perFile.ok, false);
     assert.ok(perFile.errors.some(({ code }) => code === "LITCLAUDE_SCAN_FILE_TOO_LARGE"), JSON.stringify(perFile.errors));
 
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       const chunk = join(aggregateRoot, `chunk-${index}.bin`);
       writeFileSync(chunk, "");
       truncateSync(chunk, 7 * 1024 * 1024);

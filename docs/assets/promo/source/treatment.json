@@ -1,0 +1,196 @@
+{
+  "request": "A motion promo for the LitClaude README, just like a pro typography motion artist's reel at its best, about what this product really does.",
+  "genre": "explainer",
+  "path": "stage",
+  "pathReason": "The film has to show drawn things (a terminal, a goal card, a small web page being clicked, a record handed to a new session), so the visuals are authored as a page and captured frame by frame; type alone cannot show them.",
+  "idea": "One small job goes through the whole loop on screen: asked for in a prompt, pinned as a goal with checks that fail first, checked on a real page by clicking it, then written into a record that a fresh session opens and continues from.",
+  "audience": "Developers who already use Claude Code and lose the thread between sessions.",
+  "channel": "The top of a GitHub README, autoplaying muted as an animated preview, with the MP4 one click away.",
+  "format": "16:9",
+  "formatReason": "A README column and the MP4 link both show a landscape frame, and the terminal and browser panels read best wide.",
+  "durationSec": 25,
+  "fps": 30,
+  "posterBeat": 4,
+  "seed": 20260929,
+  "beats": [
+    {
+      "t0": 0,
+      "t1": 5,
+      "purpose": "Hook: the ask",
+      "onScreen": "Headline ASK FOR THE WORK. on the left, already settled in the first frame. On the right a terminal panel wipes in and a to-do-list prompt types itself, ending in a lime lit; the step row along the bottom sits unlit.",
+      "motion": "Panel wipes in from the left, characters type at a steady pace, a cursor blinks in lime, the headline lines rise from a mask.",
+      "sound": "pad and pulse only, unhurried, the room settling"
+    },
+    {
+      "t0": 5,
+      "t1": 10,
+      "purpose": "Context: the goal is pinned and the checks fail first",
+      "onScreen": "Headline PIN THE GOAL. with the line WRITE THE FAILING TEST FIRST under it. The terminal panel grows into a goal card: the job in one line, then three rows (add, complete, delete), each with an orange cross drawn in. The Plan step lights.",
+      "motion": "Match cut: the panel keeps its frame and grows taller while its content swaps; rows slide in on a stagger; crosses draw with a stroke.",
+      "sound": "hit on the cut as the terminal becomes the goal card"
+    },
+    {
+      "t0": 10,
+      "t1": 15,
+      "purpose": "Key moment: the real page is checked",
+      "onScreen": "Headline CHECK THE REAL PAGE. A small to-do page drops in above; a cursor clicks Add, then the checkbox, then the delete cross, and the three crosses in the strip below turn into lime ticks one by one. Build then Check light up.",
+      "motion": "The goal card shrinks into a strip while the page reveals from the top; a cursor glides between targets with a click ring at each; ticks draw in.",
+      "sound": "hit on the cut, then a rise under the clicks into the handoff"
+    },
+    {
+      "t0": 15,
+      "t1": 20,
+      "purpose": "Details: the record is handed to the next session",
+      "onScreen": "Headline HAND IT OFF. with the line about the next session under it. The strip grows into a record card listing the goal, what was checked and the next step, with the project folder named. A lime spark travels down a line into a fresh terminal whose prompt asks to read the handoff.",
+      "motion": "Strip grows into the card, spark follows a drawn line, the new terminal wipes in and types.",
+      "sound": "hit on the cut, rise as the record travels into the new session"
+    },
+    {
+      "t0": 20,
+      "t1": 25,
+      "purpose": "Close: keep the work lit",
+      "onScreen": "The right column clears. Headline KEEP THE WORK LIT. with LIT in orange, the line naming Claude Code, and the install command in lime mono. A large flame ignites on the right above a status bar; all four steps sit lit.",
+      "motion": "Panels clip away, the flame springs up and flickers, rings expand once, LIT glows.",
+      "sound": "hit on the cut, cadence on the final line, resolve into the last chord"
+    }
+  ],
+  "subject": {
+    "name": "LitClaude",
+    "source": "user",
+    "specifics": [
+      "a Claude Code plugin that plans, builds and checks work",
+      "leaves a record in the project that the next session reads",
+      "its status bar carries a flame and the name"
+    ]
+  },
+  "visualDevices": [
+    {
+      "kind": "illustration",
+      "role": "subject",
+      "beats": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "kind": "diagram",
+      "role": "support",
+      "beats": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "kind": "path",
+      "role": "support",
+      "beats": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "kind": "shape",
+      "role": "support",
+      "beats": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "kind": "mask",
+      "role": "support",
+      "beats": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "kind": "grid",
+      "role": "texture",
+      "beats": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "typePlan": {
+    "faces": [
+      "Archivo",
+      "Pretendard",
+      "MesloLGS NF",
+      "Silkscreen"
+    ],
+    "hierarchy": "Archivo 900 uppercase headlines at about 116 px on the left, Pretendard for the supporting line, mono for everything a terminal would print, Silkscreen for small labels; one accent word per headline.",
+    "maxWordsOnScreen": 24
+  },
+  "palette": [
+    {
+      "color": "#070b10",
+      "role": "ground"
+    },
+    {
+      "color": "#f1ecdc",
+      "role": "type and panels"
+    },
+    {
+      "color": "#ff6a2a",
+      "role": "accent, failing and lit"
+    },
+    {
+      "color": "#d8f552",
+      "role": "passing and the spark"
+    },
+    {
+      "color": "#9aa39a",
+      "role": "secondary text"
+    }
+  ],
+  "sound": {
+    "mode": "generated",
+    "plan": "A warm keyed bed at a walking tempo, with a hit on each of the four cuts, one rise into the handoff and a cadence on the closing line.",
+    "palette": {
+      "timbre": "soft-keys",
+      "key": "D",
+      "mode": "major",
+      "tempo": 96
+    }
+  },
+  "copy": {
+    "source": "invented",
+    "lines": [
+      "Ask for the work.",
+      "Build a to-do list in a single HTML file. lit",
+      "Pin the goal.",
+      "Write the failing test first.",
+      "Check the real page.",
+      "Hand it off.",
+      "The next session reads the record and carries on.",
+      "Read the handoff. What is next?",
+      "Keep the work lit.",
+      "Plan, build and check your work in Claude Code.",
+      "npm install -g @litfamily/litclaude"
+    ]
+  },
+  "inventions": [
+    "The demo job: a to-do list in one HTML file (taken from the README's own quick start) with its three checks add, complete and delete.",
+    "The example record contents: the goal line, the checked list and the next step 'keyboard shortcuts'.",
+    "The second session's prompt, 'Read the handoff. What is next?', which follows the README's advice to ask Claude to read the file and name the next action.",
+    "All copy lines and the on-screen terminal, page and card drawings."
+  ],
+  "ambition": "A reel-grade explainer where one continuous object, the panel, changes state across four cuts (terminal, goal card, checklist strip, record), the type has one clear hierarchy with a mask-rise entry and a readable hold, the cursor clicks land on exact frames, and the last frame is a flame lighting the same status bar the product installs."
+}

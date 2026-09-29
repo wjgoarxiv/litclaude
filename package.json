@@ -57,7 +57,7 @@
     "postpack": "node tools/readme-for-npm.mjs restore",
     "check:npm-readme": "node tools/readme-for-npm.mjs check",
     "postinstall": "node scripts/postinstall.mjs",
-    "test": "node --test --test-concurrency=1 --import ./test/helpers/motion-offline-prewarm.mjs test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 --import ./test/helpers/scrub-ambient-jev-env.mjs --import ./test/helpers/motion-offline-prewarm.mjs test/*.test.mjs",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "doctor": "node scripts/doctor.mjs",
     "qa:tmux": "bash scripts/qa-claude-plugin-smoke.sh",

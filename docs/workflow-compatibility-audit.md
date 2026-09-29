@@ -31,7 +31,7 @@ of the enumerated inventory and exact bytes. The report carries that snapshot's
 file count and deterministic SHA-256 digest. Success does not prove the mutable
 live tree remained clean after capture; a later tree state requires another run,
 while package and tarball guards independently bind their own exact payloads.
-Capture is bounded to 8 MiB per file and 32 MiB in aggregate, and the zero-entry
+Capture is bounded to 8 MiB per file and 48 MiB in aggregate, and the zero-entry
 allowlist is parsed from the captured bytes rather than a pre-capture pathname read.
 Legal companion paths, source paths, sizes, hashes, and aggregate are hard-pinned
 outside the generated manifest; the legal files are scanned normally and the package

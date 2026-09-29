@@ -102,7 +102,8 @@ and your own `TYPESAFE_API_KEY` set, each eligible prompt goes to TypeSafe, cut 
 characters, with home paths, e-mail addresses and token-shaped strings redacted. The rest
 of the prompt goes as written, and TypeSafe bills your account. The agent's own tools can
 read the exported key too, so give this feature a key of its own with a low spend limit.
-Read the GitHub guide before you enable it.
+Read the GitHub guide before you enable it; it also shows what each state looks like on
+screen.
 
 ## Safety and uninstall
 
