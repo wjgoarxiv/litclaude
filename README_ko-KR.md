@@ -41,7 +41,7 @@
 <p align="center"><img src="./docs/assets/litclaude-clay-icon.png" width="160" alt="LitClaude 클레이 마크" /></p>
 
 <p align="center">
-  <img src="./docs/assets/readme/badge-version.svg" alt="1.0.15" />
+  <img src="./docs/assets/readme/badge-version.svg" alt="1.0.16" />
   <a href="./LICENSE"><img src="./docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 
@@ -862,13 +862,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 설치를 재현하려면 registry에서 현재 package version을 조회한 뒤 고정합니다.
 
 ```bash
-npm view @litfamily/litclaude@1.0.15 version
+npm view @litfamily/litclaude@1.0.16 version
 ```
 
-조회 결과가 `1.0.15`이면 exact install을 사용할 수 있습니다.
+조회 결과가 `1.0.16`이면 exact install을 사용할 수 있습니다.
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.15 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.16 -- litclaude install
 ```
 
 그렇지 않으면 명시적인 human publication을 기다립니다. Pin은 그 뒤에 사용합니다.

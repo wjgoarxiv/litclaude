@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.16 - 2026-09-30
+
+- The GitHub page (English and Korean) now has a short film about 25 seconds long under "Watch it in motion", and the README was rewritten again in plainer language.
+- The GitHub page shows what the optional Jev skill hint looks like on screen when it is on, off or unavailable. Jev stays off unless you turn it on.
+
 ## 1.0.15 - 2026-09-29
 
 - `litclaude install` and updates no longer fail with an ownership conflict while Claude Code is using the plugin. Claude Code marks the version it has in use with an empty `.in_use` folder inside the version folder, and LitClaude now leaves that folder out of its ownership check. A file with that name still counts as a change LitClaude did not make.
