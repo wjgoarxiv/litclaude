@@ -414,6 +414,27 @@ test("a newer package can replace clean older receipts while preserving older ca
   assert.equal(existsSync(f.compatibility), true);
 });
 
+test("the empty .in_use folder Claude Code adds to a cache version does not count as foreign state", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  mkdirSync(join(f.plugin, ".in_use"));
+  pass(f.run("install"));
+  const { nextBin, nextVersion } = newerCandidate(f);
+  pass(f.run("install", nextBin));
+  assert.equal(readlinkSync(join(f.lit, "current")), join(f.lit, "litclaude-ai", nextVersion));
+  pass(f.run("uninstall", nextBin));
+  assert.equal(existsSync(join(f.claude, "plugins/cache/litclaude-ai/litclaude", nextVersion)), false);
+});
+
+test("a file named .in_use is still foreign state", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  writeFileSync(join(f.plugin, ".in_use"), "not a folder");
+  const result = f.run("install");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /INSTALL_OWNERSHIP_CONFLICT/);
+});
+
 test("repeat install and uninstall preserve a user-changed HUD setting", (t) => {
   const f = fixture(t);
   pass(f.run("install"));

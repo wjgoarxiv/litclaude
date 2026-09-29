@@ -5,6 +5,7 @@ import { compareStableSemver } from "./update-notifier.mjs";
 
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const receiptName = ".litclaude-install-receipt.json";
+const hostUseMarker = ".in_use";
 // Exact pristine trees installed from the registry-published litclaude-ai@0.4.6 tarball.
 const legacyVersion = "0.4.6";
 const legacy046 = {
@@ -44,6 +45,7 @@ function treeHash(root) {
     for (const name of readdirSync(path).sort()) {
       if (!prefix && name === receiptName) continue;
       const next = join(path, name), rel = prefix ? `${prefix}/${name}` : name, value = lstatSync(next);
+      if (!prefix && name === hostUseMarker && value.isDirectory() && readdirSync(next).length === 0) continue;
       if (value.isDirectory()) { entries.push([rel, "directory"]); walk(next, rel); }
       else if (value.isFile() && value.nlink === 1) entries.push([rel, "file", createHash("sha256").update(readFileSync(next)).digest("hex")]);
       else conflict(next);
