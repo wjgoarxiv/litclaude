@@ -32,16 +32,21 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --perm
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yolo
 ```
 
-`balanced` adds bounded read/search and routine Git, npm and Node rules; `yolo` adds broader
-edit/write patterns. LitClaude tracks the rules it inserted and removes only those.
+`balanced` allows limited reading and searching plus routine Git, npm and Node commands;
+`yolo` also allows broad edit and write patterns. LitClaude tracks the rules it inserted and
+removes only those.
 
-The install also uses the network: it pre-warms the motion runtime with `npm ci` for
-pinned engine packages and pinned, sha256-checked fonts. If that step fails, the install
-still succeeds and tells you what to run later. To skip it, set `LITCLAUDE_MOTION_PREWARM=0`
-and run `litclaude-ai motion-runtime install` when you want it. A global
-`npm install -g @litfamily/litclaude` runs the same setup from its postinstall hook; set
-`LITCLAUDE_AUTO_INSTALL=0` or `LITCLAUDE_POSTINSTALL_SKIP=1`, or pass `--ignore-scripts`, to
-skip that.
+The install downloads a little more than the plugin. The video skill needs a rendering
+engine and fonts and never downloads them mid-render, so the installer fetches them up
+front: `npm ci` for the pinned engine packages, and pinned fonts checked against their
+sha256. If that download fails, the install still finishes and tells you what to run later.
+
+- To put off just the video tools, set `LITCLAUDE_MOTION_PREWARM=0` and run
+  `litclaude-ai motion-runtime install` when you need them.
+- `npm install -g @litfamily/litclaude` runs this whole setup by itself, from its
+  postinstall hook. To switch that off, set `LITCLAUDE_AUTO_INSTALL=0` (or
+  `LITCLAUDE_POSTINSTALL_SKIP=1`), or add `--ignore-scripts`; then run `litclaude install`
+  yourself when you're ready.
 
 ## First steps
 
@@ -58,7 +63,7 @@ Build a to-do list in a single HTML file with no external dependencies.
 Implement add, complete, and delete. Record what you checked and the next step.
 ```
 
-Then open the file and try it yourself. A file that exists has not yet shown that it works.
+Then open the file and try the three actions yourself. That is how you find out it works.
 
 ## What people type
 
@@ -88,21 +93,23 @@ unclear briefs to `lit-diagram-drawer`, `lit-scientific-visualization`, `debuggi
   and a `5h [▏░] 4% ↻` rate-limit reset countdown.
 - Permission rules change only if you choose `--permission-mode balanced` or `--yolo`. An
   output style is written only if you pick one.
-- Work bound to a goal keeps its state in the project's `.litclaude/litgoal/`. Nothing keeps
-  running or resumes on its own after a session closes.
+- Work bound to a goal keeps its state in the project's `.litclaude/litgoal/`. When a
+  session closes, everything stops; the next one starts when you open it.
 
-The optional Jev skill hint is off by default. If you turn it on with `LITCLAUDE_JEV=1` and
-your own `TYPESAFE_API_KEY`, each eligible prompt goes to TypeSafe, truncated to 2,000
-characters with home paths, e-mail addresses and token-shaped strings redacted. Anything
-else in the prompt is sent as written, and TypeSafe bills your account. The agent's own
-tools can read the exported key too, so use a key kept for this feature with a low spend
-limit. Read the GitHub guide before you enable it.
+There is also an optional Jev skill hint, which can suggest a skill that fits your prompt.
+It is off by default, and turning it on sends your prompts off your machine. With `LITCLAUDE_JEV=1`
+and your own `TYPESAFE_API_KEY` set, each eligible prompt goes to TypeSafe, cut to 2,000
+characters, with home paths, e-mail addresses and token-shaped strings redacted. The rest
+of the prompt goes as written, and TypeSafe bills your account. The agent's own tools can
+read the exported key too, so give this feature a key of its own with a low spend limit.
+Read the GitHub guide before you enable it.
 
 ## Safety and uninstall
 
-Hooks read bounded Claude Code event JSON and do not execute your prompt text. Project-local
-LitClaude state is gitignored and never part of the npm package. To turn off automatic update
-checks, use `--no-auto-update`, `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER` or
+The hooks read only the limited event data Claude Code passes them, and your prompt text is
+something to route, never something to run. LitClaude's state in your project is gitignored
+and never part of the npm package. Update checks run automatically; to turn them off, use
+`--no-auto-update`, `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER` or
 `LITCLAUDE_NO_UPDATE_CHECK`.
 
 ```bash
@@ -111,8 +118,8 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 ```
 
 `uninstall` removes only the plugin, HUD, permission and local state entries that LitClaude
-manages. It leaves unrelated Claude settings alone, and it refuses an installation that was
-modified or cannot be recognized.
+manages, and leaves the rest of your Claude settings in place. If an installation was
+changed by hand or doesn't look like one LitClaude made, it refuses to touch it.
 
 ## More
 

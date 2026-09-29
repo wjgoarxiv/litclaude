@@ -32,16 +32,20 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --perm
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yolo
 ```
 
-`balanced`는 제한된 read/search와 routine Git, npm, Node rule을 더하고, `yolo`는 더 넓은
-edit/write pattern을 더합니다. LitClaude는 자신이 넣은 rule만 추적하고 그것만 지웁니다.
+`balanced`는 제한된 읽기·검색과 일상적인 Git, npm, Node 명령을 허용하고, `yolo`는 넓은
+편집·쓰기 패턴까지 허용합니다. LitClaude는 자신이 넣은 규칙만 기억해 두었다가 그것만 지웁니다.
 
-설치 중에는 네트워크도 씁니다. 고정된 engine package를 `npm ci`로 설치하고, 고정된
-font를 내려받아 sha256으로 확인해 motion runtime을 미리 준비합니다. 이 단계가 실패해도 설치는
-그대로 끝나고, 나중에 실행할 명령을 알려 줍니다. 건너뛰려면 `LITCLAUDE_MOTION_PREWARM=0`을
-설정하고, 필요할 때 `litclaude-ai motion-runtime install`을 실행하세요.
-`npm install -g @litfamily/litclaude`로 전역 설치하면 postinstall hook이 같은 설정을 실행합니다.
-이것까지 건너뛰려면 `LITCLAUDE_AUTO_INSTALL=0`이나 `LITCLAUDE_POSTINSTALL_SKIP=1`을 설정하거나
-`--ignore-scripts`를 붙이세요.
+설치할 때는 플러그인 말고도 조금 더 내려받습니다. 영상 만들기 스킬에는 렌더링 엔진과 글꼴이
+필요한데, 영상을 만드는 도중에는 이것을 내려받지 않기 때문에 미리 받아 둡니다. 버전을 고정한 엔진
+패키지를 `npm ci`로 설치하고, 고정된 글꼴을 내려받아 sha256으로 확인합니다. 이 준비가 실패해도
+설치는 끝나고, 나중에 실행할 명령을 알려 줍니다.
+
+- 영상 도구만 나중으로 미루려면 `LITCLAUDE_MOTION_PREWARM=0`을 설정하세요. 필요해지면
+  `litclaude-ai motion-runtime install`로 받으면 됩니다.
+- `npm install -g @litfamily/litclaude`로 전역 설치하면 설치 뒤에 도는 스크립트가 이 설정을
+  자동으로 실행합니다. 이것까지 끄려면 `LITCLAUDE_AUTO_INSTALL=0`(또는
+  `LITCLAUDE_POSTINSTALL_SKIP=1`)을 설정하거나 `--ignore-scripts`를 붙이고, 준비가 되면
+  `litclaude install`을 직접 실행하세요.
 
 ## 처음 해 볼 일
 
@@ -58,7 +62,7 @@ claude
 추가·완료·삭제 동작을 구현하고, 확인한 내용과 다음 행동을 남겨줘.
 ```
 
-끝나면 파일을 직접 열어 눌러 보세요. 파일이 생겼다고 동작까지 확인된 것은 아닙니다.
+끝나면 파일을 직접 열어 세 동작을 눌러 보세요. 제대로 작동하는지는 그렇게 해 봐야 압니다.
 
 ## 자주 쓰는 입력
 
@@ -83,33 +87,34 @@ LitClaude에는 직접 부르는 스킬 35개가 들어 있습니다. 모호한 
 ## 설치 후 달라지는 것
 
 - Claude Code에 LitClaude 플러그인이 들어옵니다. 스킬, 명령, 에이전트, hook이 함께 들어옵니다.
-- 상태 줄에 LitClaude HUD가 나타납니다. `[🔥LITCLAUDE vX.Y.Z]`, `ctx [▎░░]` context bar,
-  `5h [▏░] 4% ↻` rate-limit 리셋 카운트다운을 보여 줍니다.
+- 상태 줄에 LitClaude HUD가 나타납니다. `[🔥LITCLAUDE vX.Y.Z]`, `ctx [▎░░]` 컨텍스트 막대,
+  `5h [▏░] 4% ↻` 사용 한도 리셋 카운트다운을 보여 줍니다.
 - 권한 규칙은 `--permission-mode balanced`나 `--yolo`를 고를 때만 바뀝니다. 출력 스타일도
   직접 고를 때만 기록합니다.
-- 목표를 연결한 작업은 프로젝트의 `.litclaude/litgoal/`에 상태를 남깁니다. 세션이 닫힌 뒤
-  계속 돌거나 저절로 재개되는 것은 없습니다.
+- 목표를 연결한 작업은 프로젝트의 `.litclaude/litgoal/`에 상태를 남깁니다. 세션을 닫으면 모든
+  것이 멈추고, 다음 세션은 직접 열어야 이어집니다.
 
-선택 기능인 Jev 스킬 힌트는 기본으로 꺼져 있습니다. `LITCLAUDE_JEV=1`과 본인의
-`TYPESAFE_API_KEY`로 켜면, 해당하는 프롬프트를 2,000자로 자르고 홈 경로, 이메일 주소,
-토큰 모양의 문자열을 가린 뒤 TypeSafe로 보냅니다. 그 밖의 내용은 적힌 그대로 전송되고,
-비용은 본인의 TypeSafe 계정에 청구됩니다. export한 키는 에이전트의 도구도 읽을 수 있으니,
-이 기능 전용 키를 만들고 사용 한도를 낮게 잡아 두세요. 켜기 전에 GitHub 안내를 먼저 읽어 주세요.
+프롬프트에 맞는 스킬을 추천해 주는 Jev 스킬 힌트도 있습니다. 선택 기능이라 기본으로 꺼져 있고,
+켜면 프롬프트가 컴퓨터 밖으로 나갑니다. `LITCLAUDE_JEV=1`과 본인의 `TYPESAFE_API_KEY`를
+설정하면, 해당하는 프롬프트를 2,000자로 자르고 홈 경로, 이메일 주소, 토큰 모양의 문자열을 가린
+뒤 TypeSafe로 보냅니다. 나머지는 적힌 그대로 가고, 비용은 본인의 TypeSafe 계정에 청구됩니다.
+셸에 넣어 둔 키는 에이전트의 도구도 읽을 수 있으니, 이 기능 전용 키를 만들고 사용 한도를 낮게
+잡아 두세요. 켜기 전에 GitHub 안내를 먼저 읽어 주세요.
 
 ## 안전과 제거
 
-Hook은 제한된 Claude Code event JSON을 읽을 뿐, 입력한 prompt text를 실행하지 않습니다.
-프로젝트 로컬 LitClaude 상태는 gitignore되며 npm 패키지에 들어가지 않습니다. 자동 업데이트
-확인은 `--no-auto-update`, `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER`,
-`LITCLAUDE_NO_UPDATE_CHECK`로 끌 수 있습니다.
+hook은 Claude Code가 넘겨 주는 제한된 이벤트 데이터만 읽고, 입력한 프롬프트는 작업 흐름을 고르는
+데 쓸 뿐 명령으로 실행하지 않습니다. 프로젝트 안에 생기는 LitClaude 상태는 gitignore되며 npm 패키지에
+들어가지 않습니다. 업데이트는 자동으로 확인하는데, 끄고 싶다면 `--no-auto-update`,
+`LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER`, `LITCLAUDE_NO_UPDATE_CHECK` 중 하나를 쓰세요.
 
 ```bash
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude doctor
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 ```
 
-`uninstall`은 LitClaude가 관리한 plugin, HUD, permission, local state만 지웁니다. 다른
-Claude 설정은 건드리지 않고, 수정되었거나 소유권을 확인할 수 없는 설치는 거절합니다.
+`uninstall`은 LitClaude가 관리하는 플러그인, HUD, 권한, 로컬 상태 항목만 지우고 나머지 Claude
+설정은 그대로 둡니다. 누가 손을 댔거나 LitClaude가 만든 것으로 알아볼 수 없는 설치는 거절합니다.
 
 ## 더 보기
 

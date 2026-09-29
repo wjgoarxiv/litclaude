@@ -73,26 +73,29 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 ```
 
 `--yes`는 설치 질문을 건너뛰고 기본값을 씁니다. 새로 설치하면 권한 규칙을 하나도 더하지
-않는 `safe` 권한 모드가 적용됩니다. 다른 Claude 설정은 그대로 두고, 권한·HUD 색상·출력
+않는 `safe` 권한 모드로 시작합니다. 나머지 Claude 설정은 그대로이며, 권한·HUD 색상·출력
 스타일은 직접 고를 때만 바뀝니다. 옵션과 버전 고정 방법은 [설치 상세](#설치-상세)에
 있습니다. 평소 환경을 건드리기 전에 먼저 써 보고 싶다면
 [별도 체험 프로필](./docs/migration.md#separate-trial-profile)부터 준비하세요.
 
-설치 중에는 네트워크도 씁니다. plugin을 등록한 뒤 lit-typographic-motion runtime을 미리
-준비합니다. 이때 고정된 engine package를 `npm ci`로 설치하고, 고정된 font를 내려받아
-sha256으로 확인합니다. 저장 위치는 `$LITCLAUDE_MOTION_RUNTIME`이고, 이 값이 없으면
-`${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime`입니다. 이 준비가 실패해도 설치는
-그대로 끝나고, 나중에 실행할 명령을 알려 줍니다.
+설치할 때는 플러그인 말고도 조금 더 내려받습니다. 영상 만들기 스킬(lit-typographic-motion)에는
+렌더링 엔진과 글꼴이 필요한데, 영상을 만드는 도중에는 이것을 내려받지 않기 때문에 설치할 때
+미리 받아 둡니다.
+플러그인을 등록한 다음, 버전을 고정한 엔진 패키지를 `npm ci`로 설치하고 역시 고정된 글꼴을
+내려받아 하나하나 sha256으로 확인합니다. 저장 위치는 `$LITCLAUDE_MOTION_RUNTIME`이고, 이 값을
+설정하지 않았으면 `${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime`입니다. 이 준비가 실패해도
+설치는 끝나고, 나중에 직접 실행할 명령을 알려 줍니다.
 
-`npm install -g @litfamily/litclaude`로 전역 설치하면 `scripts/postinstall.mjs` hook이 같은
-`litclaude install`을 실행하므로 이 준비도 함께 일어납니다. 전역이 아닌 설치, `CI` 환경,
-source checkout에서는 이 hook을 건너뜁니다. 건너뛰는 방법은 두 가지입니다.
+`npm install -g @litfamily/litclaude`로 전역 설치하면 이 과정도 자동으로 함께 실행됩니다. 설치 뒤에
+도는 스크립트(`scripts/postinstall.mjs`)가 `litclaude install`을 실행하기 때문입니다. 이 스크립트는
+전역 설치에서만 돌고, 전역이 아닌 설치나 `CI` 환경, 소스 checkout에서는 건너뜁니다. 자동 설정을
+원하지 않으면 두 가지 방법이 있습니다.
 
-- motion 준비만 건너뛰기: `LITCLAUDE_MOTION_PREWARM=0`을 설정하고, 필요할 때
-  `litclaude-ai motion-runtime install`을 실행합니다.
-- 전역 설치의 postinstall 설정 전체 건너뛰기: `LITCLAUDE_AUTO_INSTALL=0` 또는
-  `LITCLAUDE_POSTINSTALL_SKIP=1`을 설정하거나 npm에 `--ignore-scripts`를 붙입니다. 이때도 npm은
-  package를 내려받습니다.
+- 영상 도구만 나중으로 미루고 싶다면 `LITCLAUDE_MOTION_PREWARM=0`을 설정하세요. 필요해지면
+  `litclaude-ai motion-runtime install`로 그때 받으면 됩니다.
+- 자동 설정을 통째로 끄고 싶다면 `LITCLAUDE_AUTO_INSTALL=0`(또는 `LITCLAUDE_POSTINSTALL_SKIP=1`)을
+  설정하거나 npm 명령에 `--ignore-scripts`를 붙이세요. 이때도 패키지는 내려받으니, 준비가 되면
+  `litclaude install`을 직접 실행하면 됩니다.
 
 ## 빠른 시작
 
@@ -115,15 +118,16 @@ lit
 추가·완료·삭제 동작을 구현하고, 확인한 내용과 다음 행동을 남겨줘.
 ```
 
-끝나면 HTML을 직접 열어 세 동작을 눌러 보세요. 파일이 생겼다고 버튼까지 동작하는 것은
-아닙니다. 브라우저를 쓸 수 없다면 화면과 상호작용 확인은 미확인으로 남겨 달라고 하세요.
-로고는 활성화 표시일 뿐, 작업이 끝났다는 뜻은 아닙니다.
+끝나면 HTML을 직접 열어 세 동작을 하나씩 눌러 보세요. 버튼이 제대로 작동하는지는 그렇게 해
+봐야 압니다. Claude가 브라우저를 쓸 수 없는 환경이라면, 화면과 클릭은 아직 확인하지 못했다고 적어
+달라고 하세요. 그래야 무엇을 직접 해 봐야 하는지 알 수 있습니다. 처음에 뜬 로고는 작업이 시작됐다는
+표시입니다.
 
 ## 무엇을 입력하나요
 
 ### 작은 작업 하나로 시작하기
 
-프롬프트 끝에 `lit`을 붙이면 Claude Code hook이 어느 경로로 갈지 안내를 덧붙입니다.
+프롬프트 끝에 `lit`을 붙이면 LitClaude가 어떤 작업 흐름을 따를지 Claude에게 짧게 일러 줍니다.
 실제 작업은 Claude Code가 합니다.
 
 | 프롬프트 또는 경로 | 효과 |
@@ -135,16 +139,15 @@ lit
 | `review-work` | 변경과 근거를 읽고 남은 일을 보고합니다. |
 | `litresearch` | 출처를 남기는 조사 경로로 사실과 불확실성을 나눕니다. |
 
-활성화 표시는 작업이 시작됐다는 뜻입니다. 작업이나 브라우저 확인이 끝났다는 증거는
-아닙니다.
+활성화 표시가 뜨면 작업이 시작된 것입니다. 끝난 결과는 직접 확인해 보세요.
 
-`lit` 같은 bare prompt는 hook이 처리하고, namespaced slash command는 Claude Code native
-command surface에서 처리되므로 hook이 두 번 켜지지 않습니다. skill을 이름으로 직접
-부르려면 `/litclaude:lit-loop` 같은 경로를 쓰세요.
+`lit`처럼 짧게 입력한 프롬프트는 보낼 때 LitClaude가 읽습니다. slash command는 Claude Code의
+명령 처리로 곧장 넘어갑니다. 그래서 `/litclaude:lit-loop` 같은 명령을 쓰면 hook이 끼어들지 않고
+스킬이 한 번만 시작됩니다. 스킬을 이름으로 부르고 싶을 때 이 형태를 쓰세요.
 
 <p align="center"><a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/ignition-poster.png" width="720" alt="Ignition 모션 포스터" /></a></p>
 
-포스터를 누르면 Ignition 영상이 열립니다. 이 페이지에서 저절로 재생되는 것은 없습니다.
+포스터를 누르면 Ignition 영상이 열립니다. 영상은 직접 고를 때만 재생됩니다.
 
 ### 다음 세션으로 이어가기
 
@@ -165,32 +168,32 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 범위를 정하면 됩니다. 기록 명령과 호스트 경계는 [목표와 기록 안내](./docs/migration.md#review-and-litgoal-parity)에
 정리되어 있습니다.
 
-“꺼지지 않는 불”은 프로그램이 끝없이 돈다는 뜻이 아닙니다.
-**세션이 끝나도 이어갈 작업을 남긴다는 뜻입니다.** 세션이 닫히면 아무것도 저절로
-재개되지 않으니, 새 세션에서 기록을 읽고 현재 파일과 대조한 뒤 이어가세요.
+“꺼지지 않는 불”은 **세션이 끝나도 이어갈 작업을 남긴다는 뜻입니다.** 세션을 닫으면 모든
+것이 멈추고, 다음 세션은 직접 열어야 시작됩니다. 새 세션에서 기록을 읽고 지금 파일과 맞춰
+본 뒤 이어가세요.
 
 ### 전체 경로 표
 
 | 입력 | 용도 |
 | --- | --- |
-| `lit`, `litwork` | 증거 우선·test-first 실행 loop. `$lit-loop`, `/lit-loop`, `/litclaude:lit-loop`도 지원합니다. |
-| `lit plan <what>` | 계획만 작성합니다. `$lit-plan`, `/lit-plan`도 지원합니다. |
-| `lit review <scope>` | 계획 또는 완료한 작업을 검토합니다. `$review-work`, `/review-work`도 지원합니다. |
-| `lit research <question>` | 인용 가능한 public-source 조사입니다. `$litresearch`, `/litclaude:litresearch`도 지원합니다. |
-| `lit search <question>` | Public-source retrieval |
-| `lit query <question>` | durable local state에서 근거를 조회합니다. |
-| `lit goal <outcome>` | 하나의 목표와 검증 가능한 기준을 연결합니다. `$litgoal`, `/litgoal`도 지원합니다. |
-| `lit workflow <objective>` | 넓은 위임 작업을 위한 Dynamic workflow를 제안합니다. |
-| `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`이고 사용자가 승인한 경우에만 native agent team을 제안합니다. |
-| `$deep-interview`, `/deep-interview` | 모호한 요청을 결정 가능한 brief로 정리합니다. |
-| `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
-| `handoff`, `/litclaude:lit-handoff` | 검증된 continuation packet을 작성합니다. |
-| `lit-scientific-visualization` | 출판용 figure를 준비합니다. `/litclaude:lit-scientific-visualization`도 지원합니다. |
+| `lit`, `litwork` | 근거를 남기며 테스트부터 쓰는 실행 루프입니다. `$lit-loop`, `/lit-loop`, `/litclaude:lit-loop`도 됩니다. |
+| `lit plan <what>` | 계획만 씁니다. `$lit-plan`, `/lit-plan`도 됩니다. |
+| `lit review <scope>` | 계획이나 끝낸 작업을 검토합니다. `$review-work`, `/review-work`도 됩니다. |
+| `lit research <question>` | 출처를 밝히는 공개 자료 조사입니다. `$litresearch`, `/litclaude:litresearch`도 됩니다. |
+| `lit search <question>` | 공개 자료를 찾아 옵니다. |
+| `lit query <question>` | 프로젝트에 남긴 기록에서 근거를 찾습니다. |
+| `lit goal <outcome>` | 목표 하나와 확인할 수 있는 기준을 묶어 둡니다. `$litgoal`, `/litgoal`도 됩니다. |
+| `lit workflow <objective>` | 여러 에이전트에게 나눠 맡길 큰 작업에 Dynamic workflow를 제안합니다. |
+| `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`을 켜 두었고 사용자가 승인할 때만 Claude Code의 에이전트 팀을 제안합니다. |
+| `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
+| `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | 파일을 건드리지 않고 세션을 요약합니다. |
+| `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
+| `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. |
 | `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. |
-| `litclaude wikify <capture/save/review/query/config>` | 검토 기반 local structured knowledge를 관리합니다. |
-| `browser-drive`, `$browser-drive` | `vercel-labs/agent-browser`가 0.34.0 기준 이상인지 probe한 뒤 실제 page를 조작합니다. 이후 valid version은 `beyond-verified`로 표시하며 agent가 설치 명령을 대신 실행하지 않습니다. |
+| `litclaude wikify <capture/save/review/query/config>` | 검토를 거친 프로젝트 지식을 로컬에 정리합니다. |
+| `browser-drive`, `$browser-drive` | 실제 웹 페이지를 조작합니다. 먼저 `vercel-labs/agent-browser` 0.34.0 이상이 있는지 확인하고, 0.34.0보다 새 버전이면 그대로 쓰되 `beyond-verified`로 표시합니다. 없거나 더 오래된 버전이면 설치 명령만 알려 주고, 실행은 사용자에게 맡깁니다. |
 
 이름으로 부르는 스킬도 있습니다. `lit-crucible`(계획 검토), `lit-init`(저장소 지침),
 `lit-commit`(Git 이력), `lit-team`(네이티브 팀), `lit-burnoff`(변경 묶음 정리),
@@ -539,8 +542,9 @@ LitClaude는 단위·API 테스트를 함께 냈고, 실제 브라우저에서 �
 
 ## 작동 방식
 
-짧은 prompt와 slash command는 서로 다른 입구로 들어옵니다. hook은 어느 경로로 갈지,
-편집한 뒤 무엇을 확인할지 Claude Code에 알려 주고, Claude는 요청한 skill을 따라 작업합니다.
+짧은 프롬프트와 slash command는 서로 다른 입구로 들어옵니다. 짧은 프롬프트가 오면 hook이 어떤
+작업 흐름이 맞는지 알려 주고, 파일을 고친 뒤에는 무엇을 확인할지 일러 줍니다. Claude는 그
+안내를 따라 요청한 스킬로 작업합니다.
 
 ```mermaid
 flowchart TD
@@ -558,14 +562,14 @@ flowchart TD
     N -. "사용자가 새 세션에서 읽도록 요청" .-> S
 ```
 
-hook 안내만으로 skill이 실행됐다고 볼 수는 없습니다. 다음 세션에서는 남긴 파일을 읽고
-실제 상태를 확인해야 합니다. 자세한 경계는 [hook 안내](./docs/hooks.md)와
+hook은 제안을 할 뿐이고, 중요한 것은 Claude가 실제로 한 일입니다. 그래서 다음 세션은 남긴
+파일을 읽고 프로젝트의 지금 상태를 확인합니다. 자세한 내용은 [hook 안내](./docs/hooks.md)와
 [목표 기록 안내](./docs/migration.md#review-and-litgoal-parity)에 있습니다.
 
-일은 근거가 갖춰져야 끝납니다. 계획의 모든 항목에 예/아니오로 답할 수 있는 확인 기준이
-있어야 다음 단계로 넘어갑니다. slice 하나를 마치려면 실제 Claude surface에서 evidence를
-남기고 임시 QA resource도 정리해야 합니다. 테스트 통과는 꼭 필요하지만, 그것만으로
-끝은 아닙니다.
+일은 제대로 됐는지 확인해야 끝납니다. 계획의 모든 항목에 예/아니오로 답할 수 있는 확인
+기준이 있어야 다음 단계로 넘어갑니다. 아래 그림처럼 작업 한 조각은 늘 같은 순서로 진행합니다. 실패하는
+테스트를 먼저 쓰고, 그 테스트를 통과하는 가장 작은 수정을 하고, Claude Code에서 실제로 돌려
+근거를 남기고, 임시로 만든 것을 치웁니다. 테스트 통과는 이 네 단계 중 두 번째일 뿐입니다.
 
 ```mermaid
 flowchart TD
@@ -594,9 +598,9 @@ flowchart TD
     style RW fill:#d1ecf1,stroke:#0c5460
 ```
 
-hook과 모델 실행은 Claude Code가 맡습니다. 권한, 브라우저 접근, 화면 확인은 호스트가
-제공하는 만큼만 쓸 수 있습니다. hook 표시나 아래 같은 편집 이미지는 무언가 끝났다는
-증거가 아닙니다.
+hook과 모델은 Claude Code가 돌립니다. 그래서 권한과 브라우저 접근, 화면 확인은 쓰고 있는
+Claude Code 설정이 허락하는 만큼입니다. 실제로 무엇이 끝났는지는 프로젝트에 남은 기록에서
+확인하세요. hook 표시는 작업이 시작됐다는 것을, 아래 두 이미지는 아이디어를 보여 줄 뿐입니다.
 
 <p align="center"><img src="./docs/assets/litclaude-ignition-1600.webp" width="49%" alt="LitClaude 시작 편집 이미지" /> <img src="./docs/assets/litclaude-continuity-1600.webp" width="49%" alt="LitClaude 이어가기 편집 이미지" /></p>
 
@@ -616,9 +620,9 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok을 아머드 머신으로 �
 `사내 교육 결과 보고서 써줘 lit`) Markdown이 아니라 Office 파일을 받습니다. `lit-pptx`는
 슬라이드 원고를 Markdown으로 쓰고, 디자인된 템플릿(기본은 파란색·흰색의 AZURE-PRO,
 그 밖에 A2Z, 4:3 기본형)으로 컴파일합니다. 숫자는 PowerPoint에서 바로 고칠 수 있는
-차트와 핵심 수치 카드로 그리고, Pretendard 글꼴을 넣습니다. 글자 넘침과 대비, 절반이 빈
-슬라이드, 표만 있는 발표자료, 잘린 장식, 채우지 않은 빈칸을 QA 게이트로 검사한 뒤,
-페이지를 그림으로 뽑아 눈으로 확인합니다.
+차트와 핵심 수치 카드로 그리고, Pretendard 글꼴을 넣습니다. 건네기 전에는 QA 게이트가 넘친
+글자, 약한 대비, 절반쯤 빈 슬라이드, 표만 덩그러니 있는 슬라이드, 잘린 장식, 채우지 않은
+빈칸을 찾아냅니다. 그다음 페이지를 그림으로 뽑아 눈으로 확인합니다.
 
 `lit-docx`는 한국어 중심 `korean-generic` 프로필로 Word 문서를 만듭니다. 다른 언어는 기본
 스타일을 쓰고, 요청하면 Elsevier·ACS·IEEE·Nature 프로필도 씁니다. 문서를 검사한 뒤
@@ -641,79 +645,87 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok을 아머드 머신으로 �
 중요한 방향이 모호하면 하나씩 묻고, 그 답을 이어받아 구현합니다. 검토나 계획만 요청했다면
 파일을 고치지 않습니다.
 
-`readme-studio <저장소 또는 README 범위>`나 `$readme-studio`는 저장소 사실을 확인해
-README와 표지를 만듭니다. Claude Code에 이미지 생성 도구가 없으면
-`IMAGE_GENERATION_UNAVAILABLE`을 기록하고, 직접 건넨 배경이 있으면 그것으로 합성을
-이어갑니다. Pretendard/Meslo 윤곽선 글자와 로컬 모션 템플릿이 들어 있고, 글꼴·렌더러
-라이선스와 출력물을 확인합니다. GitHub와 npm에서 실제로 어떻게 보이는지는 공개한 뒤에
-따로 확인합니다. 둘 다 native skill 진입점이며 새로운 slash command는 추가하지 않습니다.
+`readme-studio <저장소 또는 README 범위>`나 `$readme-studio`는 저장소에서 사실을 확인해
+README를 쓰고, 표지는 로컬에서 만듭니다. 이미지를 생성할 수 있는지는 Claude Code가 가진
+도구에 달려 있습니다. 도구가 없으면 `IMAGE_GENERATION_UNAVAILABLE`이라고 알리고, 대신 배경
+이미지를 건네면 그 그림을 살펴본 뒤 나머지 표지를 그 위에 짜 맞춥니다. Pretendard·Meslo 글자를
+윤곽선으로 바꾸는 도구와 로컬 모션 템플릿이 함께 들어 있고, 글꼴·렌더러 라이선스와 실제
+결과물을 확인합니다. GitHub와 npm에서 어떻게 보이는지는 공개한 뒤에 따로 확인합니다. 두 스킬
+모두 프롬프트 첫 단어로 시작하며, slash command를 따로 더하지 않습니다.
 
 ## Jev 스킬 힌트 (선택)
 
-LitClaude는 TypeSafe가 호스팅하는 선택 모델 Jev에게 프롬프트에 맞는 LitClaude 스킬을 물어볼 수 있습니다.
-Jev가 스킬 하나를 고르면 `UserPromptSubmit` 훅이 그 스킬 이름을 담은 권고 한 줄을 덧붙입니다.
-스킬을 불러올지는 여전히 Claude가 정합니다. 이 줄은 권한을 주지 않고 도구를 실행하지도 않습니다.
+LitClaude에는 스킬이 35개 있고, TypeSafe가 호스팅하는 선택 모델 Jev에게 프롬프트에 맞는 스킬을
+물어볼 수 있습니다. Jev가 스킬 하나를 고르면 `UserPromptSubmit` 훅이 그 이름을 담은 한 줄을
+Claude가 참고하도록 덧붙입니다. 어디까지나 제안이어서, 스킬을 불러올지는 Claude가 정하고 이 한
+줄로 권한이 생기거나 도구가 실행되는 일은 없습니다.
 
-기본값은 꺼짐입니다. 켜려면 Claude Code를 실행하는 환경에 두 변수를 모두 설정합니다.
+기본값은 꺼짐입니다. 써 보려면 Claude Code를 실행하는 환경에 두 변수를 모두 설정합니다.
 
 ```bash
 export LITCLAUDE_JEV=1
 export TYPESAFE_API_KEY=<본인의 TypeSafe 키>
 ```
 
-켜 두면 해당하는 프롬프트마다 2,000자로 자르고 홈 경로, 이메일 주소, 토큰 모양의 문자열을 가린 뒤
-TypeSafe(typesafe.ai)로 보냅니다. 슬래시 명령, `lit` 라우터가 이미 처리한 프롬프트, 스킬 이름을 직접 적은
-프롬프트는 보내지 않습니다. 파일, 도구 출력, 대화 기록처럼 세션의 다른 내용도 보내지 않습니다.
-호스트 이름, 고객 이름, `password=…` 꼴이 아닌 비밀번호처럼 토큰 모양이 아닌 내용은 적힌 그대로 전송됩니다.
-`TYPESAFE_API_KEY`는 Claude Code를 실행하는 셸에 export되므로 에이전트의 도구도 이 키를 읽을 수 있습니다.
-이 기능 전용 키를 만들고 사용 한도를 낮게 잡아 두세요. 요청 비용은
-본인의 TypeSafe 계정에 청구되며, 입력 토큰 100만 개당 약 0.04달러입니다. 요청은 최대 1.5초만 기다립니다.
-실패하면 평소처럼 진행하고, 세션에서 처음 한 번만 짧게 알립니다.
+켜면 프롬프트가 컴퓨터 밖으로 나갑니다. 정확히 무엇이 나가는지는 다음과 같습니다. 해당하는
+프롬프트마다 2,000자로 자르고, 홈 경로와 이메일 주소, 토큰 모양의 문자열을 가린 뒤
+TypeSafe(typesafe.ai)로 보냅니다. 나머지는 적힌 그대로 갑니다. 호스트 이름, 고객 이름,
+`password=…` 꼴로 쓰지 않은 비밀번호도 마찬가지입니다. 슬래시 명령, `lit` 라우터가 이미 처리한
+프롬프트, 스킬 이름을 직접 적은 프롬프트는 보내지 않고, 파일·도구 출력·대화 기록처럼 세션의
+다른 내용도 컴퓨터 밖으로 나가지 않습니다.
 
-`litclaude doctor`는 `Jev skill hint: off`, `on`, `flag on but TYPESAFE_API_KEY missing` 중 하나를 출력합니다.
-켜 두면 LitClaude HUD 상태 줄의 모델 이름 바로 옆에 `✦Jev`가 붙고(`O5.5 ✦Jev`), 힌트가 나온 턴에는 스킬 이름이
-(`O5.5 ✦Jev → lit-humanizer`), 키가 없으면 `O5.5 ✦Jev ⚠ key`가 표시됩니다.
-색을 쓸 수 있으면 이 `Jev`가 무지개색으로 은은하게 반짝이고, 플래그와 키가 모두 설정된 세션의 첫 프롬프트에서
-`✦ Jev skill hint ON ✦` 한 줄이 한 번 표시됩니다(`NO_COLOR`에서는 색 없이 표시).
-끄려면 `LITCLAUDE_JEV`를 해제하거나 `1`이 아닌 값으로 바꿉니다. 세부 조정 변수와 로컬 디버그 기록은
-`docs/hooks.md`에 설명되어 있습니다.
+켜기 전에 두 가지를 챙기세요. 키는 Claude Code를 실행하는 셸에 export되므로 에이전트의 도구도
+읽을 수 있습니다. 이 기능 전용 키를 따로 만들고 사용 한도를 낮게 잡아 두세요. 또 요청마다
+본인의 TypeSafe 계정에 비용이 청구되며, 입력 토큰 100만 개당 약 0.04달러입니다. 요청은 최대
+1.5초만 기다리고, 실패하면 평소처럼 진행하면서 세션에서 처음 한 번만 짧게 알립니다.
+
+켜졌는지 보려면 `litclaude doctor`를 실행하세요. `Jev skill hint: off`, `on`,
+`flag on but TYPESAFE_API_KEY missing` 중 하나를 출력합니다. LitClaude HUD 상태 줄에도
+보입니다. 모델 이름 바로 옆에 `✦Jev`가 붙고(`O5.5 ✦Jev`), 힌트가 나온 턴에는 스킬 이름이 붙으며
+(`O5.5 ✦Jev → lit-humanizer`), 키가 없으면 `O5.5 ✦Jev ⚠ key`가 뜹니다. 색을 쓸 수 있으면 이
+`Jev`가 무지개색으로 은은하게 반짝이고, 플래그와 키가 모두 설정된 세션의 첫 프롬프트에서
+`✦ Jev skill hint ON ✦` 한 줄이 한 번 나옵니다(`NO_COLOR`에서는 색 없이 표시). 끄려면
+`LITCLAUDE_JEV`를 해제하거나 `1`이 아닌 값으로 바꿉니다. 세부 조정 변수와 로컬 디버그 기록은
+`docs/hooks.md`에 있습니다.
 
 ## 안전
 
-- Hook은 제한된 Claude Code event JSON을 읽고 사용자 prompt text를 실행하지
-  않습니다.
-- Planner agent는 read-only입니다. Review route는 근거를 검사하지만 검토한
-  작업을 직접 구현하지 않습니다.
-- `public-read`는 localhost, private-network, non-HTTP(S) target을 거부하고
-  site credential 없이 authentication과 paywall 경계에서 중단합니다.
-- 프로젝트 로컬 LitClaude 상태와 evidence 디렉터리는 gitignore되며 npm 패키지에서
-  제외됩니다.
-- Interactive update는 사용자에게 보이는 단계로 동작하며 unknown, rollback,
-  verification failure에서는 fail closed합니다. `--no-auto-update`,
-  `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER`,
-  `LITCLAUDE_NO_UPDATE_CHECK`로 automatic lane을 끌 수 있습니다.
-- Publish, version 변경, tag, remote marketplace 변경은 명시적 승인이
-  필요합니다.
+LitClaude는 Claude Code 세션 안에서 동작합니다. 무엇을 건드리고 어디서 멈추는지 정리했습니다.
+
+- hook은 Claude Code가 넘겨 주는 제한된 이벤트 데이터만 읽습니다. 입력한 프롬프트는 작업 흐름을
+  고르는 데 쓸 뿐, 명령으로 실행하지 않습니다.
+- 계획을 세우는 planner agent는 read-only입니다. 검토 경로는 변경과 그 근거를 읽고 찾은 것을
+  보고하며, 고치는 일은 따로 합니다.
+- 웹 읽기 도구 `public-read`는 공개된 http(s) 페이지만 가져옵니다. localhost와 사설망 주소는
+  거부하고, 로그인이나 유료 벽을 만나면 사이트 자격 증명을 쓰지 않고 멈춥니다.
+- 프로젝트 안에 생기는 LitClaude 상태·근거 폴더는 gitignore되며 npm 패키지에 들어가지 않습니다.
+- 업데이트 확인은 사용자 눈앞에서 진행됩니다. 결과를 알 수 없거나, 이전 버전으로 되돌리는
+  것처럼 보이거나, 새 버전을 검증하지 못하면 업데이트하지 않고 멈춥니다. 자동 확인을 끄려면
+  `--no-auto-update`, `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER`,
+  `LITCLAUDE_NO_UPDATE_CHECK` 중 하나를 쓰세요.
+- publish, 버전 변경, 태그, 원격 마켓플레이스 변경은 모두 사용자의 명시적 승인을 기다립니다.
 
 ### 모델 선택
 
-모델은 Claude Code가 고릅니다. Native `Workflow`와 실험적 agent team은 명시적으로 켜야
-쓸 수 있습니다. Native goal tool이 없으면 local `litgoal` ledger를 기준으로 삼고,
-LitClaude가 사용자를 대신해 `/goal`을 보내지는 않습니다.
+모델은 Claude Code가 고르고, LitClaude는 그 선택을 건드리지 않습니다. Claude Code의 native
+`Workflow`와 실험적 agent team은 직접 켜야 쓸 수 있습니다. Claude Code에 native goal 도구가
+없으면 프로젝트에 남는 `litgoal` 기록을 기준으로 삼고, LitClaude가 사용자를 대신해 `/goal`을
+보내지는 않습니다.
 
-참고로, OpenAI 모델 라우팅을 지원하는 제품은 새로 설치할 때 GPT-6를 기본으로 씁니다.
-계획·검토·리드 역할에는 `gpt-6-astra`, 코딩 리드 대안에는 `gpt-6-sol`, helper·일반
-작업자에는 `gpt-6-luna`를 씁니다. GPT-6 Luna는 `xhigh`를 지원하지만 `ultra` effort는
-지원하지 않습니다. 호스트 카탈로그에는 이전 세대 `gpt-5.6-sol`, `gpt-5.6-terra`,
-`gpt-5.6-luna`가 계속 표시되며 세 모델 모두 선택할 수 있습니다. 이들에 대한 지원
-종료일 메타데이터는 없습니다. 카탈로그에서 `gpt-5.6-luna`도 `xhigh`를 지원하지만,
-LitClaude는 기존의 정책 전용 제한으로 이 조합을 계속 막습니다. `gpt-6-luna`의 `xhigh`는
-카탈로그에서 지원되며, 일반 작업자 경로의 기본 effort는 `max`입니다. 일반 설치와
-업데이트는 이미 설정된 모델을 바꾸지 않습니다.
+아래 OpenAI 모델 정보는 참고용입니다. OpenAI 모델 라우팅을 지원하는 LitFamily 제품들이 쓰는
+값입니다.
 
-그렇다고 LitClaude가 OpenAI 경로를 적용하는 것은 아닙니다. LitClaude에는 OpenAI 모델
-카탈로그가 없고, 모델은 Claude Code가 선택합니다. `tools/check-model-routing.mjs`는
-지원하지 않는 Claude Code 경로를 차단하는 참조용 검사입니다.
+- 새로 설치하면 GPT-6가 기본입니다. 계획·검토·리드 역할에는 `gpt-6-astra`, 코딩 리드의 다른
+  선택지로 `gpt-6-sol`, helper와 일반 작업자에는 `gpt-6-luna`를 씁니다.
+- GPT-6 Luna는 `xhigh`까지 지원하고 `ultra` effort는 지원하지 않습니다. `gpt-6-luna`의 `xhigh`는
+  카탈로그에서 지원되며, 일반 작업자 경로의 기본 effort는 `max`입니다.
+- 호스트 카탈로그에는 이전 세대 `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`도 계속 나오며 셋
+  다 고를 수 있습니다. 지원 종료일 정보는 어느 모델에도 없습니다. 카탈로그는 `gpt-5.6-luna`에도
+  `xhigh`를 허용하지만, LitClaude는 예전부터 둔 정책 규칙으로 이 조합만은 막습니다.
+- 일반 설치와 업데이트는 이미 설정된 모델을 바꾸지 않습니다.
+
+LitClaude는 이 OpenAI 경로를 적용하지 않으며, 자체 OpenAI 모델 카탈로그도 없습니다.
+`tools/check-model-routing.mjs`는 지원하지 않는 Claude Code 경로를 막는 참조용 검사입니다.
 
 ## 확인, 업데이트, 제거
 
@@ -728,12 +740,14 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude update
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 ```
 
-`uninstall`은 LitClaude가 관리한 plugin, HUD, permission, local state만 지우고 다른
-Claude 설정은 건드리지 않습니다. 수정되었거나 소유권을 확인할 수 없는 설치는 그대로 두고
-거절합니다. 그럴 때는 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를 따르세요.
+`uninstall`은 LitClaude가 관리하는 플러그인, HUD, 권한, 로컬 상태 항목만 지우고 나머지 Claude
+설정은 그대로 둡니다. 누가 손을 댔거나 LitClaude가 만든 것으로 알아볼 수 없는 설치는 건드리지
+않고 거절합니다. 그때 할 일은 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)에
+있습니다.
 
-기존 설치에서 `INSTALL_OWNERSHIP_CONFLICT`가 나왔다면 설치를 반복하거나 폴더를 옮기지
-말고 같은 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를 먼저 읽으세요.
+기존 설치에서 `INSTALL_OWNERSHIP_CONFLICT`가 나오면 거기서 멈추세요. 설치를 다시 돌리거나
+폴더를 옮기기 전에 같은 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를 먼저
+읽어야 합니다.
 
 별도 프로필 체험을 마쳤다면 그 세션과 터미널을 닫고 원래 환경의 터미널로 돌아가면
 됩니다. 이전 설치를 되돌리거나 다시 설치할 필요는 없습니다.
@@ -743,14 +757,14 @@ Claude 설정은 건드리지 않습니다. 수정되었거나 소유권을 확�
 <a id="추가-문서"></a>
 
 - [참고: 설치 옵션, HUD, 호스트 경계, 개발](#운영-참고)
-- [Hook trigger와 activation boundary](./docs/hooks.md)
-- [Agent와 orchestration 안내](./docs/agents.md)
-- [Workflow migration 표](./docs/migration.md)
-- [Native `/goal` surface matrix](./docs/native-goal-surface.md)
-- [Workflow compatibility audit](./docs/workflow-compatibility-audit.md)
+- [hook이 반응하는 입력과 그 범위](./docs/hooks.md)
+- [에이전트와 작업 분담 안내](./docs/agents.md)
+- [작업 흐름 이전 표](./docs/migration.md)
+- [Claude Code `/goal` 지원 범위 표](./docs/native-goal-surface.md)
+- [작업 흐름 호환성 점검](./docs/workflow-compatibility-audit.md)
 - [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration)
-- [Release checklist](./RELEASE_CHECKLIST.md)
-- [Release history](./CHANGELOG.md)
+- [배포 체크리스트](./RELEASE_CHECKLIST.md)
+- [변경 이력](./CHANGELOG.md)
 - [English README](./README.md)
 
 함께 만들고 싶다면 [기여 안내](./CONTRIBUTING.md)부터 읽어 주세요. 질문은
@@ -772,9 +786,10 @@ Claude 설정은 건드리지 않습니다. 수정되었거나 소유권을 확�
 - **Claude skill**에는 `litwork`, `structural-search`, `lit-team`,
   `autoresearch`, `autoconference`도 포함됩니다. 핵심 순서는
   `lit-plan`, `lit-recap`, `lit-loop`입니다.
-- Auxiliary Skill-discovery entry인 `frontend-ui-ux`, `readme-studio`, `lit-commit`,
-  `lsp-setup`, `visual-qa`는 문장 앞의 bare token이나 `$frontend-ui-ux`로
-  활성화되며 anywhere-token은 아닙니다.
+- 보조 Skill-discovery 항목인 `frontend-ui-ux`, `readme-studio`, `lit-commit`,
+  `lsp-setup`, `visual-qa`는 이름을 프롬프트 첫 단어로 쓰거나(bare token)
+  `$frontend-ui-ux`처럼 `$`를 붙여 부를 때 시작합니다. 문장 중간에 이름이 나오는 것만으로는
+  켜지지 않습니다(anywhere-token이 아님).
 - 포함된 reference pack은 `lit-code/references`, `lit-code/scripts`,
   `debugging/references`입니다.
 - native `Workflow`와 experimental agent team에 대한 명시적 opt-in 안내,
@@ -820,11 +835,11 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --perm
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yolo
 ```
 
-`safe`는 permission rule을 추가하지 않습니다. `balanced`는 제한된
-read/search와 routine Git, npm, Node rule을 추가하고, `yolo`는 더 넓은
-edit/write pattern을 추가합니다. 이 mode들은 Claude의
-`permissions.allow`와 `permissions.deny`에 제한된 항목을 기록합니다. 기존
-설정은 보존하며 LitClaude가 삽입한 rule만 추적하고 제거합니다.
+모드는 Claude가 묻지 않고 해도 되는 범위를 정합니다. `safe`는 권한 규칙을 하나도 더하지
+않습니다. `balanced`는 제한된 읽기·검색과 일상적인 Git, npm, Node 명령을 허용하고, `yolo`는
+넓은 편집·쓰기 패턴까지 허용합니다. 어느 모드든 Claude의 `permissions.allow`와
+`permissions.deny`에 정해진 항목만 기록합니다. 기존 설정은 그대로 두고, LitClaude가 넣은
+규칙만 기억해 두었다가 그것만 지웁니다.
 
 다음 진입점도 쓸 수 있습니다.
 
@@ -836,39 +851,49 @@ litclaude install
 
 ### HUD
 
-Interactive 설치에서는 HUD accent 후보를 터미널에서 미리 볼 수 있습니다.
-`CI`나 `NO_COLOR`가 빈 값으로라도 설정되어 있거나, `TERM=dumb`, UTF-8이
-아닌 locale, 출력 리디렉션 환경에서는 설치 색상과 커서 제어, 질문 스타일을
-끄고 ANSI 없이 출력합니다. `LITCLAUDE_SPINNER=1`로 상세 진행 표시를 켜도
-이 정책은 유지됩니다. `--yes`와 명시적으로 지정한 설정은 그대로 적용됩니다.
-LitClaude HUD는 `[🔥LITCLAUDE vX.Y.Z]`, `ctx [▎░░]` context bar,
-`5h [▏░] 4% ↻` rate-limit reset countdown을 사용합니다. 설치 전에
-`LITCLAUDE_HUD_ACCENT`를 지정해 accent를 선택할 수 있습니다.
+대화형으로 설치하면 HUD 강조색 후보를 터미널에서 미리 볼 수 있습니다. LitClaude HUD는
+`[🔥LITCLAUDE vX.Y.Z]`, `ctx [▎░░]` 컨텍스트 막대, `5h [▏░] 4% ↻` 사용 한도 리셋
+카운트다운(rate-limit reset countdown)으로 이뤄집니다. 강조색은 설치 전에
+`LITCLAUDE_HUD_ACCENT`로 고를 수 있습니다.
 
-prompt hook이 LitClaude discipline을 활성화하면 HUD는 brand 바로 뒤에 굵은
-ignition-orange `🔥 LIT IGNITED · lit-loop 🔥` 표시를 붙이고, 활성화가 없는 다음
-턴에서 지웁니다. hook은 선택된 discipline을 세션별로 사용자 임시 디렉터리의
-`litclaude-hud/`에 기록하고(저장소와 홈 디렉터리는 건드리지 않음)
-`LITCLAUDE_HUD_STATE_ROOT`로 위치를 바꿀 수 있습니다.
-모델 응답은 `🔥 **LIT IGNITED · <discipline>** 🔥`로 시작하며, hook system
-message와 HUD는 Markdown 없이 같은 표시를 보여 줍니다.
+터미널이 색을 제대로 못 보여 줄 수도 있는 환경, 곧 `CI`나 `NO_COLOR`가 설정돼 있거나(빈
+값이어도), `TERM=dumb`이거나, UTF-8이 아닌 locale이거나, 출력을 리디렉션할 때는 설치 화면의
+색과 커서 제어, 질문 꾸밈을 끄고 ANSI 없이 출력합니다. `LITCLAUDE_SPINNER=1`로 자세한
+진행 표시를 켜도 이 규칙은 그대로이고, `--yes`와 직접 지정한 설정도 그대로 적용됩니다.
 
-HUD의 배경 설정과 터미널 색상 지원 수준은 별개입니다. 기본값(`dark`)에서는 model,
-context, usage, reset, Git 글자에 선택한 accent가 들어가고, 사용량 퍼센트는 수준에
-따라 색이 바뀌며, brand는 네온 그라데이션으로 표시됩니다.
-`LITCLAUDE_HUD_APPEARANCE=light` 또는 `unknown`으로 지정하면 필수 글자와 brand는
-터미널의 기본 전경색을 쓰고, bar 모양과 구분선만 accent를 사용합니다.
-`LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`으로 색 깊이를 지정하면 WSL
-truecolor 감지를 포함한 자동 감지보다 우선합니다. `NO_COLOR`는 값이 빈 문자열이어도
-HUD ANSI를 모두 끄며, `TERM=dumb`도 다른 색상 신호나 깊이 설정이 있어도 plain을
-유지합니다. `LITCLAUDE_HUD_NO_COLOR=1`도 계속 지원합니다. HUD는 배경색을 강제로
-지정하지 않고 Claude가 `--`를 보낸 rate-limit 값을 임의로 채우지 않습니다.
+프롬프트가 LitClaude 작업 흐름을 시작하면, HUD는 brand 바로 뒤에 굵은 주황색
+`🔥 LIT IGNITED · lit-loop 🔥` 표시를 붙이고, 아무것도 시작하지 않은 다음 턴에서 지웁니다.
+어떤 작업 흐름이 켜져 있는지 기억하려고 hook이 세션마다 짧은 기록을 사용자 임시 디렉터리의
+`litclaude-hud/`에 남기며, 저장소와 홈 디렉터리에는 쓰지 않습니다. 위치는
+`LITCLAUDE_HUD_STATE_ROOT`로 바꿀 수 있습니다. Claude의 답은
+`🔥 **LIT IGNITED · <discipline>** 🔥`로 시작하고, hook 시스템 메시지와 HUD는 같은 표시를
+Markdown 없이 보여 줍니다.
+
+HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어두운지 밝은지, 그리고 터미널이 색을
+몇 가지까지 보여 줄 수 있는지입니다.
+
+- 배경 설정의 기본값은 `dark`입니다. 모델, 컨텍스트, 사용량, 리셋, Git 글자에 고른 강조색이
+  들어가고, 사용량 퍼센트는 수준에 따라 색이 바뀌며, brand는 네온 그라데이션으로 나옵니다.
+  배경이 밝거나 잘 모르겠다면 `LITCLAUDE_HUD_APPEARANCE=light` 또는 `unknown`으로 지정하세요.
+  그러면 이 글자들과 brand는 터미널의 기본 글자색을 쓰고, 막대 모양과 구분선에만 강조색이
+  들어갑니다.
+- 색 깊이는 WSL의 truecolor까지 포함해 자동으로 감지합니다. 감지가 틀리면
+  `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`으로 직접 정하세요. 이 값이 자동 감지보다
+  우선합니다.
+- 색을 아예 끄려면 `NO_COLOR`를 설정하세요. 값이 빈 문자열이어도 HUD의 ANSI를 모두 끕니다.
+  `TERM=dumb`에서도 다른 색상 신호나 깊이 설정과 상관없이 색 없이 나옵니다. 예전 설정인
+  `LITCLAUDE_HUD_NO_COLOR=1`도 계속 됩니다.
+
+HUD는 배경색을 강제로 바꾸지 않습니다. Claude가 사용 한도 값을 `--`로 보내면 그대로 보여 주고,
+숫자를 지어내 채우지 않습니다.
 
 ## Claude Code 연결 구조
 
-Session과 tool event는 plugin의 rules, routing, authority, ledger 부분으로 전달됩니다. 이 구조를
-통해 35개 skill·16개 command·3개 숨김 호환 경로·11개 agent가 host 경계를 감추지 않은 채
-연결됩니다.
+Claude Code는 세션이 시작될 때, 프롬프트를 보낼 때, 도구가 돌 때, 서브에이전트가 시작하고 끝날
+때, 세션이 끝날 때마다 플러그인에 알립니다. 이 알림은 플러그인 안의 네 부분에 전달됩니다. 프로젝트
+규칙을 읽어 들이는 부분, 작업 흐름을 고르는 부분, 권한을 확인하는 부분, 기록을 남기는 부분입니다.
+이렇게 해서 35개 skill·16개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
+동작하고, Claude Code가 허용하거나 막는 것은 그대로 적용됩니다.
 
 ```mermaid
 flowchart LR
@@ -892,10 +917,10 @@ flowchart LR
     LC --> S["35 skills · 16 commands · 11 agents"]
 ```
 
-새로 설치한 machine에서도 skill이 작동하는 것은 package가 각 skill에 필요한 것을 함께 싣기
-때문입니다. Self-contained skill은 allowlist에 명시적인 근거가 있어야 하고, corpus를
-참조하는 skill은 packed tarball 안에서 그 corpus를 찾아야 합니다. 이 payload 검사 덕분에
-checkout에만 있는 파일이 설치 후 장애로 이어지지 않습니다.
+새로 설치한 컴퓨터에서도 모든 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
+때문입니다. 배포 전 검사가 이를 확인합니다. 참고 자료가 필요한 스킬은 그 자료를 패키지 묶음
+안에서 찾아야 하고, 자료 없이 도는 스킬은 그 이유를 허용 목록에 적어 두어야 합니다. 그래서
+개발자의 checkout에만 있는 파일 때문에 설치한 컴퓨터에서 오류가 나는 일을 막습니다.
 
 ```mermaid
 flowchart LR
@@ -911,74 +936,72 @@ flowchart LR
     style OK fill:#d4edda,stroke:#155724
 ```
 
-`lit start work <plan>`은 의도적으로 `BLOCKED:` handoff를 반환합니다. 승인된
-plan과 함께 `/start-work` 또는 `/litclaude:start-work`를 사용하세요. `lit
-workflow`는 native `Workflow`를 먼저 제안하고, 사용자가 opt-in한 뒤에만
-호출합니다. LitClaude는 사용자를 대신해 `/goal`을 입력하거나 slash-command
-text를 전송하지 않습니다. `get_goal`, `create_goal`, `update_goal` 같은 native
-goal tool이 없으면 degraded mode를 보고하고 local `litgoal` ledger를 기준으로
-유지합니다. `CLAUDE_CODE_DISABLE_WORKFLOWS=1`로 workflow route를 끌 수 있으며,
-host가 model-facing worktree lane을 제공하면 `EnterWorktree`를 사용합니다.
+승인한 계획은 늘 slash command로 실행합니다. `lit start work <plan>`이라고 입력하면 일부러
+`BLOCKED:` handoff를 돌려주며, 승인한 plan과 함께 `/start-work` 또는
+`/litclaude:start-work`를 쓰라고 안내합니다. `lit workflow`도 사용자를 기다립니다. native
+`Workflow`를 먼저 제안하고, 사용자가 opt-in한 뒤에만 호출합니다. 이 경로는
+`CLAUDE_CODE_DISABLE_WORKFLOWS=1`로 끌 수 있습니다. Claude Code가 모델에게 worktree 도구를 열어
+주는 환경이라면 `EnterWorktree`를 쓰세요.
 
-이 route는 사용 가능한 goal tool을 확인한 뒤 native goal binding을 시도합니다.
-다른 active goal은 교체하지 않습니다. host가 model-facing goal control을
-제공하지 않으면 local ledger로 전환합니다.
-이 fallback이 필요하면 hook이 `READY_TO_PASTE`와 함께 복사·붙여넣기·전송할
-`/goal` 한 줄을 제공합니다. LitClaude가 현재 세션에 직접 입력하거나 전송하지는
-않습니다.
+목표는 한 가지 원칙을 따릅니다. LitClaude는 사용자를 대신해 `/goal`을 입력하거나
+slash-command text를 보내지 않습니다. 이 경로는 먼저 `get_goal`, `create_goal`, `update_goal`
+같은 native goal 도구가 있는지 살펴 목표 연결(native goal binding)을 시도하고, 이미 걸려 있는
+다른 목표는 바꾸지 않습니다. Claude Code가 그런 도구를 주지 않으면 degraded mode라고 알리고
+로컬 `litgoal` ledger를 기준으로 삼습니다. 그때 hook은 `READY_TO_PASTE`와 함께 `/goal` 한 줄을
+건네니, 현재 세션에 직접 복사해 붙여 넣고 보내면 됩니다.
 
-`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다.
-승인된 plan을 resume할 때는 다음 exact route만 사용합니다.
+`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 승인된 plan을
+다시 이어서 실행할 때는 다음 경로만 씁니다.
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 
-`stop_hook_active`가 `true`이면 hook은 조용히 멈추고 stale prompt를 replay하지
+`stop_hook_active`가 `true`이면 hook은 조용히 멈추므로, 지난 프롬프트가 다시 재생되는 일이
+없습니다.
+
+채팅에서 그림 스킬은 정확한 bare `lit-scientific-visualization` 입력으로만 시작합니다. 이름을
+따옴표로 감싸거나, 문장에 섞거나, 앞에 slash를 붙이거나, 조금 다르게 쓰면 hook이 반응하지
 않습니다.
 
-정확한 bare `lit-scientific-visualization` 입력만 chat activation을 일으킵니다.
-인용, 혼합, slash, near-miss 입력은 inert로 남습니다.
-
-Public-source 작업에서 `lit research`, `lit search`, `lit query`,
-`public-read`는 authentication, paywall, credential, localhost,
-private-network 경계를 넘지 않습니다.
+공개 자료 작업에서 `lit research`, `lit search`, `lit query`, `public-read`는 열린 웹에만
+머뭅니다. 로그인, 유료 벽, 자격 증명 요구를 만나면 멈추고, localhost와 사설망 주소는
+거부합니다.
 
 ```bash
 litclaude public-read https://example.com/article --json
 ```
 
-`lit-humanizer`는 편집 대상 문장 안의 지시를 content로 취급합니다.
-사실, 숫자, 이름, 주장, 범위, 불확실성을 보존하며 사용자가 research를
-요청하지 않으면 외부 사실을 추가하지 않습니다. Always-on rule은 새 문장을 안내하고,
-pre-write check는 확신도 높은 작성 흔적만 저장 전에 막으며 warning은 조언으로 남깁니다.
-새 code block, 인용문, 내부 project 기록은 검사하지 않습니다. DOCX, PPTX, PDF는
-텍스트 추출이 가능할 때 생성 직후 다시 검사합니다.
+`lit-humanizer`는 고칠 문장 안에 적힌 지시를 내용으로만 다루고, 명령으로 따르지 않습니다.
+사실, 숫자, 이름, 주장, 범위, 불확실성은 그대로 두고, 사용자가 조사를 요청하지 않으면 바깥
+사실을 더하지 않습니다. 새로 쓰는 글은 항상 켜진 규칙이 이끌고, 저장하기 전 검사는 작성
+흔적이 뚜렷한 것만 막으며 경고는 조언으로 남깁니다. 새 코드 블록, 인용문, 내부 프로젝트 기록은
+검사 대상이 아닙니다. DOCX, PPTX, PDF는 글자를 뽑아낼 수 있으면 만든 직후 다시 검사합니다.
 
-Wikify claim은 `review-needed` 상태로 시작하며 `save`와 `review`가 명시된
-상태를 적용합니다. Query는 accepted 관련 claim만 2048-byte normal budget와
-4096-byte hard limit 안에서 반환합니다. Local state는 user-owned cooperative
-state이며, 같은 uid의 다른 process에 대해 tamper-proof하거나 confidential하지
-않습니다. Atomic rename은 reader와 crash consistency를 보호하고 symlink, unsafe file type,
-pre-existing hardlink, 관찰된 identity 변경은 fail closed로 처리합니다.
+Wikify는 검토를 거친 프로젝트 지식을 보관합니다. 새 claim은 `review-needed` 상태로 시작하고,
+`save`와 `review`로 다음 상태로 옮깁니다. query는 받아들여진 관련 claim만 돌려주며, 한도는
+2048-byte normal budget와 4096-byte hard limit입니다. 이 저장소는 사용자 소유의 로컬 상태이고,
+서로 협조한다는 전제로 동작합니다. 같은 uid로 도는 다른 프로세스는 내용을 읽거나 바꿀 수
+있으므로, 그런 프로세스에 대해서는 변조 방지도 기밀성도 보장하지 않습니다. atomic rename으로 읽는
+쪽과 crash consistency를 지키고, symlink, 안전하지 않은 파일 형식, pre-existing hardlink,
+관찰된 identity 변경은 거부합니다.
 
 Package CLI form은 다음과 같습니다.
 
 `npm exec --yes --package @litfamily/litclaude -- litclaude wikify <capture|save|review|query|config>`
 
-Visual QA의 기준 계약은 canonical `litfamily.design-contract/v1beta2`입니다. 유효한
-`litfamily.design-contract/v1beta1` 문서는 기존 경로를 위한 명시적 compatibility input으로
-허용합니다. `litfamily.evidence-manifest/v1beta1`은 다른 schema이며 변경하지 않습니다.
-Prompt activation과 PostToolUse advisory는 synthetic bounded hook pointer만 제공하며 complete
-`SKILL.md` 본문을 주입하지 않습니다. 전체 provenance가 없으면 evidence는 `BLOCKED`로 남습니다.
+Visual QA는 canonical `litfamily.design-contract/v1beta2` 계약을 기준으로 삼습니다. 기존 경로를
+위해 유효한 `litfamily.design-contract/v1beta1` 문서도 명시적인 compatibility input으로
+받습니다. `litfamily.evidence-manifest/v1beta1`은 다른 schema이며 바꾸지 않습니다. 프롬프트로
+시작할 때와 PostToolUse 안내는 `SKILL.md` 본문 전체 대신 짧은 안내 포인터
+(synthetic bounded hook pointer)만 넘깁니다. 출처 기록이 다 갖춰지지 않으면 근거는 `BLOCKED`로 남습니다.
 
 ## 무결성 경계
 
-스캐너 성공은 캡처한 바이트의 파일 수와 SHA-256 다이제스트를 보고하는
-스냅샷 범위의 결과입니다. 캡처 뒤 mutable live tree가 계속 깨끗하다는
-것까지 입증하지는 않습니다. 이후 상태는 검사를 다시 실행해 확인합니다. 법적 동반 파일은
-생성된 manifest 밖에 있으며 정상적으로 검사합니다. Canonical 및 runtime
-캡처는 파일당 8 MiB, 전체 32 MiB로 제한합니다. 패키지 guard는
-`immutable expected file map`을 `verifier-to-capture interval`과 생성된
-tarball에서 비교하며, `0600` 같은 `non-executable` 항목은 유효합니다.
+스캐너 통과는 한 시점의 스냅샷에 대한 결과입니다. 캡처한 파일 수와 그 바이트의 SHA-256
+다이제스트를 알려 주지만, 그 뒤에도 mutable live tree가 깨끗하다는 것까지 입증하지는 않습니다.
+파일이 바뀌었다면 검사를 다시 돌리세요. 법적 동반 파일은 생성된 manifest 밖에 있고 정상적으로
+검사합니다. Canonical 및 runtime 캡처는 파일당 8 MiB, 전체 32 MiB까지입니다.
+패키지 guard는 `immutable expected file map`을 `verifier-to-capture interval` 안에서 확인하고,
+만들어진 tarball과도 비교합니다. `0600` 같은 `non-executable` 항목도 유효합니다.
 
 ## 모델 카탈로그 참조 갱신
 
@@ -1044,7 +1067,7 @@ npm 패키지 페이지에는 더 짧은 README가 올라갑니다. 원본은 `R
 
 ## Ignition
 
-브랜드 모션입니다. 실제 기능 실행 영상은 아닙니다. 정적 포스터를 눌러 재생하세요.
+짧은 브랜드 영상이며, 실제 사용 화면을 녹화한 것은 아닙니다. 정적 포스터를 누르면 재생됩니다.
 
 [![Ignition 모션 그래픽](./docs/assets/readme/ignition-poster.png)](./docs/assets/readme/ignition-film.mp4)
 
