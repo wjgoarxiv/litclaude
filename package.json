@@ -1,6 +1,6 @@
 {
   "name": "@litfamily/litclaude",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Claude Code-native workflow distribution.",
   "type": "module",
   "bin": {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.18 - 2026-09-30
+
+- `gpt-6.1-sol` is now the recommended coding-lead alternative, since OpenAI lists `gpt-6-sol` as the previous generation. `gpt-6-sol` still works for anyone who already chose it. Claude Code picks the model and LitClaude sets no OpenAI route of its own, so this shows only in the model notes in the README (English and Korean) and in `docs/agents.md`.
+
 ## 1.0.17 - 2026-09-30
 
 - Add automatic handoff, off until you turn it on. `lit-handoff auto on <percent>` (or `LITCLAUDE_AUTO_HANDOFF=1` with `LITCLAUDE_AUTO_HANDOFF_PERCENT`) picks the context percent, from 1 to 99; LitClaude has no built-in number. `lit-handoff auto off` and `lit-handoff auto status` turn it off and show its state, and `litclaude doctor` and the status line (`handoff@60%`) show when it is on.
