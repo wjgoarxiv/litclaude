@@ -8,7 +8,7 @@
   <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide, skills gallery and A/B results on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/README_ko-KR.md">한국어</a>
+  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/README_ko-KR.md">한국어</a>
 </p>
 
 LitClaude is a Claude Code plugin. Add `lit` to a request and Claude pins the goal, writes a
@@ -84,7 +84,7 @@ step.
 LitClaude ships 35 skills you start yourself, from `deep-interview` and `lit-crucible` for
 unclear briefs to `lit-diagram-drawer`, `lit-scientific-visualization`, `debugging`,
 `refactor` and `lit-commit`, plus three that run on their own: `rules`, `lsp` and
-`comment-checker`. The GitHub page shows each one with a picture, next to the A/B results.
+`comment-checker`. The GitHub page shows each one with a picture.
 
 ## What changes after install
 
@@ -124,7 +124,7 @@ changed by hand or doesn't look like one LitClaude made, it refuses to touch it.
 
 ## More
 
-- [Full guide, skills gallery and A/B results on GitHub](https://github.com/wjgoarxiv/litclaude#readme)
+- [Full guide and skills gallery on GitHub](https://github.com/wjgoarxiv/litclaude#readme)
 - [Privacy and network behavior](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/privacy.md)
 - [Migration and ownership conflicts](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/migration.md)
 - [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/CHANGELOG.md)

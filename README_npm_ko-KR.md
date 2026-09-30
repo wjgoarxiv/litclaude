@@ -8,7 +8,7 @@
   <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내, 스킬 갤러리, A/B 결과는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/README.md">English</a>
+  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/README.md">English</a>
 </p>
 
 LitClaude는 Claude Code 플러그인입니다. 요청 끝에 `lit`을 붙이면 Claude가 목표를 먼저
@@ -82,7 +82,7 @@ claude
 LitClaude에는 직접 부르는 스킬 35개가 들어 있습니다. 모호한 요청을 다듬는 `deep-interview`와
 `lit-crucible`부터 `lit-diagram-drawer`, `lit-scientific-visualization`, `debugging`,
 `refactor`, `lit-commit`까지 있고, 따로 부르지 않아도 도는 `rules`, `lsp`, `comment-checker`
-세 개가 더 있습니다. GitHub 페이지에서 A/B 결과와 함께 스킬마다 그림을 붙여 보여 줍니다.
+세 개가 더 있습니다. GitHub 페이지에서 스킬마다 그림을 붙여 보여 줍니다.
 
 ## 설치 후 달라지는 것
 
@@ -118,7 +118,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 
 ## 더 보기
 
-- [전체 안내, 스킬 갤러리, A/B 결과 (GitHub)](https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md)
+- [전체 안내와 스킬 갤러리 (GitHub)](https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md)
 - [개인정보와 네트워크](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/privacy.md)
 - [이전 안내와 소유권 충돌](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/docs/migration.md)
 - [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.16/CHANGELOG.md)

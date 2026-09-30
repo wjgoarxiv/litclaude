@@ -47,7 +47,7 @@ per-session request counts, the current turn's hinted skill ID (shown by the HUD
 latency, and whether the once-per-session "on" line was shown in `.litclaude/jev/` and, only with `LITCLAUDE_JEV_TRACE=1`, a trace
 of hashes of the redacted prompt, timings, and status codes without prompt text. Existing
 `pending-review.json` and `skill-loop-state.json` files are inert after the
-automatic review feature's removal and may be deleted. No other state is affected.
+automatic review feature's removal and may be deleted. The opt-in automatic handoff keeps `settings.json` (on or off, and the percent you chose), one `context-<session>.json` per session (the context percent and window size the status line last saw) and one `session-<session>.json` per session (whether this session's crossing was spent, when, and the random id the handoff must carry) in `.litclaude/auto-handoff/`. It reads a handoff file named `HANDOFF.md` or `.handoff/HANDOFF.md` only after compaction, up to 256 KiB, and puts the path and its first 4,000 characters into the model context; nothing is sent anywhere else. With no status line and `LITCLAUDE_AUTO_HANDOFF_WINDOW` set, the Stop hook reads the last usage entry of the transcript to compute a percent and keeps only that number. No other state is affected.
 
 There is no universal automatic expiry policy for all these files. A bounded log
 or cache TTL is not a deletion promise. Local files are not an

@@ -102,11 +102,11 @@ silent no-op for callers that still invoke it directly.
 
 | Event | Runner | Purpose |
 | --- | --- | --- |
-| `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session, discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps. |
-| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn. |
+| `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session, discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
+| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
-| `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate. |
+| `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate, and last of all, with automatic handoff on, blocks once per crossing of the chosen percent to have the handoff written. |
 | `SubagentStart` | `plugins/litclaude/bin/litclaude-hook.js subagent-start` | Registers child-lane and Claude-owned worktree identity. |
 | `SubagentStop` | `plugins/litclaude/bin/litclaude-hook.js subagent-stop` | Finalizes the lane without child continuation. |
 | `SessionEnd` | `plugins/litclaude/bin/litclaude-hook.js session-end` | Records root-session end without blocking Claude. |
@@ -266,6 +266,59 @@ or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The GitHub README sho
 visible state in sample output under
 [What you will see](https://github.com/wjgoarxiv/litclaude#what-you-will-see). The offline regression tests,
 which replace `fetch` in the real hook process, live in `test/jev-skill-hint.test.mjs`.
+
+## Automatic handoff
+
+Automatic handoff is off until the user turns it on and picks a percent. It has no default
+percent. The setting comes from the exact prompts `lit-handoff auto on <percent>`,
+`lit-handoff auto off` and `lit-handoff auto status` (the prompt hook answers them with one
+line and starts no workflow), or from the environment:
+
+| Variable | Meaning |
+| --- | --- |
+| `LITCLAUDE_AUTO_HANDOFF` | `1` turns it on, `0` keeps it off whatever was saved. Any other value is treated as off and the doctor says so. |
+| `LITCLAUDE_AUTO_HANDOFF_PERCENT` | The percent, a whole number from 1 to 99. It wins over the saved percent. A value outside that range, or an on flag with no percent anywhere, leaves the feature off and adds a doctor warning. |
+| `LITCLAUDE_AUTO_HANDOFF_WINDOW` | The model's context window in tokens. Only needed when the LitClaude status line is not installed: the Stop hook then turns the last assistant usage in the transcript into a percent. Without a window and without the status line the percent is unknown and nothing happens. |
+
+`lit-handoff auto on` with no number reuses the last percent the user saved and asks for one
+when none exists. `off` keeps the saved percent. A route with an invalid percent changes
+nothing and says so.
+
+The pieces, in the order they run:
+
+1. The status line (`plugins/litclaude/bin/litclaude-hud.js`) writes the session's
+   `context_window.used_percentage` and window size to
+   `.litclaude/auto-handoff/context-<session>.json` after each refresh, only while the feature is on.
+   It shows `handoff@<percent>%`, or `handoff ⚠` when the setting was asked for but is invalid.
+2. The `Stop` hook runs this check after every other gate allowed the stop, and never when
+   `stop_hook_active` is set, so it cannot loop. When the percent is at or above the chosen
+   one and this session's crossing is unspent, it records the crossing in
+   `.litclaude/auto-handoff/session-<session>.json` first (a folder it cannot write means no
+   block) and then returns a block reason. The reason tells the model to read the bundled
+   `vendor/handoff/SKILL.md` and follow it (the lit-handoff skill cannot be invoked by a hook,
+   because it is marked `disable-model-invocation: true`), to write the line
+   `Auto-handoff id: <id>` into the handoff file, and to end with the single line
+   `Handoff saved. Run /compact now.` A reading below the chosen percent re-arms the crossing,
+   so the next rise past it fires again.
+3. Claude Code offers a plugin no way to start compaction. The user runs `/compact`, or
+   Claude Code compacts on its own: its `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` variable (1 to 100)
+   lowers the percent of the auto-compact window at which it does, and
+   `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (100000 to 1000000) sets that window. The doctor warns when
+   the override is at or below the chosen percent, and notes that the status line percent stops
+   matching the compaction point once the window variable is set.
+4. On `SessionStart` with `source: compact`, the hook reloads the handoff once for the session
+   that fired. It looks for `.handoff/HANDOFF.md` and `HANDOFF.md` from the session's
+   working directory up to the project state root, and accepts a regular, non-symlink file of at
+   most 256 KiB that was modified after the trigger and contains that trigger's id line. The
+   context then holds the path and the first 4,000 characters, marked as data. Another
+   session, an older file, a file without the id, a trigger more than six hours old, and a
+   second compaction all get no digest; when the trigger is pending and no file qualifies, one line says
+   that nothing was reloaded. The stored percent is cleared at the same time, so the pre-compaction
+   reading cannot keep the crossing spent.
+
+`litclaude doctor` prints `Auto-handoff: off` or `Auto-handoff: on at <percent>%` for the
+project it runs in. The model still has to follow the block reason to write the file; the hook
+can require nothing more than that.
 
 ## Bounded-authority start-work lifecycle
 

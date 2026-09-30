@@ -4,7 +4,7 @@
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">Plan, build, and check your work in Claude Code. Leave the next session a place to begin.</p>
 <p align="center">
-  <a href="#why-litclaude">Why</a> · <a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#what-to-type">What to type</a> · <a href="#skills-at-a-glance">Skills</a> · <a href="#ab-results">A/B results</a> · <a href="#learn-more">Learn more</a> · <a href="./README_ko-KR.md">한국어</a>
+  <a href="#why-litclaude">Why</a> · <a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#what-to-type">What to type</a> · <a href="#skills-at-a-glance">Skills</a> · <a href="#learn-more">Learn more</a> · <a href="./README_ko-KR.md">한국어</a>
 </p>
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LIT ASCII B mark" /></p>
@@ -260,6 +260,7 @@ compare it with the files as they are now, and then carry on.
 | `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
+| `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
 | `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
 | `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
 | `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx` |
@@ -274,6 +275,27 @@ Some skills are called by name: `lit-crucible` (adversarial planning), `lit-init
 Start the prompt with the bare name or with `$<skill-id>`. Older names still work for one
 release and print a deprecation note; see
 [the alias migration table](./docs/migration.md#one-release-rename-aliases).
+
+## Automatic handoff
+
+A long session fills the context window, and when Claude Code compacts it, details of your work can drop out of the summary. Automatic handoff saves a handoff file while there is still room and brings it back after the compaction. It stays off until you turn it on, and you choose the percent. LitClaude has no default percent.
+
+Type one of these lines as your whole prompt:
+
+- `lit-handoff auto on 60` turns it on at 60% of the context window. Use any whole number from 1 to 99. Typing `lit-handoff auto on` with no number reuses the last percent you set, and asks for one if you never set it.
+- `lit-handoff auto off` turns it off and remembers your percent for next time.
+- `lit-handoff auto status` tells you what is in force right now.
+
+You can also set it from the shell before you start Claude Code: `LITCLAUDE_AUTO_HANDOFF=1` switches it on and `LITCLAUDE_AUTO_HANDOFF_PERCENT=60` picks the percent. The variables win over the saved setting, and `LITCLAUDE_AUTO_HANDOFF=0` keeps it off. A percent outside 1 to 99 leaves it off, and `litclaude doctor` says why. The saved setting lives per project in `.litclaude/auto-handoff/`.
+
+Here is what happens once it is on. Each step says whether LitClaude does it for you or only reminds you, because Claude Code decides which of these a plugin may do.
+
+1. **Automatic:** the status line notes the context percent after every reply. Without the LitClaude status line, the Stop hook estimates it from the transcript when you also set `LITCLAUDE_AUTO_HANDOFF_WINDOW` to your model's window in tokens.
+2. **Automatic:** when the percent first reaches your number, the Stop hook asks Claude to write the handoff by following the lit-handoff procedure, then to end with one plain line. Claude writes the file, so this step depends on Claude following the instruction. It happens once per crossing; usage has to fall below your percent before it can happen again.
+3. **Reminder:** Claude Code gives a plugin no way to start compaction, so the line Claude ends with is `Handoff saved. Run /compact now.` and you run `/compact`. To let Claude Code compact by itself, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to a number above your percent; the reminder still appears, and you can ignore it.
+4. **Automatic:** after the compaction, the session start hook reads the handoff back once, as its path plus the first 4,000 characters. It accepts only a file written after the trigger that carries the trigger's id line, and it says so when it finds none.
+
+While it is on, the status line shows `handoff@60%` (or `handoff ⚠` when the setting is invalid), and `litclaude doctor` prints `Auto-handoff: on at 60%`. The doctor warns when `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is at or below your percent, because Claude Code would then compact before the handoff is written. The hook details are in [the hooks reference](./docs/hooks.md#automatic-handoff), and the files it writes are listed in [privacy](./docs/privacy.md#local-state).
 
 ## Skills at a glance
 
@@ -462,158 +484,6 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Runs on its own: loads your project rules, asks for diagnostics after edits, and reviews new comments.</td>
 </tr>
 </table>
-
-## A/B results
-
-We gave Claude Code the same casual Korean one-liners twice: once as typed, and once
-with ` lit` added to the end and nothing else. Both sides ran in Claude Code 2.1.283
-with Opus 5.5 (`opus[1m]`) at high effort on 2026-09-26, one trial per side. The
-baseline is Claude Code without LitClaude; the LitClaude side used a local pre-release
-build.
-
-A blind judge, Claude Opus 5.5 without LitClaude, saw the two outputs only as A and B,
-with any word that could name the tool removed. We asked it twice with the order swapped,
-and a side wins only when both orders agree. Then the maintainer looked at both outputs
-side by side and made the final call. Where the maintainer did not review a pair, the
-judge's verdict stands and the row says so.
-
-S3 and S4 come from a UI round that re-ran them after the interface update and added
-S11. S5 comes from an office round that re-ran it with `lit-pptx` and `lit-docx` and
-added S8 and S9. Some LitClaude runs were repeated after fixes, and we threw out any run
-whose fix copied a judge's reasons. Each row compares the latest kept LitClaude run with
-the one baseline run.
-
-| Task | Prompt | Final verdict | Blind judge (same round) |
-| --- | --- | --- | --- |
-| S1 · Terminal to-do CLI | `터미널에서 쓰는 할 일 관리 CLI 만들어줘` | LitClaude won | Tie |
-| S2 · API server bugs | `이 API 서버 가끔 이상하게 동작하는데 고쳐줘` | LitClaude won (blind judge; not reviewed by eye) | LitClaude won |
-| S3 · Personal budget dashboard (UI round) | `개인 가계부 대시보드 웹페이지 만들어줘` | LitClaude won | Baseline won |
-| S4 · Neighbourhood café landing page (UI round) | `동네 카페 브랜드 랜딩페이지 만들어줘` | LitClaude won | LitClaude won |
-| S5 · Report and slides from sources (office round) | `sources 폴더 자료로 보고서랑 발표자료 만들어줘` | LitClaude won | Baseline won |
-| S6 · Node 22 to 24 research | `Node 22에서 24로 올릴 때 달라지는 거 조사해줘` | LitClaude won | Tie |
-| S7 · Order, payment and shipping diagram | `주문-결제-배송 서비스 구조도 그려줘` | LitClaude won (blind judge; not reviewed by eye) | LitClaude won |
-| S8 · Quarterly results deck (office round) | `분기 실적 발표자료 만들어줘` | LitClaude won | Baseline won |
-| S9 · New product plan (office round) | `신제품 기획서 써줘` | LitClaude won | LitClaude won |
-| S11 · Meeting-room booking web app (UI round) | `회의실 예약 웹앱 만들어줘` | LitClaude won | LitClaude won |
-| Total | | LitClaude 10 won | LitClaude 5 won, 2 ties, 3 lost |
-
-The motion skill, `lit-typographic-motion`, was rebuilt after its first A/B and has no A/B result yet. The cover at the top of this page was made with it.
-
-### S1 · Terminal to-do CLI
-
-The baseline built more features (due dates, tags, filters, stats) but wrote no tests; LitClaude kept to priorities and shipped 12 passing tests and a pip-installable package. The blind judge called it a tie. The maintainer gave it to LitClaude because its own tests ran and passed.
-
-### S2 · API server bugs
-
-LitClaude fixed all six hidden bugs (the baseline fixed five), added a regression test for every fix, and also fixed a startup failure on symlinked paths and a wrong start command in the README. The baseline added no tests. The maintainer did not review this pair, so the blind judge's verdict stands.
-
-### S3 · Personal budget dashboard
-
-The blind judge preferred the baseline: a fuller dashboard (six-month bars, a running-total chart, top-5 expenses) on a balanced grid, where LitClaude left an empty column beside its long transaction list. LitClaude tried every action in a real browser and checked 320 to 1440 px, dark mode and 200% zoom; the automatic checks were mixed, with 6 accessibility violations against the baseline's 730 but more clipped text (51 against 30). The maintainer looked at both screens and chose LitClaude.
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S3-baseline-desktop.webp"><img src="./docs/ab/S3-baseline-desktop.webp" alt="Baseline budget dashboard, desktop: balance, monthly bar chart and category budgets" width="400" /></a> | <a href="./docs/ab/S3-litclaude-desktop.webp"><img src="./docs/ab/S3-litclaude-desktop.webp" alt="LitClaude budget dashboard, desktop: pixel piggy bank, balance, entry form and category budgets" width="400" /></a> |
-
-<details>
-<summary>Phone view</summary>
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S3-baseline-phone.webp"><img src="./docs/ab/S3-baseline-phone.webp" alt="Baseline budget dashboard, phone" width="180" /></a> | <a href="./docs/ab/S3-litclaude-phone.webp"><img src="./docs/ab/S3-litclaude-phone.webp" alt="LitClaude budget dashboard, phone" width="180" /></a> |
-
-</details>
-
-### S4 · Neighbourhood café landing page
-
-LitClaude's page has a restrained design with hand-drawn pixel art and a dark mode, and its reply lists what it checked (opening-hours logic, keyboard tabs, four widths, dark mode). The baseline leans on emoji, made-up five-star reviews and a scrolling banner, and its full-page capture shows blank sections below the banner. The blind judge and the maintainer both chose LitClaude.
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S4-baseline-desktop.webp"><img src="./docs/ab/S4-baseline-desktop.webp" alt="Baseline café landing page, desktop: headline and a drawn coffee cup" width="400" /></a> | <a href="./docs/ab/S4-litclaude-desktop.webp"><img src="./docs/ab/S4-litclaude-desktop.webp" alt="LitClaude café landing page, desktop: headline and a pixel-art storefront" width="400" /></a> |
-
-<details>
-<summary>Phone view</summary>
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S4-baseline-phone.webp"><img src="./docs/ab/S4-baseline-phone.webp" alt="Baseline café landing page, phone" width="180" /></a> | <a href="./docs/ab/S4-litclaude-phone.webp"><img src="./docs/ab/S4-litclaude-phone.webp" alt="LitClaude café landing page, phone" width="180" /></a> |
-
-</details>
-
-### S5 · Report and slides from sources
-
-The blind judge preferred the baseline: it added its own clearly labelled analysis (a Monday and weekend service gap, different data cut-off dates) and kept its 11-slide deck restrained, while LitClaude's 9-slide deck used decorative gradient circles, numbered badges and a closing thank-you slide. Both were accurate and checked; LitClaude's deck and 5-page Word report read their numbers from one data file, and the deck shows the budget as a doughnut chart. The maintainer judged LitClaude's files far more usable for real work.
-
-Baseline slides:
-
-<a href="./docs/ab/S5-baseline-slides.webp"><img src="./docs/ab/S5-baseline-slides.webp" alt="First five slides of the baseline deck: cover, summary cards, program table, visit and boarding counts, on-site notes" width="100%" /></a>
-
-LitClaude slides:
-
-<a href="./docs/ab/S5-litclaude-slides.webp"><img src="./docs/ab/S5-litclaude-slides.webp" alt="First five slides of the LitClaude deck: cover, KPI cards, key figures, a units table, observation cards" width="100%" /></a>
-
-<details>
-<summary>Report pages</summary>
-
-Baseline:
-
-<a href="./docs/ab/S5-baseline-pages.webp"><img src="./docs/ab/S5-baseline-pages.webp" alt="First three pages of the baseline Word report" width="100%" /></a>
-
-LitClaude:
-
-<a href="./docs/ab/S5-litclaude-pages.webp"><img src="./docs/ab/S5-litclaude-pages.webp" alt="First three pages of the LitClaude Word report" width="100%" /></a>
-
-</details>
-
-### S6 · Node 22 to 24 research
-
-LitClaude marked SlowBuffer correctly as runtime-deprecated where the baseline listed it as removed, and added the Node 24.11.0 `Buffer.allocUnsafe` issue, build toolchain requirements and a full LTS table. The baseline matched more of the reference facts (4 of 10 against 2) and gave a fuller codemod list, and the blind judge called it a tie. The maintainer gave it to LitClaude because far more of its links were official sources (86% against 43%).
-
-### S7 · Order, payment and shipping diagram
-
-LitClaude drew a real diagram and saved it as HTML/SVG and PNG, with a boundary box, a legend, solid lines for calls and dashed lines for events; it checked the export and listed what it left out. The baseline gave ASCII art in chat and saved no file. The maintainer did not review this pair, so the blind judge's verdict stands.
-
-<a href="./docs/ab/S7-litclaude-diagram.webp"><img src="./docs/ab/S7-litclaude-diagram.webp" alt="LitClaude diagram: customer app, API gateway, order service, event broker, payment and shipping services, with PG and courier outside the service boundary" width="640" /></a>
-
-### S8 · Quarterly results deck
-
-Both sides invented sample figures and marked them as samples on every slide. The blind judge preferred the baseline: its 9 slides follow the usual Korean earnings-deck order (a legal notice, year-on-year and quarter-on-quarter comparisons, Q&A), while LitClaude's 8-slide deck has decorative gradient circles on the cover and no notice slide; the layout check found 16 overlapping text pairs in the baseline deck and none in LitClaude's, which had one overflowing text box. The maintainer found LitClaude's deck clearly better.
-
-Baseline slides:
-
-<a href="./docs/ab/S8-baseline-slides.webp"><img src="./docs/ab/S8-baseline-slides.webp" alt="First five slides of the baseline earnings deck: cover, legal notice, KPI cards, income statement, revenue chart" width="100%" /></a>
-
-LitClaude slides:
-
-<a href="./docs/ab/S8-litclaude-slides.webp"><img src="./docs/ab/S8-litclaude-slides.webp" alt="First five slides of the LitClaude earnings deck: cover, KPI cards, quarterly chart, segment chart, income table" width="100%" /></a>
-
-### S9 · New product plan
-
-LitClaude wrote a 5-page Word plan for an example product it labels as one, with financials that add up; the baseline wrote only a Markdown file, with no financials and blank market-size figures. The maintainer found the first LitClaude run in this round weak (it returned a template of bracketed blanks) and the later runs a clear win. The blind judge also chose LitClaude.
-
-LitClaude pages (the baseline made no Word file):
-
-<a href="./docs/ab/S9-litclaude-pages.webp"><img src="./docs/ab/S9-litclaude-pages.webp" alt="First three pages of the LitClaude product plan: summary, target customer and spec table, competitor and unit-economics tables" width="100%" /></a>
-
-### S11 · Meeting-room booking web app
-
-LitClaude shipped unit and API tests and tried booking, conflicts, cancelling and keyboard-only use in a real browser; the baseline has no tests and says it never submitted its own booking form. LitClaude also adds dark mode and a room picker for phones. The blind judge and the maintainer both chose LitClaude.
-
-The screenshot check served only the page files, without each app's own server, so both screens show how the app reports a failed load.
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S11-baseline-desktop.webp"><img src="./docs/ab/S11-baseline-desktop.webp" alt="Baseline booking app, desktop: empty page with a raw 404 error toast" width="400" /></a> | <a href="./docs/ab/S11-litclaude-desktop.webp"><img src="./docs/ab/S11-litclaude-desktop.webp" alt="LitClaude booking app, desktop: a plain Korean message that the room list could not load, beside the booking form" width="400" /></a> |
-
-<details>
-<summary>Phone view</summary>
-
-| Baseline | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S11-baseline-phone.webp"><img src="./docs/ab/S11-baseline-phone.webp" alt="Baseline booking app, phone" width="180" /></a> | <a href="./docs/ab/S11-litclaude-phone.webp"><img src="./docs/ab/S11-litclaude-phone.webp" alt="LitClaude booking app, phone" width="180" /></a> |
-
-</details>
 
 ## How it works
 

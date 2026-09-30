@@ -34,6 +34,7 @@ verdicts: [PASS, DEGRADED, FAIL, BLOCKED]
 | default | No destination argument is supplied. | Apply the canonical destination policy. |
 | explicit | The user names a valid destination or emphasis. | Honor it unless repo instructions prohibit it. |
 | blocked | Required evidence or destination authority is unavailable. | Return `BLOCKED:` without guessing. |
+| auto | The argument is `auto on <percent>`, `auto off` or `auto status`. | Write no handoff. Tell the user to type that text as the whole prompt, without the slash command, so the prompt hook can change or report the automatic handoff setting. |
 
 ## #contract.procedure
 

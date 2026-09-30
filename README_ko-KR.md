@@ -4,7 +4,7 @@
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">Claude Code에서 계획하고, 만들고, 확인한 일을 다음 세션으로 이어가세요.</p>
 <p align="center">
-  <a href="#왜-litclaude인가요">소개</a> · <a href="#설치">설치</a> · <a href="#빠른-시작">빠른 시작</a> · <a href="#무엇을-입력하나요">입력할 내용</a> · <a href="#스킬-한눈에-보기">스킬</a> · <a href="#ab-결과">A/B 결과</a> · <a href="#더-알아보기">더 알아보기</a> · <a href="./README.md">English</a>
+  <a href="#왜-litclaude인가요">소개</a> · <a href="#설치">설치</a> · <a href="#빠른-시작">빠른 시작</a> · <a href="#무엇을-입력하나요">입력할 내용</a> · <a href="#스킬-한눈에-보기">스킬</a> · <a href="#더-알아보기">더 알아보기</a> · <a href="./README.md">English</a>
 </p>
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LIT ASCII B mark" /></p>
@@ -252,6 +252,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | 파일을 건드리지 않고 세션을 요약합니다. |
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
+| `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
 | `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. |
@@ -265,6 +266,27 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 `lit-code`(구현 규율)입니다. 프롬프트 앞에 이름이나 `$<skill-id>`를 쓰면 됩니다.
 예전 이름도 한 릴리스 동안은 안내 문구와 함께 새 스킬로 연결됩니다.
 [이름 이전 표](./docs/migration.md#one-release-rename-aliases)를 참고하세요.
+
+## 자동 핸드오프
+
+긴 세션은 컨텍스트 창이 차고, Claude Code가 이를 압축하면 작업의 세부 내용이 요약에서 빠질 수 있습니다. 자동 핸드오프는 창에 여유가 있을 때 핸드오프 파일을 저장해 두었다가 압축이 끝나면 다시 불러옵니다. 켜기 전에는 꺼져 있고, 퍼센트는 직접 정합니다. LitClaude에는 기본 퍼센트가 없습니다.
+
+아래 줄 중 하나를 프롬프트 전체로 입력하세요.
+
+- `lit-handoff auto on 60`은 컨텍스트 창의 60%에서 켭니다. 1부터 99까지 정수를 쓸 수 있습니다. 숫자 없이 `lit-handoff auto on`만 입력하면 마지막으로 정한 퍼센트를 다시 쓰고, 한 번도 정하지 않았다면 퍼센트를 물어봅니다.
+- `lit-handoff auto off`는 끄고, 정해 둔 퍼센트는 다음을 위해 기억합니다.
+- `lit-handoff auto status`는 지금 적용 중인 설정을 알려 줍니다.
+
+Claude Code를 시작하기 전에 셸에서 정할 수도 있습니다. `LITCLAUDE_AUTO_HANDOFF=1`은 켜고, `LITCLAUDE_AUTO_HANDOFF_PERCENT=60`은 퍼센트를 고릅니다. 환경 변수가 저장된 설정보다 우선하고, `LITCLAUDE_AUTO_HANDOFF=0`이면 계속 꺼 둡니다. 1~99 밖의 퍼센트는 꺼진 상태로 두고, 이유는 `litclaude doctor`가 알려 줍니다. 저장된 설정은 프로젝트마다 `.litclaude/auto-handoff/`에 있습니다.
+
+켜면 이런 일이 일어납니다. 플러그인이 할 수 있는 일은 Claude Code가 정하므로, 단계마다 LitClaude가 직접 하는지 알려 주기만 하는지 적어 두었습니다.
+
+1. **자동:** 상태 표시줄이 답변마다 컨텍스트 퍼센트를 기록합니다. LitClaude 상태 표시줄이 없다면, 모델의 창 크기(토큰)를 `LITCLAUDE_AUTO_HANDOFF_WINDOW`로 알려 주면 Stop 훅이 대화 기록에서 퍼센트를 추정합니다.
+2. **자동:** 퍼센트가 정한 숫자에 처음 닿으면 Stop 훅이 Claude에게 lit-handoff 절차대로 핸드오프를 쓰고 마지막에 평범한 한 줄을 남기라고 요청합니다. 파일은 Claude가 쓰므로 이 단계는 Claude가 지시를 따르는지에 달려 있습니다. 한 번 넘을 때마다 한 번만 일어나며, 다시 일어나려면 사용량이 정한 퍼센트 아래로 내려갔다가 올라야 합니다.
+3. **알림:** Claude Code는 플러그인이 압축을 시작하게 해 주지 않으므로, Claude가 남기는 마지막 줄은 `Handoff saved. Run /compact now.`이고 `/compact`는 직접 실행합니다. Claude Code가 알아서 압축하게 하려면 `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`를 정한 퍼센트보다 큰 숫자로 설정하세요. 알림 줄은 그대로 나오지만 무시해도 됩니다.
+4. **자동:** 압축이 끝나면 세션 시작 훅이 핸드오프를 한 번 다시 불러옵니다. 파일 경로와 앞 4,000자를 전달합니다. 트리거 이후에 쓰였고 트리거의 id 줄이 들어 있는 파일만 받아들이며, 그런 파일이 없으면 없다고 알려 줍니다.
+
+켜 있는 동안 상태 표시줄에 `handoff@60%`가 보이고(설정이 잘못되면 `handoff ⚠`), `litclaude doctor`는 `Auto-handoff: on at 60%`를 출력합니다. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`가 정한 퍼센트 이하이면 핸드오프를 쓰기 전에 Claude Code가 먼저 압축하므로 doctor가 경고합니다. 훅의 자세한 동작은 [훅 안내](./docs/hooks.md#automatic-handoff)에, 저장하는 파일은 [개인정보 안내](./docs/privacy.md#local-state)에 있습니다.
 
 ## 스킬 한눈에 보기
 
@@ -453,156 +475,6 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 <td>알아서 돌아갑니다. 프로젝트 규칙을 읽고, 수정 뒤에는 진단을 요청하고 새 주석을 검토합니다.</td>
 </tr>
 </table>
-
-## A/B 결과
-
-같은 한국어 한 줄 요청을 두 번 돌렸습니다. 한 번은 입력한 그대로, 한 번은 끝에 ` lit`만
-붙여서 돌렸고, 다른 것은 더하지 않았습니다. 두 쪽 모두 2026-09-26에 Claude Code 2.1.283,
-Opus 5.5(`opus[1m]`), effort high로 쪽마다 한 번씩 돌렸습니다. 기준 쪽은 LitClaude 없는
-Claude Code이고, LitClaude 쪽은 배포 전 로컬 빌드를 썼습니다.
-
-블라인드 판정은 LitClaude 없는 Claude Opus 5.5가 맡았습니다. 두 결과를 A와 B로만 보았고,
-도구 이름이 드러나는 단어는 지운 상태였습니다. 순서를 바꿔 두 번 물었고, 두 번이 같을
-때만 승부로 셉니다. 그다음 메인테이너가 두 결과를 나란히 놓고 최종 판정을 내렸습니다.
-메인테이너가 보지 않은 과제는 블라인드 판정을 그대로 따르고, 표에도 그렇게 적었습니다.
-
-S3와 S4는 인터페이스 개선 뒤 다시 돌린 UI 회차 결과이고, 이 회차에서 S11을 더했습니다.
-S5는 `lit-pptx`, `lit-docx`로 다시 돌린 오피스 회차 결과이고, 이 회차에서 S8과 S9를
-더했습니다. 일부 과제는 LitClaude를 고친 뒤 LitClaude 쪽만 다시 돌렸고, 판정 이유를
-그대로 베껴 고친 뒤 돌린 실행은 뺐습니다. 표의 각 줄은 남긴 LitClaude 실행 중 가장
-최근 것과 한 번 돌린 기준 쪽을 비교합니다.
-
-| 과제 | 프롬프트 | 최종 판정 | 블라인드 판정(같은 회차) |
-| --- | --- | --- | --- |
-| S1 · 터미널 할 일 CLI | `터미널에서 쓰는 할 일 관리 CLI 만들어줘` | LitClaude 승 | 무승부 |
-| S2 · API 서버 버그 | `이 API 서버 가끔 이상하게 동작하는데 고쳐줘` | LitClaude 승 (블라인드 판정, 직접 보지 않음) | LitClaude 승 |
-| S3 · 개인 가계부 대시보드 (UI 회차) | `개인 가계부 대시보드 웹페이지 만들어줘` | LitClaude 승 | 기준 쪽 승 |
-| S4 · 동네 카페 랜딩페이지 (UI 회차) | `동네 카페 브랜드 랜딩페이지 만들어줘` | LitClaude 승 | LitClaude 승 |
-| S5 · 자료로 보고서와 발표자료 (오피스 회차) | `sources 폴더 자료로 보고서랑 발표자료 만들어줘` | LitClaude 승 | 기준 쪽 승 |
-| S6 · Node 22→24 조사 | `Node 22에서 24로 올릴 때 달라지는 거 조사해줘` | LitClaude 승 | 무승부 |
-| S7 · 주문·결제·배송 구조도 | `주문-결제-배송 서비스 구조도 그려줘` | LitClaude 승 (블라인드 판정, 직접 보지 않음) | LitClaude 승 |
-| S8 · 분기 실적 발표자료 (오피스 회차) | `분기 실적 발표자료 만들어줘` | LitClaude 승 | 기준 쪽 승 |
-| S9 · 신제품 기획서 (오피스 회차) | `신제품 기획서 써줘` | LitClaude 승 | LitClaude 승 |
-| S11 · 회의실 예약 웹앱 (UI 회차) | `회의실 예약 웹앱 만들어줘` | LitClaude 승 | LitClaude 승 |
-| 합계 | | LitClaude 10승 | LitClaude 5승 2무 3패 |
-
-모션 스킬 `lit-typographic-motion`은 첫 A/B 뒤에 다시 만들었고, 아직 A/B 결과가 없습니다. 이 페이지 맨 위의 커버가 이 스킬로 만든 영상입니다.
-
-### S1 · 터미널 할 일 CLI
-
-기준 쪽은 마감일, 태그, 필터, 통계까지 기능을 더 넣었지만 테스트는 쓰지 않았습니다. LitClaude는 우선순위만 두는 대신 통과하는 테스트 12개와 pip로 설치되는 패키지를 냈습니다. 블라인드 판정은 무승부였고, 메인테이너는 자체 테스트까지 통과했다는 점을 들어 LitClaude 승으로 판정했습니다.
-
-### S2 · API 서버 버그
-
-LitClaude는 숨은 버그 6개를 모두 고쳤고(기준 쪽은 5개), 고친 곳마다 회귀 테스트를 붙였으며, 심볼릭 링크 경로에서 서버가 뜨지 않는 문제와 README의 잘못된 실행 명령도 고쳤습니다. 기준 쪽은 테스트를 더하지 않았습니다. 메인테이너가 보지 않은 과제라 블라인드 판정을 그대로 따릅니다.
-
-### S3 · 개인 가계부 대시보드
-
-블라인드 판정은 기준 쪽을 골랐습니다. 6개월 막대, 누적 지출 차트, 큰 지출 TOP 5까지 갖춘 대시보드가 균형 잡힌 격자에 놓였고, LitClaude는 긴 거래 목록 옆에 빈 열을 남겼다는 이유입니다. LitClaude는 모든 조작을 실제 브라우저에서 해 보고 320~1440px, 다크 모드, 200% 확대를 확인했으며, 자동 검사 결과는 접근성 위반 6건 대 730건, 잘린 글자 51 대 30으로 엇갈렸습니다. 메인테이너는 두 화면을 보고 LitClaude를 골랐습니다.
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S3-baseline-desktop.webp"><img src="./docs/ab/S3-baseline-desktop.webp" alt="기준 쪽 가계부 대시보드, 데스크톱: 잔액, 월별 막대 차트, 카테고리별 예산" width="400" /></a> | <a href="./docs/ab/S3-litclaude-desktop.webp"><img src="./docs/ab/S3-litclaude-desktop.webp" alt="LitClaude 가계부 대시보드, 데스크톱: 픽셀 돼지 저금통, 잔액, 거래 입력 폼, 분류별 예산" width="400" /></a> |
-
-<details>
-<summary>휴대폰 화면</summary>
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S3-baseline-phone.webp"><img src="./docs/ab/S3-baseline-phone.webp" alt="기준 쪽 가계부 대시보드, 휴대폰" width="180" /></a> | <a href="./docs/ab/S3-litclaude-phone.webp"><img src="./docs/ab/S3-litclaude-phone.webp" alt="LitClaude 가계부 대시보드, 휴대폰" width="180" /></a> |
-
-</details>
-
-### S4 · 동네 카페 랜딩페이지
-
-LitClaude의 페이지는 직접 그린 픽셀 아트와 다크 모드를 갖춘 절제된 디자인이고, 답에 영업시간 계산, 키보드 탭 이동, 네 가지 화면 폭, 다크 모드를 확인했다고 적었습니다. 기준 쪽은 이모지, 지어낸 별점 후기, 흐르는 띠 배너에 기대고, 전체 페이지 캡처에서 배너 아래 구역이 비어 보입니다. 블라인드 판정과 메인테이너 모두 LitClaude를 골랐습니다.
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S4-baseline-desktop.webp"><img src="./docs/ab/S4-baseline-desktop.webp" alt="기준 쪽 카페 랜딩페이지, 데스크톱: 제목과 그려 넣은 커피잔" width="400" /></a> | <a href="./docs/ab/S4-litclaude-desktop.webp"><img src="./docs/ab/S4-litclaude-desktop.webp" alt="LitClaude 카페 랜딩페이지, 데스크톱: 제목과 픽셀 아트 가게 그림" width="400" /></a> |
-
-<details>
-<summary>휴대폰 화면</summary>
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S4-baseline-phone.webp"><img src="./docs/ab/S4-baseline-phone.webp" alt="기준 쪽 카페 랜딩페이지, 휴대폰" width="180" /></a> | <a href="./docs/ab/S4-litclaude-phone.webp"><img src="./docs/ab/S4-litclaude-phone.webp" alt="LitClaude 카페 랜딩페이지, 휴대폰" width="180" /></a> |
-
-</details>
-
-### S5 · 자료로 보고서와 발표자료
-
-블라인드 판정은 기준 쪽을 골랐습니다. 기준 쪽은 월요일·주말 운영 공백, 자료마다 다른 집계 기준일 같은 자체 분석을 분석이라고 밝혀 더했고 11장 발표자료도 절제돼 있는 반면, LitClaude의 9장 발표자료에는 장식용 그라데이션 원, 번호 배지, 마지막 감사 슬라이드가 들어갔다는 이유입니다. 두 쪽 모두 사실은 정확했고 검사를 거쳤으며, LitClaude의 발표자료와 A4 5쪽 Word 보고서는 한 데이터 파일에서 숫자를 읽고, 발표자료는 예산 집행을 도넛 차트로 보여줍니다. 메인테이너는 실무에 쓰기에는 LitClaude 쪽 파일이 훨씬 낫다고 판정했습니다.
-
-기준 쪽 슬라이드:
-
-<a href="./docs/ab/S5-baseline-slides.webp"><img src="./docs/ab/S5-baseline-slides.webp" alt="기준 쪽 발표자료 앞 5장: 표지, 요약 카드, 사업 개요 표, 방문·탑승 건수, 현장 운영" width="100%" /></a>
-
-LitClaude 슬라이드:
-
-<a href="./docs/ab/S5-litclaude-slides.webp"><img src="./docs/ab/S5-litclaude-slides.webp" alt="LitClaude 발표자료 앞 5장: 표지, 핵심 지표 카드, 핵심 수치, 단위 해석 표, 관찰값 카드" width="100%" /></a>
-
-<details>
-<summary>보고서 페이지</summary>
-
-기준 쪽:
-
-<a href="./docs/ab/S5-baseline-pages.webp"><img src="./docs/ab/S5-baseline-pages.webp" alt="기준 쪽 Word 보고서 앞 3쪽" width="100%" /></a>
-
-LitClaude:
-
-<a href="./docs/ab/S5-litclaude-pages.webp"><img src="./docs/ab/S5-litclaude-pages.webp" alt="LitClaude Word 보고서 앞 3쪽" width="100%" /></a>
-
-</details>
-
-### S6 · Node 22→24 조사
-
-LitClaude는 SlowBuffer를 런타임 지원 중단으로 맞게 적었고(기준 쪽은 제거됐다고 적음), Node 24.11.0의 `Buffer.allocUnsafe` 문제, 빌드 도구 요구사항, 전체 LTS 일정표를 더했습니다. 기준 쪽은 기준 사실을 더 많이 맞혔고(10개 중 4개 대 2개) codemod 목록도 더 자세해서, 블라인드 판정은 무승부였습니다. 메인테이너는 공식 출처 비율이 훨씬 높다는 점(86% 대 43%)을 들어 LitClaude 승으로 판정했습니다.
-
-### S7 · 주문·결제·배송 구조도
-
-LitClaude는 실제 구조도를 그려 HTML/SVG와 PNG로 저장했습니다. 경계 상자와 범례를 넣고 동기 호출은 실선, 비동기 이벤트는 점선으로 나눴으며, 내보낸 파일을 확인하고 뺀 내용을 밝혔습니다. 기준 쪽은 대화창에 ASCII 그림만 주고 파일을 남기지 않았습니다. 메인테이너가 보지 않은 과제라 블라인드 판정을 그대로 따릅니다.
-
-<a href="./docs/ab/S7-litclaude-diagram.webp"><img src="./docs/ab/S7-litclaude-diagram.webp" alt="LitClaude 구조도: 고객 앱, API 게이트웨이, 주문 서비스, 이벤트 브로커, 결제·배송 서비스, 내부 영역 밖의 PG사와 택배사" width="640" /></a>
-
-### S8 · 분기 실적 발표자료
-
-두 쪽 모두 예시 수치를 지어냈고, 모든 슬라이드에 예시라고 표시했습니다. 블라인드 판정은 기준 쪽을 골랐습니다. 기준 쪽 9장은 유의사항, 전년 동기·전 분기 비교, Q&A를 갖춘 흔한 국내 실적 발표 순서를 따르고, LitClaude 8장은 표지에 장식용 그라데이션 원이 있고 유의사항 슬라이드가 없다는 이유입니다. 배치 검사에서는 기준 쪽에 겹친 글자 16쌍, LitClaude 쪽에 0쌍(넘친 글상자 1개)이 나왔고, 메인테이너는 LitClaude 쪽 발표자료가 확실히 낫다고 판정했습니다.
-
-기준 쪽 슬라이드:
-
-<a href="./docs/ab/S8-baseline-slides.webp"><img src="./docs/ab/S8-baseline-slides.webp" alt="기준 쪽 실적 발표자료 앞 5장: 표지, 유의사항, 실적 요약 카드, 요약 손익계산서, 매출 추이 차트" width="100%" /></a>
-
-LitClaude 슬라이드:
-
-<a href="./docs/ab/S8-litclaude-slides.webp"><img src="./docs/ab/S8-litclaude-slides.webp" alt="LitClaude 실적 발표자료 앞 5장: 표지, 핵심 지표 카드, 분기 매출 차트, 부문별 차트, 요약 손익표" width="100%" /></a>
-
-### S9 · 신제품 기획서
-
-LitClaude는 예시 제품을 정해 예시라고 밝히고, 숫자가 서로 맞는 손익을 담은 A4 5쪽 Word 기획서를 썼습니다. 기준 쪽은 Markdown 파일 하나만 남겼고, 손익은 없고 시장 규모 수치는 비어 있습니다. 메인테이너는 이 회차 첫 LitClaude 실행(괄호로 비워 둔 틀만 낸 결과)은 별로였지만 그 뒤 실행은 LitClaude의 압승이라고 판정했고, 블라인드 판정도 LitClaude를 골랐습니다.
-
-LitClaude 페이지(기준 쪽은 Word 파일을 만들지 않았습니다):
-
-<a href="./docs/ab/S9-litclaude-pages.webp"><img src="./docs/ab/S9-litclaude-pages.webp" alt="LitClaude 신제품 기획서 앞 3쪽: 요약, 목표 고객과 사양 표, 경쟁 비교와 대당 손익 표" width="100%" /></a>
-
-### S11 · 회의실 예약 웹앱
-
-LitClaude는 단위·API 테스트를 함께 냈고, 실제 브라우저에서 예약, 겹치는 예약 거부, 취소, 키보드만으로 예약하기를 해 봤습니다. 기준 쪽은 테스트가 없고, 예약 창에서 직접 제출해 보지는 않았다고 밝혔습니다. LitClaude는 다크 모드와 휴대폰용 회의실 선택도 더했고, 블라인드 판정과 메인테이너 모두 LitClaude를 골랐습니다.
-
-화면 검사는 각 앱의 서버 없이 페이지 파일만 띄웠기 때문에, 두 화면 모두 불러오기에 실패했을 때의 모습입니다.
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S11-baseline-desktop.webp"><img src="./docs/ab/S11-baseline-desktop.webp" alt="기준 쪽 예약 앱, 데스크톱: 빈 화면과 404 오류 알림" width="400" /></a> | <a href="./docs/ab/S11-litclaude-desktop.webp"><img src="./docs/ab/S11-litclaude-desktop.webp" alt="LitClaude 예약 앱, 데스크톱: 회의실 목록을 불러오지 못했다는 안내와 예약 폼" width="400" /></a> |
-
-<details>
-<summary>휴대폰 화면</summary>
-
-| 기준 쪽 | LitClaude |
-| --- | --- |
-| <a href="./docs/ab/S11-baseline-phone.webp"><img src="./docs/ab/S11-baseline-phone.webp" alt="기준 쪽 예약 앱, 휴대폰" width="180" /></a> | <a href="./docs/ab/S11-litclaude-phone.webp"><img src="./docs/ab/S11-litclaude-phone.webp" alt="LitClaude 예약 앱, 휴대폰" width="180" /></a> |
-
-</details>
 
 ## 작동 방식
 

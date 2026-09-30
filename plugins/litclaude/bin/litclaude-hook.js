@@ -43,6 +43,7 @@ import { evaluateInterfaceProbeStop, observeInterfaceProbeTool, recordInterfaceP
 import { evaluateMotionStop, observeMotionTool, recordMotionTurn } from "../lib/motion-render-gate.mjs";
 import { canonicalSkillIds } from "../lib/canonical-skill-catalog.mjs";
 import { JEV_BANNER, JEV_FLAG, claimJevBanner, clearJevTurn, suggestJevSkill } from "../lib/jev-skill-hint.mjs";
+import { applyAutoHandoffRoute, autoHandoffReloadContext, evaluateAutoHandoffStop, parseAutoHandoffRoute } from "../lib/auto-handoff.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
   try {
@@ -1189,6 +1190,16 @@ const sessionIgnitionMessage = ({ cwd, sessionId }) => {
   }
 };
 
+// Automatic handoff is opt-in and advisory, so a failure here leaves the hook's own contract alone.
+const autoHandoffReloadOrEmpty = (hookInput) => {
+  try {
+    const cwd = typeof hookInput.cwd === "string" ? hookInput.cwd : process.cwd();
+    return autoHandoffReloadContext({ stateRoot: resolveProjectStateRoot(cwd), cwd, sessionId: hookInput.session_id });
+  } catch {
+    return "";
+  }
+};
+
 const input = readInput();
 
 switch (eventName) {
@@ -1225,8 +1236,9 @@ switch (eventName) {
       ? ""
       : staticRulesContext({ cwd, sessionId: input.session_id });
     const rulesSuffix = rules ? `\n\n${rules}` : "";
+    const autoHandoffReload = compactSource ? autoHandoffReloadOrEmpty(input) : "";
     const compactSuffix = compactSource
-      ? `\n\n${compactRulesContext({ cwd, sessionId: input.session_id })}`
+      ? `\n\n${compactRulesContext({ cwd, sessionId: input.session_id })}${autoHandoffReload ? `\n\n${autoHandoffReload}` : ""}`
       : "";
     const planNotice = formatDurablePlanNotice(typeof input.cwd === "string" ? input.cwd : "");
     const planSuffix = planNotice ? `\n\n${planNotice}` : "";
@@ -1269,7 +1281,8 @@ switch (eventName) {
     const trustedResume = parseTrustedStartWorkResume(prompt);
     const exactBareHandoff = isExactBareHandoff(prompt);
     const exactBareScientificVisualization = isExactBareScientificVisualization(prompt);
-    const trigger = exactBareHandoff || exactBareScientificVisualization || isDiagnosticLiteralPrompt(prompt) ? undefined : findWorkflowTrigger(prompt);
+    const autoHandoffRoute = trustedResume ? null : parseAutoHandoffRoute(prompt);
+    const trigger = exactBareHandoff || exactBareScientificVisualization || autoHandoffRoute || isDiagnosticLiteralPrompt(prompt) ? undefined : findWorkflowTrigger(prompt);
     // The HUD status line reads this record back, so the visible ignition mark tracks the
     // discipline actually selected for this turn instead of anything the model chooses to draw.
     try {
@@ -1323,6 +1336,15 @@ switch (eventName) {
           "LitClaude start-work resume blocked by lifecycle validation.",
         );
       }
+    } else if (autoHandoffRoute) {
+      let line;
+      try {
+        const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+        line = applyAutoHandoffRoute({ route: autoHandoffRoute, env: process.env, stateRoot: resolveProjectStateRoot(cwd) });
+      } catch {
+        line = "Automatic handoff could not read or write its settings; nothing changed.";
+      }
+      writeContext(`LitClaude applied the automatic handoff setting. Reply with exactly this line and nothing else, and do not start any other work: ${line}`, line);
     } else if (exactBareHandoff) {
       writeContext(handoffContext(), activationMessage("lit-handoff"));
     } else if (exactBareScientificVisualization) {
@@ -1617,6 +1639,20 @@ switch (eventName) {
       // action === "allow" (or counter write failed below): emit nothing -> stop is allowed.
     } catch {
       // Any error -> allow stop (no output).
+    }
+    // Automatic handoff runs last, so it only takes a stop that nothing else wanted to continue.
+    if (decision?.action !== "block" && decision?.action !== "cap") {
+      try {
+        const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+        const handoff = evaluateAutoHandoffStop({
+          stateRoot: resolveProjectStateRoot(cwd),
+          sessionId: input.session_id,
+          transcriptPath: input.transcript_path,
+        });
+        if (handoff.action === "block") console.log(JSON.stringify({ decision: "block", reason: handoff.reason }));
+      } catch {
+        // Opt-in and advisory: an unreadable state folder allows the stop.
+      }
     }
     break;
   }

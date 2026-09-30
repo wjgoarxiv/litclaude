@@ -41,6 +41,8 @@ import { runWorkflowCheckCli } from "../plugins/litclaude/lib/workflow-check.mjs
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { jevStatusLine } from "../plugins/litclaude/lib/jev-skill-hint.mjs";
+import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
+import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory } from "./install-ownership.mjs";
 import { banner, lockup, colorMode, supportsBlocks, terminalRows } from "./litfamily-banner.mjs";
@@ -1270,6 +1272,13 @@ const install = async ({ dryRun, rest }) => {
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };
 
+// Automatic handoff is stored per project, so the doctor reads the project it was run in.
+const writeAutoHandoffDoctorLines = () => {
+  for (const line of autoHandoffDoctorLines({ env: process.env, stateRoot: resolveProjectStateRoot(process.cwd()) })) {
+    process.stdout.write(`${line}\n`);
+  }
+};
+
 const doctor = ({ dryRun }) => {
   if (dryRun) {
     const pluginPath = intendedPluginPath();
@@ -1285,6 +1294,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write(`Would report: node ${join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")} (Chrome, ffmpeg, WebGL2 renderer, software-GL warning, motion pre-warm)\n`);
     process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
     process.stdout.write(`${jevStatusLine(process.env)}\n`);
+    writeAutoHandoffDoctorLines();
     return;
   }
 
@@ -1372,6 +1382,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write(`OFFICE_RUNTIME: ${line}\n`);
   }
   process.stdout.write(`${jevStatusLine(process.env)}\n`);
+  writeAutoHandoffDoctorLines();
 
   // lit-typographic-motion: the five readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.

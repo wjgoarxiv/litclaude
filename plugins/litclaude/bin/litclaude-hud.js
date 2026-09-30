@@ -17,6 +17,7 @@ import { latestUsageTokens } from "../lib/cache-measurement.mjs";
 import { readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
 import { jevHudState } from "../lib/jev-skill-hint.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
+import { recordContextUsage, resolveAutoHandoff } from "../lib/auto-handoff.mjs";
 
 const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pluginManifestPath = join(pluginRoot, ".claude-plugin", "plugin.json");
@@ -282,6 +283,29 @@ const jevBadge = (status) => {
   return `${badge} ${colors.dim}→${colors.reset} ${skill}`;
 };
 
+// Automatic handoff: while it is on, leave the percent for the Stop hook and show the setting.
+// A setting that was asked for but does not add up shows a warning mark instead.
+const autoHandoffSegment = (status, contextPercent) => {
+  try {
+    const cwd = typeof status.cwd === "string" && status.cwd ? status.cwd : null;
+    if (!cwd) return "";
+    const stateRoot = resolveProjectStateRoot(cwd);
+    const setting = resolveAutoHandoff({ env: process.env, stateRoot });
+    if (setting.enabled) {
+      recordContextUsage({
+        stateRoot,
+        sessionId: status.session_id,
+        percent: contextPercent,
+        window: Number(status.context_window?.context_window_size),
+      });
+      return text(`handoff@${setting.percent}%`);
+    }
+    return setting.requested ? text("handoff ⚠") : "";
+  } catch {
+    return "";
+  }
+};
+
 const main = async () => {
   const input = await readStdin();
   const status = input.trim() ? JSON.parse(input) : {};
@@ -294,6 +318,7 @@ const main = async () => {
   const statusContextPct = firstNumber(status.context_window?.used_percentage, status.context_window?.usage_percentage);
   const rawContextPct = statusContextPct === null ? Math.floor((estimatedTokens * 100) / maxContext) : statusContextPct;
   const contextPct = displayPercent(rawContextPct);
+  const knownContextPct = statusContextPct !== null ? statusContextPct : tokens > 0 ? rawContextPct : null;
   const usage = parseUsage(status);
   const usageText = ` ${accent(sep)} ${formatUsageSegment("5h", usage.fiveHour, usage.fiveHourReset)} ${accent(sep)} ${formatUsageSegment("1w", usage.weekly, usage.weeklyReset)}`;
   const git = gitStatus(status.cwd);
@@ -307,7 +332,8 @@ const main = async () => {
     depth: plainOutput ? "plain" : colorDepth,
   });
   const jev = jevBadge(status);
-  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
+  const autoHandoff = autoHandoffSegment(status, knownContextPct);
+  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);
