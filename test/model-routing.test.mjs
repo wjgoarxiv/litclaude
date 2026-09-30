@@ -41,6 +41,11 @@ describe("LitClaude G20 model-routing boundary", () => {
       "gpt-6-sol is a recognized model id without becoming a recommended route",
     );
     assert.equal(
+      guard.evaluateRequestedRoute({ route: "lead", model: "gpt-6.1-sol", effort: "xhigh" }).code,
+      "ROUTE_POLICY_MISMATCH",
+      "gpt-6.1-sol is a recognized model id without becoming a Claude-native route",
+    );
+    assert.equal(
       guard.evaluateRequestedRoute({ route: "lead", model: "gpt-5.6-sol", effort: "xhigh" }).code,
       "ROUTE_POLICY_MISMATCH",
       "previous-generation ids remain recognized",
@@ -133,6 +138,26 @@ describe("LitClaude G20 model-routing boundary", () => {
       /LitClaude's legacy policy-only guard blocks `gpt-5\.6-luna` plus `xhigh`/u,
     );
     assert.match(docs, /the `ordinary-worker` route remains `gpt-6-luna` at `max`/u);
+  });
+
+  it("names gpt-6.1-sol as the coding-lead alternative and gpt-6-sol as previous generation", () => {
+    const docs = readFileSync(docsPath, "utf8");
+    const readme = readFileSync(join(root, "README.md"), "utf8");
+    const readmeKo = readFileSync(join(root, "README_ko-KR.md"), "utf8");
+    assert.match(docs, /`gpt-6\.1-sol` as the\s+coding-lead alternative/u);
+    assert.match(docs, /previous-generation `gpt-6-sol` id\s+remains\s+accepted/u);
+    assert.match(readme, /`gpt-6\.1-sol` as the other choice for a coding lead/u);
+    assert.match(readme, /`gpt-6-sol` is the previous generation/u);
+    assert.match(readmeKo, /코딩 리드의 다른\s+선택지로 `gpt-6\.1-sol`/u);
+    assert.match(readmeKo, /이전 세대 `gpt-6-sol`/u);
+    for (const result of [
+      guard.evaluateRequestedRoute({ route: "lead", model: "gpt-6.1-sol", effort: "xhigh" }),
+      guard.evaluateRequestedRoute({ route: "lead", model: "gpt-6-sol", effort: "xhigh" }),
+    ]) {
+      assert.equal(result.apply, false);
+      assert.equal(result.permissionMutation, false);
+      assert.notEqual(result.code, "UNKNOWN_MODEL");
+    }
   });
 
   it("keeps prompt-shaped route data inert and does not echo it", () => {

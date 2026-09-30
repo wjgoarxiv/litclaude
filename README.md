@@ -716,8 +716,9 @@ routes of its own.
 
 The OpenAI details that follow are for reference, from the LitFamily products that do
 route OpenAI models. Those products default new installs to GPT-6: `gpt-6-astra` for
-planning, review and lead roles, `gpt-6-sol` as the other choice for a coding lead, and
-`gpt-6-luna` for helpers and ordinary workers. GPT-6 Luna supports `xhigh` effort but not
+planning, review and lead roles, `gpt-6.1-sol` as the other choice for a coding lead, and
+`gpt-6-luna` for helpers and ordinary workers. `gpt-6-sol` is the previous generation and
+stays selectable, so configs that already use it keep working. GPT-6 Luna supports `xhigh` effort but not
 `ultra`, and ordinary workers keep the approved default of `max`. The live host catalog
 still offers `gpt-5.6-sol`, `gpt-5.6-terra` and `gpt-5.6-luna`, with no retirement date for
 any of them. The catalog allows `xhigh` for `gpt-5.6-luna` too, but LitClaude keeps an

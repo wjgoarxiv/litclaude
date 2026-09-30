@@ -116,8 +116,9 @@ The approved family table remains a policy record only:
 The previous-generation `gpt-5.6-sol` and `gpt-5.6-luna` ids remain accepted. The
 Codex/OpenAI host catalog also lists `gpt-5.6-terra`; all three GPT-5.6 ids are accepted and
 selectable there, with no retirement metadata for any of them. Across products that own OpenAI
-routing, fresh installs default to GPT-6: Astra for planning, review, and lead work; Sol as the
-coding-lead alternative; and Luna for helpers and ordinary workers. The OpenAI catalog lists both
+routing, fresh installs default to GPT-6: Astra for planning, review, and lead work; `gpt-6.1-sol` as the
+coding-lead alternative; and Luna for helpers and ordinary workers. The previous-generation `gpt-6-sol` id remains
+accepted and selectable, so existing configs keep working. The OpenAI catalog lists both
 `gpt-6-luna` and `gpt-5.6-luna` with supported efforts `low`, `medium`, `high`, `xhigh`, and `max`,
 but not `ultra`. LitClaude's legacy policy-only guard blocks `gpt-5.6-luna` plus `xhigh`, despite
 that catalog support. Catalog support for GPT-6 Luna at `xhigh` does not change the approved

@@ -692,7 +692,8 @@ LitClaude는 Claude Code 세션 안에서 동작합니다. 무엇을 건드리�
 값입니다.
 
 - 새로 설치하면 GPT-6가 기본입니다. 계획·검토·리드 역할에는 `gpt-6-astra`, 코딩 리드의 다른
-  선택지로 `gpt-6-sol`, helper와 일반 작업자에는 `gpt-6-luna`를 씁니다.
+  선택지로 `gpt-6.1-sol`, helper와 일반 작업자에는 `gpt-6-luna`를 씁니다. 이전 세대 `gpt-6-sol`도
+  계속 고를 수 있어서, 이미 쓰고 있는 설정은 그대로 동작합니다.
 - GPT-6 Luna는 `xhigh`까지 지원하고 `ultra` effort는 지원하지 않습니다. `gpt-6-luna`의 `xhigh`는
   카탈로그에서 지원되며, 일반 작업자 경로의 기본 effort는 `max`입니다.
 - 호스트 카탈로그에는 이전 세대 `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`도 계속 나오며 셋
