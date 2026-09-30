@@ -1,5 +1,5 @@
 {
-  "request": "A new motion film for the LitClaude GitHub page, made again with lit-typographic-motion and set in Pretendard, more aesthetic. Assume you are a pro motion graphic designer and very enthusiastic.",
+  "request": "LitClaude GitHub 한국어 페이지에 쓸 새 모션 필름을 lit-typographic-motion으로 다시 만들고, Pretendard로 조판해서 더 아름답게. 당신은 열정 넘치는 프로 모션 그래픽 디자이너입니다.",
   "genre": "explainer",
   "path": "stage",
   "pathReason": "The film has to show drawn things (three checks that go from unlit to failing to passing, a small web page that gets clicked, a record handed to a new session, a flame), so the visuals are authored as a page and captured frame by frame; type alone cannot show them.",
@@ -143,7 +143,7 @@
       "MesloLGS NF"
     ],
     "hierarchy": "Pretendard 700 for the giant word and the headlines (one orange accent word each), Pretendard 400 for the small lead line and the tagline, and MesloLGS NF only for what a terminal or a record would print. Hierarchy comes from size, colour, position and motion; no other weight is requested and nothing is tracked or condensed while it moves.",
-    "maxWordsOnScreen": 16
+    "maxWordsOnScreen": 14
   },
   "palette": [
     {
@@ -180,14 +180,14 @@
   "copy": {
     "source": "invented",
     "lines": [
-      "End any request with",
+      "모든 요청 끝에",
       "lit",
-      "Pin the goal.",
-      "Fail first.",
-      "Check the real page.",
-      "Hand it on.",
+      "목표를 고정합니다.",
+      "실패하는 테스트부터.",
+      "실제 화면을 확인합니다.",
+      "다음 세션으로 넘깁니다.",
       "Keep the work lit.",
-      "Plan, build and check your work in Claude Code.",
+      "확인한 일을 다음 세션으로 이어가세요.",
       "npm install -g @litfamily/litclaude"
     ]
   },
@@ -195,7 +195,7 @@
     "The demo job: a to-do list in one HTML file (taken from the README's own quick start) with its three checks add, complete and delete.",
     "The example record contents: the goal, the checked list and the next step 'keyboard shortcuts'.",
     "The second session's prompt 'Read the handoff.', which follows the README's advice to ask Claude to read the handoff file.",
-    "All copy lines and every drawn object: the terminal lines, the page, the record card and the status row."
+    "All copy lines and every drawn object: the terminal lines, the page, the record card and the status row. The Korean lines follow the wording of the Korean README."
   ],
   "ambition": "A quiet, large-type reel where one idea runs the film: a giant word ignites and its light is handed from beat to beat by match cuts and scale hand-offs (word to corner mark, rows to chips, ticks to record, spark to flame) instead of cards, with one accent word per headline, long whitespace, a fast entry, a deliberate ease and a readable hold, and a first frame that is already a poster."
 }

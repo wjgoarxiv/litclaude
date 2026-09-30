@@ -168,17 +168,26 @@ test("version badge identifies the current scoped release and stays in lockstep"
 });
 
 // The promo film sits beside the cover, not inside the packed README asset folder, and follows the same 2.5 MiB rule.
+// The Korean page shows the same film with Korean lines (the -ko files).
 const promoRoot = new URL("docs/assets/promo/", root);
 const promoFiles = {
-  "litclaude-promo.mp4": "85db8cf334e622038aa6064ba52a398cb5c4bd94bc254ff1e1959943dec5e23b",
-  "litclaude-promo-preview.webp": "ac984366ea5b4bdd38223ee3aa8452f4cdb413e5150e3db76b5634818a1a352b",
-  "litclaude-promo-still.webp": "37dd3a043936068b370c1ddfcef03c810163ca5a85d504332d3db79cbb6ec5ce",
+  "litclaude-promo-ko-preview.webp": "e5c02a26695e60428b0c2341036387b9078bbda0e3a97028a330080ec8132b2c",
+  "litclaude-promo-ko-still.webp": "553a99622c2f6793545dae2f8b4dcc42c4bea0c39a5f8fd011e4027758023af9",
+  "litclaude-promo-ko.mp4": "4f405aa21bee55a94d755feafb10a92efd53253f5282cc748a11266bb33a0194",
+  "litclaude-promo-preview.webp": "7d9598e61beb7307649c3e94e52f472726ce7ba3a4a92f4240a934c745e72918",
+  "litclaude-promo-still.webp": "b90cadf7926ba85514c37c69b019918f1b1c3f6abb8c2d1ef7904df77c166ba7",
+  "litclaude-promo.mp4": "708f25342ea6f8934e675faad24f5c77ac4ac5707d91ec15d6e2521131205550",
 };
 const promoSource = {
-  "index.html": "21232a58a8bf6d8d02101d5ddaba06e68855a721c62dda14a624c76ae97fa6a0",
-  "treatment.json": "133a36f1e753dd228f58232f85189b3204a5bf4c88c44516b10e6868b268ee6b",
-  "wordmark.svg": "e71bad9421648bcabbdf728136e029eba7b5e283becf4bee4f046de35eef5945",
+  "Pretendard-OFL.txt": "b04538c9abec39a3db75108cf0af0fd9c77032fe8aa2cf38345b4d250e98e38e",
+  "index.html": "5e13254e85823dbcfabd5b61aed8aac57ad1298f8bccf24dc9355180fe553b48",
+  "treatment-ko.json": "aa7e79dbbfdcbcfdd33a8f4e8ab85bbcd725eb277f0dfd751aaa9df9c92b0f4f",
+  "treatment.json": "fed094af5a158ffc48cc03202874cde9ddbc29f6f21b7e620b26247f4842ec18",
 };
+const promoVariants = [
+  { page: "README.md", heading: "## Watch it in motion", suffix: "" },
+  { page: "README_ko-KR.md", heading: "## 움직이는 모습 보기", suffix: "-ko" },
+];
 
 test("promo film files keep their formats, sizes and approved bytes", () => {
   assert.deepEqual(readdirSync(promoRoot).sort(), [...Object.keys(promoFiles), "source"].sort());
@@ -186,18 +195,20 @@ test("promo film files keep their formats, sizes and approved bytes", () => {
     const bytes = readFileSync(new URL(name, promoRoot));
     assert.equal(createHash("sha256").update(bytes).digest("hex"), expected, name);
   }
-  const preview = readFileSync(new URL("litclaude-promo-preview.webp", promoRoot));
-  assert.ok(preview.length <= 2_621_440, "the inline preview must stay under 2.5 MiB");
-  assert.equal(preview.subarray(0, 4).toString(), "RIFF");
-  assert.equal(preview.subarray(8, 12).toString(), "WEBP");
-  assert.ok(preview.includes(Buffer.from("ANIM")), "the preview must be an animated WebP");
-  const still = readFileSync(new URL("litclaude-promo-still.webp", promoRoot));
-  assert.ok(still.length <= 262_144, "the reduced-motion still stays small");
-  assert.equal(still.subarray(8, 12).toString(), "WEBP");
-  assert.ok(!still.includes(Buffer.from("ANIM")), "the reduced-motion still is not animated");
-  const film = readFileSync(new URL("litclaude-promo.mp4", promoRoot));
-  assert.ok(film.length <= 8 * 1_048_576, "the master stays under 8 MiB");
-  assert.equal(film.subarray(4, 8).toString(), "ftyp");
+  for (const { suffix } of promoVariants) {
+    const preview = readFileSync(new URL(`litclaude-promo${suffix}-preview.webp`, promoRoot));
+    assert.ok(preview.length <= 2_621_440, "the inline preview must stay under 2.5 MiB");
+    assert.equal(preview.subarray(0, 4).toString(), "RIFF");
+    assert.equal(preview.subarray(8, 12).toString(), "WEBP");
+    assert.ok(preview.includes(Buffer.from("ANIM")), "the preview must be an animated WebP");
+    const still = readFileSync(new URL(`litclaude-promo${suffix}-still.webp`, promoRoot));
+    assert.ok(still.length <= 262_144, "the reduced-motion still stays small");
+    assert.equal(still.subarray(8, 12).toString(), "WEBP");
+    assert.ok(!still.includes(Buffer.from("ANIM")), "the reduced-motion still is not animated");
+    const film = readFileSync(new URL(`litclaude-promo${suffix}.mp4`, promoRoot));
+    assert.ok(film.length <= 8 * 1_048_576, "the master stays under 8 MiB");
+    assert.equal(film.subarray(4, 8).toString(), "ftyp");
+  }
   assert.deepEqual(readdirSync(new URL("source/", promoRoot)).sort(), Object.keys(promoSource).sort());
   for (const [name, expected] of Object.entries(promoSource)) {
     const bytes = readFileSync(new URL(`source/${name}`, promoRoot));
@@ -206,14 +217,32 @@ test("promo film files keep their formats, sizes and approved bytes", () => {
   }
 });
 
-test("both GitHub pages embed the promo like the cover and the npm cards leave it out", () => {
-  for (const [file, heading] of [["README.md", "## Watch it in motion"], ["README_ko-KR.md", "## 움직이는 모습 보기"]]) {
+test("the film source sets its copy in Pretendard at weights 400 and 700 and keeps the font license beside it", () => {
+  const page = readFileSync(new URL("source/index.html", promoRoot), "utf8");
+  assert.doesNotMatch(page, /Archivo|Silkscreen|VT323|Galmuri/u, "the copy uses no other display face");
+  const shorthands = [...page.matchAll(/font:\s*(\d{3})\s+[\d.]+px(?:\/[\d.]+(?:px)?)?\s+"([^"]+)"/gu)];
+  assert.ok(shorthands.length > 10, "the page declares its faces with font shorthands");
+  for (const [, weight, family] of shorthands) {
+    assert.ok(["Pretendard", "MesloLGS NF"].includes(family), `only Pretendard and the terminal face are used, saw ${family}`);
+    assert.ok(weight === "400" || weight === "700", `Pretendard and the terminal face are requested at 400 or 700 only, saw ${weight}`);
+  }
+  for (const treatment of ["treatment.json", "treatment-ko.json"]) {
+    const faces = JSON.parse(readFileSync(new URL(`source/${treatment}`, promoRoot), "utf8")).typePlan.faces;
+    assert.deepEqual(faces, ["Pretendard", "MesloLGS NF"], `${treatment} plans Pretendard and the terminal face only`);
+  }
+  const license = readFileSync(new URL("source/Pretendard-OFL.txt", promoRoot), "utf8");
+  assert.match(license, /SIL Open Font License, Version 1\.1/u);
+  assert.match(license, /Pretendard/u);
+});
+
+test("both GitHub pages embed their promo like the cover and the npm cards leave it out", () => {
+  for (const { page: file, heading, suffix } of promoVariants) {
     const content = read(file);
     assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${file} has one motion section`);
     const section = content.slice(content.indexOf(heading), content.indexOf("\n## ", content.indexOf(heading) + 4));
-    const picture = /<picture><source media="\(prefers-reduced-motion: reduce\)" srcset="\.\/docs\/assets\/promo\/litclaude-promo-still\.webp" \/><img src="\.\/docs\/assets\/promo\/litclaude-promo-preview\.webp" width="100%" alt="([^"]{80,})" \/><\/picture>/u.exec(section);
+    const picture = new RegExp(`<picture><source media="\\(prefers-reduced-motion: reduce\\)" srcset="\\./docs/assets/promo/litclaude-promo${suffix}-still\\.webp" /><img src="\\./docs/assets/promo/litclaude-promo${suffix}-preview\\.webp" width="100%" alt="([^"]{80,})" /></picture>`, "u").exec(section);
     assert.ok(picture, `${file} uses the cover's picture pattern with the still first and the preview as the image`);
-    assert.ok(section.includes("](./docs/assets/promo/litclaude-promo.mp4)"), `${file} links the MP4 separately`);
+    assert.ok(section.includes(`](./docs/assets/promo/litclaude-promo${suffix}.mp4)`), `${file} links its MP4 separately`);
     assert.ok(content.indexOf(heading) > content.indexOf("\n## "), `${file} places the section after the opening sections`);
     const cover = content.indexOf("cover-motion.webp");
     assert.ok(cover >= 0 && cover < content.indexOf(heading), `${file} keeps the cover first`);

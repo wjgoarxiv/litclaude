@@ -123,17 +123,69 @@ lit
 달라고 하세요. 그래야 무엇을 직접 해 봐야 하는지 알 수 있습니다. 처음에 뜬 로고는 작업이 시작됐다는
 표시입니다.
 
+### 화면에 나오는 모습
+
+아래 그림은 LitClaude가 터미널에 출력하는 내용입니다. 설치하기 전에 미리 볼 수 있도록 실었습니다.
+그림마다 LitClaude의 설치 프로그램, doctor 명령, 세션 시작 훅, 프롬프트 훅, 상태 줄이 실제로
+출력한 내용을 캡처했고, 빈 데모 프로젝트와 임시 홈 폴더에서 실행했습니다. 홈 폴더 경로만 `~`로
+줄였습니다. 창 테두리는 글자 둘레에 그려 넣은 것이라 실제 터미널에서는 글꼴과 색이 다르게
+보일 수 있습니다. 그림 속 버전 번호는 캡처한 릴리스의 번호입니다. 선택 기능인 Jev 스킬 힌트의
+화면은 [따로 모아 두었습니다](#jev-스킬-힌트-선택).
+
+설치는 계획을 먼저 보여 줍니다. 플러그인을 복사하는 일부터 설치된 항목을 모두 확인하는 일까지
+다섯 단계입니다. 마지막 줄은 모델은 계속 Claude Code가 고르고 나머지 Claude 설정은 그대로라는
+뜻입니다. 이 그림은 어두운 터미널입니다.
+
+<p align="center"><img src="./docs/assets/screens/install-plan.webp" width="752" alt="zsh라는 제목의 터미널 창. 주황색·크림색·초록색 블록 글자로 그린 LitClaude 마크 옆에 claude vX.Y.Z와 hermes, codex, opencode, grok이라는 이름이 있고, 그 아래에 Claude Code-native workflow distribution. 줄이 있습니다. 이어서 INSTALL PLAN 아래에 다섯 단계가 나옵니다. 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. 마지막 줄은 Model selection: host-owned · unrelated Claude settings preserved입니다." /></p>
+
+*설치 프로그램에서 캡처*
+
+다섯 단계는 각각 체크 표시로 끝나는 짧은 블록을 출력하고, 그다음에 설치 영수증이 나옵니다. 영수증에는
+버전, 플러그인, 파일이 들어간 폴더, HUD 강조색, 권한 모드(safe는 권한 규칙을 더하지 않습니다),
+Claude Code를 시작하는 명령이 적힙니다. 마지막 줄들은 영상 도구에 관한 내용입니다. 이번 실행에서는
+도구가 이미 디스크에 있어서 그 줄이 바로 나왔고, 처음 설치할 때는 먼저 내려받습니다.
+자세한 내용은 [설치](#설치)에 있습니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/install-done-dark.webp" /><img src="./docs/assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. INSTALL RECEIPT: Status Ready for Claude Code, Version X.Y.Z, Model route host-owned (Claude Code picks models), Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, HUD cyan accent, Permissions safe; global settings allow/deny; ownership-safe removal, Launch claude, Installation complete. 그 아래에 Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, ~ 아래의 Marketplace와 Plugin path 위치, HUD: LitClaude statusLine installed (cyan), 전역 설정 권한 줄, MOTION_RUNTIME: pre-warmed (engine deps and fonts ready), Launch with: claude 줄이 이어집니다." /></picture></p>
+
+*설치 프로그램에서 캡처*
+
+Claude Code 세션이 시작될 때마다 LitClaude가 마크와 버전을 출력합니다. 이 마크가 보이면 그 세션에서
+플러그인이 로드된 것입니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/session-start-dark.webp" /><img src="./docs/assets/screens/session-start-light.webp" width="656" alt="claude라는 제목의 터미널 창. 블록 글자로 그린 LitClaude 마크와 그 아래의 litclaude vX.Y.Z 줄." /></picture></p>
+
+*세션 시작 훅에서 캡처*
+
+`lit`를 입력하면 프롬프트 훅이 점화 마크와 함께 선택한 워크플로 이름을 출력합니다. 여기서는
+lit-loop입니다. 상태 줄에도 브랜드 이름 옆에 같은 마크가 붙고, 워크플로를 시작하지 않는
+프롬프트가 올 때까지 남아 있습니다. 창 아래의 확대 표지는 작은 화면에서도 마크를 읽기 쉽게
+해 줍니다. 이 그림은 어두운 터미널입니다.
+
+<p align="center"><img src="./docs/assets/screens/activation.webp" width="1076" alt="claude라는 제목의 터미널 창. 주황·분홍·청록 그러데이션으로 그린 LitClaude 마크 옆에 [flame icon] LIT IGNITED · lit-loop [flame icon]가 있습니다. 그 아래 상태 줄은 [[flame icon]LITCLAUDE vX.Y.Z] [flame icon] LIT IGNITED · lit-loop [flame icon] | O5.5 │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%이고, 둘째 줄은 └─ lit입니다. 창 아래에는 [flame icon] LIT IGNITED · lit-loop [flame icon]를 크게 보여 주는 확대 표지가 있습니다." /></p>
+
+*프롬프트 훅과 상태 줄에서 캡처*
+
+`litclaude doctor`는 설치된 플러그인을 점검하는데 보고서가 길어서, 그림에는 마지막 줄들을
+실었습니다. 영상 도구, Claude Code 버전, 플러그인 검증, 권한 모드, 상태 줄 점검이 나오고
+DOCTOR_PASS로 끝납니다. 창 너비는 100칸이고, 가장 긴 줄은 터미널이 줄을 바꾸는 방식대로
+접혀 있습니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/doctor-dark.webp" /><img src="./docs/assets/screens/doctor-light.webp" width="1004" alt="zsh라는 제목의 터미널 창에 doctor 보고서의 끝부분이 나옵니다. MOTION_PREWARM: ready — engine deps: ready (opentype.js 2.0.0); fonts: ready (21 verified by sha256). CLAUDE_VERSION: 2.1.285 (Claude Code). CLAUDE_PLUGIN_VALIDATE_PASS. CLAUDE_PLUGIN_DETAILS_PASS. Plugin path: ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z. PERMISSION_INTEGRITY_PASS. PERMISSION_MODE: safe. PERMISSION_SETTINGS_SCOPE: global Claude settings permissions.allow/deny. PERMISSION_OWNERSHIP: preserves pre-existing entries; removes only LitClaude-inserted entries. PERMISSION_PROFILE: global Claude settings permissions.allow/deny: adds no rules; preserves pre-existing entries; removes only LitClaude-inserted entries on mode change or uninstall. HUD_STATUSLINE_PASS. Launch with: claude. DOCTOR_PASS." /></picture></p>
+
+*doctor 명령에서 캡처*
+
 ## 움직이는 모습 보기
 
-이 영상은 작은 작업 하나가 LitClaude의 작업 흐름을 끝까지 지나가는 모습을 보여 줍니다. 누군가 할 일 목록을
-부탁하면 LitClaude가 목표와 먼저 실패하는 확인 항목 세 가지를 고정하고, 확인 항목이 통과할 때까지 페이지를
-눌러 보고, 그 결과를 새 세션이 열어서 이어 갈 수 있는 기록에 남깁니다. 길이는 약 25초입니다. 화면에 나오는
-모든 것은 영상을 위해 그린 것이고, 마지막의 상태 표시줄도 실제 HUD를 흉내 낸 그림입니다. 미리보기는 소리
-없이 반복되고, MP4에는 생성한 배경 음악이 들어 있습니다.
+요청 끝에 lit을 붙이면 흐릿하던 커다란 글자에 불이 붙습니다. 같은 불빛이 작은 작업 하나를 따라갑니다.
+목표를 고정하고, 세 가지 확인 항목이 먼저 실패하고, 실제 페이지를 눌러 통과시킨 다음, 결과를 다음
+세션이 읽을 기록에 남깁니다. 길이는 약 22초이고 글꼴은 Pretendard입니다. 화면에 나오는 모든 것은 영상을
+위해 그렸고, 마지막 상태 줄은 실제 상태 줄의 문구를 옮겨 적었습니다. 미리보기는 소리 없이 반복되고,
+MP4에는 생성한 배경 음악이 들어 있습니다. 이 한국어 판은 영어 판과 같은 영상에 한국어 문구를 넣은 것입니다.
 
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-still.webp" /><img src="./docs/assets/promo/litclaude-promo-preview.webp" width="100%" alt="홍보 영상. 'Ask for the work.'라는 제목 아래에서 터미널이 할 일 목록을 부탁하고 lit으로 끝나는 프롬프트를 입력합니다. 터미널은 add, complete, delete 세 가지 확인 항목에 가위표가 그려진 목표 카드로 커집니다. 작은 할 일 페이지를 눌러 보면 가위표가 체크 표시로 바뀝니다. 확인 항목은 목표, 확인한 내용, 다음 단계를 담은 기록이 되고, 불꽃 하나가 그 기록을 인수인계를 읽으라고 요청하는 새 터미널로 실어 나릅니다. 영상은 'Keep the work lit.', 상태 표시줄 위의 불꽃, 설치 명령으로 끝납니다." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-ko-still.webp" /><img src="./docs/assets/promo/litclaude-promo-ko-preview.webp" width="100%" alt="홍보 영상. 회색으로 흐릿한 커다란 lit 글자 위에 모든 요청 끝에라는 문구가 있고, i의 점에는 주황색 불씨가 있습니다. 할 일 목록을 부탁하는 프롬프트가 입력되어 lit으로 끝나면 글자가 주황색으로 타오르고, 어두워지며 작아져 모서리의 작은 lit 표시가 됩니다. 목표를 고정합니다. 제목 옆에 add, complete, delete라는 이름의 빈 원 세 개가 나타나고, 실패하는 테스트부터. 아래에서 원마다 주황색 가위표가 그려집니다. 실제 화면을 확인합니다. 아래에서 크림색 할 일 페이지를 눌러 보면 가위표가 체크 표시로 바뀝니다. 다음 세션으로 넘깁니다. 아래에서 체크 표시들이 작은 기록 카드로 날아가고 불꽃 하나가 인수인계를 읽는 새 터미널로 떨어집니다. 영상은 Keep the work lit., 커다란 불꽃, 한국어 소개 문장, 설치 명령, 상태 줄로 끝납니다." /></picture></p>
 
-[소리와 함께 MP4 재생](./docs/assets/promo/litclaude-promo.mp4)
+[소리와 함께 MP4 재생](./docs/assets/promo/litclaude-promo-ko.mp4)
 
 ## 무엇을 입력하나요
 

@@ -126,16 +126,69 @@ only way to know the buttons work. If Claude has no browser to test with, ask it
 the look and the clicks as unverified so you know what is left to try. The logo you saw at
 the start marks the moment the loop began.
 
+### What you will see on screen
+
+The pictures below show what LitClaude prints in your terminal, so you can see it before you
+install anything. Each one is output captured from LitClaude's own installer, doctor command,
+session hook, prompt hook and status line, run on an empty demo project with a temporary home
+folder. Only the path of that home folder is shortened to `~`. The window frame is drawn around
+the text, and your own terminal will use its own fonts and colors. The version number inside a
+picture belongs to the release it was captured from. The optional Jev skill hint has its own
+[pictures](#jev-skill-hint-optional).
+
+The install opens with its plan: five stages, from copying the plugin to checking every surface
+it installed. The last line repeats that Claude Code keeps choosing the model and that your other
+Claude settings stay as they are. This picture shows a dark terminal.
+
+<p align="center"><img src="./docs/assets/screens/install-plan.webp" width="752" alt="Terminal window titled zsh. The LitClaude block-letter mark in orange, cream and green, with claude vX.Y.Z and the names hermes, codex, opencode and grok beside it, then the line Claude Code-native workflow distribution. Below it, INSTALL PLAN with five stages: 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. The last line reads Model selection: host-owned · unrelated Claude settings preserved." /></p>
+
+*Captured from the installer.*
+
+The five stages each print a short block that ends in a check mark, and then the installer
+prints a receipt. It names the version, the plugin, the folder the files went to, the HUD
+accent, the permission mode (safe adds no permission rules) and the command that starts Claude
+Code. The last lines cover the video tools. In this run they were already on disk, so that line
+came back at once; a first install downloads them first, as described under [Install](#install).
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/install-done-dark.webp" /><img src="./docs/assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. INSTALL RECEIPT: Status Ready for Claude Code; Version X.Y.Z; Model route host-owned (Claude Code picks models); Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; HUD cyan accent; Permissions safe; global settings allow/deny; ownership-safe removal; Launch claude; Installation complete. Then the lines Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, the Marketplace and Plugin path locations under ~, HUD: LitClaude statusLine installed (cyan), the global settings permissions line, MOTION_RUNTIME: pre-warmed (engine deps and fonts ready), and Launch with: claude." /></picture></p>
+
+*Captured from the installer.*
+
+Every time a Claude Code session starts, LitClaude prints its mark and version. When you see it,
+the plugin has loaded in that session.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/session-start-dark.webp" /><img src="./docs/assets/screens/session-start-light.webp" width="656" alt="Terminal window titled claude. The LitClaude block-letter mark, and under it the line litclaude vX.Y.Z." /></picture></p>
+
+*Captured from the session-start hook.*
+
+Type `lit` and the prompt hook prints the ignition mark with the name of the workflow it chose,
+here lit-loop. The status line carries the same mark next to the brand name and keeps it until
+a prompt comes along that starts no workflow. The enlarged label under the window makes the mark
+easy to read on a small screen. This picture shows a dark terminal.
+
+<p align="center"><img src="./docs/assets/screens/activation.webp" width="1076" alt="Terminal window titled claude. The LitClaude mark in an orange, pink and cyan gradient with [flame icon] LIT IGNITED · lit-loop [flame icon] beside it. Below it, the status line: [[flame icon]LITCLAUDE vX.Y.Z] [flame icon] LIT IGNITED · lit-loop [flame icon] | O5.5 │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%, and a second line reading └─ lit. Under the window, an enlarged label reading [flame icon] LIT IGNITED · lit-loop [flame icon]." /></p>
+
+*Captured from the prompt hook and the status line.*
+
+`litclaude doctor` checks the installed plugin, and its report is long, so the picture shows the
+last lines: the video tools, the Claude Code version, plugin validation, the permission mode and
+the status line check, ending in DOCTOR_PASS. The window is 100 columns wide, and the longest
+line wraps the way a terminal wraps it.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screens/doctor-dark.webp" /><img src="./docs/assets/screens/doctor-light.webp" width="1004" alt="Terminal window titled zsh with the end of the doctor report: MOTION_PREWARM: ready — engine deps: ready (opentype.js 2.0.0); fonts: ready (21 verified by sha256). CLAUDE_VERSION: 2.1.285 (Claude Code). CLAUDE_PLUGIN_VALIDATE_PASS. CLAUDE_PLUGIN_DETAILS_PASS. Plugin path: ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z. PERMISSION_INTEGRITY_PASS. PERMISSION_MODE: safe. PERMISSION_SETTINGS_SCOPE: global Claude settings permissions.allow/deny. PERMISSION_OWNERSHIP: preserves pre-existing entries; removes only LitClaude-inserted entries. PERMISSION_PROFILE: global Claude settings permissions.allow/deny: adds no rules; preserves pre-existing entries; removes only LitClaude-inserted entries on mode change or uninstall. HUD_STATUSLINE_PASS. Launch with: claude. DOCTOR_PASS." /></picture></p>
+
+*Captured from the doctor command.*
+
 ## Watch it in motion
 
-This film follows one small job through the loop LitClaude runs. Someone asks for a to-do
-list, LitClaude pins the goal and three checks that fail first, the page gets clicked until
-the checks pass, and the result goes into a record that a fresh session opens and carries on
-from. It runs about 25 seconds. Everything on screen is drawn for the film, including the
-status bar at the end, which imitates the real HUD. The preview loops without sound; the MP4
-carries a generated music bed.
+A request ends with lit, and a giant dim word catches fire. The same light then follows one
+small job through the loop: the goal is pinned, its three checks fail first, a real page gets
+clicked until they pass, and the result goes into a record for the next session. The film runs
+about 22 seconds and is set in Pretendard. Everything on screen is drawn for the film, and the
+status row at the end repeats the text of the real status line. The preview loops without sound;
+the MP4 carries a generated music bed. The Korean page shows the same film with Korean lines.
 
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-still.webp" /><img src="./docs/assets/promo/litclaude-promo-preview.webp" width="100%" alt="Promo film. A terminal types a prompt asking for a to-do list and ending in lit, under the headline Ask for the work. The terminal grows into a goal card with three crossed-out checks named add, complete and delete. A small to-do page is clicked, and the crosses turn into ticks. The checks become a record with the goal, what was checked and the next step, and a spark carries it to a new terminal that asks to read the handoff. The film ends on Keep the work lit, a flame above a status bar, and the install command." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/promo/litclaude-promo-still.webp" /><img src="./docs/assets/promo/litclaude-promo-preview.webp" width="100%" alt="Promo film. The line End any request with sits above a huge grey lit word whose i dot is an orange ember, and a prompt about a to-do list types out below it and ends in lit. The word ignites orange, dims and shrinks into a small lit mark in the corner. The headline Pin the goal. appears beside three empty rings named add, complete and delete, and each ring gets an orange cross under the headline Fail first. Under Check the real page. a cream to-do page is clicked and the crosses turn into ticks. Under Hand it on. the ticks fly into a small record card and a spark drops into a new terminal that reads the handoff. The film ends on Keep the work lit., a large flame, the line about planning, building and checking in Claude Code, the install command and a status row." /></picture></p>
 
 [Play the MP4 with sound](./docs/assets/promo/litclaude-promo.mp4)
 

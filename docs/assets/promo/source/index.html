@@ -2,468 +2,483 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="/lit/fonts.css">
 <script src="/lit/stage-kit.js"></script>
+<!--
+  LitClaude promo film, set in Pretendard 400 and 700; MesloLGS NF only for what a terminal prints.
+  Copy lives in COPY below. LANG picks the English or the Korean lines; the Korean film is the same
+  page with LANG = "ko" and the matching treatment file.
+-->
 <style>
-  :root { --bg:#070b10; --panel:#0f141b; --panel2:#131922; --line:#2a323c; --cream:#f1ecdc; --orange:#ff6a2a; --lime:#d8f552; --muted:#9aa39a; --soft:#cfc9b8; }
+  :root { --bg:#06080b; --cream:#f2efdf; --orange:#ff6337; --dim:#6b6961; --ember:#ffb066; --muted:#a19e92; }
   html, body { margin:0; width:1920px; height:1080px; overflow:hidden; background:var(--bg); }
   #stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; font-synthesis:none; }
   .abs { position:absolute; }
-  #grid { position:absolute; left:-96px; top:-96px; width:2112px; height:1272px;
-    background-image:linear-gradient(rgba(241,236,220,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(241,236,220,.05) 1px, transparent 1px);
-    background-size:96px 96px; }
-  #vig { position:absolute; inset:0; background:radial-gradient(ellipse 70% 70% at 62% 50%, rgba(255,106,42,.07), rgba(7,11,16,0) 60%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(7,11,16,0) 55%, rgba(0,0,0,.55) 100%); }
-  #frame { position:absolute; left:0; top:0; }
-  #brand { position:absolute; left:120px; top:74px; height:30px; }
-  .hl { position:absolute; left:120px; top:360px; margin:0; font:900 116px/0.96 "Archivo", sans-serif; text-transform:uppercase; color:var(--cream); white-space:nowrap; letter-spacing:-0.004em; }
-  .hl .ln { display:inline-block; overflow:hidden; vertical-align:top; padding:0.05em 0.03em 0.03em 0.02em; margin:-0.05em -0.03em -0.03em -0.02em; }
-  .hl .in { display:inline-block; }
-  .hl .o { color:var(--orange); }
-  .hl.big { font-size:150px; top:238px; }
-  #h1, #h2, #h3, #h4 { top:300px; }
-  .sub { position:absolute; left:120px; top:544px; width:780px; text-wrap:balance; margin:0; font:400 38px/1.32 "Pretendard", sans-serif; color:var(--soft); }
-  #chain { position:absolute; left:120px; top:966px; height:40px; }
-  #chain .lab { position:absolute; top:0; font:400 22px/30px "MesloLGS NF", monospace; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
-  #chainbar { position:absolute; left:0; top:36px; height:4px; background:var(--orange); }
-  .panel { position:absolute; background:var(--panel); border:2px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 34px 70px rgba(0,0,0,.55); }
-  .hdr { position:absolute; left:0; right:0; top:0; height:46px; background:var(--panel2); border-bottom:2px solid var(--line); }
-  .dots { position:absolute; left:18px; top:16px; height:12px; width:60px; }
-  .dots i { position:absolute; top:0; width:12px; height:12px; border-radius:6px; background:#3a434f; }
-  .ttl { position:absolute; left:0; right:0; top:0; height:46px; line-height:46px; text-align:center; font:400 18px/46px "MesloLGS NF", monospace; color:var(--muted); letter-spacing:.08em; }
-  .body { position:absolute; left:0; right:0; top:46px; bottom:0; }
-  .layer { position:absolute; left:0; top:0; width:746px; }
+  #ambient { position:absolute; left:0; top:0; width:1920px; height:1080px; }
+  #vig { position:absolute; left:0; top:0; width:1920px; height:1080px; background:radial-gradient(ellipse 80% 80% at 50% 50%, rgba(6,8,11,0) 52%, rgba(6,8,11,.62) 100%); }
+  #hero { position:absolute; left:0; top:0; margin:0; font:700 720px/1 "Pretendard", sans-serif; letter-spacing:-0.03em; white-space:nowrap; transform-origin:0 0; color:#8a877d; }
+  #hero span { display:inline-block; }
+  #lead { position:absolute; left:0; width:1920px; text-align:center; top:118px; font:400 62px/1.2 "Pretendard", sans-serif; color:var(--muted); white-space:nowrap; }
+  #prompt { position:absolute; top:936px; font:400 36px/44px "MesloLGS NF", monospace; white-space:pre; color:var(--cream); }
+  #prompt .o { color:var(--orange); }
+  #promptlit { position:absolute; top:936px; font:400 36px/44px "MesloLGS NF", monospace; white-space:pre; color:var(--orange); }
+  #caret { position:absolute; width:20px; height:40px; background:var(--orange); top:938px; }
+  .hl { position:absolute; left:140px; margin:0; font:700 172px/1.02 "Pretendard", sans-serif; letter-spacing:-0.03em; color:var(--cream); white-space:nowrap; }
+  .hl.ko { font-size:140px; letter-spacing:0; line-height:1.12; }
+  .hl .ln { display:block; overflow:hidden; padding:0.07em 0.04em 0.1em 0.02em; margin:-0.07em -0.04em -0.1em -0.02em; }
+  .hl .in { display:block; }
+  .hl b { font-weight:700; color:var(--orange); }
   .mono { font-family:"MesloLGS NF", monospace; }
-  .prompt { position:absolute; left:34px; top:34px; width:650px; padding-left:40px; box-sizing:border-box; font:400 27px/1.55 "MesloLGS NF", monospace; color:var(--cream); white-space:pre-wrap; }
-  .prompt .mk { position:absolute; left:0; top:0; color:var(--orange); }
-  .prompt .ch { display:inline-block; }
-  .cur { position:absolute; width:15px; height:31px; background:var(--lime); }
-  .lab { font:700 20px/24px "Silkscreen", monospace; letter-spacing:.2em; text-transform:uppercase; }
-  .row { position:absolute; left:44px; width:660px; height:64px; background:#151c25; border:2px solid #222a35; border-radius:12px; }
-  .row .t { position:absolute; left:64px; top:0; line-height:60px; font:400 28px/60px "MesloLGS NF", monospace; color:var(--cream); }
-  .row .g { position:absolute; right:22px; top:0; font:400 18px/60px "MesloLGS NF", monospace; color:var(--muted); }
-  .chip { position:absolute; top:14px; width:212px; height:56px; background:#151c25; border:2px solid #222a35; border-radius:12px; }
-  .chip .t { position:absolute; left:58px; top:0; font:400 25px/52px "MesloLGS NF", monospace; color:var(--cream); }
-  .svgm { position:absolute; overflow:visible; }
-  .rec { position:absolute; left:44px; width:660px; }
-  .rec .k { position:absolute; left:0; top:0; font:400 20px/30px "MesloLGS NF", monospace; color:var(--muted); letter-spacing:.06em; }
-  .rec .v { position:absolute; left:150px; top:-3px; font:400 27px/36px "MesloLGS NF", monospace; color:var(--cream); white-space:nowrap; }
-  #browser { position:absolute; background:#f4f0e2; border:2px solid #cfc8b3; border-radius:16px; overflow:hidden; box-shadow:0 34px 70px rgba(0,0,0,.55); color:#17130b; }
-  #browser .bh { position:absolute; left:0; right:0; top:0; height:46px; background:#e6dfca; border-bottom:2px solid #cfc8b3; }
-  #browser .bh i { position:absolute; top:17px; width:12px; height:12px; border-radius:6px; background:#b9b19a; }
-  #browser .pill { position:absolute; left:110px; right:110px; top:9px; height:28px; border-radius:14px; background:#f4f0e2; border:2px solid #cfc8b3; box-sizing:border-box; }
-  .pg { font-family:"Pretendard", sans-serif; }
-  .item { position:absolute; left:40px; width:668px; height:64px; overflow:hidden; }
-  .ring { position:absolute; border-radius:50%; border:3px solid var(--orange); width:20px; height:20px; margin:-10px 0 0 -10px; }
-  #hud { position:absolute; background:var(--panel); border:2px solid var(--line); border-radius:14px; overflow:hidden; }
-  #hud .line { position:absolute; left:30px; top:0; height:92px; line-height:92px; font:400 25px/92px "MesloLGS NF", monospace; color:#5fd7ff; white-space:pre; }
-  .glow { position:absolute; border-radius:50%; }
+  .row { position:absolute; left:0; top:0; width:680px; height:96px; transform-origin:0 0; }
+  .row .lab { position:absolute; left:104px; top:0; font:400 46px/96px "MesloLGS NF", monospace; color:var(--cream); white-space:nowrap; }
+  .row .hair { position:absolute; left:0; top:114px; width:680px; height:2px; background:rgba(242,239,223,.14); }
+  .ring { position:absolute; left:0; top:0; width:64px; height:64px; overflow:visible; transform-origin:32px 32px; }
+  #page { position:absolute; left:1100px; top:170px; width:680px; height:560px; background:#f2efdf; border-radius:24px; overflow:hidden; color:#15120c; box-shadow:0 40px 90px rgba(0,0,0,.6); font-family:"Pretendard", sans-serif; }
+  #page .bar i { position:absolute; top:22px; width:12px; height:12px; border-radius:6px; background:#c9c2ab; }
+  #page .ttl { position:absolute; left:44px; top:76px; font:700 46px/56px "Pretendard", sans-serif; }
+  #page .inp { position:absolute; left:44px; top:160px; width:440px; height:64px; border-radius:16px; border:3px solid #cfc8b3; box-sizing:border-box; }
+  #page .inp span { position:absolute; left:20px; top:0; font:400 30px/58px "Pretendard", sans-serif; color:#3a352a; white-space:nowrap; }
+  #page .btn { position:absolute; left:504px; top:160px; width:132px; height:64px; border-radius:16px; background:#ff6337; color:#1a0f08; font:700 30px/64px "Pretendard", sans-serif; text-align:center; }
+  #page .item { position:absolute; left:44px; top:262px; width:592px; height:72px; transform-origin:50% 0; }
+  #page .item .box { position:absolute; left:8px; top:21px; width:30px; height:30px; border-radius:9px; border:3px solid #b9b198; box-sizing:border-box; }
+  #page .item .t { position:absolute; left:64px; top:0; font:400 32px/72px "Pretendard", sans-serif; }
+  #page .item .x { position:absolute; right:14px; top:0; font:400 40px/68px "Pretendard", sans-serif; color:#6b644f; }
+  #page .item .strike { position:absolute; left:64px; top:35px; height:3px; width:132px; background:#15120c; transform-origin:0 50%; }
+  #rec { position:absolute; left:1100px; top:190px; width:680px; height:400px; box-sizing:border-box; border-radius:24px; background:#0c1014; border:2px solid rgba(242,239,223,.22); }
+  #rec .rtitle { position:absolute; left:28px; top:20px; font:400 24px/32px "MesloLGS NF", monospace; color:var(--muted); }
+  #rec .k { position:absolute; left:28px; font:400 26px/40px "MesloLGS NF", monospace; color:var(--muted); }
+  #rec .v { position:absolute; left:238px; font:400 26px/40px "MesloLGS NF", monospace; color:var(--cream); white-space:nowrap; }
+  #pane { position:absolute; left:1100px; top:700px; width:680px; height:190px; box-sizing:border-box; border-radius:24px; background:#0c1014; border:2px solid rgba(242,239,223,.22); overflow:hidden; }
+  #pane i { position:absolute; top:22px; width:12px; height:12px; border-radius:6px; background:#3a3f45; }
+  #panetext { position:absolute; left:32px; top:92px; font:400 34px/44px "MesloLGS NF", monospace; color:var(--cream); white-space:pre; }
+  #panetext .o { color:var(--orange); }
+  #panecaret { position:absolute; top:94px; width:19px; height:38px; background:var(--orange); }
+  #tag { position:absolute; left:140px; top:704px; width:900px; margin:0; font:400 48px/1.32 "Pretendard", sans-serif; color:#d8d4c4; text-wrap:balance; }
+  #cmd { position:absolute; left:140px; top:872px; height:64px; padding:0 26px; border-radius:16px; border:2px solid rgba(242,239,223,.28); box-sizing:border-box; font:400 34px/60px "MesloLGS NF", monospace; color:var(--cream); white-space:pre; }
+  #cmd .o { color:var(--orange); }
+  #hud { position:absolute; left:1100px; top:800px; width:680px; height:84px; box-sizing:border-box; border-radius:20px; background:#0c1014; border:2px solid rgba(242,239,223,.22); }
+  #hudline { position:absolute; left:24px; top:0; height:80px; font:400 20px/80px "MesloLGS NF", monospace; color:#5fd7ff; white-space:pre; }
+  #hudline .o { color:var(--orange); }
+  #hudline svg { display:inline-block; width:26px; height:26px; vertical-align:-5px; }
+  svg { overflow:visible; }
 </style>
 <body>
 <div id="stage">
-  <div id="grid"></div>
+  <div id="ambient"></div>
   <div id="vig"></div>
-  <svg id="frame" width="1920" height="1080" viewBox="0 0 1920 1080">
-    <path id="fr-top" d="M60 140H1860" stroke="#2a323c" stroke-width="2" fill="none"/>
-    <path id="fr-bot" d="M60 940H1860" stroke="#2a323c" stroke-width="2" fill="none"/>
-    <g stroke="#d8f552" stroke-width="2" opacity=".55" fill="none">
-      <path d="M48 60H72M60 48V72"/><path d="M1848 60H1872M1860 48V72"/><path d="M48 1020H72M60 1008V1032"/><path d="M1848 1020H1872M1860 1008V1032"/>
-    </g>
-    <rect id="prog" x="60" y="138.5" width="0" height="3" fill="#d8f552"/>
+
+  <svg id="track" class="abs" style="left:0;top:0" width="1920" height="1080" viewBox="0 0 1920 1080">
+    <line id="track-base" x1="140" y1="1004" x2="1780" y2="1004" stroke="#6b6961" stroke-opacity=".35" stroke-width="2"/>
+    <g id="track-ticks" stroke="#6b6961" stroke-opacity=".7" stroke-width="2"></g>
+    <line id="track-fill" x1="140" y1="1004" x2="140" y2="1004" stroke="#ff6337" stroke-width="4" stroke-linecap="round"/>
+    <circle id="track-head" cx="140" cy="1004" r="7" fill="#ff6337"/>
   </svg>
-  <img id="brand" src="wordmark.svg" alt="">
 
-  <h1 class="hl" id="h1"></h1>
-  <h1 class="hl" id="h2"></h1>
-  <h1 class="hl" id="h3"></h1>
-  <h1 class="hl" id="h4"></h1>
-  <h1 class="hl big" id="h5"></h1>
-  <p class="sub" id="s2" style="top:566px"></p>
-  <p class="sub" id="s4" style="top:566px"></p>
-  <p class="sub" id="s5" style="top:560px"></p>
-  <div id="cta" class="abs" style="left:120px;top:704px;height:64px;"></div>
-
-  <div id="chain"></div>
-
-  <div id="browser" style="left:1050px;top:190px;width:750px;height:540px;">
-    <div class="bh"><i style="left:18px"></i><i style="left:38px"></i><i style="left:58px"></i><div class="pill"></div></div>
-    <div class="abs pg" style="left:0;top:46px;width:746px;height:490px;" id="bpage"></div>
-  </div>
-
-  <div id="panel" class="panel" style="left:1050px;top:320px;width:750px;height:300px;">
-    <div class="hdr"><div class="dots"><i style="left:0"></i><i style="left:20px"></i><i style="left:40px"></i></div>
-      <div class="ttl" id="tt1">claude</div><div class="ttl" id="tt2">goal</div><div class="ttl" id="tt3">checks</div><div class="ttl" id="tt4">handoff</div></div>
-    <div class="body" id="pbody"></div>
-  </div>
-
-  <svg id="link" class="abs" width="1920" height="1080" viewBox="0 0 1920 1080" style="left:0;top:0;pointer-events:none">
-    <path id="linkline" d="M1425 592V700" stroke="#d8f552" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path id="linkarrow" d="M1414 686L1425 700L1436 686" stroke="#d8f552" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <div id="lead"></div>
+  <div id="hero"></div>
+  <svg id="emberlayer" class="abs" style="left:0;top:0" width="1920" height="1080" viewBox="0 0 1920 1080">
+    <defs><radialGradient id="halo"><stop offset="0" stop-color="#ff6337" stop-opacity=".95"/><stop offset=".45" stop-color="#ff6337" stop-opacity=".35"/><stop offset="1" stop-color="#ff6337" stop-opacity="0"/></radialGradient></defs>
+    <circle id="ember-halo" cx="0" cy="0" r="100" fill="url(#halo)"/>
+    <circle id="ember-core" cx="0" cy="0" r="10" fill="#ff6337"/>
   </svg>
-  <div id="spark" class="abs" style="left:1416px;top:583px;width:18px;height:18px;border-radius:9px;background:#d8f552;box-shadow:0 0 22px 6px rgba(216,245,82,.55);"></div>
-  <div id="nextlab" class="abs lab" style="left:1447px;top:630px;color:var(--orange);"></div>
+  <div id="prompt"></div>
+  <div id="promptlit"></div>
+  <div id="caret"></div>
 
-  <div id="winb" class="panel" style="left:1050px;top:706px;width:750px;height:180px;">
-    <div class="hdr"><div class="dots"><i style="left:0"></i><i style="left:20px"></i><i style="left:40px"></i></div><div class="ttl">claude</div></div>
-    <div class="body" id="wbody"></div>
+  <div id="heads"></div>
+
+  <div id="rows"></div>
+
+  <div id="page">
+    <div class="bar"><i style="left:26px"></i><i style="left:46px"></i><i style="left:66px"></i></div>
+    <div class="ttl" id="pg-title"></div>
+    <div class="inp"><span id="pg-input"></span></div>
+    <div class="btn" id="pg-add"></div>
+    <div class="item" id="pg-item">
+      <div class="box" id="pg-box"><svg width="30" height="30" viewBox="0 0 30 30" style="position:absolute;left:-3px;top:-3px"><path id="pg-tick" d="M7 15L13 21L23 9" fill="none" stroke="#fff8ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="t" id="pg-text"></div>
+      <div class="strike" id="pg-strike"></div>
+      <div class="x">×</div>
+    </div>
   </div>
+  <svg id="cursorlayer" class="abs" style="left:0;top:0" width="1920" height="1080" viewBox="0 0 1920 1080">
+    <circle id="click-a" r="18" fill="none" stroke="#ff6337" stroke-width="4" opacity="0"/>
+    <circle id="click-b" r="18" fill="none" stroke="#ff6337" stroke-width="4" opacity="0"/>
+    <circle id="click-c" r="18" fill="none" stroke="#ff6337" stroke-width="4" opacity="0"/>
+    <g id="cursor"><path d="M0 0L0 32L8.5 24.5L14.5 37.5L21 34.5L15 21.5L26.5 21.5Z" fill="#f2efdf" stroke="#06080b" stroke-width="2.5" stroke-linejoin="round"/></g>
+  </svg>
 
+  <div id="rec">
+    <div class="rtitle" id="rec-title"></div>
+    <div class="k" style="top:70px" id="rk1"></div><div class="v" style="top:70px" id="rv1"></div>
+    <div class="k" style="top:144px" id="rk2"></div><div class="v" style="top:144px" id="rv2"></div>
+    <div class="k" style="top:218px" id="rk3"></div>
+    <div class="k" style="top:292px" id="rk4"></div><div class="v" style="top:292px" id="rv4"></div>
+  </div>
   <div id="rings"></div>
-  <div id="flamewrap" class="abs" style="left:1225px;top:210px;width:400px;height:500px;"></div>
-  <div id="hud" style="left:1050px;top:780px;width:750px;height:96px;"><div class="line" id="hudline"></div></div>
-  <div id="cursor" class="abs" style="left:0;top:0;width:34px;height:34px;">
-    <svg width="34" height="34" viewBox="0 0 24 24"><path d="M4 2L4 19L8.6 14.6L11.6 21.4L14.4 20.2L11.5 13.6L18 13.4Z" fill="#f1ecdc" stroke="#070b10" stroke-width="1.6" stroke-linejoin="round"/></svg>
-  </div>
+  <svg id="sparklayer" class="abs" style="left:0;top:0" width="1920" height="1080" viewBox="0 0 1920 1080">
+    <path id="spark-line" d="M1440 592L1440 700" stroke="#ff6337" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+    <circle id="spark-halo" r="34" fill="url(#halo)"/>
+    <circle id="spark" r="9" fill="#ff6337"/>
+  </svg>
+  <div id="pane"><i style="left:26px"></i><i style="left:46px"></i><i style="left:66px"></i><div id="panetext"></div><div id="panecaret"></div></div>
+
+  <div id="flameglow" class="abs" style="left:1063px;top:230px;width:800px;height:640px;"></div>
+  <svg id="flame" class="abs" style="left:1160px;top:190px" width="560" height="560" viewBox="0 0 24 24">
+    <defs><linearGradient id="fg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a1f"/><stop offset="1" stop-color="#ff9a3a"/></linearGradient></defs>
+    <path d="M12.6 1.5c.5 3.2-1 4.9-2.4 6.6C8.6 10 7 11.9 7 15a6 6 0 0 0 12 0c0-2.2-.9-3.8-2-5.2-.2 1.1-.8 2-1.8 2.4.5-3.6-.9-8.1-2.6-10.7z" fill="url(#fg)"/>
+    <path d="M12 22a3.5 3.5 0 0 1-3.5-3.5c0-1.8 1.2-2.8 2.1-3.9.5-.6.9-1.3.9-2.3 1.9 1.3 4 3.3 4 6.2A3.5 3.5 0 0 1 12 22z" fill="#ffd9a0"/>
+  </svg>
+  <div id="hud"><div id="hudline"></div></div>
+  <p id="tag"></p>
+  <div id="cmd"></div>
 </div>
+
 <script>
+const LANG = "en";
+if (LANG === "ko") document.body.style.wordBreak = "keep-all";
 const COPY = {
-  h1: ["Ask for", "the work."],
-  prompt1: "Build a to-do list in a single HTML file. lit",
-  h2: ["Pin the", "goal."],
-  s2: "Write the failing test first.",
-  h3: ["Check the", "real page."],
-  h4: ["Hand it", "off."],
-  s4: "The next session reads the record and carries on.",
-  promptB: "Read the handoff. What is next?",
-  nextSession: "Next session",
-  h5: ["Keep the", "work lit."],
-  s5: "Plan, build and check your work in Claude Code.",
-  cta: "npm install -g @litfamily/litclaude"
+  en: {
+    lead: "End any request with",
+    hero: "lit",
+    h2: ["Pin the", "<b>goal.</b>"],
+    h3: ["Fail <b>first.</b>"],
+    h4: ["Check the", "<b>real page.</b>"],
+    h5: ["Hand it", "<b>on.</b>"],
+    h6: ["Keep the", "work <b>lit.</b>"],
+    tag: "Plan, build and check your work in Claude Code.",
+    cmd: "npm install -g @litfamily/litclaude",
+  },
+  ko: {
+    lead: "모든 요청 끝에",
+    hero: "lit",
+    h2: ["목표를", "<b>고정합니다.</b>"],
+    h3: ["실패하는", "<b>테스트부터.</b>"],
+    h4: ["실제 화면을", "<b>확인합니다.</b>"],
+    h5: ["다음 세션으로", "<b>넘깁니다.</b>"],
+    h6: ["Keep the", "work <b>lit.</b>"],
+    tag: "확인한 일을 다음 세션으로 이어가세요.",
+    cmd: "npm install -g @litfamily/litclaude",
+  },
+}[LANG];
+// What a terminal, a page or a record would print. Drawn objects, not copy.
+const DEMO = {
+  prompt: "Build a to-do list in one HTML file. ",
+  ask: "lit",
+  rows: ["add", "complete", "delete"],
+  pageTitle: "To-do", pageInput: "Buy milk", pageAdd: "Add",
+  recTitle: ".litclaude/litgoal/",
+  rk: ["goal", "checked", "result", "next"],
+  rv: ["to-do list, one file", "add · complete · delete", "", "keyboard shortcuts"],
+  pane: "Read the handoff.",
 };
-const { define, text, ease, at, kf, clipRect, drawPath, lerp, clamp, spring, mix } = LitStage;
+
+const { define, text, ease, at, kf, clipRect, drawPath, lerp, clamp, mix, rgba, spring } = LitStage;
+const DUR = 22;
+const CUT = [4.2, 7.4, 10.4, 14.4, 17.8];
+const C = { bg: "#06080b", cream: "#f2efdf", orange: "#ff6337", dim: "#6b6961", ember: "#ffb066", muted: "#a19e92" };
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
-const CREAM = "#f1ecdc", ORANGE = "#ff6a2a", LIME = "#d8f552", MUTED = "#9aa39a";
+const setVis = (el, on) => { el.style.visibility = on ? "visible" : "hidden"; };
 
-// ---------- headlines ----------
-const H = [];
-function buildHeadline(id, lines, accent, start, end) {
-  const el = $(id);
-  el.innerHTML = lines.map((l, i) => {
-    let inner = l;
-    if (accent && accent.line === i) inner = l.replace(accent.word, `<span class="o">${accent.word}</span>`);
-    return `<span class="ln"><span class="in">${inner}</span></span>`;
-  }).join("<br>");
-  text(el);
-  H.push({ el, ins: [...el.querySelectorAll(".in")], start, end });
+// ---- hero word ----
+const hero = $("hero");
+hero.innerHTML = [...COPY.hero].map((ch) => `<span>${ch}</span>`).join("");
+text(hero);
+const heroLetters = [...hero.children];
+const HERO_FS = 720;
+const heroW = hero.getBoundingClientRect().width;
+const HX0 = (1920 - heroW) / 2, HY0 = 150;
+const MARK_FS = 46, MARK_S = MARK_FS / HERO_FS, MARK_X = 140, MARK_Y = 72;
+// The dot of the i, where the ember sits (fractions of the font size, measured on the i box).
+const iBox = heroLetters[1].getBoundingClientRect();
+const DOT = { x: HX0 + (iBox.left - hero.getBoundingClientRect().left) + iBox.width * 0.5 + HERO_FS * 0.0153, y: HY0 + HERO_FS * 0.182, r: HERO_FS * 0.0785 };
+
+const lead = $("lead"); lead.textContent = COPY.lead; text(lead);
+
+// ---- prompt (decor) ----
+const prompt = $("prompt"); text(prompt, { decor: true });
+const promptlit = $("promptlit"); text(promptlit);
+const CHW = 36 * 0.6;
+const promptFull = "> " + DEMO.prompt + DEMO.ask;
+const PX = (1920 - promptFull.length * CHW) / 2;
+prompt.style.left = PX + "px";
+promptlit.style.left = PX + (2 + DEMO.prompt.length) * CHW + "px";
+const caret = $("caret");
+
+// ---- headlines ----
+const heads = {};
+for (const [id, lines] of [["h2", COPY.h2], ["h3", COPY.h3], ["h4", COPY.h4], ["h5", COPY.h5], ["h6", COPY.h6]]) {
+  const h = document.createElement("h1");
+  h.className = "hl" + (LANG === "ko" && id !== "h6" ? " ko" : "");
+  h.innerHTML = lines.map((l) => `<span class="ln"><span class="in">${l}</span></span>`).join(" ");
+  const single = lines.length === 1;
+  const fs = id === "h6" ? 196 : LANG === "ko" ? 140 : single ? 214 : 172;
+  if (fs !== 172 && !(LANG === "ko" && id !== "h6")) h.style.fontSize = fs + "px";
+  const n = lines.length;
+  const lh = LANG === "ko" && id !== "h6" ? 1.12 : 1.02;
+  h.style.top = (id === "h6" ? 236 : 520 - (n * fs * lh) / 2) + "px";
+  $("heads").appendChild(h);
+  text(h);
+  heads[id] = { el: h, ins: [...h.querySelectorAll(".in")] };
 }
-buildHeadline("h1", COPY.h1, { line: 1, word: "work." }, -0.35, 5);
-buildHeadline("h2", COPY.h2, { line: 1, word: "goal." }, 5, 10);
-buildHeadline("h3", COPY.h3, { line: 1, word: "real page." }, 10, 15);
-buildHeadline("h4", COPY.h4, { line: 1, word: "off." }, 15, 20);
-buildHeadline("h5", COPY.h5, { line: 1, word: "lit." }, 20, 999);
-for (const [id, k] of [["s2", "s2"], ["s4", "s4"], ["s5", "s5"]]) { $(id).textContent = COPY[k]; text($(id)); }
-$("nextlab").textContent = COPY.nextSession; text($("nextlab"));
-$("cta").innerHTML = `<div style="display:inline-block;height:64px;padding:0 26px;border:2px solid ${LIME};border-radius:12px;font:400 28px/60px 'MesloLGS NF',monospace;color:${LIME};white-space:nowrap;" id="ctatxt"></div>`;
-$("ctatxt").textContent = COPY.cta; text($("ctatxt"));
-
-// ---------- step chain (diagram) ----------
-const chainLabels = ["Plan", "Build", "Check", "Hand off"];
-const chainEl = $("chain");
-const chainX = [];
-{
-  let x = 0;
-  chainLabels.forEach((l, i) => {
-    const s = document.createElement("span"); s.className = "lab"; s.textContent = l; s.style.left = x + "px"; chainEl.appendChild(s);
-    text(s, { decor: true });
-    const w = s.getBoundingClientRect().width; chainX.push({ x, w, s }); x += w;
-    if (i < 3) {
-      const a = document.createElementNS(NS, "svg"); a.setAttribute("class", "svgm"); a.setAttribute("width", "40"); a.setAttribute("height", "30"); a.style.left = (x + 12) + "px"; a.style.top = "0";
-      a.innerHTML = '<path d="M4 15H30M23 8L30 15L23 22" stroke="#4a5563" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-      chainEl.appendChild(a); x += 64;
+function head(h, tin, tout, t) {
+  h.ins.forEach((el, i) => {
+    if (LANG === "ko") {
+      // Dense Hangul keeps its strokes almost still while it fades, which the flash audit prefers to a fast mask.
+      const kin = at(t, tin + i * 0.09, 0.75, ease.outCubic);
+      const kout = tout == null ? 0 : at(t, tout + i * 0.04, 0.34, ease.inOutSine);
+      el.style.transform = `translateY(${(1 - kin) * 26}%)`;
+      el.style.opacity = String(kin * (1 - kout));
+      return;
     }
+    const pin = at(t, tin + i * 0.09, 0.8, ease.outQuint);
+    const pout = tout == null ? 0 : at(t, tout + i * 0.04, 0.36, ease.inCubic);
+    el.style.transform = `translateY(${(1 - pin) * 112 - pout * 112}%)`;
   });
-  const bar = document.createElement("div"); bar.id = "chainbar"; chainEl.appendChild(bar);
-}
-const chainBar = $("chainbar");
-function chainActive(t) { return t < 5 ? -1 : t < 10 ? 0 : t < 12.5 ? 1 : t < 15 ? 2 : t < 20 ? 3 : 4; }
-
-// ---------- glyph helpers ----------
-const FLAME = (id, size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="overflow:visible"><defs><linearGradient id="fg${id}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a1f"/><stop offset="1" stop-color="#ffb02e"/></linearGradient></defs><path d="M12.6 1.5c.5 3.2-1 4.9-2.4 6.6C8.6 10 7 11.9 7 15a6 6 0 0 0 12 0c0-2.2-.9-3.8-2-5.2-.2 1.1-.8 2-1.8 2.4.5-3.6-.9-8.1-2.6-10.7z" fill="url(#fg${id})"/><path d="M12 22a3.5 3.5 0 0 1-3.5-3.5c0-1.8 1.2-2.8 2.1-3.9.5-.6.9-1.3.9-2.3 1.9 1.3 4 3.3 4 6.2A3.5 3.5 0 0 1 12 22z" fill="#ffe29a"/></svg>`;
-function markSvg(parent, x, y, size) {
-  const s = document.createElementNS(NS, "svg"); s.setAttribute("class", "svgm"); s.setAttribute("width", size); s.setAttribute("height", size); s.setAttribute("viewBox", "0 0 36 36");
-  s.style.left = x + "px"; s.style.top = y + "px";
-  s.innerHTML = `<path class="c1" d="M9 9L27 27" stroke="${ORANGE}" stroke-width="4.5" stroke-linecap="round" fill="none"/><path class="c2" d="M27 9L9 27" stroke="${ORANGE}" stroke-width="4.5" stroke-linecap="round" fill="none"/><path class="tk" d="M7 19L15 27L30 9" stroke="${LIME}" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
-  parent.appendChild(s);
-  const c1 = s.querySelector(".c1"), c2 = s.querySelector(".c2"), tk = s.querySelector(".tk");
-  return { s, set(cross, tick) { drawPath(c1, clamp(cross * 2)); drawPath(c2, clamp(cross * 2 - 1)); drawPath(tk, tick); c1.style.opacity = c2.style.opacity = cross > 0.001 ? 1 : 0; tk.style.opacity = tick > 0.001 ? 1 : 0; } };
+  setVis(h.el, t >= tin - 0.02 && (tout == null || t <= tout + 0.5));
 }
 
-// ---------- terminal panel layers ----------
-const pbody = $("pbody");
-// L1: prompt
-const L1 = document.createElement("div"); L1.className = "layer"; L1.style.height = "260px"; pbody.appendChild(L1);
-const promptEl = document.createElement("div"); promptEl.className = "prompt";
-promptEl.innerHTML = '<span class="mk">&gt;</span>';
-L1.appendChild(promptEl);
-function makeTyper(container, str, limeFrom) {
-  const spans = [];
-  const holder = document.createElement("span"); container.appendChild(holder);
-  let word = null;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    if (ch === " ") { holder.appendChild(document.createTextNode(" ")); spans.push(null); word = null; continue; }
-    if (!word) { word = document.createElement("span"); word.style.whiteSpace = "nowrap"; word.style.display = "inline-block"; holder.appendChild(word); }
-    const sp = document.createElement("span"); sp.className = "ch"; sp.textContent = ch; if (limeFrom !== undefined && i >= limeFrom) sp.style.color = LIME;
-    word.appendChild(sp); spans.push(sp);
-  }
-  return spans;
-}
-const typed1 = makeTyper(promptEl, COPY.prompt1, COPY.prompt1.length - 3);
-text(promptEl);
-const cur1 = document.createElement("div"); cur1.className = "cur"; promptEl.appendChild(cur1);
-const litBar = document.createElement("div"); litBar.className = "abs"; litBar.style.cssText = `height:4px;background:${LIME};left:0;top:0;width:0`; promptEl.appendChild(litBar);
-function typeStep(spans, cur, t, start, cps, blink) {
-  let last = -1;
-  for (let i = 0; i < spans.length; i++) {
-    const on = t >= start + i / cps;
-    if (spans[i]) spans[i].style.opacity = on ? 1 : 0;
-    if (on) last = i;
-  }
-  let l = 0, tp = 0;
-  const ref = last >= 0 ? (() => { for (let j = last; j >= 0; j--) if (spans[j]) return spans[j]; return null; })() : null;
-  if (ref) { l = ref.offsetLeft + ref.offsetWidth; tp = ref.offsetTop; }
-  else { l = 40; tp = 0; }
-  cur.style.left = l + 2 + "px"; cur.style.top = tp + 2 + "px";
-  cur.style.opacity = t < start ? 0 : (last >= spans.length - 1 ? (Math.floor(t * 2.4) % 2 === 0 ? 1 : 0.15) : 1);
-}
-
-// L2: goal card
-const L2 = document.createElement("div"); L2.className = "layer"; L2.style.height = "594px"; pbody.appendChild(L2);
-L2.innerHTML = `
-  <div class="lab abs" style="left:44px;top:34px;color:${ORANGE}" id="g-lab">Goal</div>
-  <div class="abs pg" style="left:44px;top:70px;width:670px;font:700 34px/44px 'Pretendard',sans-serif;color:${CREAM};" id="g-title">To-do list in one HTML file</div>
-  <div class="abs mono" style="left:44px;top:122px;font:400 20px/26px 'MesloLGS NF',monospace;color:${MUTED};" id="g-sub">no external dependencies</div>
-  <div class="abs" id="g-rule" style="left:44px;top:176px;width:660px;height:2px;background:#2a323c;transform-origin:0 0;"></div>
-  <div class="lab abs" style="left:44px;top:200px;color:${MUTED};font-size:18px" id="g-checks">Checks</div>
-  <div class="abs mono" id="g-chip" style="left:520px;top:194px;height:34px;padding:0 14px;border:2px solid ${ORANGE};border-radius:17px;font:400 17px/30px 'MesloLGS NF',monospace;color:${CREAM};">written first</div>`;
-const goalRows = ["add", "complete", "delete"].map((name, i) => {
-  const r = document.createElement("div"); r.className = "row"; r.style.top = 250 + i * 80 + "px";
-  r.innerHTML = `<div class="t">${name}</div><div class="g">fails</div>`;
-  L2.appendChild(r);
-  const m = markSvg(r, 14, 12, 36);
-  return { r, m };
+// ---- rows and rings ----
+const ROW_X = 1100, ROW_Y = [408 - 48, 540 - 48, 672 - 48], CHIP_S = 0.66, CHIP_Y = 902 - 48 * CHIP_S;
+const CHIP_X = [1100, 1283, 1557];
+const rowEls = [], ringEls = [];
+DEMO.rows.forEach((name, i) => {
+  const r = document.createElement("div");
+  r.className = "row";
+  r.innerHTML = `<div class="lab">${name}</div><div class="hair"></div>`;
+  $("rows").appendChild(r);
+  text(r.querySelector(".lab"), { decor: true });
+  rowEls.push({ el: r, lab: r.querySelector(".lab"), hair: r.querySelector(".hair") });
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("class", "ring");
+  s.setAttribute("viewBox", "0 0 64 64");
+  s.innerHTML = `<circle class="fill" cx="32" cy="32" r="27" fill="#f2efdf" opacity="0"/><circle class="rg" cx="32" cy="32" r="27" fill="none" stroke="#6b6961" stroke-width="4"/>
+    <path class="x1" d="M22 22L42 42" stroke="#ff6337" stroke-width="5" stroke-linecap="round" fill="none"/><path class="x2" d="M42 22L22 42" stroke="#ff6337" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path class="tk" d="M19 33L28 42L45 23" stroke="#06080b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  $("rings").appendChild(s);
+  ringEls.push({ el: s, fill: s.querySelector(".fill"), rg: s.querySelector(".rg"), x1: s.querySelector(".x1"), x2: s.querySelector(".x2"), tk: s.querySelector(".tk") });
 });
-for (const id of ["g-lab", "g-title", "g-sub", "g-checks", "g-chip"]) text($(id), { decor: true });
-goalRows.forEach(({ r }) => { text(r.querySelector(".t"), { decor: true }); text(r.querySelector(".g"), { decor: true }); });
-
-// L3: strip
-const L3 = document.createElement("div"); L3.className = "layer"; L3.style.height = "84px"; pbody.appendChild(L3);
-const chips = ["add", "complete", "delete"].map((name, i) => {
-  const c = document.createElement("div"); c.className = "chip"; c.style.left = 28 + i * 238 + "px"; c.innerHTML = `<div class="t">${name}</div>`;
-  L3.appendChild(c); const m = markSvg(c, 12, 9, 34); text(c.querySelector(".t"), { decor: true }); return { c, m };
-});
-
-// L4: record
-const L4 = document.createElement("div"); L4.className = "layer"; L4.style.height = "354px"; pbody.appendChild(L4);
-const recRows = [["goal", "To-do list in one HTML file", 36], ["checked", "add · complete · delete", 112], ["next", "keyboard shortcuts", 188]].map(([k, v, y]) => {
-  const d = document.createElement("div"); d.className = "rec"; d.style.top = y + "px"; d.innerHTML = `<div class="k">${k}</div><div class="v">${v}</div>`; L4.appendChild(d);
-  text(d.querySelector(".k"), { decor: true }); text(d.querySelector(".v"), { decor: true }); return d;
-});
-const recTicks = [0, 1, 2].map((i) => { const m = markSvg(L4, 610 + i * 34, 106, 30); return m; });
-const folder = document.createElement("div"); folder.className = "abs"; folder.style.cssText = "left:44px;top:276px;height:40px;";
-folder.innerHTML = `<svg width="30" height="26" viewBox="0 0 30 26" style="position:absolute;left:0;top:4px"><path d="M2 5.5H11L14 9H28V23H2Z" fill="none" stroke="${LIME}" stroke-width="2.4" stroke-linejoin="round"/></svg><div class="mono" id="folder-t" style="position:absolute;left:44px;top:0;font:400 23px/34px 'MesloLGS NF',monospace;color:${LIME};white-space:nowrap;">.litclaude/litgoal/</div>`;
-L4.appendChild(folder); text($("folder-t"), { decor: true });
-const folderRule = document.createElement("div"); folderRule.className = "abs"; folderRule.style.cssText = "left:44px;top:258px;width:660px;height:2px;background:#2a323c;transform-origin:0 0;"; L4.appendChild(folderRule);
-
-// ---------- browser page ----------
-const bpage = $("bpage");
-bpage.innerHTML = `
-  <div class="abs" style="left:40px;top:28px;font:700 46px/56px 'Pretendard',sans-serif;color:#17130b;" id="b-title">To-do</div>
-  <div class="abs" id="b-input" style="left:40px;top:104px;width:492px;height:64px;border:3px solid #17130b;border-radius:12px;box-sizing:border-box;background:#fbf9f1;"></div>
-  <div class="abs pg" id="b-ph" style="left:60px;top:104px;font:400 28px/64px 'Pretendard',sans-serif;color:#8b846f;">What needs doing?</div>
-  <div class="abs pg" id="b-typed" style="left:60px;top:104px;font:400 28px/64px 'Pretendard',sans-serif;color:#17130b;white-space:pre;"></div>
-  <div class="abs" id="b-btn" style="left:548px;top:104px;width:160px;height:64px;border-radius:12px;background:${ORANGE};font:700 28px/64px 'Pretendard',sans-serif;color:#17130b;text-align:center;">Add</div>
-  <div class="abs" id="b-list" style="left:0;top:196px;width:746px;height:260px;"></div>`;
-for (const id of ["b-title", "b-ph", "b-typed", "b-btn"]) text($(id), { decor: true });
-const bItem = document.createElement("div"); bItem.className = "item"; bItem.style.top = "0px";
-bItem.innerHTML = `<div class="abs" style="left:0;top:0;width:668px;height:64px;border-bottom:2px solid #d9d2bd;box-sizing:border-box;"></div>
-  <div class="abs" id="b-cb" style="left:6px;top:14px;width:32px;height:32px;border-radius:16px;border:3px solid #17130b;box-sizing:border-box;"></div>
-  <svg class="svgm" style="left:6px;top:14px" width="32" height="32" viewBox="0 0 32 32"><path id="b-cbtick" d="M8 17L14 23L25 9" stroke="#17130b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
-  <div class="abs pg" id="b-item" style="left:60px;top:0;font:400 30px/58px 'Pretendard',sans-serif;color:#17130b;white-space:nowrap;">Buy milk</div>
-  <div class="abs" id="b-strike" style="left:60px;top:29px;height:3px;background:#17130b;width:0;"></div>
-  <svg class="svgm" id="b-x" style="left:622px;top:14px" width="32" height="32" viewBox="0 0 32 32"><path d="M8 8L24 24M24 8L8 24" stroke="#8b846f" stroke-width="3.6" stroke-linecap="round" fill="none"/></svg>`;
-$("b-list").appendChild(bItem); text($("b-item"), { decor: true });
-const cbTick = $("b-cbtick");
-const bTypedSpans = (() => { const box = $("b-typed"); return makeTyper(box, "Buy milk"); })();
-// click timing (seconds)
-const CLICK = [12.1875, 13.4375, 14.375];
-
-// ---------- window B ----------
-const wbody = $("wbody");
-const promptB = document.createElement("div"); promptB.className = "prompt"; promptB.style.top = "40px"; promptB.innerHTML = '<span class="mk">&gt;</span>'; wbody.appendChild(promptB);
-const typedB = makeTyper(promptB, COPY.promptB); text(promptB);
-const curB = document.createElement("div"); curB.className = "cur"; promptB.appendChild(curB);
-
-// ---------- flame, rings, HUD ----------
-$("flamewrap").innerHTML = `<div id="flamebox" style="position:absolute;left:0;top:0;width:400px;height:500px;transform-origin:50% 88%;">${FLAME("big", 400).replace('width="400" height="400"', 'width="400" height="500" preserveAspectRatio="xMidYMid meet"')}</div>`;
-const ringHost = $("rings");
-const ringEls = [0, 1, 2].map(() => { const d = document.createElement("div"); d.className = "glow"; d.style.border = `3px solid ${ORANGE}`; ringHost.appendChild(d); return d; });
-{
-  const brand = "LITCLAUDE";
-  const stops = [[255, 45, 149], [0, 229, 255]];
-  const letters = [...brand].map((c, i) => { const p = i / (brand.length - 1); const rgb = stops[0].map((v, k) => Math.round(lerp(v, stops[1][k], p))); return `<span style="color:rgb(${rgb})">${c}</span>`; }).join("");
-  $("hudline").innerHTML = `<span style="color:#f1ecdc">[</span><span style="display:inline-block;vertical-align:-6px;width:28px">${FLAME("hud", 26)}</span>${letters}<span style="color:#f1ecdc">]</span> <span style="color:#5fd7ff">|</span> <span style="color:#f1ecdc">O5.5</span> <span style="color:#5fd7ff">│ ctx [</span><span style="color:#5fd7ff">▊</span><span style="color:#444c58">░░</span><span style="color:#5fd7ff">] 23%/200k</span>`;
-  text($("hudline"), { decor: true });
+const TF = [7.95, 8.25, 8.55];         // the crosses draw
+const TP = [12.1, 13.05, 13.95];       // the ticks land, just after each click
+const REC_RING = (i) => [1100 + 238 + 28 + i * 66, 190 + 218 + 20];
+function ringPose(i, t) {
+  const a = at(t, 10.5 + i * 0.06, 0.75, ease.inOutCubic);
+  const b = at(t, 14.6 + i * 0.1, 0.8, ease.inOutCubic);
+  const rowX = lerp(ROW_X, CHIP_X[i], a), rowY = lerp(ROW_Y[i], CHIP_Y, a), s = lerp(1, CHIP_S, a);
+  const cx = rowX + 32 * s, cy = rowY + 48 * s;
+  const rr = REC_RING(i);
+  const col = at(t, 17.4, 0.62, ease.inOutCubic);
+  return { rowX, rowY, s, cx: lerp(lerp(cx, rr[0], b), 1463, col), cy: lerp(lerp(cy, rr[1], b), 700, col), sc: lerp(s, 0.86, b) * (1 - col * 0.97) };
 }
-const cursorEl = $("cursor");
 
-// ---------- render ----------
-const DUR = 25;
-const R1 = [1050, 320, 750, 300], R2 = [1050, 190, 750, 560], R3 = [1050, 770, 750, 130], R4 = [1050, 190, 750, 400];
-const panelRect = [{ t: 0, v: R1 }, { t: 5, v: R1, ease: "emphasized" }, { t: 6.1, v: R2 }, { t: 10, v: R2, ease: "emphasized" }, { t: 11.1, v: R3 }, { t: 15, v: R3, ease: "emphasized" }, { t: 16.3, v: R4 }, { t: 19.6, v: R4 }];
-const panel = $("panel"), browser = $("browser"), winb = $("winb"), hud = $("hud"), spark = $("spark"), linkline = $("linkline"), linkarrow = $("linkarrow"), nextlab = $("nextlab");
-const titles = [$("tt1"), $("tt2"), $("tt3"), $("tt4")];
-const grid = $("grid");
-const pulse = (t, t0, dur) => { const p = at(t, t0, dur, ease.outCubic); return p > 0 && p < 1 ? Math.sin(p * Math.PI) : 0; };
+// ---- page (decor) ----
+const page = $("page");
+$("pg-title").textContent = DEMO.pageTitle; $("pg-add").textContent = DEMO.pageAdd; $("pg-text").textContent = DEMO.pageInput;
+for (const id of ["pg-title", "pg-add", "pg-text", "pg-input"]) text($(id), { decor: true });
+const CLICKS = [[1672, 364, 12.05, "click-a"], [1176, 464, 13.0, "click-b"], [1703, 464, 13.9, "click-c"]];
+
+// ---- record, spark, pane (decor) ----
+$("rec-title").textContent = DEMO.recTitle; text($("rec-title"));
+DEMO.rk.forEach((k, i) => { $("rk" + (i + 1)).textContent = k; text($("rk" + (i + 1)), { decor: true }); });
+[1, 2, 4].forEach((n, j) => { const el = $("rv" + n); el.textContent = DEMO.rv[n - 1]; text(el, { decor: true }); });
+const pane = $("pane"), panetext = $("panetext"), panecaret = $("panecaret"); text(panetext, { decor: true });
+const rec = $("rec");
+
+// ---- close ----
+const flame = $("flame"), flameglow = $("flameglow");
+const tag = $("tag"); tag.textContent = COPY.tag; text(tag);
+const cmd = $("cmd"); cmd.innerHTML = `<span class="o">$ </span>${COPY.cmd}`; text(cmd);
+const hud = $("hud"), hudline = $("hudline"); text(hudline);
+const FL = '<svg viewBox="0 0 24 24"><path d="M12.6 1.5c.5 3.2-1 4.9-2.4 6.6C8.6 10 7 11.9 7 15a6 6 0 0 0 12 0c0-2.2-.9-3.8-2-5.2-.2 1.1-.8 2-1.8 2.4.5-3.6-.9-8.1-2.6-10.7z" fill="#ff7a2a"/><path d="M12 22a3.5 3.5 0 0 1-3.5-3.5c0-1.8 1.2-2.8 2.1-3.9.5-.6.9-1.3.9-2.3 1.9 1.3 4 3.3 4 6.2A3.5 3.5 0 0 1 12 22z" fill="#ffd9a0"/></svg>';
+hudline.innerHTML = `[${FL}LITCLAUDE] <span class="o">${FL} LIT IGNITED · lit-loop ${FL}</span> | O5.5`;
+const flameSpring = spring({ stiffness: 90, damping: 11 });
+
+// ---- progress track ----
+const ticks = $("track-ticks");
+for (const c of CUT) { const x = 140 + (1640 * c) / DUR; const l = document.createElementNS(NS, "line"); l.setAttribute("x1", x); l.setAttribute("x2", x); l.setAttribute("y1", 996); l.setAttribute("y2", 1012); ticks.appendChild(l); }
 
 function render(t) {
-  // ground
-  grid.style.transform = `translate(${-(t * 6) % 96}px, ${-(t * 2.5) % 96}px)`;
-  $("prog").setAttribute("width", String(1800 * clamp(t / DUR)));
+  // ambient light: the room warms as the work becomes true
+  const glowA = kf(t, [{ t: 0, v: 0 }, { t: 2.0, v: 0, ease: "inOutSine" }, { t: 4.4, v: 0.12 }, { t: 17.8, v: 0.19, ease: "inOutSine" }, { t: 19.2, v: 0.30 }, { t: 22, v: 0.30 }]);
+  const gx = kf(t, [{ t: 0, v: 960 }, { t: 3.9, v: 960, ease: "inOutCubic" }, { t: 5.2, v: 1360 }, { t: 17.8, v: 1360, ease: "inOutCubic" }, { t: 19, v: 1463 }]);
+  const gy = kf(t, [{ t: 0, v: 470 }, { t: 3.9, v: 470, ease: "inOutCubic" }, { t: 5.2, v: 540 }, { t: 17.8, v: 540, ease: "inOutCubic" }, { t: 19, v: 480 }]);
+  $("ambient").style.background = `radial-gradient(ellipse 760px 620px at ${gx}px ${gy}px, rgba(255,99,55,${glowA.toFixed(4)}), rgba(255,99,55,0) 70%)`;
 
-  // headlines
-  H.forEach((h, k) => {
-    h.ins.forEach((el, i) => {
-      const pin = at(t, h.start - 0.06 + i * 0.09, 0.8, ease.emphasized);
-      const pout = at(t, h.end - 0.4 + i * 0.05, 0.42, ease.accelerate);
-      el.style.transform = `translateY(${(1 - pin) * 108 - pout * 108}%)`;
-    });
+  // ---- beat 1: the ask ----
+  const typed = clamp((t - 0.3) / 1.1);
+  const nMain = Math.floor(typed * DEMO.prompt.length);
+  const nAsk = Math.floor(clamp((t - 1.45) / 0.4) * DEMO.ask.length + 1e-6);
+  const p1 = "> ";
+  const shownMain = DEMO.prompt.slice(0, nMain), shownAsk = DEMO.ask.slice(0, nAsk);
+  prompt.innerHTML = `<span class="o">${p1}</span>${shownMain}`;
+  promptlit.textContent = shownAsk;
+  const count = p1.length + nMain + nAsk;
+  caret.style.left = PX + count * CHW + 12 + "px";
+  const typing = t > 0.3 && t < 1.9;
+  const blink = typing ? 1 : Math.floor(t * 2) % 2 === 0 ? 1 : 0.15;
+  const promptOut = at(t, 3.85, 0.35, ease.inCubic);
+  prompt.style.opacity = String(1 - promptOut); promptlit.style.opacity = String(1 - promptOut);
+  caret.style.opacity = String((1 - promptOut) * blink * (t < 2.5 ? 1 : 0));
+  setVis(prompt, t < 4.3); setVis(promptlit, t < 4.3 && nAsk > 0); setVis(caret, t < 4.3);
+  lead.style.opacity = String(1 - at(t, 3.8, 0.35, ease.inCubic));
+  lead.style.transform = `translateY(${-24 * at(t, 3.8, 0.4, ease.inCubic)}px)`;
+  setVis(lead, t < 4.3);
+
+  // giant word: dim, one ember, then l-i-t turn orange
+  const ign = [1.95, 2.1, 2.25];
+  heroLetters.forEach((s, i) => {
+    s.style.color = kf(t, [{ t: ign[i], v: "#8a877d", ease: "inOutSine" }, { t: ign[i] + 0.7, v: C.orange }]);
   });
-  const subIn = (id, s, e) => { const el = $(id); const a = at(t, s, 0.7, ease.decelerate), b = at(t, e - 0.45, 0.4, ease.accelerate); el.style.opacity = a * (1 - b); el.style.transform = `translateY(${(1 - a) * 26 + b * -20}px)`; };
-  subIn("s2", 6.0, 10); subIn("s4", 16.0, 20); subIn("s5", 20.9, 999);
-  { const a = at(t, 21.5, 0.6, ease.decelerate); $("cta").style.opacity = a; $("cta").style.transform = `translateY(${(1 - a) * 26}px)`; }
-  // LIT glow at the close
-  { const g = pulse(t, 23.0, 1.3); const lit = H[4].el.querySelector(".o"); lit.style.textShadow = t > 21.0 ? `0 0 ${18 + g * 30}px rgba(255,106,42,${0.35 + g * 0.45})` : "none"; }
+  const hp = at(t, 3.75, 1.3, ease.inOutCubic);
+  const hs = Math.exp(lerp(0, Math.log(MARK_S), hp));
+  const hx = lerp(HX0, MARK_X, hp), hy = lerp(HY0, MARK_Y, hp);
+  hero.style.transform = `translate(${hx}px, ${hy}px) scale(${hs})`;
+  hero.style.opacity = String(kf(t, [{ t: 3.75, v: 1, ease: "outCubic" }, { t: 4.1, v: 0.3 }, { t: 4.6, v: 0.3, ease: "inOutSine" }, { t: 5.05, v: 1 }]));
+  // ember on the dot of the i
+  const breathe = 0.82 + 0.18 * Math.sin(t * 5.2);
+  const flare = at(t, 1.85, 0.6, ease.outCubic) * (1 - at(t, 2.9, 1.0, ease.inOutSine));
+  const eh = $("ember-halo"), ec = $("ember-core");
+  const ex = hx + (DOT.x - HX0) * hs, ey = hy + (DOT.y - HY0) * hs;
+  const er = DOT.r * hs;
+  ec.setAttribute("cx", ex); ec.setAttribute("cy", ey); ec.setAttribute("r", er * 1.03);
+  ec.setAttribute("opacity", String((t < 1.95 ? breathe : 1) * (t < 3.75 ? 1 : kf(t, [{ t: 3.75, v: 1 }, { t: 4.1, v: 0.3 }, { t: 4.6, v: 0.3 }, { t: 5.05, v: 1 }]))));
+  eh.setAttribute("cx", ex); eh.setAttribute("cy", ey);
+  eh.setAttribute("r", er * 2.6 + flare * DOT.r * 6);
+  eh.setAttribute("opacity", String((t < 1.85 ? 0.16 * breathe : 0.16 * (1 - at(t, 2.7, 1.2)) + 0.2 * flare) * (t > 4.6 ? 0 : 1)));
+  setVis($("emberlayer"), t < 5.1);
 
-  // chain
-  const ca = chainActive(t);
-  chainX.forEach((c, i) => { c.s.style.color = (ca === 4 || i === ca) ? CREAM : (i < ca ? "#c9c3b2" : MUTED); });
-  const barKey = ca === 4 ? { x: 0, w: chainX[3].x + chainX[3].w } : ca >= 0 ? { x: chainX[ca].x, w: chainX[ca].w } : { x: 0, w: 0 };
-  chainBar.dataset.x = barKey.x;
-  const bx = lerpBar(t, ca, barKey);
-  chainBar.style.left = bx.x + "px"; chainBar.style.width = bx.w + "px";
+  // ---- headlines ----
+  head(heads.h2, CUT[0] + 0.16, CUT[1] - 0.34, t);
+  head(heads.h3, CUT[1] + 0.16, CUT[2] - 0.34, t);
+  head(heads.h4, CUT[2] + 0.16, CUT[3] - 0.34, t);
+  head(heads.h5, CUT[3] + 0.16, CUT[4] - 0.34, t);
+  head(heads.h6, CUT[4] + 0.2, null, t);
 
-  // panel rect
-  const r = kf(t, panelRect);
-  panel.style.left = r[0] + "px"; panel.style.top = r[1] + "px"; panel.style.width = r[2] + "px"; panel.style.height = r[3] + "px";
-  const floaty = Math.sin(t * 1.3) * 3;
-  const pIn = at(t, -0.35, 0.9, ease.emphasized);
-  const pOut = at(t, 19.6, 0.6, ease.accelerate);
-  panel.style.transform = `translateY(${floaty}px)`;
-  panel.style.clipPath = pOut > 0 ? `inset(0 0 ${pOut * 100}% 0)` : (pIn < 1 ? `inset(0 ${(1 - pIn) * 100}% 0 0)` : "none");
-  panel.style.visibility = pOut >= 1 ? "hidden" : "visible";
-  // titles
-  const tv = [1 - at(t, 4.9, 0.4), at(t, 5.4, 0.5) * (1 - at(t, 9.9, 0.4)), at(t, 10.7, 0.5) * (1 - at(t, 14.9, 0.4)), at(t, 15.9, 0.5) * (1 - at(t, 19.4, 0.3))];
-  titles.forEach((el, i) => { el.style.opacity = tv[i]; });
-  // L1 prompt
-  L1.style.opacity = 1 - at(t, 4.95, 0.5, ease.accelerate);
-  typeStep(typed1, cur1, t, 0.55, 30);
-  { const p = at(t, 2.6, 0.5, ease.emphasized); const last3 = typed1.slice(-3); const a = last3[0], b = last3[2];
-    const left = a.offsetLeft, right = b.offsetLeft + b.offsetWidth;
-    litBar.style.left = left + "px"; litBar.style.top = a.offsetTop + 34 + "px"; litBar.style.width = (right - left) * p + "px"; }
-  // L2 goal card
-  L2.style.opacity = at(t, 5.5, 0.4) * (1 - at(t, 9.95, 0.4, ease.accelerate));
-  { const a = at(t, 5.7, 0.7, ease.emphasized); $("g-rule").style.transform = `scaleX(${a})`; }
-  goalRows.forEach(({ r, m }, i) => {
-    const s = 6.0 + i * 0.16; const a = at(t, s, 0.6, ease.emphasized);
-    r.style.opacity = a; r.style.transform = `translateX(${(1 - a) * 46}px)`;
-    m.set(at(t, s + 0.45, 0.4, ease.outCubic), 0);
+  // ---- rows, rings ----
+  rowEls.forEach((r, i) => {
+    const pose = ringPose(i, t);
+    const enter = at(t, 4.6 + i * 0.12, 0.7, ease.outCubic);
+    const chipsA = at(t, 10.5 + i * 0.06, 0.75, ease.inOutCubic);
+    r.el.style.transform = `translate(${pose.rowX + (1 - enter) * 40}px, ${pose.rowY}px) scale(${pose.s})`;
+    r.el.style.opacity = String(enter * (1 - at(t, 14.45, 0.25)));
+    r.hair.style.opacity = String(1 - at(t, 10.5, 0.3));
+    r.lab.style.color = kf(t, [{ t: TF[i] - 0.05, v: C.muted }, { t: TF[i] + 0.25, v: C.cream }]);
+    const ring = ringEls[i];
+    ring.el.style.transform = `translate(${pose.cx - 32 + (1 - enter) * 40}px, ${pose.cy - 32}px) scale(${pose.sc})`;
+    ring.el.style.opacity = String(enter * (1 - at(t, 17.62, 0.22, ease.inCubic)));
+    const stroke = t < TP[i] ? mix(C.dim, C.orange, at(t, TF[i] - 0.05, 0.25)) : mix(C.orange, C.cream, at(t, TP[i], 0.3));
+    ring.rg.setAttribute("stroke", stroke);
+    ring.fill.setAttribute("opacity", String(at(t, TP[i], 0.3, ease.outCubic)));
+    const crossP = at(t, TF[i], 0.42, ease.outCubic);
+    const crossOut = 1 - at(t, TP[i], 0.14);
+    for (const [k, path] of [[0, ring.x1], [1, ring.x2]]) {
+      const p = clamp((crossP - k * 0.35) / 0.65);
+      drawPath(path, p);
+      path.style.opacity = String(p <= 0 ? 0 : crossOut);
+    }
+    const tp = at(t, TP[i] + 0.06, 0.3, ease.outCubic);
+    drawPath(ring.tk, tp); ring.tk.style.opacity = String(tp <= 0 ? 0 : 1);
+    void chipsA;
   });
-  // L3 strip
-  L3.style.opacity = at(t, 10.9, 0.4) * (1 - at(t, 15.0, 0.35, ease.accelerate));
-  const tickAt = [CLICK[0] + 0.1, CLICK[1] + 0.1, CLICK[2] + 0.1];
-  chips.forEach(({ c, m }, i) => {
-    const a = at(t, 11.0 + i * 0.1, 0.5, ease.emphasized);
-    c.style.transform = `translateY(${(1 - a) * 18}px)`; c.style.opacity = a;
-    const flip = at(t, tickAt[i], 0.14);
-    m.set(1 - flip, at(t, tickAt[i] + 0.1, 0.4, ease.outCubic));
-    c.style.borderColor = t >= tickAt[i] ? mix("#222a35", LIME, Math.min(1, pulse(t, tickAt[i], 0.9) + (t > tickAt[i] + 0.5 ? 0.25 : 0))) : "#222a35";
-  });
-  // L4 record
-  L4.style.opacity = at(t, 16.2, 0.4) * (1 - at(t, 19.5, 0.3));
-  recRows.forEach((d, i) => { const a = at(t, 16.5 + i * 0.22, 0.6, ease.emphasized); d.style.opacity = a; d.style.transform = `translateX(${(1 - a) * 36}px)`; });
-  recTicks.forEach((m, i) => m.set(0, at(t, 17.0 + i * 0.12, 0.35, ease.outCubic)));
-  folder.style.opacity = at(t, 17.15, 0.5); folderRule.style.transform = `scaleX(${at(t, 16.9, 0.6, ease.emphasized)})`;
 
-  // browser
-  { const a = at(t, 10.45, 0.85, ease.emphasized), b = at(t, 15.0, 0.55, ease.accelerate);
-    browser.style.clipPath = b > 0 ? `inset(${b * 100}% 0 0 0)` : `inset(0 0 ${(1 - a) * 100}% 0)`;
-    browser.style.visibility = (t < 10.45 || b >= 1) ? "hidden" : "visible"; browser.style.transform = `translateY(${Math.sin(t * 1.1 + 1) * 3}px)`; }
-  // browser page choreography
-  { const n = bTypedSpans.length; const start = 11.15, cps = 13;
-    bTypedSpans.forEach((s, i) => { const on = t >= start + i / cps && t < CLICK[0] + 0.06; if (s) s.style.opacity = on ? 1 : 0; });
-    $("b-typed").style.opacity = t < CLICK[0] + 0.06 ? 1 : 0;
-    $("b-ph").style.opacity = t < start ? 1 : 0;
-    // button press
-    const press = pulse(t, CLICK[0], 0.3); $("b-btn").style.transform = `scale(${1 - press * 0.05})`;
-    // item entrance
-    const ia = at(t, CLICK[0] + 0.05, 0.4, ease.emphasized); const del = at(t, CLICK[2], 0.4, ease.accelerate);
-    bItem.style.opacity = ia * (1 - del); bItem.style.height = 64 * (1 - del) + "px"; bItem.style.transform = `translateY(${(1 - ia) * -16}px)`;
-    // complete
-    const ca2 = at(t, CLICK[1], 0.35, ease.emphasized);
-    $("b-cb").style.background = mix("#fbf9f1", LIME, ca2); 
-    drawPath(cbTick, ca2); cbTick.style.opacity = ca2 > 0.01 ? 1 : 0;
-    $("b-strike").style.width = 176 * at(t, CLICK[1] + 0.1, 0.35, ease.emphasized) + "px";
-    $("b-item").style.color = mix("#17130b", "#8b846f", ca2);
+  // ---- page and cursor ----
+  const pIn = LANG === "ko" ? at(t, 10.85, 0.65, ease.outQuint) : at(t, 10.65, 0.85, ease.outQuint);
+  const pOut = at(t, 14.0, 0.4, ease.inOutCubic);
+  clipRect(page, pIn * (1 - pOut), { from: "bottom" });
+  page.style.transform = `translateY(${(1 - pIn) * 60 + pOut * -20}px)`;
+  setVis(page, t > 10.6 && t < 14.5);
+  const nIn = Math.floor(clamp((t - 11.3) / 0.6) * DEMO.pageInput.length + 1e-6);
+  $("pg-input").textContent = t < CLICKS[0][2] ? DEMO.pageInput.slice(0, nIn) : "";
+  const itemIn = at(t, 12.1, 0.4, ease.outCubic);
+  const itemOut = at(t, CLICKS[2][2], 0.4, ease.inCubic);
+  const item = $("pg-item");
+  item.style.opacity = String(itemIn * (1 - itemOut));
+  item.style.transform = `translateY(${(1 - itemIn) * -14}px) scaleY(${1 - itemOut})`;
+  const checked = at(t, CLICKS[1][2], 0.25, ease.outCubic);
+  $("pg-box").style.background = mix("#f2efdf", C.orange, checked);
+  $("pg-box").style.borderColor = mix("#b9b198", C.orange, checked);
+  drawPath($("pg-tick"), at(t, CLICKS[1][2] + 0.08, 0.25, ease.outCubic)); $("pg-tick").style.opacity = String(checked <= 0 ? 0 : 1);
+  $("pg-strike").style.transform = `scaleX(${at(t, CLICKS[1][2] + 0.1, 0.35, ease.outCubic)})`;
+  $("pg-text").style.color = mix("#15120c", "#6b644f", checked);
+  const cpos = kf(t, [
+    { t: 11.25, v: [1745, 700], ease: "inOutCubic" }, { t: 11.95, v: [1672, 364] }, { t: 12.15, v: [1672, 364], ease: "inOutCubic" },
+    { t: 12.9, v: [1176, 464] }, { t: 13.05, v: [1176, 464], ease: "inOutCubic" }, { t: 13.75, v: [1703, 464] },
+    { t: 14.0, v: [1703, 464], ease: "inOutCubic" }, { t: 14.4, v: [1790, 660] },
+  ]);
+  const cursor = $("cursor");
+  cursor.setAttribute("transform", `translate(${cpos[0]} ${cpos[1]})`);
+  cursor.style.opacity = String(at(t, 11.2, 0.2) * (1 - at(t, 13.95, 0.3)));
+  for (const [x, y, ct, id] of CLICKS) {
+    const c = $(id), p = at(t, ct, 0.5, ease.outCubic);
+    c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", 8 + 34 * p);
+    c.setAttribute("opacity", String(t < ct ? 0 : (1 - p) * 0.9));
   }
-  // cursor path
-  { const keys = [
-      { t: 11.5, v: [1610, 760], ease: "emphasized" },
-      { t: CLICK[0], v: [1610, 392] },
-      { t: CLICK[0] + 0.25, v: [1610, 392], ease: "emphasized" },
-      { t: CLICK[1], v: [1112, 500] },
-      { t: CLICK[1] + 0.3, v: [1112, 500], ease: "emphasized" },
-      { t: CLICK[2], v: [1740, 500] },
-      { t: CLICK[2] + 0.3, v: [1740, 500], ease: "accelerate" },
-      { t: 14.95, v: [1900, 700] }];
-    const p = kf(t, keys);
-    cursorEl.style.left = p[0] + "px"; cursorEl.style.top = p[1] + "px";
-    const show = at(t, 11.5, 0.25) * (1 - at(t, 14.7, 0.25));
-    const down = Math.max(pulse(t, CLICK[0], 0.28), pulse(t, CLICK[1], 0.28), pulse(t, CLICK[2], 0.28));
-    cursorEl.style.opacity = show; cursorEl.style.transform = `scale(${1 - down * 0.14})`;
-    // click rings
-    ringClicks(t);
-  }
 
-  // link and window B
-  { const a = at(t, 16.7, 0.5, ease.emphasized); const b = at(t, 19.6, 0.4, ease.accelerate);
-    drawPath(linkline, a); linkarrow.style.opacity = at(t, 17.2, 0.3) * (1 - b); linkline.style.opacity = 1 - b;
-    const sp = at(t, 16.9, 0.75, ease.inOutSine); const sy = lerp(592, 692, sp);
-    spark.style.top = sy - 9 + "px"; spark.style.opacity = t < 16.9 ? 0 : (t < 17.65 ? 1 : Math.max(0, 1 - (t - 17.65) / 0.4));
-    nextlab.style.opacity = at(t, 17.1, 0.5) * (1 - b); nextlab.style.transform = `translateX(${(1 - at(t, 17.1, 0.5, ease.decelerate)) * 20}px)`;
-    const w = at(t, 17.35, 0.8, ease.emphasized);
-    winb.style.clipPath = b > 0 ? `inset(0 0 ${b * 100}% 0)` : `inset(0 ${(1 - w) * 100}% 0 0)`;
-    winb.style.visibility = (t < 17.35 || b >= 1) ? "hidden" : "visible";
-    typeStep(typedB, curB, t, 18.1, 22);
-    const lit = pulse(t, 17.55, 0.7); winb.style.borderColor = mix("#2a323c", LIME, lit); }
-
-  // flame, rings, hud
-  { const s = spring({ damping: 11, stiffness: 120 }); const p = t < 20.3 ? 0 : s(t - 20.3);
-    const fl = 1 + 0.03 * Math.sin(t * 8.5) + 0.015 * Math.sin(t * 13.1);
-    const box = $("flamebox"); box.style.transform = `scale(${Math.max(0, p) * fl}, ${Math.max(0, p) * (fl + 0.02 * Math.sin(t * 6.7))})`;
-    box.style.opacity = t < 20.3 ? 0 : 1;
-    box.style.filter = `drop-shadow(0 0 ${28 + 10 * Math.sin(t * 5)}px rgba(255,106,42,.55))`;
-    ringEls.forEach((el, i) => { const s0 = 20.5 + i * 0.32; const q = at(t, s0, 1.9, ease.decelerate); const rr = lerp(160, 470, q);
-      el.style.left = 1425 - rr + "px"; el.style.top = 470 - rr + "px"; el.style.width = rr * 2 + "px"; el.style.height = rr * 2 + "px";
-      el.style.opacity = t < s0 ? 0 : 0.55 * (1 - q); el.style.borderWidth = 3 - q * 2 + "px"; });
-    const h = at(t, 21.4, 0.8, ease.emphasized); hud.style.clipPath = `inset(${(1 - h) * 100}% 0 0 0)`; hud.style.visibility = t < 21.4 ? "hidden" : "visible";
-  }
-}
-function lerpBar(t, ca, target) {
-  // the bar glides from the previous step to the current one over 0.5 s
-  const starts = [5, 10, 12.5, 15, 20];
-  const idx = ca; if (idx < 0) return { x: 0, w: 0 };
-  const prev = idx === 0 ? { x: chainX[0].x, w: 0 } : (idx === 4 ? { x: chainX[3].x, w: chainX[3].w } : { x: chainX[idx - 1].x, w: chainX[idx - 1].w });
-  const p = at(t, starts[idx], 0.5, ease.emphasized);
-  return { x: lerp(prev.x, target.x, p), w: lerp(prev.w, target.w, p) };
-}
-const ringClickEls = CLICK.map(() => { const d = document.createElement("div"); d.className = "ring"; $("stage").appendChild(d); return d; });
-const clickPos = [[1610 + 6, 392 + 6], [1112 + 6, 500 + 6], [1740 + 6, 500 + 6]];
-function ringClicks(t) {
-  CLICK.forEach((c, i) => {
-    const q = at(t, c, 0.45, ease.decelerate); const el = ringClickEls[i];
-    el.style.left = clickPos[i][0] + "px"; el.style.top = clickPos[i][1] + "px";
-    const s = 1 + q * 3.2; el.style.transform = `scale(${s})`; el.style.opacity = (q > 0 && q < 1) ? 0.9 * (1 - q) : 0;
+  // ---- record, spark, pane ----
+  const rIn = at(t, 14.6, 0.75, ease.outQuint);
+  const collapse = at(t, 17.4, 0.62, ease.inOutCubic);
+  clipRect(rec, rIn, { from: "top" });
+  rec.style.transformOrigin = "363px 513px";
+  rec.style.transform = `translateY(${(1 - rIn) * -24}px) scale(${1 - collapse * 0.98})`;
+  rec.style.opacity = String(1 - at(t, 17.6, 0.24));
+  setVis(rec, t > 14.55 && t < 18.1);
+  const recRise = (n, t0) => at(t, t0, 0.5, ease.outCubic);
+  ["rk1", "rv1", "rk2", "rv2", "rk3", "rk4", "rv4", "rec-title"].forEach((id, k) => {
+    const p = recRise(k, 14.9 + Math.min(k, 6) * 0.1);
+    $(id).style.opacity = String(p); $(id).style.transform = `translateY(${(1 - p) * 10}px)`;
   });
+  const sp = at(t, 16.15, 0.6, ease.inOutCubic);
+  const sy = lerp(592, 700, sp);
+  const sl = $("spark-line"); drawPath(sl, sp); sl.style.opacity = String(sp <= 0 ? 0 : 0.7 * (1 - at(t, 16.75, 0.3)));
+  const sparkOut = at(t, 17.6, 0.25);
+  const sparkOn = t >= 16.1 && t < 18.0;
+  $("spark").setAttribute("cx", 1440); $("spark").setAttribute("cy", sy);
+  $("spark-halo").setAttribute("cx", 1440); $("spark-halo").setAttribute("cy", sy);
+  $("spark").style.opacity = String(sparkOn ? 1 - sparkOut : 0); $("spark-halo").style.opacity = String(sparkOn ? 0.9 * (1 - sparkOut) : 0);
+  const paneIn = at(t, 16.62, 0.5, ease.outQuint);
+  clipRect(pane, paneIn, { from: "top" });
+  pane.style.transformOrigin = "363px 3px";
+  pane.style.transform = `scale(${1 - collapse * 0.98})`;
+  pane.style.opacity = String(1 - at(t, 17.6, 0.24));
+  setVis(pane, t > 16.6 && t < 18.1);
+  const nPane = Math.floor(clamp((t - 16.95) / 0.5) * DEMO.pane.length + 1e-6);
+  panetext.innerHTML = `<span class="o">&gt; </span>${DEMO.pane.slice(0, nPane)}`;
+  panecaret.style.left = 32 + (2 + nPane) * (34 * 0.6) + 2 + "px";
+  panecaret.style.opacity = String(t < 17.0 ? 1 : Math.floor(t * 2) % 2 === 0 ? 1 : 0.15);
+
+  // ---- close: the spark becomes the flame ----
+  const fp = flameSpring(t - 17.9);
+  const fs = Math.max(0.001, t < 17.9 ? 0 : fp);
+  const flick = t < 18.9 ? 0 : 1;
+  const wob = 1 + flick * (0.018 * Math.sin(t * 11.3) + 0.012 * Math.sin(t * 17.9 + 1.3));
+  const skew = flick * 1.6 * Math.sin(t * 7.1 + 0.4);
+  flame.style.transformOrigin = "50% 88%";
+  flame.style.transform = `translate(0px, 0px) scale(${fs * (0.98 + 0.02 * wob)}, ${fs * wob}) skewX(${skew}deg)`;
+  setVis(flame, t >= 17.85);
+  const fgA = at(t, 17.95, 0.9, ease.outCubic) * (0.85 + 0.15 * Math.sin(t * 9.3));
+  flameglow.style.background = `radial-gradient(ellipse 50% 50% at 50% 55%, rgba(255,99,55,${(0.55 * fgA).toFixed(3)}), rgba(255,99,55,0) 70%)`;
+  setVis(flameglow, t >= 17.85);
+  const ember = at(t, 17.62, 0.22, ease.outCubic) * (1 - at(t, 17.95, 0.2));
+  const eh2 = $("ember-halo"), ec2 = $("ember-core");
+  if (t > 17.55 && t < 18.2) {
+    ec2.setAttribute("cx", 1463); ec2.setAttribute("cy", 700); ec2.setAttribute("r", 8 + 22 * ember);
+    ec2.setAttribute("opacity", String(ember));
+    eh2.setAttribute("cx", 1463); eh2.setAttribute("cy", 700); eh2.setAttribute("r", 70 + 120 * ember);
+    eh2.setAttribute("opacity", String(ember * 0.9));
+    setVis($("emberlayer"), true);
+  }
+  const hudIn = at(t, 19.55, 0.5, ease.outQuint);
+  clipRect(hud, hudIn, { from: "left" }); setVis(hud, t > 19.5);
+  const tagT = LANG === "ko" ? 18.6 : 19.05;
+  const tagIn = at(t, tagT, 0.7, ease.outQuint);
+  tag.style.opacity = String(tagIn); tag.style.transform = `translateY(${(1 - tagIn) * 22}px)`;
+  const cmdIn = at(t, 19.45, 0.6, ease.outQuint);
+  cmd.style.opacity = String(cmdIn); cmd.style.transform = `translateY(${(1 - cmdIn) * 18}px)`;
+  setVis(tag, t > tagT - 0.05); setVis(cmd, t > 19.4);
+
+  // ---- progress track ----
+  const fx = 140 + (1640 * clamp(t / DUR));
+  $("track-fill").setAttribute("x2", fx); $("track-head").setAttribute("cx", fx);
+  $("track-head").setAttribute("opacity", String(t > 0.2 ? 1 : 0)); $("track-fill").setAttribute("opacity", t > 0.2 ? 1 : 0);
 }
-define({ width: 1920, height: 1080, fps: 30, duration: DUR, render });
+define({ width: 1920, height: 1080, fps: 60, duration: DUR, render });
 </script>
-</body>
