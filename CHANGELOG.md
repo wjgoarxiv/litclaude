@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.17 - 2026-09-30
+
+- Add automatic handoff, off until you turn it on. `lit-handoff auto on <percent>` (or `LITCLAUDE_AUTO_HANDOFF=1` with `LITCLAUDE_AUTO_HANDOFF_PERCENT`) picks the context percent, from 1 to 99; LitClaude has no built-in number. `lit-handoff auto off` and `lit-handoff auto status` turn it off and show its state, and `litclaude doctor` and the status line (`handoff@60%`) show when it is on.
+- When the percent is reached, the Stop hook asks Claude once to write the handoff, and Claude writes the file. Claude Code gives a plugin no way to start compaction, so Claude ends with "Handoff saved. Run /compact now." and you run `/compact`, or you let Claude Code compact by itself. After the compaction, the session start hook reads the handoff back once.
+- The README no longer shows the A/B comparison; one run per side was too little to support its verdicts.
+- The GitHub pages (English and Korean) now show terminal pictures of what the installer, the session start, the `lit` activation, the status line and `litclaude doctor` print, and a new motion film set in Pretendard, with a Korean version on the Korean page.
+
 ## 1.0.16 - 2026-09-30
 
 - The GitHub page (English and Korean) now has a short film about 25 seconds long under "Watch it in motion", and the README was rewritten again in plainer language.
