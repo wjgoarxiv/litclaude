@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.19 - 2026-10-01
+
+- Automatic handoff now finds the handoff it asked for after compaction even when the model formats the marker line, for example as a bullet, in backticks or in bold. A handoff from another session is still ignored.
+- An upgrade no longer stops with an ownership conflict when a bundled Python script left a `__pycache__` folder in the installed plugin.
+
 ## 1.0.18 - 2026-09-30
 
 - `gpt-6.1-sol` is now the recommended coding-lead alternative, since OpenAI lists `gpt-6-sol` as the previous generation. `gpt-6-sol` still works for anyone who already chose it. Claude Code picks the model and LitClaude sets no OpenAI route of its own, so this shows only in the model notes in the README (English and Korean) and in `docs/agents.md`.
