@@ -426,6 +426,79 @@ test("the empty .in_use folder Claude Code adds to a cache version does not coun
   assert.equal(existsSync(join(f.claude, "plugins/cache/litclaude-ai/litclaude", nextVersion)), false);
 });
 
+// Python writes bytecode next to the scripts it runs. That cache is generated, never user data, so it must
+// not turn an installed plugin into foreign state.
+const pycacheDir = (f) => join(f.plugin, "vendor/scientific-visualization/scripts/__pycache__");
+const addBytecode = (f) => {
+  mkdirSync(pycacheDir(f), { recursive: true });
+  writeFileSync(join(pycacheDir(f), "style_presets.cpython-312.pyc"), Buffer.from([0xcb, 0x0d, 0x0d, 0x0a, 0, 1, 2, 3]));
+  writeFileSync(join(f.plugin, "vendor/scientific-visualization/scripts/loose.pyc"), Buffer.from([1, 2, 3]));
+};
+const bytecodeIn = (path) => {
+  if (!existsSync(path)) return [];
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const next = join(path, entry.name);
+    if (entry.isDirectory()) return entry.name === "__pycache__" ? [next] : bytecodeIn(next);
+    return entry.name.endsWith(".pyc") ? [next] : [];
+  });
+};
+
+test("a Python bytecode cache in the installed plugin does not block an upgrade, and the new tree has none", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  addBytecode(f);
+  const { nextBin, nextVersion } = newerCandidate(f);
+  const result = f.run("install", nextBin);
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  assert.equal(readlinkSync(join(f.lit, "current")), join(f.lit, "litclaude-ai", nextVersion));
+  const upgraded = join(f.claude, "plugins/cache/litclaude-ai/litclaude", nextVersion);
+  assert.deepEqual(bytecodeIn(upgraded), [], "the new plugin tree carries no bytecode");
+  pass(f.run("uninstall", nextBin));
+});
+
+test("a Python bytecode cache does not block a same-version reinstall or uninstall, and a reinstall clears it", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  addBytecode(f);
+  pass(f.run("install"));
+  assert.deepEqual(bytecodeIn(f.plugin), []);
+  addBytecode(f);
+  pass(f.run("uninstall"));
+});
+
+test("an edited .py file next to a bytecode cache is still refused", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  addBytecode(f);
+  const script = join(f.plugin, "vendor/scientific-visualization/scripts/style_presets.py");
+  writeFileSync(script, `${readFileSync(script, "utf8")}\n# user edit\n`);
+  const { nextBin } = newerCandidate(f);
+  const before = digest(f.path);
+  const result = f.run("install", nextBin);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
+  assert.deepEqual(digest(f.path), before, "refusal must preserve every existing byte and entry");
+});
+
+test("a foreign file inside the plugin is still refused when a bytecode cache is also present", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  addBytecode(f);
+  writeFileSync(join(f.plugin, "vendor/scientific-visualization/scripts/notes.txt"), "mine");
+  const result = f.run("install");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
+});
+
+test("a symlink named like a bytecode cache is still refused", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  symlinkSync(f.path, join(f.plugin, "vendor/scientific-visualization/scripts/__pycache__"), "dir");
+  const result = f.run("install");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
+});
+
 test("a file named .in_use is still foreign state", (t) => {
   const f = fixture(t);
   pass(f.run("install"));

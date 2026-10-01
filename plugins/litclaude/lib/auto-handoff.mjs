@@ -243,6 +243,20 @@ const candidateFiles = (cwd, stateRoot) => {
   return files;
 };
 
+// A model often dresses the marker up (bullet, bold label, backticks, an HTML comment). Each line is read
+// with that Markdown decoration removed, then must hold the label and this exact id with a boundary after it.
+const markerOnLine = (line, nonce) => {
+  const plain = line.replace(/<!--|-->|[*_`]/gu, "").replace(/\s+/gu, " ");
+  const label = "Auto-handoff id: ";
+  for (let at = plain.indexOf(label); at !== -1; at = plain.indexOf(label, at + 1)) {
+    const start = at + label.length;
+    if (plain.startsWith(nonce, start) && !/^[0-9a-f]/iu.test(plain.slice(start + nonce.length, start + nonce.length + 1))) return true;
+  }
+  return false;
+};
+
+const hasMarker = (text, nonce) => text.split(/\r?\n/u).some((line) => markerOnLine(line, nonce));
+
 const readHandoff = (path, { nonce, firedAt }) => {
   let fd;
   try {
@@ -251,7 +265,7 @@ const readHandoff = (path, { nonce, firedAt }) => {
     fd = openSync(path, constants.O_RDONLY | NO_FOLLOW);
     if (!fstatSync(fd).isFile()) return null;
     const text = readFileSync(fd, "utf8");
-    return text.includes(`Auto-handoff id: ${nonce}`) ? text : null;
+    return hasMarker(text, nonce) ? text : null;
   } catch {
     return null;
   } finally {

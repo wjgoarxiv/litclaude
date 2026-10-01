@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { compareStableSemver } from "./update-notifier.mjs";
 
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
@@ -20,6 +20,9 @@ const legacyVendorPathMap = [
   ["060_autoresearch-skill", "autoresearch", "25ce45fe792de02e04019e6d0c871738e6a1b8b6cb9a91cd2486b3d4cbb715b9"],
   ["064_autoconference-skill", "autoconference", "d305d2d41721c0196cc5aaa09610f1eb4499f7ba53504bd72bdbefdd21ca7da1"],
 ];
+// Python writes bytecode next to the scripts it runs. That cache is generated, never user data, so ownership
+// checks skip it. A symlink or a plain file named __pycache__ is not a cache and is still reported.
+const isBytecodeCache = (name, value) => (value.isDirectory() && name === "__pycache__") || (value.isFile() && name.endsWith(".pyc"));
 const conflict = (path, detail = "") => { throw new Error(`INSTALL_OWNERSHIP_CONFLICT: ${path}; use a compatible CLI or preserve this modified, foreign, or unsupported state before retrying${detail ? `. ${detail}` : ""}`); };
 const stat = (path) => {
   try { return lstatSync(path); } catch (error) { if (error.code === "ENOENT") return null; throw error; }
@@ -45,6 +48,7 @@ function treeHash(root) {
     for (const name of readdirSync(path).sort()) {
       if (!prefix && name === receiptName) continue;
       const next = join(path, name), rel = prefix ? `${prefix}/${name}` : name, value = lstatSync(next);
+      if (isBytecodeCache(name, value)) continue;
       if (!prefix && name === hostUseMarker && value.isDirectory() && readdirSync(next).length === 0) continue;
       if (value.isDirectory()) { entries.push([rel, "directory"]); walk(next, rel); }
       else if (value.isFile() && value.nlink === 1) entries.push([rel, "file", createHash("sha256").update(readFileSync(next)).digest("hex")]);
@@ -59,6 +63,7 @@ function detailedTree(root, { receipt = false } = {}) {
   const rows = [];
   function walk(path, prefix = "") {
     const value = lstatSync(path);
+    if (prefix && isBytecodeCache(prefix.split("/").at(-1), value)) return;
     if (value.isSymbolicLink()) conflict(path, "A preserved skill tree cannot contain symlinks");
     if (value.isDirectory()) {
       rows.push([prefix, "directory", value.mode & 0o777]);
@@ -169,7 +174,7 @@ export function preserveModifiedLegacySkill(plan, litHome) {
   try {
     const currentRows = detailedTree(plan.skillPath, { receipt: true });
     if (!sameRowList(currentRows, plan.skillRows)) conflict(plan.skillPath, "The legacy skill changed after the ownership preflight");
-    cpSync(plan.skillPath, join(staging, "skill"), { recursive: true, errorOnExist: true, force: false });
+    cpSync(plan.skillPath, join(staging, "skill"), { recursive: true, errorOnExist: true, force: false, filter: (source) => !isBytecodeCache(basename(source), lstatSync(source)) });
     if (!sameRowList(detailedTree(join(staging, "skill"), { receipt: true }), plan.skillRows)) {
       conflict(plan.skillPath, "The staged preservation copy does not match the source");
     }

@@ -57,10 +57,10 @@ const setOn = (dir, percent) => route(dir, `lit-handoff auto on ${percent}`);
 const routeLine = (payload) => payload.hookSpecificOutput.additionalContext;
 const nonceOf = (reason) => /Auto-handoff id: ([0-9a-f]{8,})/u.exec(reason)?.[1];
 
-const writeHandoff = (dir, nonce, { where = ".handoff/HANDOFF.md", body = "## What Was Done\n- finished the parser\n", ageMs = 0 } = {}) => {
+const writeHandoff = (dir, nonce, { where = ".handoff/HANDOFF.md", body = "## What Was Done\n- finished the parser\n", ageMs = 0, marker = `Auto-handoff id: ${nonce}` } = {}) => {
   const target = join(dir, where);
   mkdirSync(join(target, ".."), { recursive: true });
-  writeFileSync(target, `# Handoff\n\nAuto-handoff id: ${nonce}\n\n${body}`);
+  writeFileSync(target, `# Handoff\n\n${marker}\n\n${body}`);
   if (ageMs) {
     const when = new Date(Date.now() - ageMs);
     utimesSync(target, when, when);
@@ -337,6 +337,121 @@ describe("automatic handoff: reload after compaction", () => {
     assert.equal(stop(dir), null);
     writeContext(dir, 75);
     assert.equal(stop(dir).decision, "block");
+  });
+});
+
+describe("automatic handoff: decorated marker line", () => {
+  const fire = (dir) => {
+    setOn(dir, 60);
+    writeContext(dir, 70);
+    return nonceOf(stop(dir).reason);
+  };
+  const reloaded = (context) => /Automatic handoff reload/u.test(context);
+
+  // The live failure shape: the model dressed the marker up as a bullet with a label and backticks.
+  const accepted = {
+    "bare line": (n) => `Auto-handoff id: ${n}`,
+    "dash bullet": (n) => `- Auto-handoff id: ${n}`,
+    "star bullet": (n) => `* Auto-handoff id: ${n}`,
+    "plus bullet": (n) => `+ Auto-handoff id: ${n}`,
+    "numbered bullet": (n) => `1. Auto-handoff id: ${n}`,
+    "numbered paren bullet": (n) => `2) Auto-handoff id: ${n}`,
+    "blockquote": (n) => `> Auto-handoff id: ${n}`,
+    "nested blockquote bullet": (n) => `> - Auto-handoff id: ${n}`,
+    "bold label": (n) => `**Auto-handoff id:** ${n}`,
+    "bold label colon outside": (n) => `**Auto-handoff id**: ${n}`,
+    "bold value": (n) => `Auto-handoff id: **${n}**`,
+    "italic label": (n) => `*Auto-handoff id:* ${n}`,
+    "underscore bold label": (n) => `__Auto-handoff id:__ ${n}`,
+    "italic value": (n) => `Auto-handoff id: _${n}_`,
+    "backticked label": (n) => `\`Auto-handoff id:\` ${n}`,
+    "backticked value": (n) => `Auto-handoff id: \`${n}\``,
+    "backticked whole marker": (n) => `\`Auto-handoff id: ${n}\``,
+    "extra spaces": (n) => `Auto-handoff id:    ${n}`,
+    "leading label": (n) => `Auto-handoff marker: Auto-handoff id: ${n}`,
+    "bullet, label and backticks (live failure)": (n) => `- Auto-handoff marker: \`Auto-handoff id: ${n}\``,
+    "html comment": (n) => `<!-- Auto-handoff id: ${n} -->`,
+    "trailing text after a boundary": (n) => `Auto-handoff id: ${n}.`,
+  };
+  for (const [name, make] of Object.entries(accepted)) {
+    it(`reloads when the marker is a ${name}`, (t) => {
+      const dir = project(t);
+      const nonce = fire(dir);
+      writeHandoff(dir, nonce, { marker: make(nonce) });
+      assert.ok(reloaded(compactStart(dir).hookSpecificOutput.additionalContext), `marker shape: ${make(nonce)}`);
+    });
+  }
+
+  it("reloads a handoff shaped like the one the live test produced", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    // The live handoff listed the marker as a bullet inside "What Was Done", with a label and backticks.
+    const live = [
+      "# HANDOFF: Finish full-content display",
+      "",
+      "## What Was Done",
+      "",
+      "### Successful Approaches",
+      "",
+      "- Created [notes.md](../notes.md) with 5 bullets for each source, then read it back.",
+      `- Auto-handoff marker: \`Auto-handoff id: ${nonce}\``,
+      "",
+      "## Next Steps",
+      "",
+      "1. Resume the outstanding request.",
+      "",
+    ].join("\n");
+    mkdirSync(join(dir, ".handoff"), { recursive: true });
+    writeFileSync(join(dir, ".handoff", "HANDOFF.md"), live);
+    const context = compactStart(dir).hookSpecificOutput.additionalContext;
+    assert.ok(reloaded(context));
+    assert.match(context, /Resume the outstanding request/u);
+  });
+
+  it("refuses a decorated marker that carries another id", (t) => {
+    const dir = project(t);
+    fire(dir);
+    writeHandoff(dir, "unused", { marker: "- **Auto-handoff id:** `deadbeef`" });
+    const context = compactStart(dir).hookSpecificOutput.additionalContext;
+    assert.ok(!reloaded(context));
+    assert.match(context, /no fresh handoff/u);
+  });
+
+  it("refuses a decorated marker that carries only a prefix of the id", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    writeHandoff(dir, nonce, { marker: `- Auto-handoff id: \`${nonce.slice(0, 6)}\`` });
+    assert.ok(!reloaded(compactStart(dir).hookSpecificOutput.additionalContext));
+  });
+
+  it("refuses a decorated marker whose id continues past this id", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    writeHandoff(dir, nonce, { marker: `- **Auto-handoff id:** \`${nonce}ab\`` });
+    assert.ok(!reloaded(compactStart(dir).hookSpecificOutput.additionalContext));
+  });
+
+  it("refuses a decorated marker that is older than the trigger", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    writeHandoff(dir, nonce, { marker: `- Auto-handoff id: \`${nonce}\``, ageMs: 3600000 });
+    const context = compactStart(dir).hookSpecificOutput.additionalContext;
+    assert.ok(!reloaded(context));
+    assert.match(context, /no fresh handoff/u);
+  });
+
+  it("refuses a decorated marker in another session's reload", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    writeHandoff(dir, nonce, { marker: `- Auto-handoff id: \`${nonce}\`` });
+    assert.doesNotMatch(compactStart(dir, { session_id: "someone-else" }).hookSpecificOutput.additionalContext, /Automatic handoff reload/u);
+  });
+
+  it("refuses a marker whose label and id are on different lines", (t) => {
+    const dir = project(t);
+    const nonce = fire(dir);
+    writeHandoff(dir, nonce, { marker: `Auto-handoff id:\n${nonce}` });
+    assert.ok(!reloaded(compactStart(dir).hookSpecificOutput.additionalContext));
   });
 });
 
