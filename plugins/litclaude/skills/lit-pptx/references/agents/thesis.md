@@ -10,7 +10,7 @@ Before generating, read from the skill directory:
 - The chosen template's capabilities: run `node "$SKILL_ROOT/scripts/compile-deck.js" --list-layouts <TEMPLATE>` to see which blocks/regions each layout supports.
 
 ## Template-Parameterized Rules (NOT hardcoded brand)
-- The deck's `template:` frontmatter selects an enrolled template. Default: `AZURE-PRO` (16:9, Pretendard). Other bundled options: `AZURE-A2Z` (16:9, 에이투지체), `BOILERPLATE-PRETENDARD` / `BOILERPLATE-A2Z` (4:3). A brand deck the user supplies can be learned with `scripts/learn_template.py`.
+- The deck's `tonality:` frontmatter carries the direction chosen on the direction card (`references/direction-step.md`); write each slide's `layout:` as a family of that pack (`references/layout-families.md`) and follow the fill rules (`references/density-and-fill.md`). A legacy template (`AZURE-PRO`, `AZURE-A2Z`, `BOILERPLATE-PRETENDARD`, `BOILERPLATE-A2Z`) goes in `template:` only when the user named it. A brand deck the user supplies can be learned with `scripts/learn_template.py`.
 - **Do not write fonts, colors, dimensions, or decorations into content** — the template injects them. Never add logos/lines/confidential marks manually; decorations are automatic per template.
 - Slide separator is exact: a `---` line, a blank line, then `---` + the next slide's `layout:` (see the spec). Getting this wrong silently breaks slide splitting.
 - Use only approved layouts: `cover`, `content`, `main`, `summary`, `closing`.

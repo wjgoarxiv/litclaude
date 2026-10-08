@@ -1,6 +1,6 @@
 # Anti-Slop Checklist for PPTX Outputs
 
-Run after building any deck. Brand specifics (palette, fonts) come from the chosen enrolled template — this checklist is template-agnostic.
+Run after building any deck. Palette, faces, radius and decoration come from the chosen tonality pack (or the named legacy template); this checklist holds for all of them.
 
 ## Automated checks
 - `python3 "$SKILL_ROOT/scripts/qa_deck.py" output.pptx` — honest gate: overflow/overlap/off-slide + WCAG contrast + anti-slop terms + objective executive/research OOXML checks (exit non-zero = FAIL).
@@ -31,35 +31,54 @@ Run after building any deck. Brand specifics (palette, fonts) come from the chos
 - **Review-only:** unsupported absolutes (`논문이 없다`, `없다는 것이 발견`), empty rhetoric (`판이 굳었다`, `전제로 깐다`), command-like planning (`닫아야 할 게이트`, `역전 금지`), unexplained RAM/FTO/CNKI/코퍼스/전이원, and arbitrary dates or day counts without an approved source.
 - Review-only findings must be recorded and rewritten where warranted, but they do not become brittle automated failures. Prefer “검토한 데이터베이스 범위에서는 확인되지 않았다” and expand specialist terms on first use.
 
-## Visual design laws (impeccable-adapted)
-Apply with a human eye AFTER automated checks. Targets a static export (no motion/gradients; no borders/shadows on text).
+## Visual design laws
 
-### Anti-slop visual bans (absolute)
-- [ ] No side-stripe accents (colored `border-left/right` > 1px) — use a 1px hairline, a flat tint, a leading numeral, or an icon on a wrapper `<div>`.
-- [ ] No ghost cards: one box = a 1px border OR a ≤8px shadow, never both; no empty outlined boxes as decoration.
-- [ ] One corner-radius law deck-wide (default sharp); pills only for tags/chips.
-- [ ] No identical card grid — vary span/size or mix card with non-card.
-- [ ] No eyebrow reflex / `01·02·03` on every slide unless it genuinely is an ordered sequence.
-- [ ] No hero-metric ornament — a big number only when it IS the slide's data.
-- [ ] No card-everything / card-in-card — group with spacing and hairline dividers.
-- [ ] No gradients, blobs, mesh/noise, or sketchy SVG (pptxgenjs has no native gradient; decorations are bundled PNGs); flat ground only.
+These are judged by eye on the rendered pages, after the automated checks pass. They hold for every
+tonality; where a law depends on the direction (radius, display size, which decoration is allowed),
+the tonality pack sets the value and the law says where to look.
 
-### Contrast & color (within the template's palette)
-- [ ] Body/running text ≥ 4.5:1; large text (≥18pt, or bold ≥14pt) and structural lines ≥ 3:1 — measure the pair (`qa_deck.py` enforces this).
-- [ ] No gray text on a colored fill; darken the fill's own hue instead. Color is never the sole signal — deltas carry a ▲/▼ glyph + sign.
-- [ ] Accent coverage ≤ ~10% of the slide; one color = one meaning deck-wide. Use the template palette; invent no inline one-off hex.
+### Bans that hold in every direction
+- [ ] A coloured stripe down one edge of a card is never an accent. Mark the item with a hairline
+  above it, a flat tint, or a real numeral beside it instead.
+- [ ] One surface gets one edge: an outline or a soft shadow, never both. An outlined box with
+  nothing in it is clutter, not structure.
+- [ ] Corners follow the pack (`radius` 0 or 6) on every surface of the deck; fully rounded shapes
+  are for small tags only.
+- [ ] A row of identical cards is a filler pattern. Vary the span, let one element lead, or set the
+  points as a list or a comparison.
+- [ ] Ordinals (`01 · 02 · 03`) and small labels above titles appear only where the order is real.
+- [ ] A large number appears only when it is the slide's evidence, sourced and labelled.
+- [ ] No card inside a card and no card around everything; group with space and hairlines.
+- [ ] Flat grounds only: no gradients, blobs, glows, mesh or noise textures, no hand-drawn marks.
+  Bands, rails and colour fields come from the pack's decoration list and nowhere else.
 
-### Typography
-- [ ] One family in ≤ 3–4 weights, one role each; body never set in a display cut. For per-weight-family fonts (에이투지체/Brand Sans) pick weight by family name, never a bold flag.
-- [ ] ≤ 3–4 distinct sizes per slide on one ramp; no muddy near-equal sizes. Display ≤ ~40pt for the boilerplate templates.
-- [ ] UPPERCASE labels take positive tracking (override the narrow body default). Headings line-height 1.1–1.2; body 1.3–1.7 (Korean body looser).
-- [ ] No single-word widow on a heading's last line (author manual breaks — `text-wrap` does not survive export). Numeric columns right-aligned.
+### Colour inside the pack
+- [ ] Body text and captions reach 4.5:1 on the fill they actually sit on; large text and structural
+  lines reach 3:1 (`qa_deck.py` measures the pairs).
+- [ ] Grey text never sits on a coloured fill; use the fill's own `on-field` or `accent-deep` role.
+  A colour never carries meaning alone: deltas also carry ▲/▼ and a sign.
+- [ ] The accent covers about a tenth of a content slide and means one thing across the deck.
+  Every colour comes from the pack's roles; no one-off hex per slide.
 
-### Layout & hierarchy
-- [ ] Squint test passes: the one primary element + the groupings are obvious at a blur.
-- [ ] Exactly one primary element per slide (≥ 2:1 to the next level); ≤ 4 items per group; even density across the deck.
-- [ ] One 4pt spacing scale (4/8/12/16/24/32/48); vary gaps for rhythm; one alignment axis per region.
-- [ ] Every border/divider/box earns its place — remove anything carrying no information before export.
+### Type
+- [ ] Pretendard Regular and Bold by default; A2Z only when the user or the source asks
+  (`faces: a2z`), then at most three faces from two families, A2Z weights chosen by family name.
+- [ ] One ramp per deck (presented or reading), at most four sizes on a slide, no near-equal pairs.
+  No hero step; a figure is set at title size at most, with its label, unit, basis and source.
+- [ ] Titles and subtitles are topic labels, never declarative sentences (OF-114); the claim opens
+  the body.
+- [ ] Headings at 1.1-1.2 line height, body at 1.3-1.45 (Korean at the loose end).
+- [ ] No single word alone on a title's last line; break by hand at a 어절 boundary.
+
+### Layout and hierarchy
+- [ ] At a squint each slide shows one primary element and its groups.
+- [ ] One primary element per slide, about twice the next level; at most four items per group.
+- [ ] Gaps come from one scale (6, 12, 18, 24, 36, 48, 72 pt), smaller inside a group than between
+  groups; one alignment edge per region.
+- [ ] Every line, box and field carries information or structure; anything else goes.
+- [ ] The title treatment matches the slide's job, and each treatment keeps one frame across the
+  deck (`title-treatments.md`).
+- [ ] The body reaches toward the floor on content slides (`density-and-fill.md`).
 
 ### Craft-floor checks (enforced by `scripts/craft_extras.py` through `qa_deck.py`)
 
@@ -70,6 +89,16 @@ Apply with a human eye AFTER automated checks. Targets a static export (no motio
 - [ ] OF-105: the gap between cards is at least twice the smallest gap between two shapes inside a card (a shape's inset to its own card edge is padding and does not count). Advisory (MEDIUM) until the family's calibration re-run promotes it.
 - [ ] OF-106 / OF-107 / OF-108: no gradient-filled text, no glow, no emoji bullets.
 - [ ] OF-109: no single empty band over 35% of the content area or of a card (25 to 35% is advisory); in a row of equal-height cards the row counts its smallest trailing band. Fill it, shrink the region, or merge slides.
+- [ ] OF-110: a deck of eight or more slides uses at least three title treatments and no more than its variance allows; every title is one of the eight treatments and is drawn as the treatment its name says.
+- [ ] OF-111: content slides do not share one composition (title zone × body partition × dominant content) on more than 40 % of them, and show at least ceil(0.6 × content slides) distinct ones, capped at 5.
+- [ ] OF-112: the median empty band under the body's last block stays at or under 0.20; a slide over its density cap is an advisory.
+- [ ] OF-113: every slide with one title treatment keeps that treatment's frame within 1 pt (a bottom title by its bottom edge).
+- [ ] OF-115: no region stands empty: a bottom title on the floor, a side rail that carries its slide's criteria, takeaways or source, a takeaway column that runs as long as the chart, table or picture beside it (its largest empty band, not its last block: a source strip at the foot does not hide the band above it, and a chart's values table under the takeaways belongs to the column), a picture drawn as tall as its column allows, a title panel as tall as its text, and no plate under an empty page.
+- [ ] OF-116: run `qa_deck.py deck.pptx --sibling other.pptx` when two tonalities of one source are offered; their skeletons (title zone and partition per content slide) must differ on at least two content slides (one on a deck of fewer than four).
+- [ ] OF-117: no mostly-white figure picture on a dark tonality; give it a `.dark` variant or draw it as a native chart.
+- [ ] OF-118: a bold run-in label is followed by its separator ("**요약:** …"); the engine adds the colon when the source leaves it out, so a finding means the label was set by hand.
+- [ ] OF-119: an agenda title stands without a numeral beside it; the agenda's rows carry the numbers.
+- [ ] On a legacy template OF-110, OF-111 and the OF-112 median are advisories, because the user asked for that template's single look.
 
 ### Objective evidence checks
 

@@ -17,7 +17,7 @@ Turn a vague request into a crystal-clear deck specification. Brand-agnostic —
 ## Steps
 
 ### 0. Styling gate (smart-gated, runs FIRST)
-Before any content scoring, settle **theme + font (+ optional accent hex)** — see SKILL.md "Before you generate — preference gate". If the request already names them, skip. Otherwise ask ONE `AskUserQuestion` round (theme · font · optional `--accent` hex) with a one-click "Best pick (AZURE-PRO · Pretendard · blue)" default and an "알아서/just make it good" escape. Record `theme`/`font`/`accent` in `interview-state.json`. Then proceed below (Structure no longer needs to re-ask template/font).
+Before any content scoring, settle the **direction**. If the request already names a tonality or a template, use it. Otherwise run the direction step (`references/direction-step.md`) on what is known so far and ask ONE `AskUserQuestion` round whose first, one-click option is the chosen tonality with its reason, followed by the two alternatives and a "compare them first" option (the compare strip); "알아서 / just make it good" means the first option. Record `tonality`, `alternatives` and `reason` in `interview-state.json`. Then proceed below (Structure no longer re-asks the look).
 
 ### 1. Initialize
 Create `.pptx-pipeline/` in the user's working directory; write `interview-state.json` (`active`, `rounds`, `current_ambiguity`, `threshold`, `started_at`). Spawn a Claude Code subagent (Agent tool, `general-purpose`) whose prompt is `references/agents/analyst.md` plus the inputs below to extract requirements.
@@ -32,7 +32,7 @@ Score the 4 dimensions, compute ambiguity. If ≤ 0.20 → go to Step 5; else St
 4. Re-score, update state, report a per-dimension table.
 5. Exit when ambiguity ≤ 0.20, the user says "build it", or round 10 (hard cap).
 
-If template/font is still unspecified by Structure-scoring time, ask directly: AZURE-PRO (16:9, Pretendard, default) vs AZURE-A2Z (16:9, 에이투지체) vs BOILERPLATE-PRETENDARD / BOILERPLATE-A2Z (plain 4:3) vs an existing branded `.pptx` to learn from (`learn_template.py`). Under a bare `lit` request this question is skipped and AZURE-PRO is used.
+If the direction is still open by Structure-scoring time, re-run the direction step with the structure now known and offer its first candidate and two alternatives, plus an existing branded `.pptx` to learn from (`learn_template.py`). Under a bare `lit` request this question is skipped: the direction step picks the first candidate and the reply names it with the alternatives.
 
 ### 4. Challenge modes
 - **Contrarian**: "What if the audience already knows this — is the deck still valuable?"

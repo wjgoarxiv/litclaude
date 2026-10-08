@@ -102,6 +102,9 @@ def word_count(text: str) -> int:
     return len(re.findall(r"\b[\w’'-]+\b", text))
 
 
+TITLE_MINOR = {"a", "an", "the", "and", "but", "or", "nor", "for", "of", "in", "on", "at", "to", "by", "as", "via", "with", "from"}
+
+
 def heading_case_ok(heading: str, expected: str) -> bool:
     bare = heading.strip()
     if not bare:
@@ -111,8 +114,9 @@ def heading_case_ok(heading: str, expected: str) -> bool:
     if expected == "sentence_case":
         return bare[0].isupper() and bare[1:] != bare[1:].upper()
     if expected == "title_case":
-        words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", bare)]
-        return all(word[0].isupper() for word in words[: min(len(words), 6)]) if words else True
+        # Title case capitalises every word except a short article, conjunction or preposition after the first.
+        words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", bare)][:6]
+        return all(word[0].isupper() or (i and word in TITLE_MINOR) for i, word in enumerate(words)) if words else True
     return True
 
 
@@ -207,7 +211,11 @@ def lint_text(md_text: str, publisher: dict, phrase_rules: dict, locale: str) ->
                 for match in re.finditer(re.escape(phrase), section_text):
                     add_finding(findings, full_text, offsets, section_pos + match.start(), "rule-21-ko-ai-phrase", section_name, f"한국어 AI 표현: '{match.group(0)}'", match.group(0))
 
-        if section_text.count("—") >= 2 or section_text.count(" - ") >= 1:
+        # A spaced hyphen between words reads as a dash; one opening a line is a list marker
+        # (a key figure's basis line, a nested point), not a dash.
+        # Table rows are data: a dash there marks an empty cell.
+        prose = "\n".join(line for line in section_text.split("\n") if not line.lstrip().startswith("|"))
+        if prose.count("—") >= 2 or re.search(r"\S - ", prose):
             add_finding(findings, full_text, offsets, max(section_pos, 0), "rule-02-em-dash-cluster", section_name, "Paragraph uses dash-heavy rhetorical style", section_text[:120])
 
         sentences = sentence_split(section_text)
@@ -252,7 +260,8 @@ def lint_text(md_text: str, publisher: dict, phrase_rules: dict, locale: str) ->
                 for match in re.finditer(re.escape(phrase), section_text):
                     add_finding(findings, full_text, offsets, section_pos + match.start(), "rule-24-ko-loanword", section_name, f"외래어 남용 감지: '{match.group(0)}'", match.group(0))
 
-        if len(lengths) >= 4 and wc >= 80:
+        # A reference list is a run of entries, not prose.
+        if len(lengths) >= 4 and wc >= 80 and section_name.strip().lower() not in REFERENCE_SECTIONS:
             mean = sum(lengths) / len(lengths)
             variance = sum((item - mean) ** 2 for item in lengths) / len(lengths)
             if variance ** 0.5 < 6:
@@ -274,8 +283,10 @@ def lint_text(md_text: str, publisher: dict, phrase_rules: dict, locale: str) ->
         if total_words >= 250 and section_name.lower() == "methods" and section_ratio < 0.15:
             add_finding(findings, full_text, offsets, max(section_pos, 0), "rule-09-section-balance", section_name, "Methods section is too small relative to the manuscript", section_text[:120])
 
-        ttr = type_token_ratio(section_text)
-        if ttr < 0.45 and wc > 40:
+        # TTR falls with length, so it is read per subsection (the smallest headed unit), not over a whole chapter.
+        parts = [part for part in re.split(r"(?m)^(?=#{2,6} )", section_text) if word_count(part) > 40]
+        ttr = min((type_token_ratio(part) for part in parts), default=1.0)
+        if ttr < 0.45:
             add_finding(findings, full_text, offsets, max(section_pos, 0), "rule-10-lexical-diversity", section_name, f"Lexical diversity is low (TTR={ttr:.2f})", section_text[:120])
 
         for pattern in adjective_stacks:
@@ -485,6 +496,7 @@ def parse_args() -> argparse.Namespace:
 
 # Rules that describe a journal manuscript's shape. A business report, proposal or plan
 # has no Introduction/Methods outline to follow, so --kind report leaves them out.
+REFERENCE_SECTIONS = {"references", "reference", "bibliography", "참고문헌", "참고 문헌"}
 MANUSCRIPT_ONLY_RULES = {"rule-07-citation-density", "rule-08-structure-order", "rule-09-section-balance"}
 
 

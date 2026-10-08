@@ -139,12 +139,16 @@ function buildBlocks(layout, content) {
       continue;
     }
 
-    // Check for standalone image
-    const img = parseImage(remaining);
-    if (img && !remaining.split("\n").some((l) => l.trim() && !l.trim().startsWith("!["))) {
-      blocks.push({ type: "image", src: img.src, caption: img.alt || "" });
-      if (img.alt) {
-        blocks.push({ type: "figure-caption", caption: img.alt });
+    // Check for standalone images: a run of image lines keeps every image, each with its caption.
+    const imageLines = remaining.split("\n").filter((l) => l.trim());
+    if (imageLines.length && imageLines.every((l) => l.trim().startsWith("![")) && imageLines.some((l) => parseImage(l))) {
+      for (const line of imageLines) {
+        const img = parseImage(line);
+        if (!img) continue;
+        blocks.push({ type: "image", src: img.src, caption: img.alt || "" });
+        if (img.alt) {
+          blocks.push({ type: "figure-caption", caption: img.alt });
+        }
       }
       continue;
     }

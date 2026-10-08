@@ -46,6 +46,7 @@ EMU = 914400.0
 FILL_MIN = 0.45
 DISPLAY_PT = 30.0
 CAPTION_PT = 10.5
+QUOTE_MARKS = {"“", "”", "‘", "’", "\"", "«", "»", "「", "」", "『", "』"}
 EDGE_TOL = 0.03
 FULL_BLEED = 0.92
 # A bracket with a digit in it is a citation marker ([1], [S3]); a blank has none.
@@ -144,6 +145,15 @@ def _outlined(shape):
     return len(line) > 0 or line.get("w") is not None
 
 
+def _bleeds(box, W, H, tol=EDGE_TOL):
+    """A fill that touches two or more canvas edges (a band, a rail, a colour field) is page
+    decoration that may hold a title; it is not a card around content."""
+    if box is None:
+        return False
+    x, y, w, h = box
+    return sum([x <= tol, y <= tol, x + w >= W - tol, y + h >= H - tol]) >= 2
+
+
 def _contains(outer, inner, tol=0.05):
     return (inner[0] >= outer[0] - tol and inner[1] >= outer[1] - tol
             and inner[0] + inner[2] <= outer[0] + outer[2] + tol and inner[1] + inner[3] <= outer[1] + outer[3] + tol)
@@ -152,6 +162,8 @@ def _contains(outer, inner, tol=0.05):
 def slide_layout(shapes, W, H, page_area):
     """The slide's display flag, title, content area and content boxes, shared by the craft
     checks here and in craft_extras.py so both judge the same region."""
+    # A frame holding only a quotation mark is the quote's ornament, not a text block.
+    shapes = [s for s in shapes if _text(s) not in QUOTE_MARKS]
     texts = [(s, _text(s)) for s in shapes]
     # Cover, section and closing slides: display-size type, no data visual, and at
     # most two headline-sized lines. A KPI slide has several large numbers and is content.
@@ -159,12 +171,41 @@ def slide_layout(shapes, W, H, page_area):
                      for s in shapes)
     large = [s for s, t in texts if t and _max_pt(s) >= 18]
     display = (any(_max_pt(s) >= DISPLAY_PT for s, t in texts if t) and not has_visual and len(large) <= 2)
+    # A slide the tonality engine names with a content family (`family@<id>`) is a content slide,
+    # however little it holds; covers, sections, statements, quotes and full-bleed pictures are the
+    # display slides.
+    family = next((s.name.split("@", 1)[1] for s in shapes if s.name.startswith("family@")), "")
+    if family:
+        display = bool(re.match(r"(cover|section)(-|$)|(statement|quote|closing-statement|image-full)$", family))
 
-    # Title: the largest text near the top.
+    # Title: the frame the engine names `title@…`, else the largest text near the top.
     tops = [(s, _max_pt(s)) for s, t in texts if t and _box(s) and _box(s)[1] < H * 0.25]
-    title = max(tops, key=lambda item: item[1])[0] if tops else None
+    named = next((s for s, t in texts if t and s.name.startswith("title@") and _box(s)), None)
+    title = named if named is not None else max(tops, key=lambda item: item[1])[0] if tops else None
     title_bottom = (_box(title)[1] + _box(title)[3]) if title is not None else H * 0.2
     area = (0.5, title_bottom + 0.1, W - 1.0, max(0.1, H - 0.55 - title_bottom - 0.1))
+    # A title on the body floor (bottom-anchor) closes the page: the content area is above it.
+    if title is not None and _box(title)[1] > H * 0.5:
+        area = (0.5, 0.5, W - 1.0, max(0.1, _box(title)[1] - 0.1 - 0.5))
+    # A title in a side rail: a narrow headline at the left edge, the body to its right. What stands in
+    # the rail under the title (its takeaways, criteria labels, the source) is the rail's, so the content
+    # area is the body beside the rail, from the top, and the rail's own blocks are not counted in it.
+    in_rail = []
+    rail_tops = [(named, _max_pt(named))] if named is not None and _box(named)[1] < H * 0.25 else tops
+    for shape, _ in rail_tops:
+        rail = _box(shape)
+        if _max_pt(shape) < 24 or rail[0] > W * 0.1 or rail[2] > W * 0.35:
+            continue
+        right = rail[0] + rail[2]
+        others = [_box(s) for s, t in texts if s is not shape and _box(s) and (t or _is_table(s) or _is_chart(s)) and _box(s)[1] < H - 0.55]
+        others += [_box(s) for s in shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE and _box(s) and not _decorative_picture(s, page_area)]
+        under = [b for b in others if b[0] + b[2] <= right + 0.05 and b[1] >= rail[1] + rail[3] - 0.05]
+        body = [b for b in others if b[0] >= right - 0.05]
+        if body and len(body) + len(under) == len(others):
+            title = shape
+            in_rail = under
+            area = (right + 0.1, rail[1], max(0.1, W - 0.5 - right - 0.1), max(0.1, H - 0.55 - rail[1]))
+        break
 
     visuals = []
     boxes = []
@@ -172,7 +213,7 @@ def slide_layout(shapes, W, H, page_area):
         if shape is title:
             continue
         box = _box(shape)
-        if box is None:
+        if box is None or box in in_rail:
             continue
         if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
             if _decorative_picture(shape, page_area):
@@ -186,7 +227,7 @@ def slide_layout(shapes, W, H, page_area):
             if _max_pt(shape) <= CAPTION_PT:
                 continue
         elif shape.shape_type in (MSO_SHAPE_TYPE.AUTO_SHAPE, MSO_SHAPE_TYPE.GROUP) and box[2] * box[3] >= 0.5 and (
-                shape.shape_type == MSO_SHAPE_TYPE.GROUP or _filled(shape)):
+                shape.shape_type == MSO_SHAPE_TYPE.GROUP or _filled(shape)) and not _bleeds(box, W, H):
             if box[2] * box[3] < FULL_BLEED * page_area:
                 visuals.append("card")
         else:
@@ -245,7 +286,8 @@ def analyse(path: Path) -> dict:
                 rectangular = False
             if not rectangular or _filled(shape) or not _outlined(shape):
                 continue
-            if any(_contains(box, inner) for inner in content_boxes if inner != box):
+            # A hairline frame drawn exactly on a picture's edge is that picture's frame.
+            if any(_contains(box, inner) for inner in content_boxes):
                 continue
             findings.append({"check": "stray_box", "slide": number, "shape": shape.name,
                              "detail": [round(v, 2) for v in box],

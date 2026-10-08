@@ -17,6 +17,11 @@ Features:
   journal design discipline: title block from YAML frontmatter, curly
   quotes, en/em dashes, nbsp before units, ellipsis, heading auto-numbering,
   booktabs tables, banned-font/style stripping, CJK font pairing.
+- --tonality NAME (or frontmatter `tonality:`) builds the document in one of
+  the six design directions of templates/tonalities/ (docx_design.py), with
+  the page components written as ::: directives; --density and --variance
+  move the pack's dials. Without a tonality or a publisher the plain profile
+  runs through the same builders with neutral tokens.
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from office_data import DataError, resolve_text  # noqa: E402
 ensure_runtime(["docx", "markdown", "bs4", "yaml"])
 
 import argparse
+import copy
 import re
 import sys
 from pathlib import Path
@@ -51,6 +57,7 @@ try:
     from docx.enum.style import WD_STYLE_TYPE
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
+    from docx.text.paragraph import Paragraph
 except ImportError:
     print("Error: 'python-docx' library not found. Install with: pip install python-docx")
     sys.exit(1)
@@ -60,6 +67,8 @@ try:
 except ImportError:
     print("Error: 'beautifulsoup4' library not found. Install with: pip install beautifulsoup4")
     sys.exit(1)
+
+import docx_design  # noqa: E402  (needs the runtime's python-docx and PyYAML)
 
 
 # ===========================================================================
@@ -163,10 +172,16 @@ def process_list(doc: Document, element, md_path: Path, ordered: bool = False, l
         if level > 0:
             para.paragraph_format.left_indent = Inches(0.5 * level)
 
-        # Process direct text content
-        for child in li.children:
+        # Process direct text content. Only the item's own edges are trimmed: the space after a bold lead
+        # ("**1,200개** 태그") belongs to the text.
+        children = list(li.children)
+        for ci, child in enumerate(children):
             if isinstance(child, NavigableString):
-                text = str(child).strip()
+                text = str(child).replace("\n", " ")
+                if ci == 0 or getattr(children[ci - 1], "name", None) in ('ul', 'ol', 'p'):
+                    text = text.lstrip()
+                if ci == len(children) - 1 or getattr(children[ci + 1], "name", None) in ('ul', 'ol', 'p'):
+                    text = text.rstrip()
                 if text:
                     para.add_run(text)
             elif child.name in ('ul', 'ol'):
@@ -299,6 +314,26 @@ def process_code_block(doc: Document, element):
     para._p.get_or_add_pPr().append(shading)
 
 
+def add_figure_caption(doc, element, para) -> None:
+    """An image alone in its paragraph keeps its alt text as the caption under it
+    ("Figure 1." / "그림 1." bold), and the image keeps with the caption."""
+    images = element.find_all('img')
+    alt = images[0].get('alt', '').strip() if len(images) == 1 else ''
+    if not alt or element.get_text(strip=True):
+        return
+    para.paragraph_format.keep_with_next = True
+    try:
+        caption = doc.add_paragraph(style='Caption')
+    except KeyError:
+        caption = doc.add_paragraph()
+    label = docx_design.FIGURE_LABEL.match(alt)
+    if label:
+        caption.add_run(label.group(1)).bold = True
+        caption.add_run(alt[len(label.group(1)):])
+    else:
+        caption.add_run(alt)
+
+
 def html_to_docx(html: str, doc: Document, md_path: Path):
     """Convert HTML to DOCX elements."""
     soup = BeautifulSoup(html, 'html.parser')
@@ -317,7 +352,8 @@ def html_to_docx(html: str, doc: Document, md_path: Path):
                 process_inline_elements(heading, child, md_path)
 
         elif element.name == 'p':
-            add_paragraph_with_formatting(doc, element, md_path)
+            para = add_paragraph_with_formatting(doc, element, md_path)
+            add_figure_caption(doc, element, para)
 
         elif element.name == 'ul':
             process_list(doc, element, md_path, ordered=False)
@@ -690,6 +726,112 @@ def apply_table_style(doc, design: dict) -> None:
                 existing_bottom.set(qn("w:color"), "000000")
 
 
+def keep_tables_with_captions(doc) -> None:
+    """A table caption keeps with its table, and a table that fits one page keeps its rows together
+    (every row but the last keeps with the next). Pagination only: text, styles and rules are unchanged."""
+    section = doc.sections[-1]
+    frame_h = (section.page_height - section.top_margin - section.bottom_margin) / 12700
+    for table in doc.tables:
+        prev = table._tbl.getprevious()
+        if prev is not None and prev.tag == qn("w:p") and docx_design.TABLE_CAPTION.match("".join(t.text or "" for t in prev.iter(qn("w:t"))).strip()):
+            Paragraph(prev, table._parent).paragraph_format.keep_with_next = True
+        widths = [c.width / 12700 if c.width else 100 for c in table.rows[0].cells]
+        est = sum(6 + 11 * 1.3 * max(docx_design._est_lines(c.text, (widths[i] if i < len(widths) else 100) - 12, 11) for i, c in enumerate(row.cells)) for row in table.rows)
+        if est <= 0.9 * frame_h:
+            for row in table.rows[:-1]:
+                for cell in row.cells:
+                    cell.paragraphs[0].paragraph_format.keep_with_next = True
+
+
+def publisher_spacing(doc) -> None:
+    """Text never touches a table or a caption (spec-v2 Amendments 7, R10): the paragraph after a table stands three
+    quarters of a body line clear (docx-spec Amendments 6; 8 pt read as half a line), a table caption after text
+    8 pt, and a figure caption keeps 8 pt under it. A paragraph after a list stands 6 pt clear of its last item."""
+    body = doc.element.body
+    normal = doc.styles["Normal"]
+    size = normal.font.size.pt if normal.font.size else 11
+    multiple = normal.paragraph_format.line_spacing if isinstance(normal.paragraph_format.line_spacing, float) else 1.15
+    clear = Pt(max(8, round(size * multiple * 1.2 * 0.75)))
+    for el in body.iterchildren(qn("w:tbl")):
+        nxt = el.getnext()
+        if nxt is not None and nxt.tag == qn("w:p") and "".join(t.text or "" for t in nxt.iter(qn("w:t"))).strip():
+            para = Paragraph(nxt, doc._body)
+            # A heading keeps its own (larger) space above.
+            own = para.style.paragraph_format.space_before if para.style is not None else None
+            fmt = para.paragraph_format
+            if not (own and own >= clear) and (not fmt.space_before or fmt.space_before < clear):
+                fmt.space_before = clear
+        prev = el.getprevious()
+        if prev is not None and prev.tag == qn("w:p") and docx_design.TABLE_CAPTION.match("".join(t.text or "" for t in prev.iter(qn("w:t"))).strip()):
+            fmt = Paragraph(prev, doc._body).paragraph_format
+            if not fmt.space_before or fmt.space_before < Pt(8):
+                fmt.space_before = Pt(8)
+    docx_design.space_after_lists(doc)
+    for p in doc.paragraphs:
+        prev = p._p.getprevious()
+        under_picture = prev is not None and prev.find(f".//{qn('w:drawing')}") is not None
+        if docx_design.FIGURE_LABEL.match(p.text.strip()) and (under_picture or (p.style is not None and p.style.name == "Caption")):
+            if not p.paragraph_format.space_after or p.paragraph_format.space_after < Pt(8):
+                p.paragraph_format.space_after = Pt(8)
+
+
+def plain_table_cells(doc) -> None:
+    """Table cells neither hyphenate nor justify: the body may (the profile's hyphenation), but a narrow cell
+    broke "Pro-posed" and a justified header spread "Conversion   at"."""
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    p_pr = paragraph._p.get_or_add_pPr()
+                    if p_pr.find(qn("w:suppressAutoHyphens")) is None:
+                        p_pr.insert_element_before(OxmlElement("w:suppressAutoHyphens"), *SUPPRESS_AFTER)
+                    if paragraph.alignment in (None, WD_ALIGN_PARAGRAPH.JUSTIFY):
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+
+SUPPRESS_AFTER = ("w:kinsoku", "w:wordWrap", "w:overflowPunct", "w:topLinePunct", "w:autoSpaceDE", "w:autoSpaceDN", "w:bidi",
+                  "w:adjustRightInd", "w:snapToGrid", "w:spacing", "w:ind", "w:contextualSpacing", "w:mirrorIndents",
+                  "w:suppressOverlap", "w:jc", "w:textDirection", "w:textAlignment", "w:textboxTightWrap",
+                  "w:outlineLvl", "w:divId", "w:cnfStyle", "w:rPr", "w:sectPr", "w:pPrChange")
+
+
+def page_numbers(doc, design: dict) -> None:
+    """The profile's page numbering (registry design.header_footer): a centred PAGE field in the footer at the
+    footer size, and none on the first page when the profile says so (its header keeps the notice tag)."""
+    hf = design.get("header_footer") or {}
+    if hf.get("page_numbering") != "bottom_center":
+        return
+    size = Pt(float(hf.get("footer_font_size_pt") or 9))
+    for index, section in enumerate(doc.sections):
+        if index and section.footer.is_linked_to_previous:
+            continue
+        if not hf.get("page_numbering_first_page", True) and not section.different_first_page_header_footer:
+            section.different_first_page_header_footer = True
+            first = section.first_page_header
+            for paragraph in section.header.paragraphs:
+                first._element.append(copy.deepcopy(paragraph._p))
+            first._element.remove(first.paragraphs[0]._p)
+        footer = section.footer
+        paragraph = footer.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run()
+        run.font.size = size
+        for kind, text in (("begin", None), (None, " PAGE "), ("separate", None), (None, "1"), ("end", None)):
+            if kind:
+                char = OxmlElement("w:fldChar")
+                char.set(qn("w:fldCharType"), kind)
+                run._r.append(char)
+            elif text == " PAGE ":
+                instr = OxmlElement("w:instrText")
+                instr.set(qn("xml:space"), "preserve")
+                instr.text = text
+                run._r.append(instr)
+            else:
+                t = OxmlElement("w:t")
+                t.text = text
+                run._r.append(t)
+
+
 def strip_banned(doc, design: dict) -> None:
     """Remove any banned font/style from runs and paragraphs."""
     banned = design.get("banned") or {}
@@ -732,6 +874,19 @@ def _set_run_fonts(run, latin: str, cjk: str | None) -> None:
     rfonts.set(qn("w:cs"), latin)
     if cjk:
         rfonts.set(qn("w:eastAsia"), cjk)
+
+
+THEME_PAIRS = (("asciiTheme", "ascii"), ("hAnsiTheme", "hAnsi"), ("eastAsiaTheme", "eastAsia"), ("cstheme", "cs"))
+
+
+def drop_shadowed_theme_fonts(doc) -> None:
+    """A style that names its face keeps no theme font beside it: Word and LibreOffice both let the theme
+    attribute win, so the profile's heading face (Times New Roman, Arial, Pretendard) rendered as the
+    theme's Calibri. Styles only; the document body is untouched."""
+    for rfonts in doc.styles.element.iter(qn("w:rFonts")):
+        for theme, named in THEME_PAIRS:
+            if rfonts.get(qn(f"w:{named}")) and rfonts.get(qn(f"w:{theme}")) is not None:
+                del rfonts.attrib[qn(f"w:{theme}")]
 
 
 def apply_cjk_font_pairing(doc, font_cfg: dict) -> None:
@@ -947,8 +1102,7 @@ def detect_locale(text: str) -> str:
 # ===========================================================================
 
 
-NOTICE_FILL = "FDECEA"
-NOTICE_INK = RGBColor(0xA2, 0x1B, 0x12)
+NOTICE_INK, NOTICE_FILL = docx_design.NOTICE
 
 
 def _shade(element, fill: str) -> None:
@@ -960,7 +1114,7 @@ def _shade(element, fill: str) -> None:
 
 
 def add_notice(doc, text: str) -> None:
-    """The frontmatter `notice:` (e.g. "예시 데이터 — 수치는 가정입니다") as a tag in
+    """The frontmatter `notice:` (e.g. "예시 데이터: 수치는 가정입니다") as a tag in
     every page header, so an example document cannot be mistaken for a sourced one
     on any page it is printed from. A profile whose title page has its own, empty
     header (korean-generic) gets a tinted band under the title block instead."""
@@ -969,7 +1123,7 @@ def add_notice(doc, text: str) -> None:
         band_run = band.add_run(str(text))
         band_run.bold = True
         band_run.font.size = Pt(10.5)
-        band_run.font.color.rgb = NOTICE_INK
+        band_run.font.color.rgb = RGBColor.from_string(NOTICE_INK)
         band.paragraph_format.space_before = Pt(4)
         band.paragraph_format.space_after = Pt(14)
         _shade(band._p.get_or_add_pPr(), NOTICE_FILL)
@@ -981,36 +1135,8 @@ def add_notice(doc, text: str) -> None:
         tag_run = tag.add_run(f"\u00a0{text}\u00a0")
         tag_run.bold = True
         tag_run.font.size = Pt(9)
-        tag_run.font.color.rgb = NOTICE_INK
+        tag_run.font.color.rgb = RGBColor.from_string(NOTICE_INK)
         _shade(tag_run._r.get_or_add_rPr(), NOTICE_FILL)
-
-
-def add_plain_title_block(doc, front: dict) -> None:
-    """Title, optional subtitle, and one line of author / organisation / date,
-    left-aligned above the body, for the plain (non-publisher) profile."""
-    title = doc.add_paragraph()
-    run = title.add_run(str(front["title"]))
-    run.bold = True
-    run.font.size = Pt(22)
-    title.paragraph_format.space_after = Pt(4)
-    if front.get("subtitle"):
-        sub_p = doc.add_paragraph()
-        sub_run = sub_p.add_run(str(front["subtitle"]))
-        sub_run.font.size = Pt(13)
-        sub_run.font.color.rgb = RGBColor(0x55, 0x5F, 0x6D)
-        sub_p.paragraph_format.space_after = Pt(4)
-    authors = front.get("authors") or front.get("author")
-    if isinstance(authors, list):
-        authors = ", ".join(str(a.get("name", a)) if isinstance(a, dict) else str(a) for a in authors)
-    meta = [str(v) for v in (authors, front.get("organization"), front.get("date")) if v]
-    if meta:
-        meta_p = doc.add_paragraph()
-        meta_run = meta_p.add_run(" · ".join(meta))
-        meta_run.font.size = Pt(10.5)
-        meta_run.font.color.rgb = RGBColor(0x55, 0x5F, 0x6D)
-        meta_p.paragraph_format.space_after = Pt(18)
-    if front.get("notice"):
-        add_notice(doc, front["notice"])
 
 
 def read_source(md_path: Path) -> str:
@@ -1023,6 +1149,31 @@ def read_source(md_path: Path) -> str:
         raise SystemExit(f"Data error: {exc}") from exc
 
 
+MD_EXTENSIONS = ['tables', 'fenced_code', 'nl2br', 'sane_lists']
+
+
+def _md_renderer(md_path: Path):
+    """Markdown into a document or a component's cell, through the legacy HTML helpers."""
+    def render(container, text: str) -> None:
+        html_to_docx(markdown.Markdown(extensions=MD_EXTENSIONS).convert(text), container, md_path)
+    return render
+
+
+def _typography(design: dict, lang: str = "en"):
+    """The registry's micro-typography filters, for Markdown outside the directive fences; Korean text also
+    writes ISO dates the Korean way (2026. 10. 1.)."""
+    def apply(text: str) -> str:
+        # Dates first: the dash filter would read 2026-06-30 as a number range.
+        if lang != "en":
+            text = docx_design.korean_dates(text)
+        text = fix_dashes(text, design.get("micro_typography", {}).get("dashes"))
+        text = fix_quotes(text)
+        text = fix_unit_spacing(text)
+        text = fix_ellipsis(text)
+        return normalize_double_spaces(text)
+    return apply
+
+
 def convert_md_to_docx(
     md_path: Path,
     docx_path: Path,
@@ -1030,40 +1181,43 @@ def convert_md_to_docx(
     publisher_name: str | None = None,
     registry_path: Path | None = None,
     locale: str = "auto",
+    tonality: str | None = None,
+    density: int | None = None,
+    variance: int | None = None,
 ):
     """Convert Markdown file to DOCX.
 
-    When publisher_name is None, behavior is byte-compatible with the pre-M1
-    script: read md, convert to HTML, html_to_docx, save. Regression-guarded.
+    With a tonality (argument or frontmatter `tonality:`), the document is built
+    by docx_design in that design direction. Without a tonality or a publisher,
+    the plain profile runs through the same builders with neutral tokens (A4,
+    Pretendard, booktabs tables, notice in every header).
 
     When publisher_name is set, apply the full journal pipeline: registry
     load, frontmatter parse, pre-MD filters, title-block injection, post-HTML
     heading numbering, booktabs tables, banned stripping, CJK font pairing.
+    A publisher run writes the same document.xml as before the tonality
+    engine unless the source holds figures (captions) or directives.
     """
     if publisher_name is None:
-        # --- Legacy code path (regression-critical: do not mutate) ---
         md_text = read_source(md_path)
-        # A frontmatter block is a title page request, not body text: strip it and
-        # set a plain title block. Markdown without frontmatter converts as before.
-        plain_front = {}
-        if md_text.startswith("---"):
-            plain_front, md_text = parse_frontmatter(md_text)
-        md_converter = markdown.Markdown(extensions=[
-            'tables',
-            'fenced_code',
-            'nl2br',
-            'sane_lists',
-        ])
-        html = md_converter.convert(md_text)
-        if template_path and template_path.exists():
-            doc = Document(str(template_path))
-        else:
-            doc = Document()
-        if plain_front.get("title"):
-            add_plain_title_block(doc, plain_front)
-        html_to_docx(html, doc, md_path)
+        front, body = parse_frontmatter(md_text) if md_text.startswith("---") else ({}, md_text)
+        name = tonality or front.get("tonality")
+        lang = "en" if (detect_locale(body) if locale == "auto" else locale) == "en" else "ko"
+        dials = {k: v for k, v in (("density", density if density is not None else front.get("density")),
+                                    ("variance", variance if variance is not None else front.get("variance"))) if v is not None}
+        try:
+            if name:
+                T = docx_design.load_tonality(name, locale=lang, **{k: int(v) for k, v in dials.items()})
+                filters = _typography(T.design, lang)
+            else:
+                T, filters = docx_design.neutral_tonality(lang), None
+            doc = Document(str(template_path)) if template_path and template_path.exists() else Document()
+            docx_design.build(doc, front, body, T, _md_renderer(md_path), lang, filters)
+        except docx_design.DesignError as exc:
+            raise SystemExit(f"Error: {exc}") from exc
         doc.save(str(docx_path))
-        print(f"Successfully converted {md_path} to {docx_path}")
+        label = f"tonality={T.name}, density={T.density}, variance={T.variance}" if not T.neutral else "plain profile"
+        print(f"Successfully converted {md_path} to {docx_path} [{label}, locale={lang}]")
         return
 
     # --- Journal workflow ---
@@ -1075,17 +1229,29 @@ def convert_md_to_docx(
 
     md_text = read_source(md_path)
     frontmatter, body = parse_frontmatter(md_text)
+    if frontmatter.get("tonality"):
+        raise SystemExit(f"Error: frontmatter tonality: {frontmatter['tonality']} and --publisher {publisher_name} are mutually exclusive")
 
     # Locale detection (informational in M1; Korean rules land in M6)
     detected_locale = detect_locale(body) if locale == "auto" else locale
 
     # Pre-MD micro-typography filters
+    if detected_locale in ("ko", "mixed"):
+        # Spec Amendments 4, A4.10 (every path): no ISO dates in Korean text. Before the dash filter, which would
+        # read 2026-06-30 as a number range.
+        body = docx_design.korean_dates(body)
+        if frontmatter.get("date"):
+            frontmatter["date"] = docx_design.format_date(frontmatter["date"], "ko")
     dash_rules = design.get("micro_typography", {}).get("dashes")
-    body = fix_dashes(body, dash_rules)
-    body = fix_quotes(body)
-    body = fix_unit_spacing(body)
-    body = fix_ellipsis(body)
-    body = normalize_double_spaces(body)
+
+    def typeset(text: str) -> str:
+        return normalize_double_spaces(fix_ellipsis(fix_unit_spacing(fix_quotes(fix_dashes(text, dash_rules)))))
+
+    # A ::: fence line carries attributes (title="..."); curly quotes there would break the directive. The text
+    # between fence lines is typeset as whole runs, so code fences and quote pairs keep their context and a
+    # source without fences is typeset exactly as one piece.
+    parts = re.split(r"^([ \t]*:{3,}.*)$", body, flags=re.M)
+    body = "".join(part if i % 2 else typeset(part) for i, part in enumerate(parts))
 
     # Load template if available
     template_docx = script_dir.parent / "templates" / "docx" / f"{publisher_name}.docx"
@@ -1112,22 +1278,44 @@ def convert_md_to_docx(
         inject_title_block(doc, frontmatter, design)
     if frontmatter.get("notice"):
         add_notice(doc, frontmatter["notice"])
+    page_numbers(doc, design)
 
     # Main content
-    md_converter = markdown.Markdown(extensions=[
-        'tables',
-        'fenced_code',
-        'nl2br',
-        'sane_lists',
-    ])
-    html = md_converter.convert(body)
-    html_to_docx(html, doc, md_path)
+    if docx_design.has_directives(body):
+        # Components in a journal manuscript are drawn with neutral styling (ink and line only).
+        neutral = docx_design.neutral_tonality("en" if detected_locale == "en" else "ko")
+        docx_design.setup_component_styles(doc, neutral)
+        ctx = docx_design.Build(doc, neutral, _md_renderer(md_path), "en" if detected_locale == "en" else "ko")
+        try:
+            ctx.render(doc, body)
+        except docx_design.DesignError as exc:
+            raise SystemExit(f"Error: {exc}") from exc
+        print("Note: the ::: components are drawn with publisher-neutral styling under a publisher profile")
+    else:
+        md_converter = markdown.Markdown(extensions=[
+            'tables',
+            'fenced_code',
+            'nl2br',
+            'sane_lists',
+        ])
+        html = md_converter.convert(body)
+        html_to_docx(html, doc, md_path)
 
     # Post-HTML design enforcement
     apply_heading_numbering(doc, design)
     apply_table_style(doc, design)
+    keep_tables_with_captions(doc)
+    plain_table_cells(doc)
+    publisher_spacing(doc)
+    # No column narrower than its longest word (spec Amendments 4, todo 12b: "Cataly/st" in a publisher table).
+    normal = doc.styles["Normal"].font.size
+    for table in doc.tables:
+        docx_design.fit_word_widths(table, normal.pt if normal else 11)
+    docx_design.restart_numbered_lists(doc)
+    docx_design.keep_short_lists(doc)
     strip_banned(doc, design)
     apply_cjk_font_pairing(doc, docx_font)
+    drop_shadowed_theme_fonts(doc)
 
     doc.save(str(docx_path))
     print(
@@ -1158,6 +1346,14 @@ def parse_args() -> argparse.Namespace:
         default=None,
     )
     parser.add_argument(
+        "--tonality",
+        help="Design direction from templates/tonalities/: Report, Brief, Manual, Proposal, Memo or Journal "
+             "(frontmatter tonality: works too)",
+        default=None,
+    )
+    parser.add_argument("--density", type=int, default=None, help="Density dial 1-10 (default: the pack's)")
+    parser.add_argument("--variance", type=int, default=None, help="Variance dial 1-10 (default: the pack's)")
+    parser.add_argument(
         "--locale",
         choices=("auto", "en", "ko", "mixed"),
         default="auto",
@@ -1166,6 +1362,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.publisher and args.template:
         parser.error("--publisher and --template are mutually exclusive")
+    if args.publisher and args.tonality:
+        parser.error("--tonality and --publisher are mutually exclusive: a tonality is a design direction, a publisher a journal profile")
     return args
 
 
@@ -1186,6 +1384,9 @@ def main() -> int:
         publisher_name=args.publisher,
         registry_path=registry_path,
         locale=args.locale,
+        tonality=args.tonality,
+        density=args.density,
+        variance=args.variance,
     )
     return 0
 

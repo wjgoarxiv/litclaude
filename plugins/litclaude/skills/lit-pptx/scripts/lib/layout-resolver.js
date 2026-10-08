@@ -246,22 +246,25 @@ function blockToRegion(blockType, block, layout) {
  * much vertical room the block needs, so the rule lives here where the geometry
  * is worked out and the renderer reads it from here.
  */
-function looksLikeKpi(content) {
+function looksLikeKpi(content, o = {}) {
   if (content && content.chart) return false;
   const headers = (content && content.headers) || [];
   const rows = (content && content.rows) || [];
   const cols = headers.length;
-  if (cols < 2 || cols > 4) return false;
+  // Under a tonality a row may hold up to six figures (spec-v2 Amendments 6); legacy cards stop at four.
+  if (cols < 2 || cols > (o.basis ? 6 : 4)) return false;
   if (cols === 2) {
     const pairs = [headers, ...rows];
     return pairs.length <= 4 && pairs.every((p) => String(p[0]).length <= 12);
   }
+  // Under a tonality a second row may give each figure's basis or comparison (spec-v2 Amendments 5).
+  if (o.basis && rows.length === 2) return rows[0].every((c) => String(c).length <= 12) && rows[1].every((c) => String(c).length <= 24);
   return rows.length === 1 && rows[0].every((c) => String(c).length <= 12);
 }
 
-// A KPI badge stacks a small label over a large value, so it stands roughly
-// this tall no matter how few rows fed it.
-const KPI_BLOCK_HEIGHT_IN = 1.75;
+// A KPI badge stacks a small label over a large value, so it stands roughly as tall as the
+// template's kpi.blockHeight token (1.75in on the legacy templates) no matter how few rows fed it.
+const grid = require("./grid-resolver");
 
 // ---------------------------------------------------------------------------
 // Capability validation
@@ -274,7 +277,7 @@ const KPI_BLOCK_HEIGHT_IN = 1.75;
  */
 const CAPABILITY_RULES = {
   cover: new Set(["title", "notes"]),
-  section: new Set(["title", "notes"]),
+  section: new Set(["title", "notes", "image", "figure-caption"]),
   content: new Set(["title", "key-message", "body", "image", "notes", "kpi-table", "figure-caption", "table-caption"]),
   main: new Set(["title", "key-message", "body", "main-box", "kpi-table", "image", "notes", "figure-caption", "table-caption"]),
   summary: new Set(["title", "key-message", "summary-group", "image", "kpi-table", "figure-caption", "table-caption"]),
@@ -468,6 +471,7 @@ function resolve(ast, templateObj) {
   if (!templateObj) {
     throw new Error("resolve(): templateObj is required");
   }
+  if (templateObj.pack && !templateObj.pack.legacy) return resolvePack(ast, templateObj);
 
   // Parse YAML strings from template object
   const mapping = typeof templateObj.mapping === "string"
@@ -490,8 +494,16 @@ function resolve(ast, templateObj) {
   const deckMeta = ast.deck || {};
   const [FIGURE, TABLE] = captionPrefixes(ast);
 
+  const tokens = (templateObj.pack && templateObj.pack.tokens) || {};
+  const kpiBlockHeight = (tokens.kpi && tokens.kpi.blockHeight) || 1.75;
   for (const slide of ast.slides) {
-    const resolved = resolveSlide(slide, mapping, capabilities, deckMeta);
+    if (slide.meta && slide.meta.title) {
+      throw new Error(
+        `Slide ${slide.index + 1}: "title: ${slide.meta.title}" picks a title treatment, which needs a tonality; ` +
+        `${templateObj.name || "this template"} is a legacy template with one title look`
+      );
+    }
+    const resolved = resolveSlide(slide, mapping, capabilities, deckMeta, kpiBlockHeight);
     // Auto-number captions across the deck
     for (const [name, region] of Object.entries(resolved.regions || {})) {
       if (region.content && region.content.type === "figure-caption") {
@@ -527,10 +539,13 @@ function resolve(ast, templateObj) {
  * @param {object} [capabilities] — Parsed capabilities.yaml
  * @returns {object} — Resolved slide spec
  */
-function resolveSlide(slide, mapping, capabilities, deckMeta) {
-  const { index, layout, blocks } = slide;
+function resolveSlide(slide, mapping, capabilities, deckMeta, kpiBlockHeight) {
+  const { index, blocks } = slide;
 
-  // 1. Look up layout configuration
+  // 1. Look up layout configuration. A layout family the template does not declare (kpi-row,
+  //    chart-insight, …) is drawn on the template layout that hosts its kind of slide.
+  const family = familyOf(slide.layout, mapping, index);
+  const layout = (mapping.layouts[slide.layout] || slide.layout === "free") ? slide.layout : family.host;
   const layoutConfig = mapping.layouts[layout] ||
     (layout === "free" ? FREE_LAYOUT : null);
   if (!layoutConfig) {
@@ -689,7 +704,7 @@ function resolveSlide(slide, mapping, capabilities, deckMeta) {
     // lands on top of them.
     const tableContent = tableRegion.content || {};
     const needed = looksLikeKpi(tableContent)
-      ? KPI_BLOCK_HEIGHT_IN
+      ? kpiBlockHeight
       : rowCount * rowH;
     const tableBottom = tblY + Math.max(needed, tableRegion.h || 0) + 0.3;
     if ((regions.body.y || 1.044) < tableBottom) {
@@ -733,6 +748,7 @@ function resolveSlide(slide, mapping, capabilities, deckMeta) {
   return {
     index,
     layout,
+    family: family.id,
     layoutSource: layoutConfig.layout_source,
     decorations,
     regions,
@@ -759,6 +775,341 @@ function extractContent(block) {
   if (block.type === "table-caption") return { type: "table-caption", caption: block.caption || "", ...(block.figure ? { figure: true } : {}) };
   if (block.type === "summary-group") return { type: "summary-group", heading: block.heading, items: block.items || [] };
   return "";
+}
+
+// ---------------------------------------------------------------------------
+// Layout families
+// ---------------------------------------------------------------------------
+
+/**
+ * The family a slide is stamped with, and the template layout that hosts it when the template
+ * does not declare the name itself. A name that is neither keeps the template's own error.
+ */
+function familyOf(layout, mapping, index) {
+  if (grid.LEGACY_LAYOUTS[layout]) return { id: grid.LEGACY_LAYOUTS[layout], host: layout };
+  if (mapping.layouts[layout]) return { id: layout, host: layout };
+  try {
+    const f = grid.resolveFamily(layout, index + 1);
+    return { id: f.family || layout, host: f.kind === "cover" || f.kind === "section" ? f.kind : "content" };
+  } catch (_) {
+    return { id: layout, host: layout };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tonality packs: regions on the 12-column grid
+// ---------------------------------------------------------------------------
+
+const PACK_BLOCKS = {
+  cover: new Set(["title", "notes"]),
+  section: new Set(["title", "notes", "image", "figure-caption"]),
+  content: new Set(["title", "key-message", "body", "main-box", "kpi-table", "image", "notes", "figure-caption", "table-caption", "summary-group"]),
+};
+
+const plain = (text) => String(text || "").replace(/\*\*/g, "").trim();
+
+/** What a slide holds, as the treatment rules need it. */
+function slideFacts(blocks) {
+  const all = blocks.flatMap((b) => (b.type === "columns" ? b.columns.flatMap((c) => c.blocks || []) : [b]));
+  const has = (type) => all.some((b) => b.type === type);
+  const textBlocks = all.filter((b) => ["body", "summary-group", "main-box", "key-message"].includes(b.type)).length +
+    (blocks.some((b) => b.type === "columns") ? 1 : 0);
+  const bodyItems = all.filter((b) => b.type === "body").reduce((n, b) => n + (b.items || []).length, 0);
+  return {
+    image: has("image"),
+    visual: has("image") || has("kpi-table"),
+    textBlocks: textBlocks + (bodyItems > 1 ? 1 : 0),
+  };
+}
+
+/** Comparison halves of numbers are data; halves of arguments are content. */
+function comparisonRole(blocks) {
+  const text = JSON.stringify(blocks);
+  const digits = (text.match(/\d/g) || []).length;
+  return digits / Math.max(1, plain(text).length) >= 0.04 ? "data" : "content";
+}
+
+/** The ordered content of a pack slide, captions bound to the visual before them. */
+// Families whose geometry is a chart: a table of numbers there is drawn as one.
+const CHART_FAMILIES = new Set(["chart-insight", "full-chart", "kpi-over-chart", "dashboard-grid"]);
+const NUMBER_CELL = /^[+\-−±▲▼△▽]?\s*[\d.,]+\s*(?:%p?|배|x|pt|bp|[가-힣]{1,3}|[A-Za-z]{1,3})?$/u;
+
+/** A table whose data columns are all numbers, over three or more rows, can be drawn as a chart. */
+function chartable(c) {
+  const rows = c.rows || [];
+  const headers = c.headers || [];
+  return headers.length >= 2 && rows.length >= 3 &&
+    headers.slice(1).every((_, ci) => rows.every((r) => r[ci + 1] != null && NUMBER_CELL.test(plain(r[ci + 1]))));
+}
+
+function packItems(blocks, numbering, charts = false) {
+  const items = [];
+  for (const block of blocks) {
+    if (["title", "notes", "key-message", "box", "shape"].includes(block.type)) continue;
+    if (block.type === "columns") {
+      items.push({ type: "columns", tracks: block.tracks, columns: block.columns.map((c) => packItems(c.blocks || [], numbering, charts)) });
+      continue;
+    }
+    const content = extractContent(block);
+    if (charts && block.type === "kpi-table" && !content.chart && chartable(content)) {
+      content.chart = { type: (content.rows || []).length > 8 ? "line" : "column" };
+    }
+    if (block.type === "figure-caption" || block.type === "table-caption") {
+      // A table drawn as a chart is captioned as a figure.
+      const charted = [...items].reverse().find((i) => i.type === "kpi-table");
+      const figure = block.type === "figure-caption" || block.figure || Boolean(charted && charted.content.chart);
+      content.number = figure ? ++numbering.figure : ++numbering.table;
+      content.prefix = figure ? numbering.FIGURE : numbering.TABLE;
+      const target = [...items].reverse().find((i) => ["kpi-table", "image"].includes(i.type));
+      if (target && !target.caption) target.caption = content;
+      else items.push({ type: "caption", content });
+      continue;
+    }
+    items.push({ type: block.type, content });
+  }
+  return items;
+}
+
+/**
+ * What covers and sections can draw from the deck itself: the first image, the part names (from
+ * the agenda heads, else the section titles), the first row of headline numbers and a real year.
+ */
+function deckFacts(ast) {
+  const facts = { image: null, index: [], figures: [], numeral: null };
+  const sections = [];
+  for (const slide of ast.slides) {
+    for (const b of slide.blocks) {
+      if (!facts.image && b.type === "image" && b.src) facts.image = { src: b.src, caption: b.caption };
+      if (!facts.figures.length && b.type === "kpi-table" && !b.chart && looksLikeKpi(b, { basis: true })) {
+        const headers = b.headers || [];
+        const row = (b.rows || [])[0] || [];
+        facts.figures = headers.slice(0, 4).map((h, i) => ({ label: plain(h), value: plain(row[i]) })).filter((f) => f.value);
+      }
+    }
+    if (slide.layout === "agenda" && !facts.index.length) {
+      const body = slide.blocks.find((b) => b.type === "body");
+      const items = ((body && body.items) || []).filter((i) => plain(i.heading || i.text)).slice(0, 6);
+      facts.index = items.map((i) => plain(i.heading || String(i.text || "").replace(/^\*\*(.+?)\*\*.*$/u, "$1")));
+      // What each part is about, so a section titled with an entry's description finds its place too.
+      facts.indexAbout = items.map((i) => plain(String(i.text || "").replace(/^\*\*(.+?)\*\*/u, "")));
+    }
+    if (/^section/u.test(slide.layout)) {
+      const t = slide.blocks.find((b) => b.type === "title");
+      if (t) sections.push(plain(t.content));
+    }
+  }
+  if (!facts.index.length && sections.length >= 2) facts.index = sections.slice(0, 6);
+  facts.indexAbout = facts.indexAbout || [];
+  const meta = (ast.deck && ast.deck.metadata) || {};
+  const year = `${ast.deck && ast.deck.title ? ast.deck.title : ""} ${meta.date || ""}`.match(/\b(19|20)\d{2}\b/u);
+  facts.numeral = year ? year[0] : null;
+  return facts;
+}
+
+/** Titles of the content slides a section opens, up to the next section or closing (at most three). */
+function sectionContents(ast, from) {
+  const out = [];
+  for (const s of ast.slides.slice(from + 1)) {
+    if (/^(section|closing)/u.test(s.layout || "")) break;
+    const t = s.blocks.find((b) => b.type === "title");
+    if (t && plain(t.content)) out.push(plain(t.content));
+  }
+  return out.slice(0, 3);
+}
+
+/**
+ * A preview line: a bold run-in label stays bold and is followed by a colon ("**결과:** 공부 시간이 …"),
+ * unless the label ends in its own separator; any other line is plain text.
+ */
+function runIn(text) {
+  const m = /^\*\*(.+?)\*\*\s*(.*)$/u.exec(String(text || "").trim());
+  if (!m || !plain(m[2])) return plain(text);
+  const label = plain(m[1]);
+  return `**${/[:：.)\]–—-]$/u.test(label) ? label : `${label}:`}** ${plain(m[2])}`;
+}
+
+/** The first body lines (bullets or text, up to five) of the slides a section opens, by title. */
+function sectionDigest(ast, from) {
+  const out = [];
+  for (const s of ast.slides.slice(from + 1)) {
+    if (/^(section|closing)/u.test(s.layout || "")) break;
+    const t = s.blocks.find((b) => b.type === "title");
+    if (!t || !plain(t.content)) continue;
+    const lines = s.blocks.filter((b) => b.type === "body").flatMap((b) => b.items || [])
+      .filter((i) => ["bullet", "text", "numbered"].includes(i.type) && plain(i.text)).slice(0, 5).map((i) => runIn(i.text));
+    out.push({ title: plain(t.content), lines });
+  }
+  return out.slice(0, 3);
+}
+
+/** Position of a section title in the deck's part index (by entry or by its description), or -1. */
+function indexOf(facts, title) {
+  const t = String(title || "").trim();
+  if (!t || facts.index.length < 2) return -1;
+  const at = facts.index.findIndex((name) => name === t);
+  return at >= 0 ? at : facts.indexAbout.findIndex((about) => about === t);
+}
+
+/** Can this cover, section or closing variant be drawn with what the deck and slide hold? true or the reason. */
+function variantApplies(variant, facts, slide) {
+  const ownImage = slide.blocks.find((b) => b.type === "image");
+  if (["cover-split-image", "cover-full-image"].includes(variant) && !facts.image) return "the deck has no image";
+  if (variant === "section-image" && !ownImage) return "the section slide has no image";
+  if (variant === "cover-numeral" && !facts.numeral) return "the deck names no year or real figure";
+  if (variant === "cover-index" && facts.index.length < 2) return "the deck has no agenda or sections to list";
+  if (variant === "cover-figures" && facts.figures.length < 2) return "the deck has no row of headline numbers";
+  if (variant === "closing-statement" && slide.blocks.some((b) => ["kpi-table", "image"].includes(b.type))) return "a statement closing has no table or image";
+  return true;
+}
+
+/**
+ * The variant of a cover, section or closing: the one the source names when the pack lists it and
+ * it can be drawn, else the pack's first that can. A generic name (cover, section, closing) asks
+ * for the pack's own first choice.
+ */
+function chooseVariant(kind, named, pack, facts, slide, notes) {
+  const list = pack[kind === "cover" ? "covers" : kind === "section" ? "sections" : "closings"] || [];
+  const n = slide.index + 1;
+  if (named && list.includes(named)) {
+    const why = variantApplies(named, facts, slide);
+    if (why === true) return named;
+    notes.push(`slide ${n}: ${named} cannot be drawn (${why})`);
+  } else if (named && !["cover", "section", "closing"].includes(named)) {
+    notes.push(`slide ${n}: ${named} is not a ${pack.id} ${kind} variant (${list.join(", ")})`);
+  }
+  const pick = list.find((v) => v !== named && variantApplies(v, facts, slide) === true);
+  if (!pick) throw new Error(`Slide ${n}: no ${pack.id} ${kind} variant (${list.join(", ")}) can be drawn here`);
+  if (named) notes.push(`slide ${n}: drawn as ${pick}`);
+  return pick;
+}
+
+/**
+ * Resolve every slide of a deck against a tonality pack: its family, the title treatments it may
+ * take (the pack's role default first, then the others the family allows; the renderer picks among
+ * them by fill and the variance dial), the treatment geometry inputs and its content in reading
+ * order. Notes go to the build log.
+ */
+function resolvePack(ast, templateObj) {
+  const pack = templateObj.pack;
+  const sizes = pack.tok.sizes;
+  const decoration = new Set(pack.decoration || []);
+  const notes = [];
+  const [FIGURE, TABLE] = captionPrefixes(ast);
+  const numbering = { figure: 0, table: 0, FIGURE, TABLE };
+  const facts = deckFacts(ast);
+  const families = pack["layout-families"] || [];
+  const wide = { title: grid.faceWidth(pack.faces.title), display: grid.faceWidth(pack.faces.display) };
+  let part = 0;
+
+  const slides = ast.slides.map((slide) => {
+    const n = slide.index + 1;
+    const meta = slide.meta || {};
+    const fam = grid.resolveFamily(slide.layout, n);
+    const kind = fam.kind === "free" ? "content" : fam.kind;
+    const allowed = PACK_BLOCKS[kind];
+    for (const block of slide.blocks) {
+      if (["box", "shape", "columns"].includes(block.type) || allowed.has(block.type)) continue;
+      throw new Error(`Slide ${n} (layout: ${slide.layout}): block type "${block.type}" is not allowed on a ${kind} slide. ` +
+        `Allowed: ${[...allowed].join(", ")}`);
+    }
+    const titleBlock = slide.blocks.find((b) => b.type === "title");
+    const title = titleBlock ? titleBlock.content : "";
+    const lead = slide.blocks.find((b) => b.type === "key-message");
+    const placements = slide.blocks
+      .filter((b) => b.type === "box" || b.type === "shape")
+      .map(({ type, ...rest }) => ({ kind: type === "shape" ? "shape" : "box", ...rest }));
+    const base = { index: slide.index, layout: slide.layout, kind, title, lead: lead ? lead.content : null, placements, blocks: slide.blocks, meta, regions: {} };
+
+    if (kind === "cover" || kind === "section") {
+      if (meta.title) throw new Error(`Slide ${n}: a ${kind} slide takes its variant's title, not "title: ${meta.title}"`);
+      const variant = chooseVariant(kind, fam.family || fam.legacyLayout, pack, facts, slide, notes);
+      let parts = null;
+      if (kind === "section") {
+        // A section numbers itself by its place in the deck's agenda when its title is an agenda
+        // entry (or that entry's description); otherwise it counts the sections so far.
+        const at = indexOf(facts, plain(title));
+        part = at >= 0 ? at + 1 : part + 1;
+        parts = at >= 0 ? facts.index.length : null;
+      }
+      const ownImage = slide.blocks.find((b) => b.type === "image");
+      const cover = { ...facts, image: kind === "section" && ownImage ? { src: ownImage.src, caption: ownImage.caption } : facts.image };
+      const contents = kind === "section" ? sectionContents(ast, slide.index) : [];
+      const digest = kind === "section" ? sectionDigest(ast, slide.index) : [];
+      return { ...base, family: variant, variant, part, parts, cover, contents, digest, regions: { title: { content: title } } };
+    }
+
+    let family = fam.family === "free" ? "text-column" : fam.family;
+    let role = family === "comparison" ? comparisonRole(slide.blocks) : fam.role;
+    if (grid.VARIANTS.closing.includes(family) || fam.legacyLayout === "closing") {
+      family = chooseVariant("closing", fam.legacyLayout === "closing" ? "closing" : family, pack, facts, slide, notes);
+      role = family === "closing-statement" ? "statement" : "content";
+    } else if (!families.includes(family)) {
+      notes.push(`slide ${n}: ${family} is not a ${pack.id} layout family (${families.join(", ")}); drawn with its own geometry`);
+    }
+    let titleOnly = null;
+    if (family === "statement" && !pack.treatments.includes("statement")) {
+      // A pack without a statement title sets the sentence as a top title, the largest it has.
+      titleOnly = ["top-plain-large", "band", "top-rule"].find((t) => pack.treatments.includes(t));
+      if (!titleOnly) throw new Error(`Slide ${n}: ${pack.id} has no statement or top title to set a statement slide with; choose another tonality`);
+      notes.push(`slide ${n}: ${pack.id} has no statement title, so the sentence is drawn as a ${titleOnly} title`);
+      family = "text-column";
+      role = "content";
+    }
+    const items = packItems(slide.blocks, numbering, CHART_FAMILIES.has(family));
+    const paras = slide.blocks.filter((b) => b.type === "body").flatMap((b) => b.items || []);
+    // A closing is not part of a section, so it never carries the part number.
+    const closing = grid.VARIANTS.closing.includes(family);
+    // An agenda numbers its own rows: a count beside its title reads as a stray section number (spec-v2 Amendments 8).
+    const numeral = family === "agenda" ? null : part > 0 && !closing ? part : null;
+    const statementCols = (pack.display || {}).statement === "offset" ? [5, 12] : null;
+    const ctx = { grid: pack.grid, sizes, title: plain(title), hero: pack.hero, decoration, numeral, rail: pack.rail, wide, statementCols, tight: Boolean((pack.tok || {}).tight) };
+    const facts1 = slideFacts(slide.blocks);
+    // A quote under a statement title says the quote; the source line becomes the support line.
+    let statementText = null;
+    let supportText = null;
+    if (family === "quote") {
+      const texts = paras.filter((i) => i.type === "text").map((i) => plain(i.text));
+      const by = texts.find((t) => /^[—–-]\s*/u.test(t));
+      statementText = texts.filter((t) => t !== by).join(" ") || null;
+      supportText = by || null;
+    }
+    const applicable = (t) => {
+      const c = t === "statement" && statementText ? { ...ctx, title: statementText } : ctx;
+      const f = t === "statement" && family === "quote" ? { ...facts1, textBlocks: 1 } : facts1;
+      return grid.treatmentApplies(t, f, c);
+    };
+    let allow = grid.familyAllows(family);
+    let treatment;
+    if (titleOnly) {
+      treatment = titleOnly;
+    } else if (!families.includes(family) && !meta.title && !pack.treatments.some((t) => allow.includes(t) && applicable(t) === true)) {
+      // A family from outside the pack that takes none of its titles gets the pack's title for its role.
+      allow = [pack["role-defaults"][role] || pack.treatments[0], ...grid.familyAllows("text-column")];
+      treatment = pack.treatments.find((t) => allow.includes(t) && applicable(t) === true) || allow[0];
+      notes.push(`slide ${n}: the ${family} family takes none of the ${pack.id} titles; drawn under ${treatment}`);
+    } else {
+      treatment = grid.pickTreatment({
+        pack, family, role, override: meta.title, slideNumber: n, used: new Set(), max: Infinity,
+        applicable, onNote: (note) => notes.push(note),
+      });
+    }
+    const candidates = meta.title || titleOnly ? [treatment] : [treatment, ...pack.treatments.filter((t) =>
+      t !== treatment && allow.includes(t) && !["statement", "overlay"].includes(t) && applicable(t) === true)];
+    return {
+      ...base,
+      family,
+      role,
+      treatment,
+      candidates,
+      ctx,
+      statementText,
+      supportText,
+      items,
+      regions: { title: { content: title } },
+    };
+  });
+
+  return { deck: { ...ast.deck }, slides, notes };
 }
 
 // ---------------------------------------------------------------------------

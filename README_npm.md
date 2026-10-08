@@ -81,6 +81,12 @@ At the end of a session, type `handoff` and keep the file path it gives you. Nex
 the same project and ask Claude to read that file, check the current state and name the next
 step.
 
+Slides and reports come out as Office files you can keep editing. Before building, the skill
+works out who will read the file and picks a look for that reader, one of eight for decks and
+six for documents. The reply names the look and two others that would also fit. Decks get
+short noun-label titles on well-filled pages; documents keep a restrained, print-grade page
+and follow Korean conventions for dates, tables and captions.
+
 LitClaude ships 35 skills you start yourself, from `deep-interview` and `lit-crucible` for
 unclear briefs to `lit-diagram-drawer`, `lit-scientific-visualization`, `debugging`,
 `refactor` and `lit-commit`, plus three that run on their own: `rules`, `lsp` and

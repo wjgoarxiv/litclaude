@@ -1,5 +1,5 @@
 # Layout Mapping — AZURE-PRO (16:9, 13.333 x 7.5 in). Positions in inches.
-# render_style: azure → body→cards, kpi-table→KPI cards, cover title **emphasis**.
+# rich-blocks capability (template.yaml pack:) → body→cards, kpi-table→KPI cards, cover title **emphasis**.
 
 layouts:
   cover:

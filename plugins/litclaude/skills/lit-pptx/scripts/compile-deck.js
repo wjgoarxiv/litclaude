@@ -143,11 +143,23 @@ async function resolveAndRender(ast, templateName, outputs, options = {}) {
     throw new Error("layout-resolver module not available. Cannot resolve layouts.");
   }
 
-  const templateObj = templateRegistry.loadTemplate(templateName);
+  // A tonality (flag or frontmatter) is a design direction read from a pack; without one the named
+  // template loads as a legacy pack and keeps its own look.
+  const meta = (ast.deck && ast.deck.metadata) || {};
+  const tonality = options.tonality || meta.tonality || null;
+  const templateObj = tonality
+    ? templateRegistry.loadTonality(tonality, { density: meta.density, variance: meta.variance, canvas: meta.canvas, faces: options.faces || meta.faces })
+    : templateRegistry.loadTemplate(templateName);
+  if (tonality) {
+    const d = templateObj.pack.dials;
+    console.log(`Tonality ${templateObj.pack.id} · density ${d.density} · variance ${d.variance} · ${d.canvas} ${templateObj.pack.grid.name} grid` +
+      (templateName && templateName !== tonality ? ` (template ${templateName} not used)` : ""));
+  }
+  const can = (capability) => templateRegistry.hasCapability(templateObj, capability);
 
-  // Font override (azure-style templates): swap the whole font system regardless
-  // of which template was chosen. Applied before accent (independent of colour).
-  if (options.font && templateObj.template && templateObj.template.render_style === "azure") {
+  // Font override (templates with the font-swap capability): swap the whole font system
+  // regardless of which template was chosen. Applied before accent (independent of colour).
+  if (options.font && can("font-swap")) {
     const { applyFont, KEYS } = require("./lib/font-map");
     if (KEYS.includes(options.font)) {
       applyFont(templateObj, options.font);
@@ -158,10 +170,10 @@ async function resolveAndRender(ast, templateName, outputs, options = {}) {
   const resolved = layoutResolver.resolve(ast, templateObj);
   if (options.sourceDir) resolved.sourceDir = options.sourceDir;
 
-  // Custom accent recolor (azure-style templates only): derive a WCAG-safe
+  // Custom accent recolor (templates with the recolor capability): derive a WCAG-safe
   // palette from the accent hex, override template tokens + hardcoded decoration
   // colors, and regenerate the gradient circle PNGs in the new hue.
-  if (options.accent && templateObj.template && templateObj.template.render_style === "azure") {
+  if (options.accent && can("recolor")) {
     const { derivePalette, defaultToDerivedMap } = require("./lib/derive-palette");
     const { genGradientAssets } = require("./lib/gen-gradient-assets");
     const os = require("os");
@@ -199,11 +211,11 @@ async function resolveAndRender(ast, templateName, outputs, options = {}) {
     console.log(`Accent ${options.accent} → primary ${derived.primary} (white-contrast ${derived._ratios.whiteOnPrimary}:1)`);
   }
 
-  // Blurred gradient-mesh background (azure-style): ambient wash on cover/closing/
+  // Blurred gradient-mesh background (mesh-background capability): ambient wash on cover/closing/
   // content (light) and a deep textured wash on section dividers (dark). Uses the
   // ACTIVE palette (so it respects --accent). The dark mesh sits ABOVE the base
   // section fill rect, so qa_deck still resolves the (dark) fill behind white text.
-  if (options.bg === "mesh" && templateObj.template && templateObj.template.render_style === "azure") {
+  if (options.bg === "mesh" && can("mesh-background")) {
     const { genMeshBg } = require("./lib/gen-bg");
     const os = require("os");
     const dims = templateObj.template.dimensions || {};
@@ -277,8 +289,36 @@ if (require.main === module) {
     }
     process.exit(0);
   }
+  if (args[0] === "--list-tonalities") {
+    const reg = require("./lib/template-registry");
+    for (const id of reg.listTonalities()) {
+      const p = reg.loadPack(id);
+      console.log(`${id} — ${p.intent} [density ${p.density}, variance ${p.variance}; ${p.treatments.join(", ")}]`);
+    }
+    for (const name of reg.listTemplates()) console.log(`${name} (legacy template)`);
+    process.exit(0);
+  }
   if (args[0] === "--list-layouts" && args[1]) {
     const reg = require("./lib/template-registry");
+    if (reg.listTonalities().includes(String(args[1]).toLowerCase())) {
+      // A tonality lists its families with the titles each can take there, and its variants.
+      const G = require("./lib/grid-resolver");
+      const p = reg.loadPack(args[1]);
+      console.log(`${p.id} — ${p.intent}`);
+      console.log(`treatments: ${p.treatments.join(", ")}`);
+      console.log("layout families:");
+      for (const f of p["layout-families"]) {
+        console.log(`  ${f} [${G.familyAllows(f).filter((t) => p.treatments.includes(t)).join(", ")}]`);
+      }
+      console.log(`covers: ${p.covers.join(", ")}`);
+      console.log(`sections: ${p.sections.join(", ")}`);
+      console.log(`closings: ${p.closings.join(", ")}`);
+      process.exit(0);
+    }
+    if (!reg.listTemplates().includes(args[1])) {
+      console.error(`Unknown tonality or template "${args[1]}". Tonalities: ${reg.listTonalities().join(", ")}; legacy templates: ${reg.listTemplates().join(", ")}`);
+      process.exit(1);
+    }
     const t = reg.loadTemplate(args[1]);
     const layouts = (t.mapping && t.mapping.layouts) || {};
     const caps = (t.capabilities && t.capabilities.supported_blocks) || {};
@@ -294,10 +334,13 @@ if (require.main === module) {
   if (args.length === 0) {
     console.error("Usage:");
     console.error("  node compile-deck.js --list-templates");
-    console.error("  node compile-deck.js --list-layouts <template>");
+    console.error("  node compile-deck.js --list-tonalities");
+    console.error("  node compile-deck.js --list-layouts <template or tonality>");
     console.error("  node compile-deck.js <input.md> [--ast out.json]");
     console.error("  node compile-deck.js <input.md> --template <name> --html out.html");
     console.error("  node compile-deck.js <input.md> --template <name> --pptx out.pptx");
+    console.error("  node compile-deck.js <input.md> --tonality <id> --pptx out.pptx   (or tonality: in the frontmatter)");
+    console.error("  node compile-deck.js <input.md> --tonality <id> --faces a2z --pptx out.pptx   (A2Z faces on request; Pretendard by default)");
     console.error("  node compile-deck.js <input.md> --template <name> --ast out.json --html out.html --pptx out.pptx");
     console.error("  node compile-deck.js <input.md> --template <name> --export-viz-context ctx.json");
     process.exit(1);
@@ -309,10 +352,12 @@ if (require.main === module) {
   let htmlPath = null;
   let pptxPath = null;
   let embedFonts = false;
+  let facesFlag = null;
   let accent = null;
   let font = null;
   let bg = null;
   let vizContextPath = null;
+  let tonalityFlag = null;
 
   for (let i = 1; i < args.length; i++) {
     if (args[i] === "--embed-fonts") { embedFonts = true; continue; }
@@ -320,6 +365,8 @@ if (require.main === module) {
     if (args[i] === "--font" && args[i + 1]) { font = args[i + 1]; i++; continue; }
     if (args[i] === "--bg" && args[i + 1]) { bg = args[i + 1]; i++; continue; }
     if (args[i] === "--export-viz-context" && args[i + 1]) { vizContextPath = args[i + 1]; i++; continue; }
+    if (args[i] === "--tonality" && args[i + 1]) { tonalityFlag = args[i + 1]; i++; continue; }
+    if (args[i] === "--faces" && args[i + 1]) { facesFlag = args[i + 1]; i++; continue; }
     if (args[i] === "--ast" && args[i + 1]) {
       astPath = args[i + 1];
       i++;
@@ -335,13 +382,14 @@ if (require.main === module) {
     }
   }
 
-  // If --html or --pptx is requested, --template is required
-  if ((htmlPath || pptxPath || vizContextPath) && !templateName) {
-    console.error("Error: --template is required when using --html, --pptx or --export-viz-context");
+  let source = fs.readFileSync(inputPath, "utf-8");
+
+  // A render needs a design: --template, --tonality, or a tonality: line in the frontmatter.
+  const frontTonality = (source.match(/^---[ \t]*\n([\s\S]*?)\n---/) || ["", ""])[1].match(/^tonality:[ \t]*(\S+)/m);
+  if ((htmlPath || pptxPath || vizContextPath) && !templateName && !tonalityFlag && !frontTonality) {
+    console.error("Error: --template or --tonality (or tonality: in the frontmatter) is required when using --html, --pptx or --export-viz-context");
     process.exit(1);
   }
-
-  let source = fs.readFileSync(inputPath, "utf-8");
   const sourceDir = path.dirname(path.resolve(inputPath));
 
   // A `data:` frontmatter key means the numbers live in a CSV/JSON file: the shared
@@ -385,12 +433,12 @@ if (require.main === module) {
       }
 
       // Resolve and render if template + output formats specified
-      if (templateName && (htmlPath || pptxPath || vizContextPath)) {
+      if (htmlPath || pptxPath || vizContextPath) {
         await resolveAndRender(ast, templateName, {
           html: htmlPath,
           pptx: pptxPath,
           vizContext: vizContextPath,
-        }, { sourceDir, accent: effectiveAccent, font: effectiveFont, bg: effectiveBg });
+        }, { sourceDir, accent: effectiveAccent, font: effectiveFont, bg: effectiveBg, tonality: tonalityFlag, faces: facesFlag });
 
         // Optional: embed bundled fonts into the PPTX for a self-contained deck.
         if (embedFonts && pptxPath) {

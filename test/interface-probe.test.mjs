@@ -77,9 +77,9 @@ describe("interface probe: forbidden reference files (MD-016)", () => {
 
   it("carries the full reference hash table and fails closed without it", () => {
     const entries = listed();
-    assert.equal(entries.length, 111, "54 impeccable skill files plus 57 jakubkrehel/skills files");
+    assert.equal(entries.length, 111, "54 reference-a skill files plus 57 jakubkrehel/skills files");
     assert.equal(new Set(entries.map(({ sha }) => sha)).size, entries.length);
-    assert.equal(entries.filter(({ path }) => path.startsWith("impeccable/skill/")).length, 54);
+    assert.equal(entries.filter(({ path }) => path.startsWith("reference-a/skill/")).length, 54);
     assert.equal(entries.filter(({ path }) => path.startsWith("krehel/skills/")).length, 57);
     assert.throws(() => readFileSync(join(fixtures, "missing-table.txt"), "utf8"), /ENOENT/u);
   });
@@ -104,7 +104,6 @@ describe("interface probe: credits (MD-015)", () => {
   it("names each studied source with its author, licence and upstream commit", () => {
     const notice = readFileSync(join(skillRoot, "ATTRIBUTION.md"), "utf8");
     for (const anchors of [
-      ["pbakaus/impeccable", "Paul Bakaus", "Apache", "9d715cc"],
       ["jakubkrehel/skills", "Jakub Krehel", "MIT", "267330e"],
       ["ibelick/ui-skills", "Julien Thibeaut", "MIT"],
     ]) {

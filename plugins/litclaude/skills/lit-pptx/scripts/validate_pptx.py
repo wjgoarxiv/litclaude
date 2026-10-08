@@ -64,12 +64,18 @@ def _load_terms() -> tuple[list[str], list[str], bool, bool]:
 def _build_regex(terms: list[str], case_insensitive: bool, whole_word: bool) -> re.Pattern[str] | None:
     if not terms:
         return None
-    escaped = [re.escape(term) for term in terms]
+    # An acronym (RAM, FTO) is a word in capitals: matched as that word, so "diagram" or "program"
+    # does not contain it. Every other term keeps the file's case and word settings.
+    acronyms = [term for term in terms if re.fullmatch(r"[A-Z]{2,5}", term)]
+    escaped = [re.escape(term) for term in terms if term not in acronyms]
     pattern = "|".join(escaped)
-    if whole_word:
+    if whole_word and pattern:
         pattern = rf"(?:(?<=\W)|^)(?:{pattern})(?:(?=\W)|$)"
-    flags = re.IGNORECASE if case_insensitive else 0
-    return re.compile(pattern, flags)
+    if case_insensitive and pattern:
+        pattern = f"(?i:{pattern})"
+    if acronyms:
+        pattern = "|".join(filter(None, [pattern, rf"(?<![A-Za-z])(?:{'|'.join(map(re.escape, acronyms))})(?![A-Za-z])"]))
+    return re.compile(pattern)
 
 
 def _shape_text(shape) -> str:
@@ -111,6 +117,10 @@ def _iter_runs(slide):
 def _slide_has_title(slide, slide_height: int | None) -> bool:
     title_shape = getattr(slide.shapes, "title", None)
     if title_shape is not None and _shape_text(title_shape):
+        return True
+    # A tonality deck names its title frame by treatment (title@side-rail, title@bottom-anchor, ...),
+    # wherever the treatment puts it on the slide.
+    if any(str(getattr(shape, "name", "")).startswith("title@") and _shape_text(shape) for shape in slide.shapes):
         return True
     for shape in slide.shapes:
         if not getattr(shape, "is_placeholder", False):
@@ -175,7 +185,9 @@ def lint(path: str | Path) -> dict[str, Any]:
                 default_font_hits.append(f"slide {slide_idx}: {font_name}")
 
     last_slide_text = "\n".join(_shape_text(shape) for shape in prs.slides[-1].shapes if getattr(shape, "has_text_frame", False)).lower() if prs.slides else ""
-    has_source_note = "source:" in last_slide_text or "출처" in last_slide_text
+    # A closing references page is the deck's source note in its long form.
+    has_source_note = "source:" in last_slide_text or "출처" in last_slide_text or bool(
+        re.search(r"^\s*(references|참고\s*문헌)\s*$", last_slide_text, re.MULTILINE))
 
     failures = {
         "missing_titles": bool(missing_titles),

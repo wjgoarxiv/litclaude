@@ -567,17 +567,32 @@ Concept art; each product runs in its own host.
 
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office
-files. `lit-pptx` writes the slide source in Markdown and compiles it
-through designed templates: AZURE-PRO blue and white by default, plus A2Z and plain 4:3
-variants. Numbers become native charts and KPI cards you can still edit, and Pretendard is
-embedded. Before you get the deck, a QA gate looks for text that overflows, weak contrast,
-slides that are half empty or only a table, cropped decorations and blanks nobody filled.
-Then it renders the pages and checks them by eye.
+files. Before either skill writes a slide or a paragraph, it works out who will read the file
+and how, and picks a look to match. The reply names that look, says why it fits, and mentions
+two others that would also suit, so a wrong first guess costs you one sentence.
 
-`lit-docx` writes a Word document with the Korean-first `korean-generic` profile: plain
-styling for other languages, or Elsevier, ACS, IEEE and Nature profiles on request. It
-gates the document and renders its pages. It also converts DOCX or PDF to Markdown and
-edits an existing `.docx`.
+`lit-pptx` has eight looks for decks. At one end is a dense, number-led review meant to be read
+at a desk; at the other, a dark style built for a keynote screen. Each brings its own colours,
+title positions and page layouts. Slide titles are short noun labels that name the subject, the
+measure and the period, and the point of the slide goes in the first line under the title.
+Pages carry their supporting facts, such as the basis, the comparison and the source, so they
+fill without padding. Numbers become native charts and KPI rows you can still edit, a figure is
+never set larger than the title, and Pretendard is embedded. The older AZURE and plain 4:3
+templates stay available by name. Before you get the deck, a QA gate looks for text that
+overflows, weak contrast, slides that are half empty or only a table, one title position
+repeated on every slide, cropped decorations and blanks nobody filled. Then it renders the
+pages and checks them by eye.
+
+`lit-docx` has six looks for documents. A four-page briefing for someone who has to decide
+gets the Brief look, a procedure gets the Manual, and Report, Proposal, Memo and Journal cover
+the rest. All six keep a restrained, print-grade page: Pretendard throughout, body text at a
+size meant for paper, few boxes, and a callout, sidebar or key-figure strip only where the
+content earns one. Korean documents follow Korean conventions. Dates read `2026. 6. 30.`, a
+`<표 1>` caption and a separate unit line sit above each table with `주:` and `자료:` notes
+below, and Hangul is never set in italic. A journal manuscript takes the Elsevier, ACS, IEEE,
+Nature or `korean-generic` profile instead. The skill gates the document, checks its rendered
+pages for half-empty pages and split tables, and looks at them. It also converts DOCX or PDF
+to Markdown and edits an existing `.docx`.
 
 When the request gives no data, both skills build a complete file around a realistic
 example and label it as one instead of stopping to ask. Under a bare `lit`, neither asks

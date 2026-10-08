@@ -77,7 +77,7 @@ When ambiguity ≤ 0.20 (or early exit / hard cap), write `.pptx-pipeline/spec-{
 - Generated: {timestamp}
 
 ## Deck Configuration
-- Template: {chosen}  (default AZURE-PRO; options AZURE-A2Z, BOILERPLATE-PRETENDARD, BOILERPLATE-A2Z, MY-BRAND, or a learned template)
+- Direction: {tonality} with alternatives {two tonalities}, from the direction card (`direction-step.md`); a legacy or learned template only when the user names it
 - Font: {Pretendard | 에이투지체 | Brand Sans | learned}
 - Slide count: {n}
 - Language: {match the user; e.g. Korean with English technical terms}

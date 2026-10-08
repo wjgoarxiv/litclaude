@@ -712,8 +712,9 @@ both activates both skills. This check runs before the research, goal, and plan 
 because the prompt asks for a file. Code documentation (README, API docs, docstrings,
 `.md` files) and tool reports (bug, test, coverage, error) never take this route. The hook
 adds each skill's mode contract, the exact installed `SKILL.md` path, and the lit defaults
-(AZURE-PRO with Pretendard; `korean-generic` for Korean text, plain styling otherwise; no
-style questions). An explicit token keeps the one-question style gate instead.
+(a deck or a document takes the tonality its direction step picks, and the reply names it with
+two alternatives; no style questions). An explicit token keeps the one-question style gate
+instead, whose first option is the direction step's choice.
 
 Leading `lit-typographic-motion` / `$lit-typographic-motion` selects the film-director skill,
 and so does a bare `lit` whose prompt asks to make something (the office and interface verbs, plus

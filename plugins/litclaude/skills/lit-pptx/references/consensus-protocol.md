@@ -119,7 +119,7 @@ Write to `.pptx-pipeline/plan-{slug}.md`:
 - Render path: compile-deck.js
 
 ## QA Plan
-- Compile: `node "$SKILL_ROOT/scripts/compile-deck.js" deck.md --template <TEMPLATE> --pptx output.pptx --embed-fonts` (default `<TEMPLATE>` = AZURE-PRO)
+- Compile: `node "$SKILL_ROOT/scripts/compile-deck.js" deck.md --template <TEMPLATE> --pptx output.pptx --embed-fonts` (or without `--template` when the frontmatter names the tonality; there is no default look)
 - Verify: `python3 "$SKILL_ROOT/scripts/layout_inventory.py" output.pptx --issues-only`
 - No scripts/forbidden-terms.json check: `python validate_pptx.py output.pptx`
 ```

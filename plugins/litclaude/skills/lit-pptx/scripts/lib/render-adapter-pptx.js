@@ -16,9 +16,11 @@ const os = require("os");
 const path = require("path");
 const { runtimeRequire } = require("./runtime-require");
 const { extractContent, looksLikeKpi } = require("./layout-resolver");
+const { LEGACY_TOKENS } = require("./template-registry");
 
-// Narrowest a KPI badge can be and still read as one glance.
-const KPI_MIN_CARD_WIDTH_IN = 1.9;
+// Narrowest a KPI badge can be and still read as one glance (template token kpi.minCardWidth).
+let KPI_MIN_CARD_WIDTH_IN = LEGACY_TOKENS.kpi.minCardWidth;
+let KPI_GAP = LEGACY_TOKENS.kpi.gap;
 
 const TOOLKIT_ROOT = path.resolve(__dirname, "../..");
 const ASSETS_MEDIA = path.join(TOOLKIT_ROOT, "assets", "media");
@@ -129,43 +131,52 @@ function containBox(x, y, w, h, imageSize) {
   return { x: x + (w - fittedW) / 2, y, w: fittedW, h };
 }
 
-// Bullet items
-let BULLET_FONT = FONT_BOLD;
-const BULLET_SIZE = 16;
+// Bullet items. Geometry comes from the template's tokens (bullet.*, secHeader.*, summary.*,
+// toc.*), reassigned in render(); these defaults are the legacy values.
 let BULLET_COLOR = "1D4ED8"; // bullet color (reassigned per template)
 let SECTION_ACCENT = "1D4ED8"; // section-card / accent color (reassigned per template)
 const BULLET_PREFIX = "\u2022  "; // "•  " (bullet + two spaces)
-const BULLET_X = 0.59;
-const BULLET_W = 8.8;
-const BULLET_H = 0.38;
-const BULLET_Y_SPACING = 0.42;
-const BULLET_LINE_SPACING = 1.25;
+let BULLET_X = LEGACY_TOKENS.bullet.x;
+let BULLET_W = LEGACY_TOKENS.bullet.w;
 
 // Section headers
 let SEC_HEADER_FONT = FONT_BOLD;
-const SEC_HEADER_SIZE = 18;
+let SEC_HEADER_SIZE = LEGACY_TOKENS.secHeader.size;
 const SEC_HEADER_COLOR = "000000";
-const SEC_HEADER_X = 0.39;
-const SEC_HEADER_W = 9.0;
-const SEC_HEADER_H = 0.5;
+let SEC_HEADER_X = LEGACY_TOKENS.secHeader.x;
+let SEC_HEADER_W = LEGACY_TOKENS.secHeader.w;
+let SEC_HEADER_H = LEGACY_TOKENS.secHeader.h;
 
 // Summary (narrow width)
-const SUMMARY_HEADER_W = 4.3;
-const SUMMARY_BULLET_W = 4.8;
-const SUMMARY_BULLET_SIZE = 14;
-const SUMMARY_BULLET_H = 0.34;
-const SUMMARY_BULLET_Y_SPACING = 0.38;
-const SUMMARY_BULLET_LINE_SPACING = 1.05;
+let SUMMARY_HEADER_W = LEGACY_TOKENS.summary.headerW;
+let SUMMARY_BULLET_W = LEGACY_TOKENS.summary.bulletW;
+let SUMMARY_BULLET_SIZE = LEGACY_TOKENS.summary.bulletSize;
+let SUMMARY_BULLET_H = LEGACY_TOKENS.summary.bulletH;
+let SUMMARY_BULLET_Y_SPACING = LEGACY_TOKENS.summary.ySpacing;
+let SUMMARY_BULLET_LINE_SPACING = LEGACY_TOKENS.summary.lineSpacing;
 
 // TOC items (separate shapes)
 let TOC_FONT = FONT_BOLD;
-const TOC_SIZE = 18;
+let TOC_SIZE = LEGACY_TOKENS.toc.size;
 const TOC_COLOR = "000000";
-const TOC_X = 0.390;
-const TOC_W = 7.500;
-const TOC_H = 0.550;
-const TOC_Y_START = 0.957;
-const TOC_Y_SPACING = 0.650;
+let TOC_X = LEGACY_TOKENS.toc.x;
+let TOC_W = LEGACY_TOKENS.toc.w;
+let TOC_H = LEGACY_TOKENS.toc.h;
+let TOC_Y_START = LEGACY_TOKENS.toc.yStart;
+let TOC_Y_SPACING = LEGACY_TOKENS.toc.ySpacing;
+
+/** Reassign the token-driven geometry from the template's pack (legacy values when absent). */
+function applyTokens(tokens) {
+  const t = tokens || LEGACY_TOKENS;
+  ({ x: BULLET_X, w: BULLET_W } = t.bullet);
+  ({ size: SEC_HEADER_SIZE, x: SEC_HEADER_X, w: SEC_HEADER_W, h: SEC_HEADER_H } = t.secHeader);
+  ({ headerW: SUMMARY_HEADER_W, bulletW: SUMMARY_BULLET_W, bulletSize: SUMMARY_BULLET_SIZE, bulletH: SUMMARY_BULLET_H,
+    ySpacing: SUMMARY_BULLET_Y_SPACING, lineSpacing: SUMMARY_BULLET_LINE_SPACING } = t.summary);
+  ({ size: TOC_SIZE, x: TOC_X, w: TOC_W, h: TOC_H, yStart: TOC_Y_START, ySpacing: TOC_Y_SPACING } = t.toc);
+  ({ pad: CARD_PAD, chip: CARD_CHIP, minH: CARD_MIN_H, gap: CARD_GAP, radius: CARD_RADIUS } = t.card);
+  ({ minCardWidth: KPI_MIN_CARD_WIDTH_IN, gap: KPI_GAP } = t.kpi);
+  NOTICE = { ...t.notice };
+}
 
 function weightedTextLength(text) {
   let total = 0;
@@ -404,7 +415,7 @@ function estimateDiagnosticCardHeight(card, w) {
   return Math.max(0.56, Math.min(2.35, padY * 2 + titleH + bodyH));
 }
 
-function renderCramStressBody(slide, items, pageW, pageH) {
+function renderCramStressBody(slide, items, pageH) {
   const cards = bodyItemsToDiagnosticCards(items);
   const columns = 3;
   const groups = cards.length ? splitCardsByWeight(cards, columns) : splitLinesByWeight(bodyItemsToDiagnosticLines(items), columns).map((group) => [{ title: "", body: group }]);
@@ -550,7 +561,7 @@ function renderCramStressSlide(slide, slideSpec, pageW, pageH, sourceDir) {
     });
   }
   if (regions.body && regions.body.content && regions.body.content.type === "body") {
-    renderCramStressBody(slide, regions.body.content.items || [], pageW, pageH);
+    renderCramStressBody(slide, regions.body.content.items || [], pageH);
   }
   if (regions.image && regions.image.content) {
     renderCramStressImageSheet(slide, regions.image.content, sourceDir, pageW, pageH);
@@ -614,7 +625,7 @@ function buildFontRoles(templateObj) {
  * Add decoration elements to a pptxgenjs slide.
  * Note: slide_number is intentionally omitted — the reference template has none.
  */
-function addDecorations(slide, decorations, slideIdx, fontRoles) {
+function addDecorations(slide, decorations, fontRoles) {
   if (!decorations || !Array.isArray(decorations)) return;
 
   for (const d of decorations) {
@@ -1113,7 +1124,7 @@ function addRegion(slide, name, region, fontRoles, pageH, regionBottom, isToc, s
       fontSize: opts.fontSize,
       color: opts.color,
       ...(opts.charSpacing != null ? { charSpacing: opts.charSpacing } : {}),
-    }), opts);
+    }), name === "title" ? { ...opts, objectName: "title@legacy" } : opts);
     return;
   }
 
@@ -1313,7 +1324,7 @@ function addRegion(slide, name, region, fontRoles, pageH, regionBottom, isToc, s
   }
 }
 
-// ── AZURE rich rendering (isolated; only used when template.render_style==="azure") ──
+// ── Rich card, KPI and table rendering (templates with the rich-blocks capability) ──
 
 /** Split a title string into runs, emphasizing **word** in the primary color. */
 function azureTitleRuns(text, P) {
@@ -1331,6 +1342,7 @@ function cleanMd(s) {
     .replace(/^#{1,6}\s+/, "")
     .replace(/^\s*[*-]\s+/, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/(?<![\w*])\*([^*\s](?:[^*]*[^*\s])?)\*(?![\w*])/gu, "$1")
     .replace(/`/g, "")
     .trim();
 }
@@ -1344,12 +1356,15 @@ function mdRuns(text, runOpts = {}) {
     .replace(/^#{1,6}\s+/, "")
     .replace(/^\s*[*-]\s+/, "")
     .replace(/`/g, "");
-  const parts = clean.split(/(\*\*[^*]+\*\*)/g).filter((p) => p !== "");
+  // **x** is bold; *x* (a journal or book name) is italic.
+  const parts = clean.split(/(\*\*[^*]+\*\*|(?<![\w*])\*[^*\s](?:[^*]*[^*\s])?\*(?![\w*]))/gu).filter((p) => p !== "");
   if (parts.length === 0) return [{ text: "", options: { ...runOpts } }];
   return parts.map((p) =>
     p.startsWith("**") && p.endsWith("**")
       ? { text: p.slice(2, -2), options: { ...runOpts, bold: true } }
-      : { text: p, options: { ...runOpts } }
+      : p.length > 2 && p.startsWith("*") && p.endsWith("*")
+        ? { text: p.slice(1, -1), options: { ...runOpts, italic: true } }
+        : { text: p, options: { ...runOpts } }
   );
 }
 
@@ -1384,10 +1399,13 @@ function bodyToCards(items) {
   return cards.slice(0, 4);
 }
 
-// Card geometry shared by drawing and sizing, so a card is exactly as tall as its text.
-const CARD_PAD = 0.30;
-const CARD_CHIP = 0.52;
-const CARD_MIN_H = 1.6;
+// Card geometry shared by drawing and sizing, so a card is exactly as tall as its text
+// (template tokens card.*; reassigned in render()).
+let CARD_PAD = LEGACY_TOKENS.card.pad;
+let CARD_CHIP = LEGACY_TOKENS.card.chip;
+let CARD_MIN_H = LEGACY_TOKENS.card.minH;
+let CARD_GAP = LEGACY_TOKENS.card.gap;
+let CARD_RADIUS = LEGACY_TOKENS.card.radius;
 
 // Primary reading text stays at or above the 12 pt floor of the design laws.
 function cardBodySize(card) {
@@ -1433,7 +1451,7 @@ function drawAzureCard(slide, x, y, w, h, card, idx, P, emphasized) {
   const bg = emphasized ? hex(P.primary_deep) : hex(P.tint);
   const headColor = emphasized ? "FFFFFF" : hex(P.ink);
   const bodyColor = emphasized ? hex(P.emphasisTextColor) : hex(P.ink_muted);
-  slide.addShape("roundRect", { x, y, w, h, rectRadius: 0.16, fill: { color: bg }, line: { type: "none" } });
+  slide.addShape("roundRect", { x, y, w, h, rectRadius: CARD_RADIUS, fill: { color: bg }, line: { type: "none" } });
   const pad = CARD_PAD;
   const innerW = w - 2 * pad;
   // numbered chip
@@ -1482,7 +1500,7 @@ function renderAzureCards(slide, items, region, P) {
   if (!cards.length) return;
   const n = cards.length;
   const x0 = region.x || 0.6, y0 = region.y || 1.6, w = region.w || 12.1;
-  const gap = 0.28;
+  const gap = CARD_GAP;
   const cardW = (w - (n - 1) * gap) / n;
   const h = fittedCardHeight(cards, cardW, region.h || 3.0);
   cards.forEach((c, i) => {
@@ -1569,13 +1587,13 @@ function renderAzureGroupCard(slide, content, region, P, idx, height) {
 // ── Tables and charts that fill their region ────────────────────────────────
 
 // A cell reads as a number when, after units and signs, only digits remain.
-const NUMERIC_CELL = /^[+\-−±▲▼△▽]?\s*[\d.,]+\s*(?:%p?|배|x|pt|bp|[가-힣]{1,3}|[A-Za-z]{1,3})?$/u;
+const NUMERIC_CELL = /^(?:[▲▼△▽]\s*)?[+\-−±]?\s*[\d.,]+\s*(?:%p?|배|x|pt|bp|[가-힣]{1,3}|[A-Za-z]{1,3})?$/u;
 const isNumericCell = (text) => NUMERIC_CELL.test(cleanMd(String(text)).trim());
 
-/** Columns whose data cells are all numbers are right-aligned. */
+/** Columns whose data cells are all numbers are right-aligned; a dash for a missing value is blank. */
 function numericColumns(headers, rows) {
   return headers.map((_, ci) => {
-    const cells = rows.map((r) => r[ci]).filter((c) => c != null && String(c).trim() !== "");
+    const cells = rows.map((r) => r[ci]).filter((c) => c != null && !/^[\s—–\-]*$/u.test(cleanMd(String(c))));
     return cells.length > 0 && cells.every(isNumericCell);
   });
 }
@@ -1650,13 +1668,47 @@ function renderChart(slide, content, region, style, bottom) {
   const series = headers.slice(1).map((name, si) => ({
     name: cleanMd(String(name)),
     labels,
-    values: rows.map((r) => chartNumber(r[si + 1]) ?? 0),
+    // A missing cell stays null: pptxgenjs writes it as a blank point, and the line breaks there instead of dropping to zero.
+    values: rows.map((r) => chartNumber(r[si + 1])),
   }));
+  // Data labels keep the decimals the table writes: "18.0" stays 18.0 beside a table that says 18.0.
+  const decimals = Math.min(3, Math.max(0, ...rows.flatMap((r) => r.slice(1).map((v) => ((/\.(\d+)/u.exec(cleanMd(String(v == null ? "" : v)).replace(/,/gu, "")) || [, ""])[1]).length))));
   const x = region.x || 0.6, y = region.y || 1.6, w = region.w || 8;
   const h = Math.max(1.6, ((bottom || y + (region.h || 3.2)) - y));
   const colors = style.series.map((c) => hex(c));
   const round = kind === "pie" || kind === "doughnut";
   const data = round ? series.slice(0, 1) : series;
+  // Crowding, estimated in points: a category label wider than its slot is slanted; side-by-side
+  // value labels wider than their bars collide, so the values are read off a shown axis instead.
+  const ems = (t) => [...String(t)].reduce((a, ch) => a + (/[\u3131-\uD7A3]/u.test(ch) ? 0.94 : /\s/u.test(ch) ? 0.28 : 0.56), 0);
+  const labelPt = style.labelSize || 11;
+  const slot = (w * 72 * 0.85) / Math.max(1, labels.length);
+  // A renderer adds space between Hangul and digits ("25 년 2Q"), so a label needs a quarter of its slot spare.
+  // A horizontal bar chart lists its categories down the left side; slanted there, LibreOffice skips some of them.
+  const slanted = !round && kind !== "line" && spec.type !== "bar" && Math.max(0, ...labels.map(ems)) * labelPt > slot * 0.75;
+  const clustered = kind === "bar" && spec.type !== "stacked" && data.length > 1;
+  const valueW = Math.max(0, ...data.flatMap((d) => d.values.map((v) => ems(Number(v).toLocaleString("en-US"))))) * labelPt;
+  // Several lines share one band of the plot, so a value printed over each point lands on its neighbours'.
+  const crowded = !round && ((clustered && valueW > (slot / 1.6 / data.length) * 1.1) || (kind === "line" && data.length > 1));
+  const values = data.flatMap((d) => d.values).filter((v) => v !== null);
+  // Horizontal bars of several series stack thin bars down each row; once a bar is thinner than its value label, the labels touch.
+  const horizontal = !round && spec.type === "bar";
+  const dataPt = style.labelSize || (round ? 12 : 10);
+  const barPt = (h * 72 - 54) / Math.max(1, labels.length) / (data.length + 0.6);
+  const thin = horizontal && data.length > 1 && spec.labels !== false && barPt < dataPt * 1.2;
+  // A narrow horizontal bar chart gets few axis numbers, each with room to stand level; left to itself, LibreOffice slants a crowded value axis.
+  const top = Math.max(0, ...values), low = Math.min(0, ...values);
+  const tickW = ems(Math.round(Math.max(top, -low)).toLocaleString("en-US")) * dataPt;
+  const catW = Math.min(w * 72 * 0.4, Math.max(0, ...labels.map(ems)) * labelPt + 8);
+  const ticks = Math.floor((w * 72 - catW - 16) / (tickW * 2));
+  const nice = (step) => { const p = 10 ** Math.floor(Math.log10(step)); return [1, 2, 2.5, 5, 10].find((m) => m * p >= step) * p; };
+  const majorUnit = horizontal && top > low && ticks < 6 ? nice((top - low) / Math.max(1, ticks - 1)) : null;
+  const zeroBased = !round && values.length > 0 && values.every((v) => v >= 0);
+  // The unit stands once: a legend whose series names carry it already says it, so the axis title goes;
+  // otherwise it is set level (a rotated title stacks Hangul a glyph a line and reads tiny; 360 degrees, since
+  // pptxgenjs writes no angle for 0 and the axis default is vertical). Amendments 8.
+  const unitShown = spec.unit && data.length > 1 && data.every((d) => String(d.name || "").includes(spec.unit));
+  const axisTitle = spec.unit && !unitShown && !(Boolean(style.valAxisHidden) && !crowded && !thin);
   slide.addChart(kind, data, {
     x, y, w, h,
     barDir: spec.type === "bar" ? "bar" : "col",
@@ -1666,22 +1718,31 @@ function renderChart(slide, content, region, style, bottom) {
     showLegend: round || data.length > 1,
     legendPos: round ? "r" : "t",
     legendFontFace: style.bodyFont, legendFontSize: 11, legendColor: hex(style.ink),
-    showValue: !round && spec.labels !== false,
+    showValue: !round && spec.labels !== false && !crowded && !thin,
     showPercent: round && spec.labels !== false, showLabel: false,
-    dataLabelFontFace: style.bodyFont, dataLabelFontSize: round ? 12 : 10,
+    dataLabelFontFace: style.bodyFont, dataLabelFontSize: style.labelSize || (round ? 12 : 10),
     dataLabelColor: round ? "FFFFFF" : hex(style.ink),
     dataLabelPosition: round ? "ctr" : kind === "line" ? "t" : "outEnd",
-    dataLabelFormatCode: round ? "0%" : "#,##0.##",
-    catAxisLabelFontFace: style.bodyFont, catAxisLabelFontSize: 11, catAxisLabelColor: hex(style.ink),
-    valAxisLabelFontFace: style.bodyFont, valAxisLabelFontSize: 10, valAxisLabelColor: hex(style.ink_muted),
+    dataLabelFormatCode: round ? "0%" : decimals ? `#,##0.${"0".repeat(decimals)}` : "#,##0",
+    catAxisLabelFontFace: style.bodyFont, catAxisLabelFontSize: style.labelSize || 11, catAxisLabelColor: hex(style.ink),
+    valAxisLabelFontFace: style.bodyFont, valAxisLabelFontSize: style.labelSize || 10, valAxisLabelColor: hex(style.ink_muted),
     valAxisLabelFormatCode: "#,##0",
-    valAxisHidden: false,
+    // A pack with direct labels and no gridlines drops the value axis: the labels carry the values.
+    valAxisHidden: Boolean(style.valAxisHidden) && !crowded && !thin,
+    ...(majorUnit ? { valAxisMajorUnit: majorUnit } : {}),
+    // With negative values the zero line runs through the plot, so the category labels move to the axis minimum, off the bars.
+    ...(horizontal && low < 0 ? { catAxisLabelPos: "low" } : {}),
+    // Blank points leave a gap, never a joined or zero point.
+    displayBlanksAs: "gap",
+    ...(style.valMax ? { valAxisMaxVal: style.valMax } : {}),
+    ...(zeroBased ? { valAxisMinVal: 0 } : {}),
+    ...(slanted ? { catAxisLabelRotate: -45 } : {}),
     catAxisLineShow: true, catAxisLineColor: hex(style.line),
-    valGridLine: { color: hex(style.line), size: 0.5 },
+    valGridLine: style.grid === false && !crowded && !thin ? { style: "none" } : { color: hex(style.line), size: 0.5 },
     valAxisLineShow: false,
     lineSize: 2.5, lineDataSymbol: "circle", lineDataSymbolSize: 7,
     holeSize: 58,
-    ...(spec.unit ? { showValAxisTitle: true, valAxisTitle: spec.unit, valAxisTitleFontSize: 10, valAxisTitleColor: hex(style.ink_muted), valAxisTitleFontFace: style.bodyFont } : {}),
+    ...(axisTitle ? { showValAxisTitle: true, valAxisTitle: spec.unit, valAxisTitleRotate: 360, valAxisTitleFontSize: style.labelSize || 10, valAxisTitleColor: hex(style.ink_muted), valAxisTitleFontFace: style.bodyFont } : {}),
     ...(spec.title ? { showTitle: true, title: spec.title, titleFontFace: style.titleFont, titleFontSize: 13, titleColor: hex(style.ink) } : {}),
   });
 }
@@ -1706,7 +1767,7 @@ function renderAzureKpi(slide, content, region, P) {
   const n = Math.min(values.length, 4);
   if (!n) return;
   const x0 = region.x || 0.6, y0 = region.y || 1.6, w = region.w || 12.1, h = region.h || 1.7;
-  const gap = 0.26;
+  const gap = KPI_GAP;
   const cardW = (w - (n - 1) * gap) / n;
   for (let i = 0; i < n; i++) {
     const fill = i === 0;
@@ -1757,7 +1818,9 @@ function kpiCards(content) {
     return [headers, ...rows].slice(0, 4).map((p) => ({ value: p[0], label: p[1] }));
   }
   const row = rows[0] || [];
-  return headers.slice(0, 4).map((lab, i) => ({ value: row[i] != null ? row[i] : "", label: lab }));
+  // A second body row is each figure's basis or comparison ("전년 대비 +12%", "목표 50%").
+  const basis = rows[1] || [];
+  return headers.slice(0, 6).map((lab, i) => ({ value: row[i] != null ? row[i] : "", label: lab, ...(basis[i] ? { note: basis[i] } : {}) }));
 }
 
 /** Azure region dispatch. Returns true if it fully handled the region.
@@ -1775,6 +1838,7 @@ function renderAzureRegion(slide, layout, name, region, fontRoles, P, opts = {})
   if (layout === "cover" && name === "title" && typeof content === "string" && content.includes("**")) {
     const role = fontRoles.cover_title || {};
     slide.addText(azureTitleRuns(content, P), {
+      objectName: "title@legacy",
       x: region.x || 0, y: region.y || 0, w: region.w || 8, h: region.h || 1,
       fontFace: role.font || P.titleFont, fontSize: role.size || 48, bold: role.bold !== false,
       align: role.align || "left", valign: "middle",
@@ -1930,7 +1994,7 @@ function renderPlacements(slide, placements, band, ctx) {
   for (const placement of placements) {
     if (placement.z !== band) continue;
     if (placement.kind === "shape") {
-      addDecorations(slide, [shapeToDecoration(placement, ctx.sourceDir)], ctx.slideIndex, ctx.fontRoles);
+      addDecorations(slide, [shapeToDecoration(placement, ctx.sourceDir)], ctx.fontRoles);
     } else {
       renderPlacementBox(slide, placement, ctx);
     }
@@ -1956,14 +2020,15 @@ function renderPlacements(slide, placements, band, ctx) {
  */
 const NOTICE_FILL = "FDECEA";
 const NOTICE_INK = "A21B12";
+let NOTICE = { ...LEGACY_TOKENS.notice };
 
 function addNotice(slide, text, pageW, pageH, pal) {
   const label = cleanMd(text);
-  const fontSize = 10.5;
+  const fontSize = NOTICE.size;
   const textW = (weightedTextLength(label) * fontSize * 0.98) / 72;
   const w = Math.min(pageW * 0.55, textW + 0.46);
-  const h = 0.3;
-  const x = 0.45, y = pageH - h - 0.14;
+  const h = NOTICE.h;
+  const x = NOTICE.x, y = pageH - h - NOTICE.bottom;
   const fill = ((pal && pal.notice_fill) || NOTICE_FILL).replace("#", "");
   const ink = ((pal && pal.notice_ink) || NOTICE_INK).replace("#", "");
   slide.addShape("roundRect", { x, y, w, h, rectRadius: 0.15, fill: { color: fill }, line: { type: "none" }, objectName: "lit-notice tag" });
@@ -1975,7 +2040,34 @@ function addNotice(slide, text, pageW, pageH, pal) {
   });
 }
 
+/**
+ * Give the first object drawn on a slide that has no name of its own the name `family@<id>`, so a
+ * checker can read the layout family the source asked for and compare it with what it measures.
+ */
+function stampFamily(slide, family) {
+  const at = { addText: 1, addShape: 1, addImage: 0, addTable: 1, addChart: 2 };
+  const originals = {};
+  let done = false;
+  const restore = () => { for (const m of Object.keys(originals)) slide[m] = originals[m]; };
+  for (const [method, index] of Object.entries(at)) {
+    originals[method] = slide[method];
+    slide[method] = (...args) => {
+      if (!(args[index] && args[index].objectName)) {
+        restore();
+        done = true;
+        args[index] = { ...(args[index] || {}), objectName: `family@${family}` };
+      }
+      return originals[method].apply(slide, args);
+    };
+  }
+  /** Whether a shape took the name; unwraps the slide either way. */
+  return () => { restore(); return done; };
+}
+
 async function render(resolved, templateObj, outputPath) {
+  const pack = (templateObj && templateObj.pack) || null;
+  if (pack && !pack.legacy) return require("./render-pack").renderPack(resolved, templateObj, outputPath);
+  applyTokens(pack && pack.tokens);
   const fontRoles = buildFontRoles(templateObj);
 
   // Brand-neutralize: derive font/spacing/accent from the template, falling back
@@ -1987,15 +2079,14 @@ async function render(resolved, templateObj, outputPath) {
   FONT_MEDIUM = tplFonts.body || "Pretendard";
   FONT_LIGHT = tplFonts.light || "Pretendard";
   CHAR_SPACING = tplType.char_spacing != null ? tplType.char_spacing : -0.7;
-  BULLET_FONT = FONT_BOLD;
   SEC_HEADER_FONT = FONT_BOLD;
   TOC_FONT = FONT_BOLD;
   BULLET_COLOR = (tplType.bullet_color || "1D4ED8").replace("#", "");
   SECTION_ACCENT = (tplType.section_accent || "1D4ED8").replace("#", "");
 
-  // Rich card/KPI/divider rendering — palette-driven, shared by render_style
-  // "azure". Tokens come from the template palette.
-  const rich = tpl.render_style === "azure";
+  // Rich card/KPI/divider rendering — palette-driven, for templates with the rich-blocks
+  // capability. Tokens come from the template palette.
+  const rich = Boolean(pack && (pack.capabilities || []).includes("rich-blocks"));
   const pal = tpl.palette || {};
   PLAIN_CHART_STYLE = {
     series: [pal.ink || "#3C3836", pal.accent_green_2 || pal.primary || "#689D6A", pal.accent_amber || "#D79921", pal.accent_purple || "#B16286"],
@@ -2030,17 +2121,17 @@ async function render(resolved, templateObj, outputPath) {
 
   for (const slideSpec of resolved.slides || []) {
     const slide = pptx.addSlide();
+    stampFamily(slide, slideSpec.family || slideSpec.layout);
 
     // Draw order is a band at a time: template decorations, then anything the
     // author put under the content, then the template's regions, then the
     // columns that replaced the body, then anything sitting on top.
-    addDecorations(slide, slideSpec.decorations, slideSpec.index, fontRoles);
+    addDecorations(slide, slideSpec.decorations, fontRoles);
 
     const placements = slideSpec.placements || [];
     const placementCtx = {
       rich, P, fontRoles, pageH, sourceDir,
       layout: slideSpec.layout,
-      slideIndex: slideSpec.index,
     };
     renderPlacements(slide, placements, "under", placementCtx);
 
@@ -2087,8 +2178,63 @@ async function render(resolved, templateObj, outputPath) {
     if (notice) addNotice(slide, notice, pageW, pageH, pal);
   }
 
-  await pptx.writeFile({ fileName: outputPath });
+  await writeTagged(pptx, outputPath);
   return outputPath;
 }
 
-module.exports = { render };
+const HANGUL = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/u;
+
+/**
+ * Korean text runs carry their language: pptxgenjs writes lang="en-US" on every run, and a renderer then
+ * applies Latin rules to Hangul (LibreOffice on a host whose system locale is not Korean adds space
+ * between Hangul and digits: "주 2일" set as "주  2 일"). A run that holds Hangul is ko-KR with en-US as its
+ * alternate language; a chart that holds Hangul names ko-KR for its text. Latin-only runs keep en-US.
+ */
+function tagLanguages(name, xml) {
+  if (/^ppt\/slides\/slide\d+\.xml$/u.test(name)) {
+    return xml.replace(/<a:r><a:rPr\b([^>]*?)(\/?>)([\s\S]*?)<a:t>([^<]*)<\/a:t><\/a:r>/gu, (m, attrs, close, mid, text) => {
+      if (!HANGUL.test(text)) return m;
+      const rest = attrs.replace(/\s(?:lang|altLang)="[^"]*"/gu, "");
+      return `<a:r><a:rPr lang="ko-KR" altLang="en-US"${rest}${close}${mid}<a:t>${text}</a:t></a:r>`;
+    });
+  }
+  if (/^ppt\/charts\/chart\d+\.xml$/u.test(name) && HANGUL.test(xml)) {
+    let out = xml.replace(/<a:defRPr\b(?![^>]*\blang=)/gu, '<a:defRPr lang="ko-KR" altLang="en-US"')
+      .replace(/<a:endParaRPr lang="en-US"/gu, '<a:endParaRPr lang="ko-KR" altLang="en-US"');
+    if (!/<c:lang\b/u.test(out)) out = out.replace(/(<c:date1904 val="[01]"\/>)/u, '$1<c:lang val="ko-KR"/>');
+    return out;
+  }
+  return xml;
+}
+
+/** Write a deck with its Korean runs and charts tagged (see tagLanguages); `edit` may rewrite a part first. */
+async function writeTagged(pptx, outputPath, edit = (name, xml) => xml) {
+  const JSZip = runtimeRequire("jszip");
+  const zip = await JSZip.loadAsync(await pptx.write({ outputType: "nodebuffer" }));
+  for (const name of Object.keys(zip.files).filter((n) => /^ppt\/(slides\/slide|charts\/chart|theme\/theme)\d+\.xml$/u.test(n))) {
+    const xml = await zip.file(name).async("string");
+    zip.file(name, tagLanguages(name, edit(name, xml)));
+  }
+  fs.writeFileSync(outputPath, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+}
+
+// ── Tonality packs ──────────────────────────────────────────────────────────
+//
+// A pack deck is drawn by render-pack.js. It reuses the helpers below, and the font globals the
+// free placement boxes read are switched to the pack's faces before it draws.
+
+function usePackFonts(titleFont, bodyFont, tokens) {
+  FONT_BOLD = titleFont;
+  FONT_MEDIUM = bodyFont;
+  FONT_LIGHT = bodyFont;
+  CHAR_SPACING = 0;
+  applyTokens(tokens);
+}
+
+module.exports = {
+  render,
+  shared: {
+    hex, cleanMd, mdRuns, linkedTableCell, resolveImagePath, readImageSize, containBox,
+    kpiCards, numericColumns, proportionalWidths, renderChart, stampFamily, renderPlacements, usePackFonts, writeTagged,
+  },
+};

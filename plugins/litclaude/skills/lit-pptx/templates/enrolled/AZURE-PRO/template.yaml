@@ -1,7 +1,6 @@
 name: AZURE-PRO
 version: "1.0.0"
 label: "Azure Professional"
-render_style: azure
 description: "Flagship SOTA blue-and-white deck — 16:9 widescreen, Pretendard, geometric gradient accents, rounded tint cards, numbered chips, KPI cards. Pro-designer aesthetic."
 
 fonts:
@@ -35,3 +34,7 @@ global_typography:
   bullet_char: "•"
   bullet_color: "1D4ED8"
   section_accent: "1D4ED8"
+
+# Read as a legacy pack: what this template can draw beyond plain text regions.
+pack:
+  capabilities: [rich-blocks, recolor, font-swap, mesh-background]
