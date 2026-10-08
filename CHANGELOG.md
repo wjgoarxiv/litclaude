@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.20 - 2026-10-08
+
+- `lit-pptx` now works out who will read a deck and how, then picks one of eight looks before it builds a slide. `ledger` is a dense, number-led review for reading at a desk, `signal` a short pitch with one hot accent, `atlas` a deck carried by pictures, `chalk` a lesson with numbered steps, `paper` a research talk with numbered figures and citations, `gazette` a Korean briefing page, `studio` an editorial grid, and `night` a dark style for a keynote screen. Each look brings its own colours, title positions and page layouts. The older AZURE and plain 4:3 templates still work when you ask for them by name.
+- `lit-docx` now picks one of six looks before it writes a document. A short briefing for someone who has to decide gets Brief, a procedure gets Manual, and Report, Proposal, Memo and Journal cover the rest. All six keep a quiet, print-ready page. A journal manuscript can still use the Elsevier, ACS, IEEE, Nature or `korean-generic` profile instead.
+- Both skills say in the reply which look they chose, why it fits, and two others that would also suit, so a wrong first guess takes one sentence to change.
+- New checks read every slide and every page of the finished file. On a deck they look for empty areas and for a column much shorter than the one beside it. In a document they look for a heading left at the foot of a column or page, a short list split across two pages, a column that stops well short of its neighbour, and last-page columns of uneven length. The build fails until the layout is fixed.
+
 ## 1.0.19 - 2026-10-01
 
 - Automatic handoff now finds the handoff it asked for after compaction even when the model formats the marker line, for example as a bullet, in backticks or in bold. A handoff from another session is still ignored.

@@ -268,6 +268,62 @@
       "version": "1.0.0",
       "occurrences": 1,
       "why": "Enrolled deck template schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/atlas/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/chalk/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/gazette/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/ledger/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/night/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/paper/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/signal/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
+    },
+    {
+      "path": "plugins/litclaude/skills/lit-pptx/templates/tonalities/studio/pack.yaml",
+      "kind": "compatibility",
+      "version": "1.0.0",
+      "occurrences": 1,
+      "why": "Deck look pack schema version; not the product release."
     }
   ]
 }
