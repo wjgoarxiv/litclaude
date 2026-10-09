@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.21 - 2026-10-09
+
+- The deck and document looks no longer list settings that nothing applied. The eight deck looks carried entries for chart annotations, image cropping and bleed, letter case, tabular figures and table style names, and the six document looks carried page-fill targets, but the build never read any of them. Those entries are gone, and the reference pages for each look no longer promise them. Decks and documents come out exactly as before.
+- The deck check now treats a one-word placeholder term such as "todo", "tbd", "fixme" or "placeholder" as a whole word. A slide that says "Mastodon" or "photodocument" no longer fails the check, while "TODO:", "TODOs" and "(TBD)" still do.
+
 ## 1.0.20 - 2026-10-08
 
 - `lit-pptx` now works out who will read a deck and how, then picks one of eight looks before it builds a slide. `ledger` is a dense, number-led review for reading at a desk, `signal` a short pitch with one hot accent, `atlas` a deck carried by pictures, `chalk` a lesson with numbered steps, `paper` a research talk with numbered figures and citations, `gazette` a Korean briefing page, `studio` an editorial grid, and `night` a dark style for a keynote screen. Each look brings its own colours, title positions and page layouts. The older AZURE and plain 4:3 templates still work when you ask for them by name.

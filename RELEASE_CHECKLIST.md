@@ -1,6 +1,6 @@
 # LitClaude Release Checklist
 
-Status: `@litfamily/litclaude@1.0.20` is the current release candidate — README Studio
+Status: `@litfamily/litclaude@1.0.21` is the current release candidate — README Studio
 with a bounded multi-round design interview, GPT-6 model defaults, and the bilingual
 family README layout; it also carries the exact canonical frontend corpus plus
 Claude-native `autoresearch`, `autoconference`, and `wikify`
@@ -47,9 +47,9 @@ side-effect-free, the launcher starts only a separate Claude Code
 print/background worker, and the release preserves the Korean polishing
 command, strict multi-agent review pipeline, fidelity guardrails, package
 hygiene checks, native route gates, and safe start-work handoff behavior.
-`package.json` is aligned to `1.0.20`,
-`plugins/litclaude/.claude-plugin/plugin.json` is aligned to `1.0.20`, and the
-plugin-local MCP server reports `1.0.20`.
+`package.json` is aligned to `1.0.21`,
+`plugins/litclaude/.claude-plugin/plugin.json` is aligned to `1.0.21`, and the
+plugin-local MCP server reports `1.0.21`.
 
 This release removes automatic skill review because it never completed a
 review in practice. Existing `.litclaude/pending-review.json` and
@@ -295,9 +295,9 @@ checkout and from an isolated install of the packed tarball:
 Before requesting publication approval, confirm these artifacts from the current
 checkout:
 
-- `package.json` version is `1.0.20`.
-- `plugins/litclaude/.claude-plugin/plugin.json` version is `1.0.20`.
-- `plugins/litclaude/bin/litclaude-mcp.js` reports server version `1.0.20`.
+- `package.json` version is `1.0.21`.
+- `plugins/litclaude/.claude-plugin/plugin.json` version is `1.0.21`.
+- `plugins/litclaude/bin/litclaude-mcp.js` reports server version `1.0.21`.
 - Prompt-hook tests cover bundled `SKILL.md` body injection for bare `lit-crucible`, `litresearch`, `lit research`, `lit-init`, and explicit leading `$start-work`; diagnostic/copy mentions stay inert while leading natural-language `lit start work` stays BLOCKED.
 - `lit search` and `lit query` route to `/litclaude:litresearch` without activating on slash mentions, code spans, or non-lit prompts.
 - Litresearch web lanes require public API/feed preference, validator-first checks, route traces, prompt-injection quarantine, and honest auth/paywall/private-data stop reasons.
