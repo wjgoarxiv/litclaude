@@ -39,8 +39,8 @@ These values are read from the pack file `pack.yaml` of the `paper` tonality.
 | ramp / hero | compact (body 13 pt, labels 11, sources 9) / no hero step, figures at most title size |
 | density / variance | 10 / 5 |
 | radius / edge | 0 / border |
-| table | booktabs: heavy rule over the header, light rule under it, heavy rule at the end; no fill, no banding; numbers right-aligned in tabular figures; totals bold |
-| chart | hairline gridlines, direct labels, series in order (the proposed method takes the accent, baselines take ink and muted ink), no annotation |
+| table | booktabs: heavy rule over the header, light rule under it, heavy rule at the end; no fill, no banding; numbers right-aligned; totals bold |
+| chart | hairline gridlines, direct labels, series in order (the proposed method takes the accent, baselines take ink and muted ink) |
 | decoration | hairline rule, box outline |
 
 Negative values share the muted ink on purpose: a drop is shown with a sign and a glyph, never with

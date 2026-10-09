@@ -39,8 +39,8 @@ These values are read from the pack file `pack.yaml` of the `night` tonality.
 | ramp / hero | compact (body 13 pt, labels 11, sources 9) / not allowed, figures at most title size |
 | density / variance | 10 / 6 |
 | radius / edge | 6 / fill |
-| table | header row on the surface colour with bold ink, hairline rows, no banding, numbers right-aligned in tabular figures, totals bold, the row the title names in the accent tint |
-| chart | hairline gridlines, direct labels, accent on the item that matters and muted colours on the rest, annotation on |
+| table | header row on the surface colour with bold ink, hairline rows, no banding, numbers right-aligned, totals bold, the row the title names in the accent tint |
+| chart | hairline gridlines, direct labels, accent on the item that matters and muted colours on the rest |
 | decoration | header band, hairline rule, numeral, rail fill |
 
 ## Treatments by slide role

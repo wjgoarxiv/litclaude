@@ -370,7 +370,7 @@ ZONE_OF = {"top-rule": "top", "top-plain-large": "top", "kicker-numeral": "top",
 OUTPUT = {
     "tol": 2.0, "size_tol": 0.5,
     "min_slides": 8, "min_treatments": 3,
-    "variety_share": 0.6, "variety_cap": 5, "max_share": 0.40,
+    "variety_cap": 5, "max_share": 0.40,
     "band_floor": 486.0, "footer_top": 492.0, "band_deck_max": 0.20,
     # Per-slide band caps by density (1-2, 3-4, 5-6, 7-8, 9-10); a slide over its cap is MEDIUM.
     "band_caps": ((2, 0.28), (4, 0.24), (6, 0.20), (8, 0.16), (10, 0.12)),

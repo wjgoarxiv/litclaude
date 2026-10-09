@@ -59,7 +59,7 @@ LABELS = {
 }
 PACK_KEYS = {"schema_version", "tonality", "summary", "dials", "docx", "design"}
 DESIGN_KEYS = {"ramp", "numbering", "h1_rule", "title_block", "contents", "summary_form", "conclusion_first", "running_head", "justify",
-               "palette", "accent_on", "page_geometry", "components", "figure_style", "fill", "spacing"}
+               "palette", "accent_on", "page_geometry", "components", "figure_style", "spacing"}
 ACCENT_PLACES = ("title_rule", "callout_rule", "sidebar_rule")
 DIRECTIVE_KEYS = {
     "cover": {"variant", "image", "kicker"},

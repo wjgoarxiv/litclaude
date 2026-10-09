@@ -61,13 +61,16 @@ def _load_terms() -> tuple[list[str], list[str], bool, bool]:
     )
 
 
-def _build_regex(terms: list[str], case_insensitive: bool, whole_word: bool) -> re.Pattern[str] | None:
+def _build_regex(terms: list[str], case_insensitive: bool, whole_word: bool, single_words: bool = False) -> re.Pattern[str] | None:
     if not terms:
         return None
     # An acronym (RAM, FTO) is a word in capitals: matched as that word, so "diagram" or "program"
-    # does not contain it. Every other term keeps the file's case and word settings.
+    # does not contain it. With single_words a term that is one Latin word (todo, tbd) is matched as
+    # that word or its plural (TODOs), so "Mastodon" or "photodocument" does not contain it. Every
+    # other term keeps the file's case and word settings.
     acronyms = [term for term in terms if re.fullmatch(r"[A-Z]{2,5}", term)]
-    escaped = [re.escape(term) for term in terms if term not in acronyms]
+    escaped = [rf"(?<![A-Za-z]){re.escape(term)}s?(?![A-Za-z])" if single_words and re.fullmatch(r"[A-Za-z]+", term) else re.escape(term)
+               for term in terms if term not in acronyms]
     pattern = "|".join(escaped)
     if whole_word and pattern:
         pattern = rf"(?:(?<=\W)|^)(?:{pattern})(?:(?=\W)|$)"
@@ -147,7 +150,7 @@ def _slide_has_title(slide, slide_height: int | None) -> bool:
 def lint(path: str | Path) -> dict[str, Any]:
     prs = Presentation(str(path))
     hard_terms, soft_terms, case_insensitive, whole_word = _load_terms()
-    hard_re = _build_regex(hard_terms, case_insensitive, whole_word)
+    hard_re = _build_regex(hard_terms, case_insensitive, whole_word, single_words=True)
     soft_re = _build_regex(soft_terms, case_insensitive, whole_word)
 
     missing_titles: list[int] = []

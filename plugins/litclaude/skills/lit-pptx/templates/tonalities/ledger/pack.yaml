@@ -1,5 +1,5 @@
-# Ledger: a set of accounts made readable. Small, exact type, numbers in tabular
-# figures, tables and KPI rows doing most of the talking; colour marks only "this
+# Ledger: a set of accounts made readable. Small, exact type, right-aligned
+# numbers, tables and KPI rows doing most of the talking; colour marks only "this
 # period" and the one figure that matters. Wrong for a live pitch with little data
 # or for a briefing that is read as prose.
 id: ledger
@@ -10,12 +10,6 @@ canvas: ["16:9", "4:3"]
 
 # Pretendard by default; the A2Z map below applies only when the source asks (faces: a2z).
 faces:
-  display: Pretendard Bold
-  title: Pretendard Bold
-  body: Pretendard Regular
-  label: Pretendard Regular
-  numeral: Pretendard Bold
-faces-pretendard-only:
   display: Pretendard Bold
   title: Pretendard Bold
   body: Pretendard Regular
@@ -48,8 +42,6 @@ hero: false
 type-voice:
   title-tracking: -1
   display-tracking: -1
-  latin-case: sentence
-  figures: tabular
 
 density: 10
 variance: 5
@@ -81,22 +73,17 @@ sections: [section-rule, section-numeral]
 closings: [closing-decision-box, closing-ask]
 
 table:
-  style: ledger
   # The header row is the ledger's one dark mass: deep field, white labels.
   header: field
   header-ink: on-field
   rules: header-and-totals
   banding: none
-  numbers: right-tabular
   totals: bold
 chart:
   gridlines: hairline
   labels: direct
   highlight: accent-on-muted
-  annotation: on
 image:
-  bleed: side-only
-  crop: none
   frame: hairline
 
 fill-order: [step-up, distribute, anchor-visual, change-family]

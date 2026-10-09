@@ -15,12 +15,6 @@ faces:
   body: Pretendard Regular
   label: Pretendard Regular
   numeral: Pretendard Bold
-faces-pretendard-only:
-  display: Pretendard Bold
-  title: Pretendard Bold
-  body: Pretendard Regular
-  label: Pretendard Regular
-  numeral: Pretendard Bold
 faces-a2z:
   display: A2Z Bold
   title: Pretendard Bold
@@ -48,8 +42,6 @@ hero: false
 type-voice:
   title-tracking: -1
   display-tracking: -1
-  latin-case: sentence
-  figures: tabular
 
 density: 10
 variance: 4
@@ -81,21 +73,16 @@ sections: [section-band, section-rule]
 closings: [closing-decision-box, closing-ask]
 
 table:
-  style: header-fill
   header: field
   header-ink: on-field
   rules: grid
   banding: surface
-  numbers: right-tabular
   totals: bold
 chart:
   gridlines: hairline
   labels: direct
   highlight: accent-on-muted
-  annotation: off
 image:
-  bleed: none
-  crop: none
   frame: hairline
 
 fill-order: [step-up, distribute, change-family, anchor-visual]

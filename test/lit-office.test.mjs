@@ -702,6 +702,29 @@ describe("lit-pptx and lit-docx with the pinned runtime", { skip: runtimeReady ?
     join(pptxRoot, "scripts", "compile-deck.js"), source, "--template", template, "--pptx", join(dir, "deck.pptx"), ...extra,
   ], { cwd: dir, encoding: "utf8" });
 
+  it("a forbidden term that is one Latin word fails as that word or its plural, never inside a longer one", () => {
+    const dir = work();
+    try {
+      const texts = ["Mastodon", "photodocument", "TODO: x", "todo.", "(TBD)", "Lorem ipsum", "TODOs", "placeholders", "FIXMEs"];
+      const built = spawnSync(runtimePython, ["-B", "-c", `
+import json, sys
+from pptx import Presentation
+from pptx.util import Inches
+prs = Presentation()
+for text in json.loads(sys.argv[2]):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text_frame.text = text
+prs.save(sys.argv[1])
+`, join(dir, "terms.pptx"), JSON.stringify(texts)], { encoding: "utf8" });
+      assert.equal(built.status, 0, built.stderr);
+      const report = JSON.parse(py(join(pptxRoot, "scripts", "validate_pptx.py"), [join(dir, "terms.pptx")], dir).stdout);
+      const flagged = report.checks.forbidden_terms.hard_hits.map((hit) => texts[Number(/^slide (\d+)/u.exec(hit)[1]) - 1]);
+      assert.deepEqual(flagged, ["TODO: x", "todo.", "(TBD)", "Lorem ipsum", "TODOs", "placeholders", "FIXMEs"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("compiles an AZURE-PRO Korean and English deck with embedded fonts and passes the QA gate", () => {
     const dir = work();
     try {

@@ -470,7 +470,7 @@ function validatePack(pack, file) {
   need(typeof pack.intent === "string" && pack.intent.length > 0, "intent is missing");
   need(isList(pack.canvas) && pack.canvas.length > 0 && pack.canvas.every((c) => grid.CANVAS[c]), "canvas must list 16:9 and/or 4:3");
   // `faces` is the deck's default and is Pretendard only; `faces-a2z` applies when the source asks.
-  for (const key of ["faces", "faces-pretendard-only", "faces-a2z"]) {
+  for (const key of ["faces", "faces-a2z"]) {
     if (key === "faces-a2z" && pack[key] == null) continue;
     const faces = pack[key] || {};
     for (const role of FACE_KEYS) {

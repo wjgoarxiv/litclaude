@@ -38,7 +38,7 @@ Read from the pack file; these are the values the engine draws.
 | density / variance | 10 / 8 |
 | radius / edge | 0 / fill |
 | table | open style, no header fill, a 2 pt ink rule under the header, no row rules, bold totals |
-| chart | no gridlines, direct labels, accent on the highlighted series over muted ones, annotation on |
+| chart | no gridlines, direct labels, accent on the highlighted series over muted ones |
 
 Density 10 puts the deck on the compact grid with body 13 pt. Variance 8 lets one deck mix up to five
 title treatments, which is the point of this direction.

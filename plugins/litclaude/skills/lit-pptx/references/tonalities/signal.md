@@ -39,7 +39,7 @@ The values below come from the pack file and are what the engine draws.
 | density / variance | 10 / 6 |
 | radius / edge | 0 / fill |
 | table | open style, no header fill, rules at top and bottom, protagonist row in accent-tint, bold totals |
-| chart | no gridlines, direct labels, accent on the highlighted bar over muted bars, annotation on |
+| chart | no gridlines, direct labels, accent on the highlighted bar over muted bars |
 
 Density 10 sets the pitch on the compact grid (24 pt side margins), body 13 pt and no step-up: a
 pitch read after the meeting carries its basis and sources on every slide. Lower it to 8 (body 14 pt,

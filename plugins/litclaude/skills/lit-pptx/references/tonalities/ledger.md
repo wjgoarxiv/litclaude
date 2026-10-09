@@ -40,7 +40,7 @@ Read from the pack file; these are the values the engine draws.
 | density / variance | 10 / 5 |
 | radius / edge | 0 / fill |
 | table | ledger style, header in the field colour with on-field text, rules under the header and above totals, bold totals |
-| chart | hairline gridlines, direct labels, accent on the highlighted series over muted ones, annotation on |
+| chart | hairline gridlines, direct labels, accent on the highlighted series over muted ones |
 
 Density 10 puts the deck on the compact grid (24 pt side margins) and the compact ramp: body 13 pt,
 table cells and captions 11 pt, sources 9 pt, rows from 18 pt, up to 22 lines in a text column, no

@@ -12,8 +12,8 @@ type, squeezing leading or loosening a gate threshold is never the fix.
 
 The user's standing preference is high density: pages carry information to the bottom and there are
 no airy layouts unless the user asks for one. Every pack's default density is between 8 and 9 (Report
-9, Brief 9, Manual 9, Proposal 8, Memo 9, Journal 9), and the median body-page fill target is 0.80
-(Proposal 0.75, because a proposal may give a page to a figure). The skill may move density by up to 2
+9, Brief 9, Manual 9, Proposal 8, Memo 9, Journal 9), and body pages aim at a median fill of 0.80
+(0.75 in a Proposal, because a proposal may give a page to a figure). The skill may move density by up to 2
 from the pack default without asking and writes the move on the direction card; going below 7 needs
 the user's word.
 
@@ -133,7 +133,7 @@ the gate on a tonality document:
 | `component.variety` | a document of four or more pages built with a tonality uses at least two component kinds (a cover or title-block directive counts) |
 | `heading.declarative` | headings, the title and the subtitle are noun-phrase labels, not sentences (structural; runs without `--layout` too) |
 
-The median fill is reported against the pack's target, not failed. A page found by a check is named
+The median fill is reported (`fill_median`), not failed. A page found by a check is named
 with its number; open that page before changing anything.
 
 ### The restraint checks (A4.11)

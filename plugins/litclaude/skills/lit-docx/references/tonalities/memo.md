@@ -71,7 +71,7 @@ no accent: the palette is ink, muted ink and a grey rule only.
 | Running head | folio from page 2, footer right, muted |
 | Components | none |
 | Figures | at most 0.40 of the frame height |
-| Fill | no page under 0.35 except the last; median target 0.80; a memo never spills onto a second page it fills under a quarter of the frame (`memo.fit`) |
+| Fill | no page under 0.35 except the last (`fill.page`); a memo never spills onto a second page it fills under a quarter of the frame (`memo.fit`) |
 
 A memo stays on one page when its content allows: the pack's `spacing: tight` sets the tokens above,
 and the page check `memo.fit` (qa_docx.py --layout) fails a memo that spills less than a quarter of a

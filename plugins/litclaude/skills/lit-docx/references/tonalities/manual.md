@@ -76,7 +76,7 @@ Values at the pack default (density 9, variance 6), from `templates/tonalities/m
 | Running head | header: short title left; footer: folio right; 8.5 pt muted |
 | Components | callout, sidebar, columns (three kinds at most) |
 | Figures | at most 0.45 of the frame height |
-| Fill | no body page under 0.35; median target 0.80 |
+| Fill | no body page under 0.35 (`fill.page`) |
 
 **Dials.** Density 7 opens the margins to 27/29/27/27 mm and the Hangul pitch to 180 %: for a guide used
 at a bench, where a looser line helps the reader find their place again. Density 10 closes the top

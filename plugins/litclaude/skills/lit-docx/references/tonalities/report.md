@@ -82,7 +82,7 @@ Values at the pack default (density 9, variance 5), read from `templates/tonalit
 | Running head | footer: short title left, folio right, 8.5 pt muted |
 | Components | keyfigures, callout, columns (three kinds at most) |
 | Figures | at most 0.45 of the text-frame height |
-| Fill | no body page under 0.35; median target 0.80 |
+| Fill | no body page under 0.35 (`fill.page`) |
 
 **Dials.** Density moves margins and leading together: density 10 closes the margins to 24/26/25/25 mm
 for a report a page over its limit; density 7 opens them to 27/29/27/27 mm with a Hangul pitch of 180 %.

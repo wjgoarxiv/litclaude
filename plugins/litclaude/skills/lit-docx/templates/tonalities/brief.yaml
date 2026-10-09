@@ -26,4 +26,3 @@ design:
     allowed: [callout, columns]
     callout_max: 1
   figure_style: {max_height_ratio: 0.40}
-  fill: {min_page_fill: 0.35, target_median_fill: 0.80}

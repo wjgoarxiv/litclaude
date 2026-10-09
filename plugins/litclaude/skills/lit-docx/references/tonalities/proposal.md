@@ -66,7 +66,7 @@ Values at the pack default (density 8, variance 6), from `templates/tonalities/p
 | Running head | folio centred at the foot, 8.5 / 9 pt muted; none on the cover |
 | Components | keyfigures, callout (one at most), columns |
 | Figures | at most 0.60 of the frame height |
-| Fill | no body page under 0.35; median target 0.75 |
+| Fill | no body page under 0.35 (`fill.page`) |
 
 **Dials.** Density 6 or 7 opens the margins to 27/29/27/27 mm and the Hangul pitch to 180 %, for a
 printed proposal handed over in a meeting. Density 10 closes them to 24/26/25/25 mm for a proposal held

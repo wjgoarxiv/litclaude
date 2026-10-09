@@ -41,8 +41,8 @@ These values are read from the pack file `pack.yaml` of the `atlas` tonality.
 | density / variance | 10 / 7 |
 | radius / edge | 0 / fill |
 | table | light grid: no header fill, bold ink header, hairline rows, no banding, numbers right-aligned, totals bold |
-| chart | hairline gridlines, direct labels, accent on the item that matters, no annotation |
-| image | bleed and crop allowed, no frame |
+| chart | hairline gridlines, direct labels, accent on the item that matters |
+| image | no frame |
 | decoration | caption band, hairline rule, colour field |
 
 ## Treatments by slide role

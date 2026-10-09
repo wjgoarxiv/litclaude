@@ -71,7 +71,7 @@ has no accent: `accent_on` is empty, so the title rule and the callout rule are 
 | Running head | header: short title left, folio right, 8.5 pt muted |
 | Components | callout only |
 | Figures | at most 0.40 of the frame height, sized to the column width |
-| Fill | no body page under 0.35; median target 0.80 |
+| Fill | no body page under 0.35 (`fill.page`) |
 
 **Dials.** Density 7 opens the margins to 27/29/27/27 mm and the pitch to 137 % Latin and 180 % Hangul,
 for a white paper meant to be printed; the columns get narrower, so check that three-column tables

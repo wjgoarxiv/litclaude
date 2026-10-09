@@ -41,7 +41,7 @@ Read from the pack file; these are the values the engine draws.
 | density / variance | 10 / 4 |
 | radius / edge | 0 / fill and border |
 | table | header-fill style, field header with on-field text, a grid on every cell, the first column shaded, bold totals |
-| chart | hairline gridlines, direct labels, accent on the highlighted series, no annotation |
+| chart | hairline gridlines, direct labels, accent on the highlighted series |
 
 Density 10 is the compact step every pack now starts from: 24 pt side margins, body 13 pt with no
 step-up, table rows from 18 pt and up to 22 lines per text column, titles close over the body. Variance 4 allows exactly three title treatments in a deck. That is deliberate: a briefing repeats

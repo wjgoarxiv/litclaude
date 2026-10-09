@@ -72,7 +72,7 @@ Values at the pack default (density 9, variance 3), from `templates/tonalities/b
 | Running head | folio only, footer right, 8.5 pt muted |
 | Components | callout (one at most), columns |
 | Figures | at most 0.40 of the frame height |
-| Fill | no body page under 0.35 except the last; median target 0.80 |
+| Fill | no body page under 0.35 except the last (`fill.page`) |
 
 **Dials.** Density 9 is the pack's working point. Density 10 closes the top margin to 24 mm, which buys
 a few lines for a brief that spills onto an extra page; cutting a sentence is usually better. Density 7

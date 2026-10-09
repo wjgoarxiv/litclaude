@@ -14,12 +14,6 @@ faces:
   body: Pretendard Regular
   label: Pretendard Regular
   numeral: Pretendard Regular
-faces-pretendard-only:
-  display: Pretendard Bold
-  title: Pretendard Bold
-  body: Pretendard Regular
-  label: Pretendard Regular
-  numeral: Pretendard Regular
 faces-a2z:
   display: Pretendard Bold
   title: Pretendard Bold
@@ -47,8 +41,6 @@ hero: false
 type-voice:
   title-tracking: 0
   display-tracking: -1
-  latin-case: sentence
-  figures: tabular
 
 density: 10
 variance: 5
@@ -86,21 +78,16 @@ sections: [section-rule, section-field]
 closings: [closing-summary-list, closing-ask]
 
 table:
-  style: booktabs
   header: none
   header-ink: ink
   rules: booktabs
   banding: none
-  numbers: right-tabular
   totals: bold
 chart:
   gridlines: hairline
   labels: direct
   highlight: series-order
-  annotation: off
 image:
-  bleed: none
-  crop: none
   frame: none
 
 fill-order: [anchor-visual, distribute, step-up, change-family]

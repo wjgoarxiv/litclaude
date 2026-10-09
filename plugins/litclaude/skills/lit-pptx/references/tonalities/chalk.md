@@ -41,7 +41,7 @@ These values are read from the pack file `pack.yaml` of the `chalk` tonality.
 | radius / edge | 6 / fill |
 | rail | the side rail is a field-coloured fill |
 | table | header row in the accent tint with deep-accent bold text, hairline rules between rows, no banding, numbers right-aligned, totals bold |
-| chart | hairline gridlines, direct labels, accent on the item that matters and muted colours on the rest, annotation on |
+| chart | hairline gridlines, direct labels, accent on the item that matters and muted colours on the rest |
 | decoration | accent rule, marked term underline, rail fill, numeral |
 
 The marked-term underline is listed in the pack but the engine does not draw it yet, so mark the

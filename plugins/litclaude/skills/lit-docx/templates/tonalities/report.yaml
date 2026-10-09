@@ -24,4 +24,3 @@ design:
     allowed: [keyfigures, callout, columns]
     keyfigures: {per_row: 3}
   figure_style: {max_height_ratio: 0.45}
-  fill: {min_page_fill: 0.35, target_median_fill: 0.80}
