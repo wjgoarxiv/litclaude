@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.22 - 2026-10-11
+
+- The README is shorter for first-time readers. It says what LitClaude does, how to install it and what to type first, and the detailed material now lives in docs pages (guide, skills, Jev, development) in English and Korean. The GitHub page also plays a short film of a real session.
+- The status line is more compact and shows the reasoning effort next to the model: `[🔥LIT v…] | O5.5 [xhigh] │ ctx … │ 5h … │ 1w …`. When the context use cannot be read, the line shows `?` where it used to show a made-up number, and long sessions now report their real usage to the status line and to automatic handoff.
+- The second status row keeps showing what you typed. After a skill loaded, it used to show the text of that skill.
+- On Claude Code 2.1.287 and later, a LIT band sits above the prompt while LitClaude work is active. It shows the phase, a progress bar, the running subagents, gate notices and a short completion moment, and `/lit-evidence` opens a pane with the goal's evidence, the subagents and the gates. The `motion`, `glyphs` and `band` settings control it. Older Claude Code releases keep the existing hooks.
+- `litclaude install --icon-font` adds the symbols-only Nerd Font to your user font folder so the band can draw its pills and icons. An interactive install asks instead, with No as the default. Uninstall removes only the font files it added and left unchanged, and doctor reports the font.
+- Automatic update now refreshes its own record of the latest version from the session, so new releases arrive without a terminal install, update or doctor run. It skips a version that is already installed and waits a day before it tries a failed version again.
+- "Turn notes.md into slides" and similar requests go to the office skills. Before, any `.md` file counted as code documentation and the request fell back to lit-loop.
+- Piped output longer than 64 KiB is no longer cut off. `--dry-run` also works after the subcommand, so `uninstall --dry-run` no longer runs a real uninstall, and unknown options are refused before anything runs.
+- LitClaude writes a `.gitignore` inside its `.litclaude` folder, so its project state stays out of Git without any change to your own `.gitignore`.
+
 ## 1.0.21 - 2026-10-09
 
 - The deck and document looks no longer list settings that nothing applied. The eight deck looks carried entries for chart annotations, image cropping and bleed, letter case, tabular figures and table style names, and the six document looks carried page-fill targets, but the build never read any of them. Those entries are gone, and the reference pages for each look no longer promise them. Decks and documents come out exactly as before.
