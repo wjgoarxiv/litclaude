@@ -20,8 +20,8 @@ const snapshots = {
 };
 const MAX_SNAPSHOT_BYTES = 98_304;
 
-const pictures = (content) => [...content.matchAll(/<picture>[\s\S]*?<\/picture>|<img [^>]*docs\/assets\/jev\/[^>]*>/gu)]
-  .map((m) => m[0]).filter((html) => html.includes("docs/assets/jev/"));
+const pictures = (content) => [...content.matchAll(/<picture>[\s\S]*?<\/picture>|<img [^>]*\.\/assets\/jev\/[^>]*>/gu)]
+  .map((m) => m[0]).filter((html) => html.includes("./assets/jev/"));
 
 test("Jev snapshot files are the approved small WebP captures", () => {
   assert.deepEqual(readdirSync(jevRoot).sort(), Object.keys(snapshots).sort());
@@ -36,10 +36,14 @@ test("Jev snapshot files are the approved small WebP captures", () => {
   }
 });
 
-test("both GitHub pages show every snapshot with alt text that states the text shown", () => {
-  for (const [file, statusWord, alsoRainbow] of [["README.md", "Status line", "rainbow"], ["README_ko-KR.md", "상태 줄", "무지개"]]) {
+test("both Jev pages show every snapshot with alt text that states the text shown", () => {
+  for (const [file, statusWord, alsoRainbow, readme] of [["docs/jev.md", "Status line", "rainbow", "README.md"], ["docs/jev_ko-KR.md", "상태 줄", "무지개", "README_ko-KR.md"]]) {
+    const landing = read(readme);
+    assert.ok(landing.includes(`](./${file})`), `${readme} links ${file}`);
+    assert.doesNotMatch(landing, /assets\/jev\//u, `${readme} leaves the Jev pictures to ${file}`);
+    assert.match(landing, /TypeSafe/u, `${readme} names where the prompts go next to the link`);
     const content = read(file);
-    const shown = new Set([...content.matchAll(/docs\/assets\/jev\/([\w.-]+\.webp)/gu)].map((m) => m[1]));
+    const shown = new Set([...content.matchAll(/\.\/assets\/jev\/([\w.-]+\.webp)/gu)].map((m) => m[1]));
     assert.deepEqual([...shown].sort(), Object.keys(snapshots).sort(), `${file} must use exactly the shipped snapshots`);
     const blocks = pictures(content);
     assert.equal(blocks.length, 5, `${file} shows five snapshots`);
@@ -51,9 +55,9 @@ test("both GitHub pages show every snapshot with alt text that states the text s
     const themed = blocks.filter((html) => html.includes("<picture>"));
     assert.equal(themed.length, 4, `${file}: the four status-line snapshots follow the page theme`);
     for (const html of themed) {
-      const dark = /srcset="\.\/docs\/assets\/jev\/(jev-[\w-]+)-dark\.webp"/u.exec(html)?.[1];
+      const dark = /srcset="\.\/assets\/jev\/(jev-[\w-]+)-dark\.webp"/u.exec(html)?.[1];
       assert.ok(dark, `${file}: the dark source must come from the -dark file`);
-      assert.ok(html.includes(`src="./docs/assets/jev/${dark}-light.webp"`), `${file}: the fallback image must be the -light twin`);
+      assert.ok(html.includes(`src="./assets/jev/${dark}-light.webp"`), `${file}: the fallback image must be the -light twin`);
     }
     assert.match(content, /Sample output|예시 출력/u, `${file} labels the images as sample output`);
   }

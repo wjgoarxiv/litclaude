@@ -6,8 +6,10 @@ import { APPROVED_PAYLOAD_PATHS, README_SKILL_IMAGE_PATHS } from "../tools/check
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
-// The skill gallery lives on the GitHub README, which loads each snapshot from the repository.
-const skillBase = "./docs/assets/skills/";
+// The skill gallery lives on docs/skills.md (Korean: docs/skills_ko-KR.md), linked from the README.
+// Each page loads its snapshots from the repository, relative to docs/.
+const docsRoot = new URL("docs/", root);
+const skillBase = "./assets/skills/";
 const MAX_SNAPSHOT_BYTES = 81_920;
 
 // Table order. A grouped row stands for several hook-run skills that have no route of their own.
@@ -24,20 +26,16 @@ const GROUPS = { "automatic-checks": ["rules", "lsp", "comment-checker"] };
 
 const LANG = {
   en: {
-    path: "README.md",
+    path: "docs/skills.md",
+    readme: "README.md",
     heading: "## Skills at a glance",
-    after: "## What to type",
-    before: "## How it works",
-    nav: '<a href="#what-to-type">What to type</a> · <a href="#skills-at-a-glance">Skills</a> · ',
     header: "<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>",
     groupRoute: "runs on its own",
   },
   ko: {
-    path: "README_ko-KR.md",
+    path: "docs/skills_ko-KR.md",
+    readme: "README_ko-KR.md",
     heading: "## 스킬 한눈에 보기",
-    after: "## 무엇을 입력하나요",
-    before: "## 작동 방식",
-    nav: '<a href="#무엇을-입력하나요">입력할 내용</a> · <a href="#스킬-한눈에-보기">스킬</a> · ',
     header: "<tr><th>이렇게 됩니다</th><th>스킬</th><th>얻는 것</th></tr>",
     groupRoute: "자동 실행",
   },
@@ -50,12 +48,9 @@ function assertSkillsSection(content, lang) {
   const lines = content.split("\n");
   const at = (heading) => lines.indexOf(heading);
   assert.equal(lines.filter((line) => line === spec.heading).length, 1, `${spec.heading} appears once`);
-  assert.ok(at(spec.after) !== -1 && at(spec.after) < at(spec.heading), `${spec.heading} follows ${spec.after}`);
-  const next = lines.findIndex((line, index) => index > at(spec.heading) && line.startsWith("## "));
-  assert.equal(lines[next], spec.before, `${spec.heading} sits directly before ${spec.before}`);
-  assert.ok(content.includes(spec.nav), "the top nav links the section");
+  assert.equal(lines.findIndex((line, index) => index > at(spec.heading) && /^#{1,2} /u.test(line)), -1, `${spec.heading} is the last section`);
 
-  const body = lines.slice(at(spec.heading), next).join("\n");
+  const body = lines.slice(at(spec.heading)).join("\n");
   assert.equal(body.match(/<table>/gu)?.length, 1, "one skill table");
   assert.ok(body.includes(`<table>\n${spec.header}\n`), "table header");
   assert.equal(body.match(/<tr>/gu).length, ROWS.length + 1, "one row per skill plus the header");
@@ -64,7 +59,7 @@ function assertSkillsSection(content, lang) {
   rows.forEach(([, src, alt, name, route, result], index) => {
     const id = ROWS[index];
     assert.equal(src, `${skillBase}${id}.webp`, `row ${index + 1} shows ${id}`);
-    assert.ok(lstatSync(new URL(src, root)).isFile(), `${src} must exist on disk`);
+    assert.ok(lstatSync(new URL(src, docsRoot)).isFile(), `${src} must exist on disk`);
     const skills = GROUPS[id] ?? [id];
     assert.equal(name, skills.map((skill) => `<code>${skill}</code>`).join(" · "), `${id} name cell`);
     if (GROUPS[id]) assert.equal(route, spec.groupRoute, `${id} runs without a route`);
@@ -75,8 +70,13 @@ function assertSkillsSection(content, lang) {
   return body;
 }
 
-test("both READMEs carry the skill table with one pictured row per skill", () => {
-  for (const lang of Object.keys(LANG)) assertSkillsSection(read(LANG[lang].path), lang);
+test("both skills pages carry the skill table with one pictured row per skill, linked from their README", () => {
+  for (const lang of Object.keys(LANG)) {
+    assertSkillsSection(read(LANG[lang].path), lang);
+    const readme = read(LANG[lang].readme);
+    assert.ok(readme.includes(`href="./${LANG[lang].path}"`), `${LANG[lang].readme} top nav links the skills page`);
+    assert.ok(readme.includes(`](./${LANG[lang].path})`), `${LANG[lang].readme} body links the skills page`);
+  }
 });
 
 test("the skill table covers every canonical skill exactly once, including the office and motion skills", () => {
@@ -102,15 +102,15 @@ test("skill snapshots ship as exact package paths under their byte cap", () => {
 });
 
 test("skill table check rejects a dropped row, a swapped picture, a lost group member or a moved section", () => {
-  const content = read("README.md");
+  const content = read("docs/skills.md");
   const section = assertSkillsSection(content, "en");
   const pptxRow = section.match(/<tr>\n<td><img src="[^"]+\/lit-pptx\.webp"[\s\S]*?<\/tr>\n/u)[0];
   for (const mutation of [
     content.replace(pptxRow, ""),
     content.replace(`${skillBase}lit-docx.webp`, `${skillBase}lit-pptx.webp`),
     content.replace("<code>rules</code> · <code>lsp</code> · <code>comment-checker</code>", "<code>rules</code> · <code>lsp</code>"),
-    content.replace(section, "").replace("\n## Learn more\n", `\n${section}\n## Learn more\n`),
-    content.replace('<a href="#skills-at-a-glance">Skills</a> · ', ""),
+    `${content}\n## Notes\n\nA section after the table.\n`,
+    content.replace("<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>", "<tr><th>Skill</th></tr>"),
   ]) {
     assert.notEqual(mutation, content);
     assert.throws(() => assertSkillsSection(mutation, "en"));

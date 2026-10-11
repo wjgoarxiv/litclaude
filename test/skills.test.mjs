@@ -794,7 +794,7 @@ syncBuiltinESMExports();
     const frontendDetail = readFileSync(join(skillsRoot, "frontend-ui-ux", "references", "complete-contract.md"), "utf8");
     const lanes = readFileSync(join(skillsRoot, "frontend-ui-ux", "references", "operating-lanes.md"), "utf8");
     const visualDetail = readFileSync(join(skillsRoot, "visual-qa", "references", "complete-contract.md"), "utf8");
-    const koreanReadme = readFileSync(join(root, "README_ko-KR.md"), "utf8");
+    const koreanReadme = readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8");
 
     for (const text of [visualDetail, koreanReadme]) {
       assert.match(text, /litfamily\.design-contract\/v1beta2/u);

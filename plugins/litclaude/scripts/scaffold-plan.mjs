@@ -30,7 +30,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parsePlanTaskRows, planLinesOutsideFences } from "../lib/plan-task-rows.mjs";
-import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { readRegularStable, samePathIdentity } from "../lib/secure-path-read.mjs";
 
 /** Canonical plan section headers, in order. */
@@ -893,6 +893,7 @@ export async function scaffold(cwd, { slug, intent, reset = false, force = false
     // Finish the symlink-safe directory setup before taking ctime-sensitive pins;
     // concurrent scaffolders then contend only on the atomic pair lock.
     await mkdirWithoutSymlinks(dirname(pairLockPath), workspaceRoot);
+    ensureStateDirIgnored(pairLockPath);
     const pairParentState = await assertSafeWriteParent(cwd, pairLockPath);
     parentStates.add(pairParentState);
     pairLock = await acquireWriteLock(pairLockPath, pairParentState);

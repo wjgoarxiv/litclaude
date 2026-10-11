@@ -4,8 +4,9 @@
 // provider usage fields. This module never returns transcript text, rule bodies,
 // file contents, secrets, or network metadata.
 
+import { lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { MAX_BOUNDED_FILE_BYTES, readRegularStable } from "./secure-path-read.mjs";
+import { MAX_BOUNDED_FILE_BYTES, readRegularStable, readRegularTail } from "./secure-path-read.mjs";
 import { dedupeByBody } from "./rules/format.mjs";
 
 const MAX_TRANSCRIPT_BYTES = MAX_BOUNDED_FILE_BYTES;
@@ -177,11 +178,71 @@ export const latestUsageTokensFromText = (transcriptText) => {
   return latest ?? 0;
 };
 
+// A long session's transcript outgrows the whole-file bound, but the latest usage record sits
+// near its end. Read a short tail first and the full bound only when that tail holds none.
+const USAGE_TAIL_WINDOWS = [2 * 1024 * 1024, MAX_TRANSCRIPT_BYTES];
+
+// The read starts one byte before the window. When that byte is a newline the window begins on
+// a whole record and keeps it; otherwise everything up to the first newline is a cut fragment.
+export const latestUsageTokensInTail = (transcriptPath, windowBytes) => {
+  const result = readRegularTail(dirname(transcriptPath), transcriptPath, windowBytes + 1);
+  if (result.failure) return { tokens: 0, failed: true, truncated: false };
+  let text = result.bytes.toString("utf8");
+  if (result.truncated) {
+    const firstBreak = text.indexOf("\n");
+    text = firstBreak === -1 ? "" : text.slice(firstBreak + 1);
+  }
+  return { tokens: latestUsageTokensFromText(text), failed: false, truncated: result.truncated };
+};
+
+const latestUsageTokensFromTail = (transcriptPath) => {
+  for (const window of USAGE_TAIL_WINDOWS) {
+    const { tokens, failed, truncated } = latestUsageTokensInTail(transcriptPath, window);
+    if (failed) return 0;
+    if (tokens > 0 || !truncated) return tokens;
+  }
+  return 0;
+};
+
+/**
+ * latestUsageTokens behind a one-entry cache file keyed by the transcript's path, file identity,
+ * size and mtime. The status line redraws far more often than the transcript changes, and a
+ * long transcript whose last 2 MiB holds no usage record would otherwise cost an 8 MiB read on
+ * every redraw. The cache holds only that key and a number; any cache failure just reads.
+ */
+export const latestUsageTokensCached = (transcriptPath, cachePath) => {
+  if (typeof transcriptPath !== "string" || transcriptPath.length === 0) return 0;
+  let key;
+  try {
+    const stats = lstatSync(transcriptPath);
+    key = { path: transcriptPath, dev: stats.dev, ino: stats.ino, size: stats.size, mtimeMs: stats.mtimeMs };
+  } catch {
+    return 0;
+  }
+  try {
+    const cached = JSON.parse(readFileSync(cachePath, "utf8"));
+    if (Object.keys(key).every((field) => cached?.[field] === key[field]) && Number.isSafeInteger(cached.tokens)) return cached.tokens;
+  } catch {
+    // No usable cache entry: measure below.
+  }
+  const tokens = latestUsageTokens(transcriptPath);
+  try {
+    mkdirSync(dirname(cachePath), { recursive: true });
+    const staging = `${cachePath}.${process.pid}.tmp`;
+    writeFileSync(staging, `${JSON.stringify({ ...key, tokens })}\n`);
+    renameSync(staging, cachePath);
+  } catch {
+    // The number is still right; only the next redraw pays for the read again.
+  }
+  return tokens;
+};
+
 /** Match HUD context sizing while applying the same bounded local-file policy. */
 export const latestUsageTokens = (transcriptPath) => {
   if (typeof transcriptPath !== "string" || transcriptPath.length === 0) return 0;
   try {
     const result = readRegularStable(dirname(transcriptPath), transcriptPath, undefined, { maxBytes: MAX_TRANSCRIPT_BYTES });
+    if (result.failure === "FILE_TOO_LARGE") return latestUsageTokensFromTail(transcriptPath);
     return result.failure ? 0 : latestUsageTokensFromText(result.bytes.toString("utf8"));
   } catch {
     return 0;

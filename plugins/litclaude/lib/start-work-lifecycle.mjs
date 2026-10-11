@@ -18,6 +18,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
+import { ensureStateDirIgnored } from "./project-state-root.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
 const SCHEMA_VERSION = 3;
@@ -64,6 +65,7 @@ const startWorkLockOwnerPath = (root) => join(startWorkLockDir(root), "owner.jso
 
 const atomicWriteJson = (path, value) => {
   mkdirSync(dirname(path), { recursive: true });
+  ensureStateDirIgnored(path);
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   const fd = openSync(temporary, "r");
@@ -103,6 +105,7 @@ const readLockOwner = (root) => {
 export const acquireStartWorkLock = (root, options = {}) => {
   const lockDir = startWorkLockDir(root);
   mkdirSync(dirname(lockDir), { recursive: true });
+  ensureStateDirIgnored(lockDir);
   const configured = Number.parseInt(process.env.LITCLAUDE_START_WORK_LOCK_TIMEOUT_MS ?? "5000", 10);
   const timeout = Number.isFinite(options.timeoutMs)
     ? Math.max(0, options.timeoutMs)
@@ -312,6 +315,7 @@ const assertLedgerCompatible = (existing, stateEvents) => {
 const reconcileLedger = (root, state) => {
   const path = startWorkLedgerPath(root);
   mkdirSync(dirname(path), { recursive: true });
+  ensureStateDirIgnored(path);
   const existing = ledgerRecords(root);
   assertLedgerCompatible(existing, state.events);
   const ids = new Set(existing.map(({ event_id: eventId }) => eventId).filter(Boolean));

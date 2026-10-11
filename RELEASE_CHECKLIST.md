@@ -359,8 +359,9 @@ Use this track only when the user explicitly approves making a new package
 version installable through `npm`, `npx`, and `bunx`.
 
 1. Confirm the target package name and version with the user.
-2. Review `README.md`, `README_ko-KR.md`, `docs/migration.md`, and
-   `docs/workflow-compatibility-audit.md` for neutral release wording.
+2. Review `README.md`, `README_ko-KR.md`, `docs/guide.md`, `docs/guide_ko-KR.md`,
+   `docs/migration.md`, and `docs/workflow-compatibility-audit.md`
+   for neutral release wording.
 3. Run `npm whoami` and confirm the intended npm account.
 4. Re-run the full local verification set from a clean checkout:
    - `npm test`
@@ -376,8 +377,9 @@ version installable through `npm`, `npx`, and `bunx`.
 
 ### Two READMEs: GitHub page and npm page
 
-`README.md` and `README_ko-KR.md` are the GitHub pages: the full guide, with every image
-loaded by a relative path. The npm package page is a shorter card kept in `README_npm.md`
+`README.md` and `README_ko-KR.md` are the GitHub landing pages, with every image loaded by a
+relative path; the detail lives in `docs/guide.md`, `docs/skills.md`, `docs/jev.md` and
+`docs/development.md` (and their `_ko-KR` twins). The npm package page is a shorter card kept in `README_npm.md`
 and `README_npm_ko-KR.md`, whose images are jsDelivr URLs pinned to the package version.
 `tools/readme-for-npm.mjs` swaps the card in: `apply` backs up the GitHub pages under the
 git-ignored `tmp/readme-for-npm/` and copies the npm files over them, `restore` puts the

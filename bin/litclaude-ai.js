@@ -46,6 +46,18 @@ import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-
 import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory } from "./install-ownership.mjs";
 import { banner, lockup, colorMode, supportsBlocks, terminalRows } from "./litfamily-banner.mjs";
+import {
+  ICON_FONT,
+  ICON_FONT_QUESTION,
+  iconFontStatus,
+  installIconFont,
+  loadIconFontArchive,
+  parseYesNo,
+  planIconFontInstall,
+  terminalFontHint,
+  uninstallIconFont,
+  windowsIconFontInstructions,
+} from "./icon-font.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -105,12 +117,31 @@ Install options:
                 safeguards are never weakened.
   --yolo        Shorthand for --permission-mode yolo.
   --yes         Accept today's shipped defaults for every question (HUD accent,
-                output style) and run without prompts. Model selection stays
-                host-owned: Claude Code picks its own models, so the installer
-                never asks for a model or reasoning effort.
+                output style, no icon font) and run without prompts. Model
+                selection stays host-owned: Claude Code picks its own models, so
+                the installer never asks for a model or reasoning effort.
+  --icon-font   Also install the symbols-only Nerd Font (Symbols Nerd Font Mono,
+                MIT) into your user font folder, so the LIT band can draw its
+                rounded pills and icons. Downloaded from the pinned Nerd Fonts
+                release and refused unless its SHA-256 matches; an offline copy
+                of that archive can be named with LITCLAUDE_ICON_FONT_SOURCE.
+                An interactive install asks instead (default No).
 
 Typographic-motion engine adapted from mexicat/pdoom-video (MIT, Giacomo Magnanini), commit \`ca251e3\`.
 `;
+
+const dryRunAfterCommand = new Set(["install", "update", "uninstall", "doctor"]);
+const dryRunTrueValues = new Set(["true", "1", "yes"]);
+
+// `--dry-run` and `--dry-run=true` mean a dry run. Any other value is refused here, before any
+// command runs: a mistyped dry run must never fall through to the real action.
+const isDryRunFlag = (arg) => {
+  if (arg === "--dry-run") return true;
+  if (typeof arg !== "string" || !arg.startsWith("--dry-run=")) return false;
+  if (dryRunTrueValues.has(arg.slice("--dry-run=".length).toLowerCase())) return true;
+  process.stderr.write(`Unsupported value in ${arg}: use --dry-run (or --dry-run=true) for a dry run, or leave the flag out to run for real\n`);
+  process.exit(64);
+};
 
 const parseArgs = (argv) => {
   const args = [];
@@ -128,9 +159,15 @@ const parseArgs = (argv) => {
   }
   const wantsVersion = args[0] === "--version" || args[0] === "-v";
   if (wantsVersion) return { dryRun: false, command: "version", rest: [], noAutoUpdate, invalidOption };
-  const dryRun = args[0] === "--dry-run";
+  let dryRun = isDryRunFlag(args[0]);
   if (dryRun) args.shift();
-  return { dryRun, command: args[0], rest: args.slice(1), noAutoUpdate, invalidOption };
+  let rest = args.slice(1);
+  // The managed commands also take --dry-run after the subcommand (`install --dry-run`).
+  if (dryRunAfterCommand.has(args[0]) && rest.some(isDryRunFlag)) {
+    dryRun = true;
+    rest = rest.filter((arg) => !isDryRunFlag(arg));
+  }
+  return { dryRun, command: args[0], rest, noAutoUpdate, invalidOption };
 };
 
 const litHome = () => resolve(process.env.LITCLAUDE_HOME ?? join(homedir(), ".litclaude"));
@@ -185,6 +222,7 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
   let permissionMode = parsePermissionMode(process.env.LITCLAUDE_PERMISSION_MODE || preservedMode);
   let permissionExplicit = Boolean(process.env.LITCLAUDE_PERMISSION_MODE);
   let assumeYes = false;
+  let iconFont = false;
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
@@ -212,10 +250,14 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
       assumeYes = true;
       continue;
     }
+    if (arg === "--icon-font") {
+      iconFont = true;
+      continue;
+    }
     fail(`Unknown install option: ${arg}`, 64);
   }
 
-  return { permissionMode, permissionExplicit, assumeYes };
+  return { permissionMode, permissionExplicit, assumeYes, iconFont };
 };
 
 const permissionProfile = (mode) => {
@@ -257,6 +299,19 @@ const fail = (message, status = 1) => {
   process.exit(status);
 };
 
+// A piped stdout is asynchronous on macOS, so process.exit() straight after a large write drops
+// the queued tail (a 400 KB report arrived as 64 KiB). Exit once both streams have flushed.
+const exitAfterFlush = (status) => {
+  process.exitCode = status;
+  let pending = 2;
+  const flushed = () => {
+    pending -= 1;
+    if (pending === 0) process.exit(status);
+  };
+  process.stdout.write("", flushed);
+  process.stderr.write("", flushed);
+};
+
 const shouldAnimateInstall = () => {
   if (process.env.LITCLAUDE_SPINNER === "1") return true;
   if (process.env.LITCLAUDE_SPINNER === "0") return false;
@@ -284,6 +339,8 @@ const formatInstallStep = (label) => {
 // Shared LitFamily banner frame (plans/references/installer-choice-contract.md):
 // the canonical Ignition B mark plus the existing install plan frame.
 const FAMILY_RULE = `  ${"━".repeat(46)}`;
+// The banner keeps its short tagline; package.json carries the longer npm search description.
+const BANNER_TAGLINE = "Claude Code-native workflow distribution.";
 const trueColorSupported = () => /truecolor|24bit/iu.test(process.env.COLORTERM ?? "");
 const brandOrange = (text, color = shouldColorInstall()) => {
   if (!color) return text;
@@ -311,7 +368,7 @@ const familyBanner = ({ color = shouldColorInstall() } = {}) => [
   brandOrange(FAMILY_RULE, color),
   "",
   ...renderLitClaudeWordmark({ color }),
-  `       ${packageJson.description}`,
+  `       ${BANNER_TAGLINE}`,
   "",
   brandOrange(FAMILY_RULE, color),
   "  ╭─ INSTALL PLAN",
@@ -453,7 +510,7 @@ const hudAccentPreview = (theme) => {
       ? `\x1b[${ansi16CodeForAccent(theme.name)}m`
       : `\x1b[38;5;${theme.code}m`;
   const mark = `${accent}▌${accent ? "\x1b[0m" : ""}`;
-  const metrics = ` | O4.8 │ ctx [${mark}░░] 18%/1000k │ 5h [▏░] 4%`;
+  const metrics = ` | O4.8 │ ctx [${mark}░░] 18%/1m │ 5h [▏░]4%`;
   return `${brand}${metrics}`;
 };
 
@@ -534,6 +591,53 @@ const chooseOutputStyle = async (existingChoice = "off") => {
   } finally {
     rl.close();
   }
+};
+
+const shouldPromptIconFont = () => {
+  if (process.env.LITCLAUDE_ICON_FONT_PROMPT === "1") return true;
+  if (process.env.LITCLAUDE_ICON_FONT_PROMPT === "0") return false;
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
+};
+
+// The icon font is opt-in: the flag, or a Yes to the one question an interactive install asks.
+// --yes keeps the shipped default, which is No.
+const chooseIconFont = async ({ iconFont, assumeYes }) => {
+  if (iconFont) return true;
+  if (assumeYes || !shouldPromptIconFont()) return false;
+  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
+  try {
+    return parseYesNo(await rl.question(ICON_FONT_QUESTION));
+  } finally {
+    rl.close();
+  }
+};
+
+const iconFontPaths = () => ({ platform: process.platform, env: process.env, home: homedir(), litHome: litHome() });
+
+const runIconFontInstall = async () => {
+  const where = iconFontPaths();
+  if (!planIconFontInstall(where).supported) {
+    process.stdout.write(`ICON_FONT_SKIPPED: ${windowsIconFontInstructions()}\n`);
+    return;
+  }
+  try {
+    const archive = await loadIconFontArchive({ env: process.env });
+    const result = installIconFont({ ...where, archive });
+    for (const path of result.installed) process.stdout.write(`ICON_FONT_INSTALLED: ${path}\n`);
+    for (const path of result.present) process.stdout.write(`ICON_FONT_PRESENT: ${path}\n`);
+    for (const { path, reason } of result.skipped) process.stdout.write(`ICON_FONT_LEFT_ALONE: ${path} (${reason})\n`);
+    if (result.fontCache) process.stdout.write(`ICON_FONT_CACHE: ${result.fontCache}\n`);
+    process.stdout.write(`ICON_FONT_HINT: ${terminalFontHint(process.env)}\n`);
+  } catch (error) {
+    process.stderr.write(`ICON_FONT_FAILED: ${error.message}\n`);
+  }
+};
+
+const iconFontDoctorLine = () => {
+  const status = iconFontStatus(iconFontPaths());
+  if (!status.supported) return "ICON_FONT: not managed on this platform (optional; see litclaude-ai install --help)";
+  if (status.present) return `ICON_FONT: present (${status.path}, ${status.managed ? "installed by LitClaude" : "not installed by LitClaude"})`;
+  return "ICON_FONT: not installed (optional; litclaude-ai install --icon-font)";
 };
 
 const hudCommandForPlugin = (pluginPath, accent = "cyan") =>
@@ -1030,6 +1134,8 @@ const verifyInstalledPayload = ({ home, litClaudeHome, targetPlugin }) => {
   for (const relativePath of [
     ".claude-plugin/plugin.json",
     "hooks/hooks.json",
+    "hooks/lit-mod.mjs",
+    "hooks/lit-band-client.mjs",
     "bin/litclaude-hook.js",
     "lib/start-work-lifecycle.mjs",
     "lib/start-work-cli.mjs",
@@ -1135,7 +1241,7 @@ const install = async ({ dryRun, rest }) => {
   const home = claudeHome();
   const litClaudeHome = litHome();
   const existingLitClaude = readClaudeSettings(home)[litClaudeSettingsKey] ?? {};
-  const { permissionMode, permissionExplicit, assumeYes } = parseInstallOptions(rest, existingLitClaude.permissionMode);
+  const { permissionMode, permissionExplicit, assumeYes, iconFont } = parseInstallOptions(rest, existingLitClaude.permissionMode);
   const existingHudAccent = normalizeHudAccent(existingLitClaude.hudAccent);
   const existingOutputStyle = existingLitClaude.outputStyleChoice ?? "off";
   const requestedHudAccent = process.env.LITCLAUDE_HUD_ACCENT
@@ -1160,6 +1266,16 @@ const install = async ({ dryRun, rest }) => {
     process.stdout.write(`Would mutate global Claude settings permissions.allow/deny: ${permissionMode} (${permissionSource})\n`);
     process.stdout.write(`Permission profile: ${permissionProfile(permissionMode).description}\n`);
     process.stdout.write("Would pre-warm the lit-typographic-motion runtime: litclaude-ai motion-runtime install\n");
+    const fontPlan = planIconFontInstall(iconFontPaths());
+    if (iconFont) {
+      process.stdout.write(fontPlan.supported
+        ? `Would install icon font: ${ICON_FONT.family} ${ICON_FONT.release} into ${fontPlan.dir} from ${ICON_FONT.url} (SHA-256 ${ICON_FONT.archiveSha256})\n`
+        : `Would skip icon font: ${windowsIconFontInstructions()}\n`);
+    } else if (!assumeYes && shouldPromptIconFont()) {
+      process.stdout.write(`Would ask: ${ICON_FONT_QUESTION.trim()}\n`);
+    } else {
+      process.stdout.write("Icon font: not requested (pass --icon-font)\n");
+    }
     process.stdout.write("Launch with: claude\n");
     return;
   }
@@ -1174,6 +1290,7 @@ const install = async ({ dryRun, rest }) => {
   const outputStyleChoice = assumeYes
     ? normalizeOutputStyle(process.env.LITCLAUDE_OUTPUT_STYLE ?? existingOutputStyle)
     : await chooseOutputStyle(existingOutputStyle);
+  const wantsIconFont = await chooseIconFont({ iconFont, assumeYes });
   const preservation = preflightInstallOwnership({ preserveModifiedSkill: true });
   const preservedPath = preserveModifiedLegacySkill(preservation, litClaudeHome);
   const targetCompatibility = versionRoot(litClaudeHome);
@@ -1268,6 +1385,7 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write(hudManaged ? `HUD: LitClaude statusLine installed (${hudAccent})\n` : "HUD: user statusLine setting preserved\n");
   process.stdout.write(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`);
   process.stdout.write(`${prewarmMotionRuntime()}\n`);
+  if (wantsIconFont) await runIconFontInstall();
   process.stdout.write("Launch with: claude\n");
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };
@@ -1295,6 +1413,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
     process.stdout.write(`${jevStatusLine(process.env)}\n`);
     writeAutoHandoffDoctorLines();
+    process.stdout.write(`${iconFontDoctorLine()}\n`);
     return;
   }
 
@@ -1307,6 +1426,8 @@ const doctor = ({ dryRun }) => {
     ".mcp.json",
     ".lsp.json",
     "hooks/hooks.json",
+    "hooks/lit-mod.mjs",
+    "hooks/lit-band-client.mjs",
     "bin/litclaude-hook.js",
     "bin/litclaude-mcp.js",
     "lib/start-work-lifecycle.mjs",
@@ -1383,6 +1504,7 @@ const doctor = ({ dryRun }) => {
   }
   process.stdout.write(`${jevStatusLine(process.env)}\n`);
   writeAutoHandoffDoctorLines();
+  process.stdout.write(`${iconFontDoctorLine()}\n`);
 
   // lit-typographic-motion: the five readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.
@@ -1484,7 +1606,7 @@ const runClaude = ({ dryRun, rest }) => {
 
   const result = spawnSync(command[0], command.slice(1), { stdio: "inherit" });
   if (result.error) fail(`failed to start claude: ${result.error.message}`);
-  process.exit(result.status ?? 1);
+  exitAfterFlush(result.status ?? 1);
 };
 
 const uninstall = ({ dryRun }) => {
@@ -1493,8 +1615,15 @@ const uninstall = ({ dryRun }) => {
   const updateNotifierRoot = dirname(updateNotifierCachePath(home));
   if (dryRun) {
     process.stdout.write(`DRY_RUN: remove checked ${versionRoot(home)}, ${currentRoot(home)}, ${marketplaceRoot(home)}, ${claudePluginRoot()}, ${pluginKey}, and its marketplace/settings entries; preserve unrelated versions/cache entries and nonempty ${updateNotifierRoot}\n`);
+    const fonts = uninstallIconFont({ litHome: home, dryRun: true });
+    for (const path of fonts.removed) process.stdout.write(`Would remove icon font file: ${path}\n`);
+    for (const { path, reason } of fonts.kept) process.stdout.write(`Would keep icon font file: ${path} (${reason})\n`);
     return;
   }
+  // Before the LitClaude home goes: the manifest there says which font files LitClaude wrote.
+  const fonts = uninstallIconFont({ litHome: home });
+  for (const path of fonts.removed) process.stdout.write(`ICON_FONT_REMOVED: ${path}\n`);
+  for (const { path, reason } of fonts.kept) process.stdout.write(`ICON_FONT_KEPT: ${path} (${reason})\n`);
   rmSync(currentRoot(home), { recursive: true, force: true });
   rmSync(versionRoot(home), { recursive: true, force: true });
   removeEmptyDirectory(join(home, "litclaude-ai"));
@@ -1560,7 +1689,8 @@ const main = async () => {
 
   if (!command) {
     printUsage();
-    process.exit(64);
+    exitAfterFlush(64);
+    return;
   }
   if (parsed.invalidOption) fail(`Unknown update option: ${parsed.invalidOption}`, 64);
 
@@ -1568,6 +1698,13 @@ const main = async () => {
     printCommandBanner(parsed);
     process.stdout.write(`${usage}\n`);
     return;
+  }
+
+  // Unknown flags on the managed commands stop here, before the ownership preflight, the
+  // automatic update or the command itself can change anything.
+  if (command === "install" || command === "update") parseInstallOptions(parsed.rest);
+  if ((command === "uninstall" || command === "doctor") && parsed.rest.length > 0) {
+    fail(`Unknown ${command} option: ${parsed.rest[0]}`, 64);
   }
 
   if (!parsed.dryRun && ["install", "update", "uninstall"].includes(command)) {
@@ -1603,26 +1740,26 @@ const main = async () => {
       runClaude(parsed);
       break;
     case "litgoal":
-      process.exit(runLitgoalCli(parsed.rest));
+      exitAfterFlush(runLitgoalCli(parsed.rest));
       break;
     case "wikify":
-      process.exit(runWikifyKnowledgeCli(parsed.rest, undefined, process.cwd()));
+      exitAfterFlush(runWikifyKnowledgeCli(parsed.rest, undefined, process.cwd()));
       break;
     case "workflow-check":
-      process.exit(runWorkflowCheckCli(root, version, parsed.rest));
+      exitAfterFlush(runWorkflowCheckCli(root, version, parsed.rest));
       break;
     case "public-read":
-      process.exit(await runPublicRead(parsed));
+      exitAfterFlush(await runPublicRead(parsed));
       break;
     case "start-work-next":
-      process.exit(runStartWorkContinuationCli(root, parsed.rest));
+      exitAfterFlush(runStartWorkContinuationCli(root, parsed.rest));
       break;
     case "start-work":
-      process.exit(runStartWorkCli(parsed.rest, undefined, process.cwd()));
+      exitAfterFlush(runStartWorkCli(parsed.rest, undefined, process.cwd()));
       break;
     case "motion-runtime": {
       const { main: motionRuntime } = await import(pathToFileURL(join(motionSkillScripts, "motion-runtime.mjs")).href);
-      process.exit(await motionRuntime(parsed.rest));
+      exitAfterFlush(await motionRuntime(parsed.rest));
       break;
     }
     case "uninstall":

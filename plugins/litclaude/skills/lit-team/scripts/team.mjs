@@ -38,7 +38,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { acquireOwnerLock, OwnerLockError, releaseOwnerLock } from "../../../lib/owner-lock.mjs";
-import { resolveProjectStateRoot } from "../../../lib/project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "../../../lib/project-state-root.mjs";
 import { pathIdentity, samePathIdentity } from "../../../lib/secure-path-read.mjs";
 
 const MIN_MEMBERS = 2;
@@ -109,6 +109,7 @@ const safeDirectory = (cwd, components, { create }) => {
       throw new TeamError(`team state path escapes the workspace: ${current}`, 65);
     }
   }
+  if (create) ensureStateDirIgnored(current);
   return current;
 };
 

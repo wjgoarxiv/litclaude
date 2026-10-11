@@ -13,5 +13,25 @@
   "mcpServers": "./.mcp.json",
   "lspServers": "./.lsp.json",
   "displayName": "LitClaude",
-  "defaultEnabled": true
+  "defaultEnabled": true,
+  "userConfig": {
+    "motion": {
+      "type": "string",
+      "title": "LIT band motion",
+      "description": "How the band above the prompt moves: full, subtle (no overshoot, shimmer or embers) or off.",
+      "default": "full"
+    },
+    "glyphs": {
+      "type": "string",
+      "title": "LIT band glyphs",
+      "description": "auto uses the icon font when it is installed (litclaude-ai install --icon-font); nerd always; basic works with any font.",
+      "default": "auto"
+    },
+    "band": {
+      "type": "string",
+      "title": "LIT band",
+      "description": "When the band shows above the prompt: auto (only while LitClaude work is active), always or off.",
+      "default": "auto"
+    }
+  }
 }

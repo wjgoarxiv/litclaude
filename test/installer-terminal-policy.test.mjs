@@ -15,7 +15,13 @@ const modes = [
   ["TERM=dumb", { TERM: "dumb" }, false],
   ["non-UTF8 locale", { LC_ALL: "C" }, false],
 ];
-const prompts = [["Color 1-10 or name [cyan]: ", "gold"], ["Style 0-4 [None / keep current]: ", "3"]];
+// The icon-font question is answered No: these runs keep the real HOME, so a Yes would reach the
+// person's own font folder.
+const prompts = [
+  ["Color 1-10 or name [cyan]: ", "gold"],
+  ["Style 0-4 [None / keep current]: ", "3"],
+  ["Install the icon font for LitClaude's status band? (y/N) ", "n"],
+];
 
 function install({ env = {}, args = ["--yes"], replies = [], blocked = false, stageFailure = false } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), "litclaude-terminal-"));
@@ -76,10 +82,11 @@ for (const [name, policy, blocks] of modes) {
       assert.equal(result.settings.outputStyle, explicit ? "LitClaude — ELI5" : undefined);
     }
     const prompted = install({
-      env: { ...policy, LITCLAUDE_SPINNER: "1", LITCLAUDE_HUD_ACCENT_PROMPT: "1", LITCLAUDE_OUTPUT_STYLE_PROMPT: "1" },
+      env: { ...policy, LITCLAUDE_SPINNER: "1", LITCLAUDE_HUD_ACCENT_PROMPT: "1", LITCLAUDE_OUTPUT_STYLE_PROMPT: "1", LITCLAUDE_ICON_FONT_PROMPT: "1" },
       args: [], replies: prompts,
     });
     assert.doesNotMatch(prompted.output, /\x1b/u);
+    assert.doesNotMatch(prompted.output, /ICON_FONT_/u, "No installs no icon font");
     assert.equal(prompted.settings.litclaude.hudAccent, "gold");
     assert.equal(prompted.settings.outputStyle, "LitClaude — ELI5");
   });

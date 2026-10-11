@@ -5,6 +5,7 @@
 // than risk a runaway loop. State lives at `.litclaude/litgoal/autoloop.json`.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { ensureStateDirIgnored } from "../project-state-root.mjs";
 import { appendLitgoalLedger } from "./ledger.mjs";
 import { litgoalGoalsPath, litgoalLedgerPath, litgoalLockDir, litgoalStateDir } from "./paths.mjs";
 import { readLitgoalState, withLitgoalLock, writeLitgoalState } from "./state.mjs";
@@ -40,6 +41,7 @@ export const readAutoloopState = (cwd = process.cwd()) => {
 export const writeAutoloopState = (cwd, state) => {
   const dir = litgoalStateDir(cwd);
   mkdirSync(dir, { recursive: true });
+  ensureStateDirIgnored(dir);
   const target = litgoalAutoloopPath(cwd);
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state));

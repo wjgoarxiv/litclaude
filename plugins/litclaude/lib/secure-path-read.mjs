@@ -175,6 +175,52 @@ function readDescriptorToOpenedSize(descriptor, openedSize) {
   return { bytes: offset === openedSize ? bytes : bytes.subarray(0, offset), grewDuringRead };
 }
 
+/**
+ * Read at most `maxBytes` from the end of one regular file: for an append-only log that has
+ * outgrown the whole-file bound. The ancestor chain and the file get the same no-symlink checks
+ * as readRegularStable. The file may keep growing, so the range is fixed by the size at open.
+ */
+export function readRegularTail(root, path, maxBytes) {
+  const chain = openDirectoryChain(root, dirname(path), []);
+  if (chain.failure) return { failure: chain.failure };
+  let descriptor;
+  let bytes;
+  let truncated;
+  try {
+    const before = lstatSync(path, { throwIfNoEntry: false });
+    if (!before?.isFile() || before.isSymbolicLink()) {
+      closeDescriptors(chain.opened);
+      return { failure: "NON_REGULAR" };
+    }
+    descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const opened = fstatSync(descriptor);
+    if (!opened.isFile() || !sameNode(before, opened)) {
+      closeDescriptors(chain.opened);
+      return { failure: "FILE_IDENTITY_CHANGED" };
+    }
+    const length = Math.min(opened.size, maxBytes);
+    const start = opened.size - length;
+    const buffer = Buffer.allocUnsafe(length);
+    let offset = 0;
+    while (offset < length) {
+      const count = readSync(descriptor, buffer, offset, length - offset, start + offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    bytes = buffer.subarray(0, offset);
+    truncated = start > 0;
+  } catch {
+    closeDescriptors(chain.opened);
+    return { failure: "UNREADABLE" };
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+  const ancestorsStable = verifyDirectoryChain(chain, []);
+  closeDescriptors(chain.opened);
+  if (!ancestorsStable) return { failure: "ANCESTOR_CHANGED" };
+  return { bytes, truncated };
+}
+
 export function readRegularStable(root, path, expectedSnapshot, options = {}) {
   const maxBytes = Number.isSafeInteger(options.maxBytes) && options.maxBytes >= 0
     ? options.maxBytes

@@ -60,11 +60,11 @@ describe("lit-diagram-drawer enrollment", () => {
     }
   });
 
-  it("is wired to the prompt hook and documented in both READMEs, the hook guide, and the changelog", () => {
+  it("is wired to the prompt hook and documented in both guides, the hook guide, and the changelog", () => {
     const hook = readFileSync(hookPath, "utf8");
     assert.match(hook, /"lit-diagram-drawer": \{ command: "\/litclaude:lit-diagram-drawer"/u);
     assert.match(hook, /"lit-diagram-drawer": "Mode contract: lit-diagram-drawer/u);
-    for (const doc of ["README.md", "README_ko-KR.md", "docs/hooks.md", "CHANGELOG.md"]) {
+    for (const doc of ["docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md", "docs/hooks.md", "CHANGELOG.md"]) {
       assert.match(readFileSync(join(root, doc), "utf8"), /lit-diagram-drawer/u, `${doc} must document the skill`);
     }
   });

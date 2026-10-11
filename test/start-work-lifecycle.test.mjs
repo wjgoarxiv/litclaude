@@ -602,7 +602,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
       agent: readFileSync(join(repoRoot, "plugins", "litclaude", "agents", "lit-executor.md"), "utf8"),
       doctor: readFileSync(join(repoRoot, "scripts", "doctor.mjs"), "utf8"),
       installer: readFileSync(binPath, "utf8"),
-      readme: readFileSync(join(repoRoot, "README.md"), "utf8"),
+      guide: readFileSync(join(repoRoot, "docs", "guide.md"), "utf8"),
     };
 
     for (const [name, text] of Object.entries(surfaces)) {
@@ -615,7 +615,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
 
     const exactResumeRoute = "/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>";
     const routeSurfaces = {
-      readme: surfaces.readme,
+      guide: surfaces.guide,
       hooksDoc: readFileSync(join(repoRoot, "docs", "hooks.md"), "utf8"),
       command: surfaces.command,
       startSkill: surfaces.skill,
@@ -628,7 +628,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     }
 
     for (const [name, text] of Object.entries({
-      readme: surfaces.readme,
+      guide: surfaces.guide,
       hooksDoc: routeSurfaces.hooksDoc,
       startSkill: surfaces.skill,
       litLoopSkill: routeSurfaces.litLoopSkill,

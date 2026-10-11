@@ -1,0 +1,661 @@
+# LitClaude guide
+
+[README](../README.md) · [Skills](./skills.md) · [Jev skill hint](./jev.md) · [Development](./development.md) · [한국어](./guide_ko-KR.md)
+
+LitClaude adds evidence-first execution, planning, research and review to Claude Code.
+The README gets you installed and through a first task. This guide holds the rest: every
+install option, pictures of what LitClaude prints, every route you can type, automatic
+handoff, the office and README skills, the status line, safety boundaries and how the
+plugin hooks into Claude Code.
+
+## Install
+
+`@litfamily/litclaude` is a scoped package. You need Node.js with npm, and Claude Code. One
+command sets everything up:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
+```
+
+`--yes` skips the install questions and keeps the defaults. A new install starts in the
+`safe` permission mode, which adds no permission rules. The rest of your Claude settings
+stay as they are: permissions, the HUD color and the output style change only when you
+pick them. The [installation reference](#installation-reference) covers those choices and
+how to pin a version. If you want to try LitClaude before it touches your usual setup,
+start with a [separate trial profile](./migration.md#separate-trial-profile).
+
+The install downloads a little more than the plugin. The video skill,
+lit-typographic-motion, needs a rendering engine and fonts, and it never downloads them in
+the middle of a render, so the installer fetches them up front. Once the plugin is registered, it
+runs `npm ci` for the pinned engine packages and downloads pinned fonts, checking each one
+against its sha256. Everything goes into `$LITCLAUDE_MOTION_RUNTIME`, or into
+`${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime` if that variable isn't set. If the
+download fails, the install still finishes and prints the command to run later.
+
+`npm install -g @litfamily/litclaude` does all of this by itself: its
+`scripts/postinstall.mjs` hook runs `litclaude install`, download included. Only a global
+install runs that hook. A local install, a `CI` environment or a source checkout skips it.
+If you'd rather not have the automatic setup, you have two ways out:
+
+- To put off just the video tools, set `LITCLAUDE_MOTION_PREWARM=0`. When you need them,
+  run `litclaude-ai motion-runtime install`.
+- To switch off the whole automatic setup of a global install, set
+  `LITCLAUDE_AUTO_INSTALL=0` (or `LITCLAUDE_POSTINSTALL_SKIP=1`), or add `--ignore-scripts`
+  to the npm command. npm still downloads the package, and you run `litclaude install`
+  yourself when you're ready.
+
+## What you will see on screen
+
+The pictures below show what LitClaude prints in your terminal, so you can see it before you
+install anything. Each one is output captured from LitClaude's own installer, doctor command,
+session hook, prompt hook and status line, run on an empty demo project with a temporary home
+folder. Only the path of that home folder is shortened to `~`. The window frame is drawn around
+the text, and your own terminal will use its own fonts and colors. The version number inside a
+picture belongs to the release it was captured from. The optional Jev skill hint has its own
+[pictures](./jev.md).
+
+The install opens with its plan: five stages, from copying the plugin to checking every surface
+it installed. The last line repeats that Claude Code keeps choosing the model and that your other
+Claude settings stay as they are. This picture shows a dark terminal.
+
+<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="Terminal window titled zsh. The LitClaude block-letter mark in orange, cream and green, with claude vX.Y.Z and the names hermes, codex, opencode and grok beside it, then the line Claude Code-native workflow distribution. Below it, INSTALL PLAN with five stages: 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. The last line reads Model selection: host-owned · unrelated Claude settings preserved." /></p>
+
+*Captured from the installer.*
+
+The five stages each print a short block that ends in a check mark, and then the installer
+prints a receipt. It names the version, the plugin, the folder the files went to, the HUD
+accent, the permission mode (safe adds no permission rules) and the command that starts Claude
+Code. The last lines cover the video tools. In this run they were already on disk, so that line
+came back at once; a first install downloads them first, as described under [Install](#install).
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. INSTALL RECEIPT: Status Ready for Claude Code; Version X.Y.Z; Model route host-owned (Claude Code picks models); Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; HUD cyan accent; Permissions safe; global settings allow/deny; ownership-safe removal; Launch claude; Installation complete. Then the lines Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, the Marketplace and Plugin path locations under ~, HUD: LitClaude statusLine installed (cyan), the global settings permissions line, MOTION_RUNTIME: pre-warmed (engine deps and fonts ready), and Launch with: claude." /></picture></p>
+
+*Captured from the installer.*
+
+Every time a Claude Code session starts, LitClaude prints its mark and version. When you see it,
+the plugin has loaded in that session.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/session-start-dark.webp" /><img src="./assets/screens/session-start-light.webp" width="656" alt="Terminal window titled claude. The LitClaude block-letter mark, and under it the line litclaude vX.Y.Z." /></picture></p>
+
+*Captured from the session-start hook.*
+
+Type `lit` and the prompt hook prints the ignition mark with the name of the workflow it chose,
+here lit-loop. The status line carries the same mark next to the brand name and keeps it until
+a prompt comes along that starts no workflow. The enlarged label under the window makes the mark
+easy to read on a small screen. This picture shows a dark terminal.
+
+<p align="center"><img src="./assets/screens/activation.webp" width="1076" alt="Terminal window titled claude. The LitClaude mark in an orange, pink and cyan gradient with [flame icon] LIT IGNITED · lit-loop [flame icon] beside it. Below it, the status line: [[flame icon]LITCLAUDE vX.Y.Z] [flame icon] LIT IGNITED · lit-loop [flame icon] | O5.5 │ ctx [▊░░] 23%/200k │ 5h [░░] --% │ 1w [░░] --%, and a second line reading └─ lit. Under the window, an enlarged label reading [flame icon] LIT IGNITED · lit-loop [flame icon]." /></p>
+
+*Captured from the prompt hook and the status line.*
+
+`litclaude doctor` checks the installed plugin, and its report is long, so the picture shows the
+last lines: the video tools, the Claude Code version, plugin validation, the permission mode and
+the status line check, ending in DOCTOR_PASS. The window is 100 columns wide, and the longest
+line wraps the way a terminal wraps it.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/doctor-dark.webp" /><img src="./assets/screens/doctor-light.webp" width="1004" alt="Terminal window titled zsh with the end of the doctor report: MOTION_PREWARM: ready — engine deps: ready (opentype.js 2.0.0); fonts: ready (21 verified by sha256). CLAUDE_VERSION: 2.1.285 (Claude Code). CLAUDE_PLUGIN_VALIDATE_PASS. CLAUDE_PLUGIN_DETAILS_PASS. Plugin path: ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z. PERMISSION_INTEGRITY_PASS. PERMISSION_MODE: safe. PERMISSION_SETTINGS_SCOPE: global Claude settings permissions.allow/deny. PERMISSION_OWNERSHIP: preserves pre-existing entries; removes only LitClaude-inserted entries. PERMISSION_PROFILE: global Claude settings permissions.allow/deny: adds no rules; preserves pre-existing entries; removes only LitClaude-inserted entries on mode change or uninstall. HUD_STATUSLINE_PASS. Launch with: claude. DOCTOR_PASS." /></picture></p>
+
+*Captured from the doctor command.*
+## Watch it in motion
+
+A request ends with lit, and a giant dim word catches fire. The same light then follows one
+small job through the loop: the goal is pinned, its three checks fail first, a real page gets
+clicked until they pass, and the result goes into a record for the next session. The film runs
+about 22 seconds and is set in Pretendard. Everything on screen is drawn for the film, and the
+status row at the end repeats the text of the real status line. The preview loops without sound;
+the MP4 carries a generated music bed. The Korean page shows the same film with Korean lines.
+
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./assets/promo/litclaude-promo-still.webp" /><img src="./assets/promo/litclaude-promo-preview.webp" width="100%" alt="Promo film. The line End any request with sits above a huge grey lit word whose i dot is an orange ember, and a prompt about a to-do list types out below it and ends in lit. The word ignites orange, dims and shrinks into a small lit mark in the corner. The headline Pin the goal. appears beside three empty rings named add, complete and delete, and each ring gets an orange cross under the headline Fail first. Under Check the real page. a cream to-do page is clicked and the crosses turn into ticks. Under Hand it on. the ticks fly into a small record card and a spark drops into a new terminal that reads the handoff. The film ends on Keep the work lit., a large flame, the line about planning, building and checking in Claude Code, the install command and a status row." /></picture></p>
+
+[Play the MP4 with sound](./assets/promo/litclaude-promo.mp4)
+
+## What to type
+
+### Start with one task
+
+End a prompt with `lit` and LitClaude adds a short note telling Claude which workflow to
+follow. Claude Code still does the work.
+
+| Prompt or route | Effect |
+| --- | --- |
+| `lit` | Activate the evidence-first work loop in the current Claude Code conversation. |
+| `handoff` | Carry the checked result and next step into another session. |
+| `lit-plan` | Write a bounded plan and its checks before implementation. |
+| `/litclaude:start-work <approved-plan>` | Execute a plan that has already been approved. |
+| `review-work` | Read the change and evidence, then report remaining work. |
+| `litresearch` | Research with sources; this route records facts and uncertainty separately. |
+
+When the activation mark shows, the work has started. Look at the result yourself before
+you trust it.
+
+LitClaude reads a plain prompt such as `lit` when you send it. Slash commands go straight
+to Claude Code's own command handling, so a command like `/litclaude:lit-loop` starts its
+skill once and the hook stays out of the way. Use that form when you want to call a skill
+by name.
+
+<p align="center"><a href="./assets/readme/ignition-film.mp4"><img src="./assets/readme/ignition-poster.png" width="720" alt="Ignition motion poster" /></a></p>
+
+The poster opens the Ignition film, which plays only when you choose it.
+
+### Carry work into the next session
+
+```text
+Plan → Build → Check → Hand off
+```
+
+| When you want to | In Claude Code | Leave behind |
+| --- | --- | --- |
+| Define the work | `lit plan <what>` | A plan and success criteria |
+| Execute an approved plan | Give that plan to `/litclaude:start-work` | Changes and checked results |
+| Review the result | `lit review <scope>` | Findings and remaining work |
+| Finish the session | `/litclaude:lit-handoff` | A continuation file and its path |
+
+Goal-bound work records its state under the project's `.litclaude/litgoal/`. When you
+hand off, keep the **actual file path** the handoff gives you. In a new session, open
+the same project and ask Claude to read that file, check the current state and name the
+next action. Then decide what to continue. The
+[goal and ledger reference](./migration.md#review-and-litgoal-parity) explains the
+recording commands and host boundaries.
+
+"Keep the work lit" means leaving work another session can pick up. When a session
+closes, everything stops; the next one starts only when you open it. Read the record,
+compare it with the files as they are now, and then carry on.
+
+### Every route
+
+| Type this | Purpose |
+| --- | --- |
+| `lit`, `litwork` | Evidence-first, test-first execution loop; also `$lit-loop`, `/lit-loop`, and `/litclaude:lit-loop` |
+| `lit plan <what>` | Planning only; also `$lit-plan` and `/lit-plan` |
+| `lit review <scope>` | Review a plan or completed work; also `$review-work` and `/review-work` |
+| `lit research <question>` | Cited public-source research; also `$litresearch` and `/litclaude:litresearch` |
+| `lit search <question>` | Public-source retrieval |
+| `lit query <question>` | Evidence lookup against durable local state |
+| `lit goal <outcome>` | Bind one objective and checkable criteria; also `$litgoal` and `/litgoal` |
+| `lit workflow <objective>` | Propose a Dynamic workflow for broad delegated work |
+| `lit team`, `lit teammates` | Propose native agent teams when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled and the user approves |
+| `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
+| `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
+| `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
+| `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
+| `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
+| `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
+| `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx` |
+| `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx` |
+| `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
+| `browser-drive`, `$browser-drive` | Drive a real page. It first checks for `vercel-labs/agent-browser` 0.34.0 or later; anything newer than 0.34.0 still works and is marked `beyond-verified`. If the driver is missing or older, it names the install commands and leaves running them to you |
+
+Some skills are called by name: `lit-crucible` (adversarial planning), `lit-init`
+(repository guidance), `lit-commit` (Git history), `lit-team` (native teams),
+`lit-burnoff` (change-set cleanup), `lit-burnoff-file` (single-file cleanup),
+`lit-humanizer` (Korean and English prose) and `lit-code` (implementation discipline).
+Start the prompt with the bare name or with `$<skill-id>`. Older names still work for one
+release and print a deprecation note; see
+[the alias migration table](./migration.md#one-release-rename-aliases).
+
+## Automatic handoff
+
+A long session fills the context window, and when Claude Code compacts it, details of your work can drop out of the summary. Automatic handoff saves a handoff file while there is still room and brings it back after the compaction. It stays off until you turn it on, and you choose the percent. LitClaude has no default percent.
+
+Type one of these lines as your whole prompt:
+
+- `lit-handoff auto on 60` turns it on at 60% of the context window. Use any whole number from 1 to 99. Typing `lit-handoff auto on` with no number reuses the last percent you set, and asks for one if you never set it.
+- `lit-handoff auto off` turns it off and remembers your percent for next time.
+- `lit-handoff auto status` tells you what is in force right now.
+
+You can also set it from the shell before you start Claude Code: `LITCLAUDE_AUTO_HANDOFF=1` switches it on and `LITCLAUDE_AUTO_HANDOFF_PERCENT=60` picks the percent. The variables win over the saved setting, and `LITCLAUDE_AUTO_HANDOFF=0` keeps it off. A percent outside 1 to 99 leaves it off, and `litclaude doctor` says why. The saved setting lives per project in `.litclaude/auto-handoff/`.
+
+Here is what happens once it is on. Each step says whether LitClaude does it for you or only reminds you, because Claude Code decides which of these a plugin may do.
+
+1. **Automatic:** the status line notes the context percent after every reply. Without the LitClaude status line, the Stop hook estimates it from the transcript when you also set `LITCLAUDE_AUTO_HANDOFF_WINDOW` to your model's window in tokens.
+2. **Automatic:** when the percent first reaches your number, the Stop hook asks Claude to write the handoff by following the lit-handoff procedure, then to end with one plain line. Claude writes the file, so this step depends on Claude following the instruction. It happens once per crossing; usage has to fall below your percent before it can happen again.
+3. **Reminder:** Claude Code gives a plugin no way to start compaction, so the line Claude ends with is `Handoff saved. Run /compact now.` and you run `/compact`. To let Claude Code compact by itself, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to a number above your percent; the reminder still appears, and you can ignore it.
+4. **Automatic:** after the compaction, the session start hook reads the handoff back once, as its path plus the first 4,000 characters. It accepts only a file written after the trigger that carries the trigger's id line, and it says so when it finds none.
+
+While it is on, the status line shows `handoff@60%` (or `handoff ⚠` when the setting is invalid), and `litclaude doctor` prints `Auto-handoff: on at 60%`. The doctor warns when `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is at or below your percent, because Claude Code would then compact before the handoff is written. The hook details are in [the hooks reference](./hooks.md#automatic-handoff), and the files it writes are listed in [privacy](./privacy.md#local-state).
+
+## How it works
+
+A plain prompt and a slash command come in through different doors. For a plain prompt,
+the hook tells Claude which workflow fits; after an edit, it reminds Claude what to check.
+Claude then follows the skill you asked for.
+
+```mermaid
+flowchart TD
+    P["lit prompt"] --> H["UserPromptSubmit hook<br/>routing guidance"]
+    C["/litclaude:* command"] --> S["Claude Code reads the requested skill"]
+    H --> S
+    R["SessionStart<br/>project rules"] --> S
+    S --> W["Plan · execute approved work · review"]
+    T["PreToolUse / PostToolUse<br/>authority checks / post-edit guidance"] -.-> W
+    W --> F["Project files and checked results"]
+    W --> L["When a goal is bound<br/>litgoal CLI → .litclaude/litgoal/"]
+    F --> Q["Requested lit-handoff"]
+    L --> Q
+    Q --> N["Continuation file"]
+    N -. "user asks the new session to read it" .-> S
+```
+
+The hook only suggests; what counts is what Claude actually did. So the next session
+reads the saved file and checks the project as it is now. The
+[hook reference](./hooks.md) and the
+[goal recording reference](./migration.md#review-and-litgoal-parity) go into the
+details.
+
+Work is done when you can see that it works. A plan stays open until every item has a
+yes-or-no check. As the diagram below shows, each slice of work runs the same way: a failing test, the smallest fix
+that passes it, a run of the real thing in Claude Code that leaves evidence, and a
+clean-up of anything temporary it created. A passing test is only the second of those
+four steps.
+
+```mermaid
+flowchart TD
+    R["a request<br/>make it better"] --> DI["<b>deep-interview</b><br/>turn it into a decision-complete brief"]
+    DI --> P["<b>lit-plan</b><br/>objective · non-goals<br/>action / output / <b>binary verification</b>"]
+    P --> GATE{"user approves?"}
+    GATE -->|no| P
+    GATE -->|yes| SW["<b>start-work</b><br/>execute one slice"]
+
+    subgraph LOOP["each slice: RED to GREEN to SURFACE to CLEAN"]
+        SW --> RED["failing test first"]
+        RED --> GREEN["smallest change that passes"]
+        GREEN --> SURF["exercise the <b>real surface</b><br/>not just the test"]
+        SURF --> CLEAN["tear down · cleanup receipt"]
+    end
+
+    CLEAN --> EV{"evidence complete?"}
+    EV -->|"tests only"| SW
+    EV -->|"artifact + receipt"| RW["<b>review-work</b><br/>scope · evidence · payload<br/>security · real surface"]
+    RW -->|findings| SW
+    RW -->|clean| HO["<b>lit-handoff</b><br/>resumable packet"]
+
+    style GATE fill:#fff3cd,stroke:#856404
+    style EV fill:#fff3cd,stroke:#856404
+    style SURF fill:#d4edda,stroke:#155724
+    style RW fill:#d1ecf1,stroke:#0c5460
+```
+
+Claude Code runs the hook and the model, so permissions, browser access and screen checks
+are whatever your Claude Code setup allows. To see what actually finished, read the record
+in your project; the hook mark and the two pictures below only show that work began and
+what the idea looks like.
+
+<p align="center"><img src="./assets/litclaude-ignition-1600.webp" width="49%" alt="LitClaude ignition editorial cue" /> <img src="./assets/litclaude-continuity-1600.webp" width="49%" alt="LitClaude continuity editorial cue" /></p>
+
+<details>
+<summary>LITFAMILY · five armored machines</summary>
+
+![Concept art showing the five LIT products as armored machines](./assets/litfamily-machines.png)
+
+Five armored machines: LitClaude, LitHermes, LitCodex, LitOpenCode, and LitGrok.
+Concept art; each product runs in its own host.
+
+</details>
+
+## Slides, reports, diagrams and READMEs
+
+Ask for slides or a report and end the prompt with `lit`, for example
+`팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office
+files. Before either skill writes a slide or a paragraph, it works out who will read the file
+and how, and picks a look to match. The reply names that look, says why it fits, and mentions
+two others that would also suit, so a wrong first guess costs you one sentence.
+
+`lit-pptx` has eight looks for decks. At one end is a dense, number-led review meant to be read
+at a desk; at the other, a dark style built for a keynote screen. Each brings its own colours,
+title positions and page layouts. Slide titles are short noun labels that name the subject, the
+measure and the period, and the point of the slide goes in the first line under the title.
+Pages carry their supporting facts, such as the basis, the comparison and the source, so they
+fill without padding. Numbers become native charts and KPI rows you can still edit, a figure is
+never set larger than the title, and Pretendard is embedded. The older AZURE and plain 4:3
+templates stay available by name. Before you get the deck, a QA gate looks for text that
+overflows, weak contrast, slides that are half empty or only a table, one title position
+repeated on every slide, cropped decorations and blanks nobody filled. Then it renders the
+pages and checks them by eye.
+
+`lit-docx` has six looks for documents. A four-page briefing for someone who has to decide
+gets the Brief look, a procedure gets the Manual, and Report, Proposal, Memo and Journal cover
+the rest. All six keep a restrained, print-grade page: Pretendard throughout, body text at a
+size meant for paper, few boxes, and a callout, sidebar or key-figure strip only where the
+content earns one. Korean documents follow Korean conventions. Dates read `2026. 6. 30.`, a
+`<표 1>` caption and a separate unit line sit above each table with `주:` and `자료:` notes
+below, and Hangul is never set in italic. A journal manuscript takes the Elsevier, ACS, IEEE,
+Nature or `korean-generic` profile instead. The skill gates the document, checks its rendered
+pages for half-empty pages and split tables, and looks at them. It also converts DOCX or PDF
+to Markdown and edits an existing `.docx`.
+
+When the request gives no data, both skills build a complete file around a realistic
+example and label it as one instead of stopping to ask. Under a bare `lit`, neither asks
+style questions. Their Node and Python packages install on first use from pinned
+lockfiles into `~/.cache/litclaude/office-runtime`, and `litclaude doctor` shows whether
+that runtime and the optional LibreOffice, pandoc and XeLaTeX tools are ready.
+
+For architecture, process, schema, timeline and other conceptual diagrams meant for
+slides and documents, use `/litclaude:lit-diagram-drawer <brief>`, or start a prompt with
+`lit-diagram-drawer` or `$lit-diagram-drawer`. It writes editable HTML/SVG with the
+bundled Pretendard font and uses bundled scripts to check overlaps, label placement,
+routes, contrast, accessibility and visible text. With agent-browser 0.38.1 or newer
+installed on your machine, it exports 1×–3× PNG and an Office-safe SVG; without it, you
+get the setup commands and the verified source. Interface work stays with
+`frontend-ui-ux`, and plots of measured data stay with `lit-scientific-visualization`.
+
+`frontend-ui-ux build <target>` builds an interface you have authorized and inspects it
+rendered. When a choice that matters is unclear, it asks one targeted question and
+carries the answer into the build. A request to only review or plan stays read-only.
+
+`readme-studio <repository or README scope>`, or `$readme-studio`, writes a README from
+facts it checks in the repository and makes a cover on your machine. Whether it can
+generate images depends on the tools your Claude Code has. Without one it says
+`IMAGE_GENERATION_UNAVAILABLE`; give it a background image instead and it inspects that
+and builds the rest of the cover on top. Bundled helpers turn Pretendard and Meslo text
+into outlines and run pinned motion recipes locally. It checks the font and renderer
+licenses and looks at the real output. How GitHub and npm finally show the page is
+something to check after you publish. Both skills start from a leading word in your
+prompt, and neither adds a slash command.
+
+## Safety
+
+LitClaude runs inside your Claude Code session. Here is what it touches and where it stops.
+
+- The hooks read only the limited event data Claude Code passes them. Your prompt text is
+  something to route, never something to run.
+- The planner agent is read-only. The review routes read the change and its evidence and
+  report what they find; fixing it is a separate step.
+- `public-read`, the web reader, fetches public http(s) pages only. It refuses localhost
+  and private-network addresses, and at a login or paywall it stops instead of using any
+  site credentials.
+- LitClaude keeps its state in your project's `.litclaude/` folder and writes a `.gitignore`
+  inside it, so Git skips that folder without any change to your own ignore files. The state
+  never goes into the npm package.
+- Once a day at most, a new Claude Code session asks the npm registry for the latest
+  version in the background, and a later session installs it before it starts work.
+  The session never waits for that check, and a version that is already installed is
+  not installed again. If an update can't verify the new version, it restores the old
+  install, keeps going, and waits a day before it tries that version again. To turn the automatic check off, use `--no-auto-update`,
+  `LITCLAUDE_NO_AUTO_UPDATE`, `NO_UPDATE_NOTIFIER` or `LITCLAUDE_NO_UPDATE_CHECK`.
+- Publishing, version changes, tags and remote marketplace changes always wait for
+  explicit user approval.
+
+Claude Code picks the model, and LitClaude leaves that choice to it. It applies no OpenAI
+routes of its own.
+
+The OpenAI details that follow are for reference, from the LitFamily products that do
+route OpenAI models. Those products default new installs to GPT-6: `gpt-6-astra` for
+planning, review and lead roles, `gpt-6.1-sol` as the other choice for a coding lead, and
+`gpt-6-luna` for helpers and ordinary workers. `gpt-6-sol` is the previous generation and
+stays selectable, so configs that already use it keep working. GPT-6 Luna supports `xhigh` effort but not
+`ultra`, and ordinary workers keep the approved default of `max`. The live host catalog
+still offers `gpt-5.6-sol`, `gpt-5.6-terra` and `gpt-5.6-luna`, with no retirement date for
+any of them. The catalog allows `xhigh` for `gpt-5.6-luna` too, but LitClaude keeps an
+older policy rule that blocks that one combination. Install and update leave a model you
+already selected unchanged.
+
+Claude Code's native `Workflow` and its experimental agent teams stay off until you opt
+in. When Claude Code has no native goal tools, the durable `litgoal` ledger in your project
+is the record to trust. LitClaude never sends `/goal` for you.
+
+## Check, update or remove
+
+The installed package gives you a few commands for checking and maintenance:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude doctor
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude --version
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude path
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude workflow-check --json
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude update
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
+```
+
+`uninstall` removes only the plugin, HUD, permission and local state entries that
+LitClaude manages, and leaves the rest of your Claude settings in place. If an
+installation was changed by hand or doesn't look like one LitClaude made, it refuses to
+touch it; the [ownership guidance](./migration.md#ownership-conflicts) explains what
+to do.
+
+If an existing installation reports `INSTALL_OWNERSHIP_CONFLICT`, stop there. Before you
+retry or move any folders, read the same
+[ownership guidance](./migration.md#ownership-conflicts).
+
+After a separate-profile trial, close that Claude session and terminal and go back to your
+original terminal environment. Your previous installation needs no downgrade or reinstall.
+
+## What ships
+
+- Evidence-first execution, planning, review, research, and handoff workflows.
+- Claude-native skills such as `lit-loop`, `lit-plan`, `review-work`,
+  `deep-interview`, `litresearch`, `litgoal`, `lit-handoff`, and
+  `lit-scientific-visualization`.
+- **Claude skills** also include `litwork`, `structural-search`, `lit-team`,
+  `autoresearch`, and `autoconference`. The core sequence is
+  `lit-plan`, `lit-recap`, `lit-loop`.
+- Auxiliary Skill-discovery entries `frontend-ui-ux`, `readme-studio`, `lit-commit`, `lsp-setup`,
+  and `visual-qa` start when their name is the first word of the prompt (a bare token) or
+  in the `$` form, such as `$frontend-ui-ux`. The same name later in a sentence does
+  nothing; they are not anywhere-tokens.
+- Bundled reference packs include `lit-code/references`,
+  `lit-code/scripts`, and `debugging/references`.
+- Dynamic workflow and worktree guidance, with explicit opt-in for native
+  `Workflow` and experimental agent teams.
+- **Resilient public-source research** and public-source reading with SSRF,
+  private-host, authentication, and paywall boundaries.
+- Local MCP/LSP helpers, structured Wikify knowledge, and a managed HUD that
+  can be safely removed with `uninstall`.
+
+## Installation reference
+
+The plain install command is:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
+```
+
+For a reproducible install, pin the current package version:
+
+```bash
+npm view @litfamily/litclaude@1.0.21 version
+```
+
+If that lookup returns `1.0.21`, the exact install is available:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@1.0.21 -- litclaude install
+```
+
+Otherwise, wait for explicit human publication before using that pin. Check the
+installed surface with:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude doctor
+```
+
+The installer sets up the Claude Code plugin and the LitClaude status-line HUD. You pick
+the permission mode yourself:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --permission-mode safe
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --permission-mode balanced
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yolo
+```
+
+The mode decides how much Claude may do without asking you first. `safe` adds no
+permission rules. `balanced` allows limited reading and searching plus routine Git, npm
+and Node commands. `yolo` also allows broad edit and write patterns. Each mode writes a
+limited set of entries under Claude's `permissions.allow` and `permissions.deny`.
+
+Other ways in:
+
+```bash
+npm exec --yes --package @litfamily/litclaude -- litclaude install
+npm install -g @litfamily/litclaude
+litclaude install
+```
+
+### Install-time questions
+
+In an interactive terminal the installer asks two things: the HUD brand color and the
+LitClaude output style. For the style you can choose `None / keep current`, ASD-STE100 or
+ELI5, each in English and 한국어. LitClaude writes a style to Claude's global
+`outputStyle` only when you pick one, and never over a value you set yourself.
+`uninstall` takes it out again only if it is still the value LitClaude wrote.
+
+To answer ahead of time, from a script for example, set `LITCLAUDE_OUTPUT_STYLE` and
+`LITCLAUDE_HUD_ACCENT`. `--yes` skips every question and uses today's shipped defaults:
+
+```bash
+npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
+```
+
+When the terminal may not handle color, the installer turns off colors, cursor updates
+and styled prompts. That happens when `CI` or `NO_COLOR` is set (even to an empty value),
+with `TERM=dumb` or a non-UTF-8 locale, and when output is redirected. If you still want
+to see progress there, `LITCLAUDE_SPINNER=1` prints it as plain structured lines. Settings
+you pass explicitly, and `--yes`, still apply.
+
+The installer never asks for a model or reasoning effort, because Claude Code picks the
+model; the summary prints `Model selection: host-owned`. Existing settings are preserved:
+LitClaude keeps track of the rules it inserted and removes only those.
+
+### The HUD
+
+Interactive installation previews the available HUD accents. The LitClaude HUD
+uses `[🔥LIT vX.Y.Z]`, the model with its reasoning effort (`O5.5 [high]`), a compact
+`ctx [▎░░]` bar, and a `5h [▏░]4% ↻` rate-limit reset countdown. Set `LITCLAUDE_HUD_ACCENT` before installation to
+choose an accent.
+
+When a prompt starts a LitClaude workflow, the HUD shows a bold, ignition-orange
+`🔥 LIT IGNITED · lit-loop 🔥` mark right after the brand. It stays until a turn comes
+along that starts nothing. To remember which workflow is active, the hook writes a small
+note per session under `litclaude-hud/` in your per-user temp directory, never in the
+repository or your home directory; `LITCLAUDE_HUD_STATE_ROOT` moves it elsewhere. Claude's
+reply opens with `🔥 **LIT IGNITED · <discipline>** 🔥`, and the hook system message and
+the HUD show the same mark without Markdown.
+
+Two separate settings decide how the HUD looks: whether your terminal background is dark
+or light, and how many colors the terminal can show.
+
+- The background setting defaults to `dark`. The model, context, usage, reset and Git text
+  take your accent, usage percentages change color with the level, and the brand uses
+  the neon gradient. On a light background, or if you are not sure, set
+  `LITCLAUDE_HUD_APPEARANCE=light` or `unknown`. That text and the brand then use the
+  terminal's default foreground, and only the bar shapes and separators carry the accent.
+- The color depth is detected for you, including truecolor under WSL. If the guess is
+  wrong, set `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`; it wins over detection.
+- To switch color off, set `NO_COLOR`: it removes every HUD escape even when its value is
+  empty. `TERM=dumb` also keeps the HUD plain, whatever another signal or depth override
+  says. The older `LITCLAUDE_HUD_NO_COLOR=1` still works.
+
+The HUD never forces a background color. When Claude reports `--` for a rate limit, the
+HUD shows it as is and invents no value.
+
+## Claude Code integration
+
+Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
+tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
+guidance, the routing that picks a workflow, the authority checks, and the ledger that
+keeps the record. Through them, the package's 35 skills, 16 current commands, three hidden
+compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
+Code allows or blocks still applies.
+
+```mermaid
+flowchart LR
+    subgraph CC["Claude Code"]
+        H1["SessionStart"]; H2["UserPromptSubmit"]; H3["PreToolUse"]
+        H4["PostToolUse"]; H5["Stop"]; H6["SubagentStart / SubagentStop"]; H7["SessionEnd"]
+    end
+    subgraph LC["LitClaude plugin"]
+        RULES["rules engine<br/>project rules into context"]
+        ROUTE["trigger routing<br/><code>lit</code> · <code>/litclaude:*</code>"]
+        AUTH["bounded authority<br/>pause on a new boundary"]
+        LEDGER[("durable ledger<br/><code>.litclaude/</code>")]
+    end
+    H1 --> RULES --> LEDGER
+    H2 --> ROUTE --> LEDGER
+    H3 --> AUTH
+    H4 --> LEDGER
+    H5 --> LEDGER
+    H6 --> LEDGER
+    H7 --> LEDGER
+    LC --> S["35 skills · 16 commands · 11 agents"]
+```
+
+Every skill works on a fresh install because the package carries what each skill needs.
+The release checks make sure of it. A skill that needs reference material must find it
+inside the packed tarball, and a skill that needs none must give a written reason in an
+allowlist. That way a file that exists only in a developer's checkout can't turn into a
+failure on your machine.
+
+```mermaid
+flowchart LR
+    SK["a skill"] --> Q{"does it declare<br/>a capability?"}
+    Q -->|"self-contained<br/>procedure"| AL["explicit allowlist entry<br/>with a written reason"]
+    Q -->|"needs a corpus"| C["corpus must resolve<br/>inside the <b>packed payload</b>"]
+    AL --> G1
+    C --> G1["<b>payload-substance</b>"]
+    G1 --> G2["<b>cross-product parity</b><br/>one product cannot ship a stub<br/>where the family ships substance"]
+    G2 --> G3["<b>referenced-path resolution</b><br/>every path in a SKILL.md<br/>must exist in the tarball"]
+    G3 --> OK["installs and works<br/>on a machine that has<br/>nothing else"]
+    style C fill:#d4edda,stroke:#155724
+    style OK fill:#d4edda,stroke:#155724
+```
+
+Running an approved plan always goes through a slash command. Typing
+`lit start work <plan>` gets you a `BLOCKED:` handoff on purpose, pointing you to
+`/start-work` or `/litclaude:start-work` with the approved plan. `lit workflow` also
+waits for you: it proposes a native `Workflow` and calls it only after you opt in. Set
+`CLAUDE_CODE_DISABLE_WORKFLOWS=1` to turn that route off. When Claude Code gives the model
+a worktree tool, use `EnterWorktree`.
+
+Goals follow one rule: LitClaude does not auto-type `/goal` or send slash-command text for
+you. The route attempts native goal binding: it looks for goal tools such as `get_goal`,
+`create_goal` and `update_goal`, and never replaces a different goal that is already
+active. If Claude Code doesn't offer those tools, LitClaude reports degraded mode and keeps
+the local `litgoal` ledger as the record. It then gives you a `READY_TO_PASTE` message
+with one short `/goal` line to copy, paste and send in the current session yourself.
+
+`/start-work` runs the schema-3 bounded-authority start-work lifecycle. An approved plan
+can resume only through this exact route:
+
+`/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
+
+When `stop_hook_active` is `true`, the hook stays silent, so an old prompt never gets
+replayed.
+
+From chat, the hook starts the figure skill only on the exact bare `lit-scientific-visualization`
+prompt. It leaves the name alone when it is quoted, mixed into a sentence, slash-prefixed
+or slightly off.
+
+For public-source work, `lit research`, `lit search`, `lit query` and `public-read` stay
+on the open web. They stop at a login, a paywall or a request for credentials, and they
+refuse localhost and private-network addresses:
+
+```bash
+litclaude public-read https://example.com/article --json
+```
+
+`lit-humanizer` edits your prose as text. Instructions written inside that prose are
+treated as content, never followed. It preserves facts, numbers, names, claims, scope and
+uncertainty, and adds outside facts only when you ask for research. An always-on rule
+guides new prose. Before a write, a check blocks clear drafting residue; its warnings are
+advice you can ignore. New code blocks, quoted text and internal project records are
+skipped. DOCX, PPTX and PDF files get a scan right after they are created, when their text
+can be extracted.
+
+Wikify keeps reviewed project knowledge. A new claim starts as `review-needed`, and
+`save` and `review` move it through its states. A query returns the accepted claims that
+match, within a 2048-byte normal budget and a 4096-byte hard limit. The local state is
+user-owned and cooperative. Another process running as the same uid can read or change
+it, so it is neither tamper-proof nor confidential against that process. Atomic rename
+protects readers and crash consistency, and symlinks, unsafe file types,
+pre-existing hardlinks and observed identity changes are refused.
+
+The package CLI form is:
+
+`npm exec --yes --package @litfamily/litclaude -- litclaude wikify <capture|save|review|query|config>`
+
+## Ignition
+
+A short brand film rather than a screen recording. Select the static poster to play it.
+
+[![Ignition motion graphic](./assets/readme/ignition-poster.png)](./assets/readme/ignition-film.mp4)
+
+[Animated version (GIF)](./assets/readme/ignition-readme.gif) · [Lucide icon license (ISC)](./assets/readme/Lucide-LICENSE.txt) · [JetBrains Mono font license (OFL)](./assets/readme/JetBrainsMono-OFL.txt)

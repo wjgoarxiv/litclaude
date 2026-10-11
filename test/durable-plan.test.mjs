@@ -163,7 +163,7 @@ describe("durable plan finder", () => {
       assert.match(startContext, /Durable plan: \.\.\/\.\.\/plans\/handoff\.md/u);
       assert.match(startContext, /Discovery only/u);
       assert.doesNotMatch(startContext, new RegExp(marker, "u"));
-      assert.deepEqual(readdirSync(join(root, ".litclaude")), ["rules"]);
+      assert.deepEqual(readdirSync(join(root, ".litclaude")).sort(), [".gitignore", "rules"]);
       assert.equal(existsSync(join(nested, ".litclaude")), false);
 
       const work = runHook("user-prompt-submit", {
@@ -179,7 +179,7 @@ describe("durable plan finder", () => {
       assert.doesNotMatch(workContext, new RegExp(marker, "u"));
       assert.doesNotMatch(workContext, /<litclaude-start-work-context>/u);
       assert.doesNotMatch(workContext, /authority resumed/u);
-      assert.deepEqual(readdirSync(join(root, ".litclaude")), ["rules"]);
+      assert.deepEqual(readdirSync(join(root, ".litclaude")).sort(), [".gitignore", "rules"]);
       assert.equal(existsSync(join(nested, ".litclaude")), false);
     } finally {
       rmSync(root, { recursive: true, force: true });

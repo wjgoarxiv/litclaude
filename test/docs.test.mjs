@@ -24,6 +24,14 @@ async function text(path) {
   return readFile(new URL(path, root), "utf8");
 }
 
+// The README is a short landing page. The guide, skills and development pages it links to carry
+// the detail these documentation contracts pin, so a contract holds when the reader can reach it.
+async function userDocs(lang) {
+  const suffix = lang === "ko" ? "_ko-KR" : "";
+  const pages = [`README${suffix}.md`, `docs/guide${suffix}.md`, `docs/skills${suffix}.md`, `docs/development${suffix}.md`];
+  return (await Promise.all(pages.map(text))).join("\n");
+}
+
 // The GitHub README loads its cover from the repository; the npm README from jsDelivr at the release.
 const githubAssetBase = "./";
 const npmAssetBase = "https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.21/";
@@ -242,20 +250,24 @@ test("privacy guard capture fails closed on replacement, symlinks, and byte boun
 });
 
 test("README documents local Claude plugin usage and safety boundaries", async () => {
-  const readme = await text("README.md");
+  const landing = await text("README.md");
+  const readme = await userDocs("en");
 
-  assertCoverPresentation(readme, "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
-  assert.match(readme, /<h1 align="center">LitClaude<\/h1>/u);
-  assert.match(readme, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assertCoverPresentation(landing, "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
+  assert.match(landing, /<h1 align="center">LitClaude<\/h1>/u);
+  assert.match(landing, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm version"/u);
+  for (const page of ["docs/guide.md", "docs/skills.md", "docs/development.md"]) {
+    assert.ok(landing.includes(`](./${page})`), `the README links ${page}`);
+  }
   assert.match(await text("README_npm.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.21\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readme, /README_ko-KR\.md/u);
   assert.match(readme, /lit-burnoff-file/u);
   assert.match(readme, /lit-code\/references/u);
   assert.match(readme, /CHANGELOG\.md/u);
   assert.match(readme, /LitClaude HUD/u);
-  assert.match(readme, /\[🔥LITCLAUDE vX\.Y\.Z\]/u);
+  assert.match(readme, /\[🔥LIT vX\.Y\.Z\]/u);
   assert.match(readme, /ctx \[▎░░\]/u);
-  assert.match(readme, /5h \[▏░\] 4% ↻/u);
+  assert.match(readme, /5h \[▏░\]4% ↻/u);
   assert.match(readme, /claude --plugin-dir \.\/plugins\/litclaude/);
   assert.match(readme, /\/reload-plugins/);
   assert.match(readme, /uninstall/i);
@@ -273,7 +285,7 @@ test("both READMEs state the install-time network pre-warm and the switches the 
     const [key, value] = name.split("=");
     assert.ok(`${postinstall}\n${cli}`.includes(`process.env.${key} === "${value}"`), `code still reads ${name}`);
   }
-  for (const [path, heading] of [["README.md", "\n## Install\n"], ["README_ko-KR.md", "\n## 설치\n"]]) {
+  for (const [path, heading] of [["docs/guide.md", "\n## Install\n"], ["docs/guide_ko-KR.md", "\n## 설치\n"]]) {
     const readme = await text(path);
     const start = readme.indexOf(heading);
     assert.notEqual(start, -1, `${path} has an install section`);
@@ -286,8 +298,8 @@ test("both READMEs state the install-time network pre-warm and the switches the 
 
 test("English and Korean route tables retain browser-drive and omit removed skill learning", async () => {
   for (const [label, path, heading, inventory] of [
-    ["English README", "README.md", "## What to type", /package's 35 skills/u],
-    ["Korean README", "README_ko-KR.md", "## 무엇을 입력하나요", /35개 skill/u],
+    ["English guide", "docs/guide.md", "## What to type", /package's 35 skills/u],
+    ["Korean guide", "docs/guide_ko-KR.md", "## 무엇을 입력하나요", /35개 skill/u],
   ]) {
     const readme = await text(path);
     const routeTable = readme.match(new RegExp(`${escapeRegExp(heading)}[\\s\\S]*?(?=\\n## |$)`, "u"))?.[0] ?? "";
@@ -321,8 +333,8 @@ test("methodology provenance limits clean-room claims without removing attributi
 });
 
 test("public skill inventories document the auxiliary packs and their chat routes", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const audit = await text("docs/workflow-compatibility-audit.md");
   const combined = `${readme}\n${readmeKo}\n${audit}`;
 
@@ -364,7 +376,7 @@ test("agent and migration docs route the retired Korean names to lit-humanizer",
 });
 
 test("README documents fresh-PC npm-compatible install commands", async () => {
-  const readme = await text("README.md");
+  const readme = await userDocs("en");
   const candidateVersion = JSON.parse(await text("package.json")).version;
   const candidatePattern = escapeRegExp(candidateVersion);
 
@@ -399,22 +411,26 @@ test("README documents fresh-PC npm-compatible install commands", async () => {
 });
 
 test("Korean README mirrors install, usage, and release-boundary guidance", async () => {
-  const readmeKo = await text("README_ko-KR.md");
+  const landingKo = await text("README_ko-KR.md");
+  const readmeKo = await userDocs("ko");
   const candidateVersion = JSON.parse(await text("package.json")).version;
   const candidatePattern = escapeRegExp(candidateVersion);
 
-  assertCoverPresentation(readmeKo, "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
-  assert.match(readmeKo, /<h1 align="center">LitClaude<\/h1>/u);
-  assert.match(readmeKo, /src="\.\/docs\/assets\/readme\/badge-version\.svg"/u);
+  assertCoverPresentation(landingKo, "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
+  assert.match(landingKo, /<h1 align="center">LitClaude<\/h1>/u);
+  assert.match(landingKo, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm 버전"/u);
+  for (const page of ["docs/guide_ko-KR.md", "docs/skills_ko-KR.md", "docs/development_ko-KR.md"]) {
+    assert.ok(landingKo.includes(`](./${page})`), `the Korean README links ${page}`);
+  }
   assert.match(await text("README_npm_ko-KR.md"), /src="https:\/\/cdn\.jsdelivr\.net\/npm\/@litfamily\/litclaude@1\.0\.21\/docs\/assets\/readme\/badge-version\.svg"/u);
   assert.match(readmeKo, /README\.md/u);
   assert.match(readmeKo, /lit-burnoff-file/u);
   assert.match(readmeKo, /debugging\/references/u);
   assert.match(readmeKo, /CHANGELOG\.md/u);
   assert.match(readmeKo, /LitClaude HUD/u);
-  assert.match(readmeKo, /\[🔥LITCLAUDE vX\.Y\.Z\]/u);
+  assert.match(readmeKo, /\[🔥LIT vX\.Y\.Z\]/u);
   assert.match(readmeKo, /ctx \[▎░░\]/u);
-  assert.match(readmeKo, /5h \[▏░\] 4% ↻/u);
+  assert.match(readmeKo, /5h \[▏░\]4% ↻/u);
   assert.match(readmeKo, /LitClaude/u);
   assert.match(readmeKo, /public-source research|공개 소스 조사/u);
   assert.match(readmeKo, /litresearch/u);
@@ -515,8 +531,8 @@ test("tracked product documentation contains no private home paths", async () =>
 
 test("native goal matrix distinguishes supported session owners without claiming a plugin bridge", async () => {
   const goalDoc = await text("docs/native-goal-surface.md");
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const changelog = await text("CHANGELOG.md");
 
   for (const phrase of [
@@ -542,7 +558,7 @@ test("native goal matrix distinguishes supported session owners without claiming
 });
 
 test("documentation explains exact LitClaude LIT trigger phrases", async () => {
-  const readme = await text("README.md");
+  const readme = await userDocs("en");
   const hooks = await text("docs/hooks.md");
   const combined = `${readme}\n${hooks}`;
 
@@ -667,7 +683,7 @@ test("hook, rules, and frontend docs describe the shipped activation and mutatio
 });
 
 test("public inventory names shipped skills and permission-mode mutations", async () => {
-  const readme = await text("README.md");
+  const readme = await userDocs("en");
   for (const skillId of ["litwork", "structural-search", "lit-team", "autoresearch", "autoconference", "wikify"]) {
     assert.match(readme, new RegExp(`\\b${skillId}\\b`, "u"), `README inventory must name ${skillId}`);
   }
@@ -684,8 +700,8 @@ test("public inventory names shipped skills and permission-mode mutations", asyn
 });
 
 test("documentation explains native goal and Dynamic workflow behavior", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const migration = await text("docs/migration.md");
 	const dynamicWorkflow = await text("plugins/litclaude/commands/lit-loop.md");
@@ -734,8 +750,8 @@ test("documentation explains native goal and Dynamic workflow behavior", async (
 });
 
 test("documentation describes the v0.2.2 dynamic workflow hardening release", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const agents = await text("docs/agents.md");
   const migration = await text("docs/migration.md");
@@ -762,8 +778,8 @@ test("documentation describes the v0.2.2 dynamic workflow hardening release", as
 });
 
 test("documentation describes the v0.2.0 deep workflow parity release", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const migration = await text("docs/migration.md");
   const audit = await text("docs/workflow-compatibility-audit.md");
@@ -784,8 +800,8 @@ test("documentation describes the v0.2.0 deep workflow parity release", async ()
 });
 
 test("documentation explains v0.2.0 review-work and litgoal operator contracts", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const agents = await text("docs/agents.md");
   const migration = await text("docs/migration.md");
@@ -840,7 +856,7 @@ test("autoloop design documents automatic durable completion and its two-file li
 });
 
 test("documentation lists review-work and litgoal trigger phrases", async () => {
-  const readme = await text("README.md");
+  const readme = await userDocs("en");
   const hooks = await text("docs/hooks.md");
   const combined = `${readme}\n${hooks}`;
 
@@ -862,8 +878,8 @@ test("documentation lists review-work and litgoal trigger phrases", async () => 
 });
 
 test("documentation explains the lit-recap read-only recap trigger", async () => {
-  const readme = await text("README.md");
-  const readmeKo = await text("README_ko-KR.md");
+  const readme = await userDocs("en");
+  const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const combined = `${readme}\n${hooks}`;
 

@@ -311,6 +311,21 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
 });
 
 describe("office runtime first-use install", () => {
+  it("refuses an unknown ensure flag before installing anything", () => {
+    const cache = mkdtempSync(join(tmpdir(), "lit-office-flag-"));
+    try {
+      const result = spawnSync(process.execPath, [join(libRoot, "office-runtime.mjs"), "ensure", "--node", "--dry-run"], {
+        encoding: "utf8",
+        env: { ...process.env, npm_config_registry: "http://127.0.0.1:9/", LITCLAUDE_OFFICE_RUNTIME: cache },
+      });
+      assert.equal(result.status, 2, result.stdout + result.stderr);
+      assert.match(result.stderr, /unknown ensure option: --dry-run/u);
+      assert.deepEqual(readdirSync(cache), [], "a refused flag must not start an install");
+    } finally {
+      rmSync(cache, { recursive: true, force: true });
+    }
+  });
+
   it("drops npm's global-install settings from the npm ci child", { skip: process.platform === "win32" ? "POSIX fake npm" : false }, (t) => {
     const npm = fakeNpm();
     const cache = mkdtempSync(join(tmpdir(), "lit-office-npm-env-"));
@@ -355,6 +370,22 @@ describe("lit-pptx and lit-docx — bare lit routing", () => {
       "the deck of cards shuffle has a bug lit",
       "발표자료 만들어줘",
       "write a report",
+    ]) {
+      assert.deepEqual(officeSkillsFor(prompt), [], `must not route: ${prompt}`);
+    }
+  });
+
+  it("routes an office request whose source is a Markdown file, and keeps project docs out", () => {
+    assert.deepEqual(officeSkillsFor("lit notes.md 메모 파일로 월요일 팀 회의용 슬라이드 10장 만들어줘"), ["lit-pptx"]);
+    assert.deepEqual(officeSkillsFor("lit turn notes.md into a 10-slide deck for Monday"), ["lit-pptx"]);
+    assert.deepEqual(officeSkillsFor("lit turn meeting-notes.md into a Word report"), ["lit-docx"]);
+    assert.deepEqual(officeSkillsFor("lit summary.md 내용으로 보고서 작성해줘"), ["lit-docx"]);
+    for (const prompt of [
+      "lit update the README with the new install steps",
+      "lit write the CHANGELOG.md entry for this release",
+      "lit draft docs/setup.md for new contributors",
+      "lit AGENTS.md 문서 작성해줘",
+      "lit write SECURITY.md for the report process",
     ]) {
       assert.deepEqual(officeSkillsFor(prompt), [], `must not route: ${prompt}`);
     }

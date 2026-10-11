@@ -23,7 +23,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { acquireOwnerLock, OwnerLockError, releaseOwnerLock } from "../owner-lock.mjs";
 import { POST_COMPACT_REINJECTION_BUDGET } from "./constants.mjs";
 import { pathIdentity, samePathIdentity } from "../secure-path-read.mjs";
-import { resolveProjectStateRoot } from "../project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "../project-state-root.mjs";
 
 const MAX_TRACKED_KEYS = 500;
 const MAX_STATE_BYTES = 256 * 1024;
@@ -61,6 +61,7 @@ const safeStateDirectory = (projectRoot, { create }) => {
     if (stats.isSymbolicLink() || !stats.isDirectory()) throw new Error("unsafe state directory");
     if (!isSameOrChildPath(realRoot, realpathSync.native(current))) throw new Error("state directory escaped project");
   }
+  if (create) ensureStateDirIgnored(current);
   return current;
 };
 

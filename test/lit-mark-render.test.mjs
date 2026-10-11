@@ -91,11 +91,11 @@ it("native terminal policy honors empty opt-outs, non-TTY, JSON, locale and TERM
   }
 });
 
-it("both README heroes use the current banner lockup without a version", () => {
+it("both READMEs keep the current banner lockup without a version as their copyable ASCII logo", () => {
   const expected = mark.lockup("claude", mark.banner).map((row) => row.trimEnd()).join("\n");
   for (const name of ["README.md", "README_ko-KR.md"]) {
     const readme = readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
-    const hero = /```text\n([\s\S]*?)\n```/u.exec(readme)[1];
+    const hero = /<summary>[^<]+<\/summary>\n\n```text\n([\s\S]*?)\n```/u.exec(readme)[1];
     assert.equal(hero, expected, name);
     assert.doesNotMatch(hero, /v\d+\.\d+\.\d+/u);
   }

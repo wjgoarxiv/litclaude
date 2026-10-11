@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { resolveProjectStateRoot } from "./project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
 import { findProjectRoot } from "./rules/discovery.mjs";
 
 export const LIT_PLAN_MAX_BLOCKS = 2;
@@ -38,6 +38,7 @@ const readTurn = (cwd) => {
 const writeTurn = (cwd, state) => {
   const target = litPlanTurnPath(cwd);
   mkdirSync(join(target, ".."), { recursive: true });
+  ensureStateDirIgnored(target);
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state));
   renameSync(tmp, target);

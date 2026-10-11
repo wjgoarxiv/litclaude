@@ -63,7 +63,7 @@ test("prompt hook records the ignited discipline per session and the HUD renders
     assert.equal(cooled.status, 0, cooled.stderr);
     const cooledPlain = stripAnsi(cooled.stdout);
     assert.doesNotMatch(cooledPlain, /IGNITED|🔥 LIT/u);
-    assert.match(cooledPlain, /^\[🔥LITCLAUDE v[\d.]+\] \| /u, "cooled line returns to the plain prefix layout");
+    assert.match(cooledPlain, /^\[🔥LIT v[\d.]+\] \| /u, "cooled line returns to the plain prefix layout");
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   accentCodeForName,
@@ -13,8 +13,8 @@ import {
   rainbowText,
   toneText,
 } from "../lib/hud-accent-palette.mjs";
-import { latestUsageTokens } from "../lib/cache-measurement.mjs";
-import { readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
+import { latestUsageTokensCached } from "../lib/cache-measurement.mjs";
+import { ignitionStatePath, readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
 import { jevHudState } from "../lib/jev-skill-hint.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { recordContextUsage, resolveAutoHandoff } from "../lib/auto-handoff.mjs";
@@ -77,6 +77,19 @@ const shortModel = (raw) => {
   return compact.slice(0, 10) || "?";
 };
 
+// A million-token window reads as 1m, and smaller ones keep their k count.
+const formatWindow = (size) => {
+  if (size >= 1000000 && size % 100000 === 0) return `${size / 1000000}m`;
+  return `${Math.max(1, Math.round(size / 1000))}k`;
+};
+
+// Claude Code sends effort.level only for models that take the effort parameter.
+const EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
+const effortLabel = (status) => {
+  const level = status.effort?.level;
+  return EFFORT_LEVELS.has(level) ? `[${level}]` : "";
+};
+
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
 
 const displayPercent = (value) => Math.round(clamp(value));
@@ -111,7 +124,8 @@ const latestUserMessage = (transcriptPath) => {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
       const event = JSON.parse(lines[index]);
-      if (event.type !== "user") continue;
+      // Loaded skill bodies and compaction summaries are host-written user entries, not prompts.
+      if (event.type !== "user" || event.isMeta === true || event.isCompactSummary === true) continue;
       const content = event?.message?.content;
       const text = Array.isArray(content)
         ? content.filter((part) => part?.type === "text").map((part) => part.text).join(" ")
@@ -227,9 +241,9 @@ const formatReset = (value) => {
   const minutes = Math.max(0, Math.floor((target - Date.now()) / 60000));
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  if (days > 0) return `↻${days}d${hours % 24}h`;
-  if (hours > 0) return `↻${hours}h${minutes % 60}m`;
-  return `↻${minutes}m`;
+  if (days > 0) return `↻ ${days}d${hours % 24}h`;
+  if (hours > 0) return `↻ ${hours}h${minutes % 60}m`;
+  return `↻ ${minutes}m`;
 };
 
 const coloredText = appearance === "dark";
@@ -239,13 +253,13 @@ const formatUsageSegment = (label, value, reset) => {
   const labelText = text(label);
   if (value === null) {
     return coloredText
-      ? `${labelText} ${accent("[")}${colors.accent}░░${colors.reset}${accent("]")} ${accent("--%")}`
-      : `${labelText} [${makeBlockBar(0, 2)}] --%`;
+      ? `${labelText} ${accent("[")}${colors.accent}░░${colors.reset}${accent("]")}${accent("--%")}`
+      : `${labelText} [${makeBlockBar(0, 2)}]--%`;
   }
   const pct = displayPercent(value);
   const resetText = formatReset(reset);
   const pctText = coloredText ? `${barColor(pct)}${pct}%${colors.reset}` : `${pct}%`;
-  return `${labelText} ${accent("[")}${makeBlockBar(pct, 2)}${accent("]")} ${pctText}${resetText ? ` ${text(resetText)}` : ""}`;
+  return `${labelText} ${accent("[")}${makeBlockBar(pct, 2)}${accent("]")}${pctText}${resetText ? ` ${text(resetText)}` : ""}`;
 };
 
 // Optional Jev skill hint badge, attached to the model label: nothing while LITCLAUDE_JEV is
@@ -312,13 +326,12 @@ const main = async () => {
   const version = readVersion();
   const model = shortModel(status.model?.display_name ?? status.model?.id);
   const maxContext = Number(status.context_window?.context_window_size ?? 200000);
-  const maxK = Math.max(1, Math.round(maxContext / 1000));
-  const tokens = latestUsageTokens(status.transcript_path);
-  const estimatedTokens = tokens > 0 ? tokens : 20000;
+  const windowText = formatWindow(maxContext);
   const statusContextPct = firstNumber(status.context_window?.used_percentage, status.context_window?.usage_percentage);
-  const rawContextPct = statusContextPct === null ? Math.floor((estimatedTokens * 100) / maxContext) : statusContextPct;
-  const contextPct = displayPercent(rawContextPct);
-  const knownContextPct = statusContextPct !== null ? statusContextPct : tokens > 0 ? rawContextPct : null;
+  const usageCachePath = join(dirname(ignitionStatePath(status.session_id)), `usage-${basename(ignitionStatePath(status.session_id))}`);
+  const tokens = statusContextPct === null ? latestUsageTokensCached(status.transcript_path, usageCachePath) : 0;
+  // Without a host percent or a transcript usage record the size is unknown, and the line says so.
+  const knownContextPct = statusContextPct !== null ? statusContextPct : tokens > 0 ? Math.floor((tokens * 100) / maxContext) : null;
   const usage = parseUsage(status);
   const usageText = ` ${accent(sep)} ${formatUsageSegment("5h", usage.fiveHour, usage.fiveHourReset)} ${accent(sep)} ${formatUsageSegment("1w", usage.weekly, usage.weeklyReset)}`;
   const git = gitStatus(status.cwd);
@@ -327,13 +340,17 @@ const main = async () => {
     depth: colorDepth,
     appearance,
   });
-  const contextText = `${text("ctx")} ${accent("[")}${makeContextBar(contextPct)}${accent("]")} ${text(`${contextPct}%/${maxK}k`)}`;
+  const contextPct = knownContextPct === null ? null : displayPercent(knownContextPct);
+  const contextText = contextPct === null
+    ? `${text("ctx")} ${text(`?/${windowText}`)}`
+    : `${text("ctx")} ${accent("[")}${makeContextBar(contextPct)}${accent("]")} ${text(`${contextPct}%/${windowText}`)}`;
   const ignition = renderIgnitionSegment(readIgnitionState(status.session_id), {
     depth: plainOutput ? "plain" : colorDepth,
   });
+  const effort = effortLabel(status);
   const jev = jevBadge(status);
   const autoHandoff = autoHandoffSegment(status, knownContextPct);
-  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
+  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${effort ? ` ${text(effort)}` : ""}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);
@@ -344,6 +361,6 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  process.stdout.write(`[🔥LITCLAUDE v${readVersion()}] | HUD unavailable: ${error.message}\n`);
+  process.stdout.write(`[🔥LIT v${readVersion()}] | HUD unavailable: ${error.message}\n`);
   process.exit(0);
 });

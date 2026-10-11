@@ -56,11 +56,11 @@ export const ansi16CodeForAccent = (value) => ({
 }[normalizeHudAccent(value)] ?? 36);
 
 // --- LitClaude neon brand banner (D21) -------------------------------------
-// `[🔥LITCLAUDE vX.Y.Z]` rendered as a neon glow. Truecolor terminals get a
+// `[🔥LIT vX.Y.Z]` rendered as a neon glow. Truecolor terminals get a
 // per-letter hot-pink -> electric-cyan gradient; 256-color terminals fall back
 // to bright-magenta bold; NO_COLOR is plain text. The 🔥 is mandatory and the
 // brand is accent-independent (LITCLAUDE_HUD_ACCENT still themes the HUD body).
-const NEON_BRAND = "LITCLAUDE";
+const NEON_BRAND = "LIT";
 export const NEON_START = Object.freeze([255, 45, 149]); // #ff2d95 hot pink
 export const NEON_END = Object.freeze([0, 229, 255]); // #00e5ff electric cyan
 

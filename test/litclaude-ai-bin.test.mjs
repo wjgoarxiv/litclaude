@@ -372,6 +372,135 @@ describe("litclaude-ai CLI", () => {
     }
   });
 
+  it("delivers a large public-read result through a pipe in full before exiting", () => {
+    const home = makeHome();
+
+    try {
+      // A blocked private URL needs no network and echoes the URL, so the report runs past
+      // the 64 KiB pipe buffer that an exit before the flush would cut off.
+      const result = runCli(["public-read", "--json", `http://127.0.0.1/${"a".repeat(200_000)}`], home);
+
+      assert.equal(result.status, 2, result.stderr);
+      assert.ok(result.stdout.length > 131_072, `piped stdout stopped at ${result.stdout.length} bytes`);
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.stopReason, "private-address");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  // Run each command against a real install in throwaway homes (HOME included, so nothing can
+  // reach the real ~/.claude) and prove the install is byte-for-byte where it was afterwards.
+  const againstRealInstall = (cases) => {
+    const home = makeHome();
+    const claudeHome = makeClaudeHome();
+    const userHome = makeHome();
+    const env = {
+      HOME: userHome,
+      LITCLAUDE_HOME: home,
+      CLAUDE_HOME: claudeHome,
+      CLAUDE_CONFIG_DIR: claudeHome,
+      LITCLAUDE_NO_AUTO_UPDATE: "1",
+      NO_UPDATE_NOTIFIER: "1",
+      LITCLAUDE_SPINNER: "0",
+    };
+    const snapshot = () => [home, claudeHome].flatMap((base) =>
+      readdirSync(base, { recursive: true }).sort().map((entry) => {
+        const stats = statSync(join(base, entry));
+        return `${base === home ? "lit" : "claude"}/${entry} ${stats.isDirectory() ? "dir" : stats.size} ${stats.mtimeMs}`;
+      }));
+    try {
+      const installed = runCliWithEnv(["install", "--yes"], env);
+      assert.equal(installed.status, 0, installed.stderr);
+      assert.ok(existsSync(join(home, "current")), "the fixture install must exist");
+      const before = snapshot();
+      for (const [args, check] of cases) {
+        const result = runCliWithEnv(args, env);
+        check(result, args.join(" "));
+        assert.doesNotMatch(result.stdout, /UNINSTALL_PASS|INSTALL_PASS/u, args.join(" "));
+        assert.deepEqual(snapshot(), before, `${args.join(" ")} changed the install`);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(userHome, { recursive: true, force: true });
+    }
+  };
+
+  it("refuses an unknown or malformed flag on a managed command before doing anything", () => {
+    const refused = (message) => (result, label) => {
+      assert.equal(result.status, 64, `${label}: ${result.stdout}${result.stderr}`);
+      assert.match(result.stderr, message, label);
+    };
+    againstRealInstall([
+      [["uninstall", "-n"], refused(/Unknown uninstall option: -n/u)],
+      [["uninstall", "--force"], refused(/Unknown uninstall option: --force/u)],
+      [["uninstall", "--dry-run=false"], refused(/--dry-run=false/u)],
+      [["--dry-run=no", "uninstall"], refused(/--dry-run=no/u)],
+      [["install", "-n"], refused(/Unknown install option: -n/u)],
+      [["update", "--bogus"], refused(/Unknown install option: --bogus/u)],
+      [["doctor", "--bogus"], refused(/Unknown doctor option: --bogus/u)],
+    ]);
+  });
+
+  it("treats --dry-run=true as a dry run before or after the subcommand", () => {
+    const dry = (expected) => (result, label) => {
+      assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+      assert.match(result.stdout, expected, label);
+    };
+    againstRealInstall([
+      [["uninstall", "--dry-run=true"], dry(/DRY_RUN: remove checked/u)],
+      [["--dry-run=true", "uninstall"], dry(/DRY_RUN: remove checked/u)],
+      [["install", "--dry-run=true"], dry(/Would register Claude plugin/u)],
+      [["doctor", "--dry-run=1"], dry(/claude plugin validate/u)],
+    ]);
+  });
+
+  it("refuses an unknown motion-runtime install flag without installing", () => {
+    const cache = mkdtempSync(join(tmpdir(), "litclaude-motion-flag-"));
+    try {
+      for (const flag of ["--dry-run", "-n"]) {
+        const result = runCliWithEnv(["motion-runtime", "install", flag], {
+          LITCLAUDE_MOTION_RUNTIME: cache,
+          npm_config_registry: "http://127.0.0.1:9/",
+          LITCLAUDE_NO_AUTO_UPDATE: "1",
+        });
+        assert.equal(result.status, 2, `${flag}: ${result.stdout}${result.stderr}`);
+        assert.match(result.stderr, new RegExp(`unknown install option: ${flag}`, "u"));
+        assert.doesNotMatch(result.stderr, /MOTION_RUNTIME_INSTALL_FAIL|motion-runtime: /u);
+        assert.deepEqual(readdirSync(cache), [], `${flag} must not touch the motion cache`);
+      }
+    } finally {
+      rmSync(cache, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts --dry-run after the subcommand and still writes nothing", () => {
+    for (const [args, expected] of [
+      [["install", "--dry-run"], /Would register Claude plugin/u],
+      [["install", "--permission-mode", "balanced", "--dry-run"], /permissions\.allow\/deny: balanced \(explicit\)/u],
+      [["uninstall", "--dry-run"], /DRY_RUN: remove checked/u],
+      [["doctor", "--dry-run"], /claude plugin validate/u],
+    ]) {
+      const home = makeHome();
+      const claudeHome = makeClaudeHome();
+
+      try {
+        const result = runCli(args, home, claudeHome);
+
+        assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
+        assert.match(result.stdout, /DRY_RUN/u, args.join(" "));
+        assert.match(result.stdout, expected, args.join(" "));
+        assert.doesNotMatch(result.stdout, /UNINSTALL_PASS/u, args.join(" "));
+        assert.deepEqual(readdirSync(home), [], `${args.join(" ")} must not create install files`);
+        assert.deepEqual(readdirSync(claudeHome), [], `${args.join(" ")} must not create Claude plugin files`);
+      } finally {
+        rmSync(home, { recursive: true, force: true });
+        rmSync(claudeHome, { recursive: true, force: true });
+      }
+    }
+  });
+
   it("rejects malformed litgoal evidence input with a controlled error", () => {
     const home = makeHome();
 
@@ -522,7 +651,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(plugin.name, "litclaude");
       assert.equal(plugin.displayName, "LitClaude");
       assert.equal(plugin.version, packageJson.version);
-      assert.equal(plugin.description, "Claude Code-native workflow distribution.");
+      assert.equal(plugin.description, packageJson.description);
       assert.equal(plugin.homepage, "https://github.com/wjgoarxiv/litclaude");
       assert.doesNotMatch(JSON.stringify(marketplace), new RegExp(`${"Lazy"}${"Codex"}`, "iu"));
       assert.doesNotMatch(JSON.stringify(marketplace), new RegExp(["code-yeong","yu"].join(""), "iu"));
@@ -739,7 +868,7 @@ describe("litclaude-ai CLI", () => {
       const escapedVersion = packageJson.version.replaceAll(".", "\\.");
       assert.match(
         result.stdout,
-        new RegExp(`\\[🔥LITCLAUDE v${escapedVersion}\\][\\s\\S]+ctx \\[▌░░\\][\\s\\S]+5h \\[▏░\\]`, "u"),
+        new RegExp(`\\[🔥LIT v${escapedVersion}\\][\\s\\S]+ctx \\[▌░░\\][\\s\\S]+5h \\[▏░\\]`, "u"),
       );
       assert.doesNotMatch(result.stdout, /\x1b/u);
       assert.match(result.stdout, /HUD_COLOR_SELECTED: rose/u);
@@ -790,7 +919,7 @@ describe("litclaude-ai CLI", () => {
       });
 
       assert.equal(result.status, 0, result.stderr);
-      assert.match(result.stdout, /\x1b\[0m\x1b\[1m\[🔥LITCLAUDE v/u);
+      assert.match(result.stdout, /\x1b\[0m\x1b\[1m\[🔥LIT v/u);
       assert.match(result.stdout, /\x1b\[0m \| O4\.8 │ ctx/u);
       assert.doesNotMatch(result.stdout, /\x1b\[38;2;[^\n]*O4\.8/u);
     } finally {
@@ -821,7 +950,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(result.status, 0, result.stderr);
       for (const name of ["cyan", "blue", "teal", "green", "lavender", "rose", "gold", "orange", "slate", "gray"]) {
         const escapedVersion = packageJson.version.replaceAll(".", "\\.");
-        assert.match(result.stdout, new RegExp(`${name}\\s+\\[🔥LITCLAUDE v${escapedVersion}\\]`, "u"));
+        assert.match(result.stdout, new RegExp(`${name}\\s+\\[🔥LIT v${escapedVersion}\\]`, "u"));
       }
       assert.match(result.stdout, /ctx \[▌░░\]/u);
       assert.match(result.stdout, /5h \[▏░\]/u);

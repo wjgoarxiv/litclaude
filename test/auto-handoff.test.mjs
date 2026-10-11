@@ -242,6 +242,17 @@ describe("automatic handoff: Stop hook", () => {
     assert.equal(blocked.decision, "block");
     assert.match(blocked.reason, /70%/u);
   });
+
+  it("reads the last assistant usage from a transcript larger than the bounded-read limit", (t) => {
+    const dir = project(t);
+    setOn(dir, 60);
+    const transcript = join(dir, "transcript.jsonl");
+    const filler = `${JSON.stringify({ type: "user", message: { content: "x".repeat(64 * 1024) } })}\n`;
+    writeFileSync(transcript, `${filler.repeat(12 * 16)}${JSON.stringify({ type: "assistant", message: { usage: { input_tokens: 10, cache_read_input_tokens: 690000, cache_creation_input_tokens: 10000, output_tokens: 500 } } })}\n`);
+    const blocked = stop(dir, { transcript_path: transcript }, { LITCLAUDE_AUTO_HANDOFF_WINDOW: "1000000" });
+    assert.equal(blocked?.decision, "block");
+    assert.match(blocked.reason, /70%/u);
+  });
 });
 
 describe("automatic handoff: reload after compaction", () => {
@@ -535,10 +546,10 @@ describe("automatic handoff: status line and doctor", () => {
 describe("automatic handoff: documentation", () => {
   const read = (path) => readFileSync(join(root, path), "utf8");
 
-  it("the README pages explain which steps are automatic and which are reminders", () => {
+  it("the guide pages explain which steps are automatic and which are reminders", () => {
     for (const [file, heading, labels] of [
-      ["README.md", "## Automatic handoff", ["Automatic:", "Reminder:"]],
-      ["README_ko-KR.md", "## 자동 핸드오프", ["자동:", "알림:"]],
+      ["docs/guide.md", "## Automatic handoff", ["Automatic:", "Reminder:"]],
+      ["docs/guide_ko-KR.md", "## 자동 핸드오프", ["자동:", "알림:"]],
     ]) {
       const text = read(file);
       assert.ok(text.includes(heading), `${file} has ${heading}`);

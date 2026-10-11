@@ -1615,7 +1615,7 @@ syncBuiltinESMExports();
   });
 
   it("documents that scanner success is snapshot-scoped rather than post-return live-tree proof", () => {
-    for (const path of [join(root, "README.md"), join(root, "README_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
+    for (const path of [join(root, "docs", "development.md"), join(root, "docs", "development_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
       const text = read(path);
       assert.match(text, /snapshot|스냅샷/iu, path);
       assert.match(text, /digest|다이제스트/iu, path);
@@ -1625,7 +1625,7 @@ syncBuiltinESMExports();
   });
 
   it("documents independent commitments, immutable package expectations, interval protection, and bounded canonical preflights", () => {
-    for (const path of [join(root, "README.md"), join(root, "README_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
+    for (const path of [join(root, "docs", "development.md"), join(root, "docs", "development_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
       const text = read(path);
       assert.match(text, /legal companion|legal 파일|법적 동반/iu, path);
       assert.match(text, /outside[\s\S]{0,80}manifest|manifest[\s\S]{0,80}(?:외부|밖)/iu, path);
@@ -1690,11 +1690,13 @@ syncBuiltinESMExports();
     assert.match(ignore, /^test\/evidence\/$/mu);
     assert.match(ignore, /^evidence\/$/mu);
 
-    for (const path of [join(root, "README.md"), join(root, "README_ko-KR.md")]) {
-      const text = read(path);
+    // The README is the landing page; the guide and skills pages it links to carry the inventory.
+    for (const suffix of ["", "_ko-KR"]) {
+      const pages = [`README${suffix}.md`, `docs/guide${suffix}.md`, `docs/skills${suffix}.md`];
+      const text = pages.map((page) => read(join(root, page))).join("\n");
       assert.doesNotMatch(text, /release material|release candidate|release-candidate/iu);
       assert.doesNotMatch(text, /exactly \*\*?\d+ resources|\d+-resource boundary/iu);
-      assert.match(text, /CHANGELOG\.md/u);
+      assert.match(read(join(root, `README${suffix}.md`)), /CHANGELOG\.md/u);
       for (const skillId of ["autoresearch", "autoconference", "wikify"]) assert.match(text, new RegExp(`\\b${skillId}\\b`, "u"));
     }
   });

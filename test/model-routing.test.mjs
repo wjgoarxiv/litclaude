@@ -142,8 +142,8 @@ describe("LitClaude G20 model-routing boundary", () => {
 
   it("names gpt-6.1-sol as the coding-lead alternative and gpt-6-sol as previous generation", () => {
     const docs = readFileSync(docsPath, "utf8");
-    const readme = readFileSync(join(root, "README.md"), "utf8");
-    const readmeKo = readFileSync(join(root, "README_ko-KR.md"), "utf8");
+    const readme = readFileSync(join(root, "docs", "guide.md"), "utf8");
+    const readmeKo = readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8");
     assert.match(docs, /`gpt-6\.1-sol` as the\s+coding-lead alternative/u);
     assert.match(docs, /previous-generation `gpt-6-sol` id\s+remains\s+accepted/u);
     assert.match(readme, /`gpt-6\.1-sol` as the other choice for a coding lead/u);

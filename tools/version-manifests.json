@@ -9,16 +9,16 @@
       "why": "Release history retains prior headings; the current release heading must be present without rewriting older entries."
     },
     {
-      "path": "README.md",
+      "path": "docs/guide.md",
       "kind": "pinned",
-      "occurrences": 4,
-      "why": "The English GitHub page loads its images by relative path; it pins only the version badge's alt text and the reproducible install example (registry lookup, conditional, exact install)."
+      "occurrences": 3,
+      "why": "The English guide pins only the reproducible install example (registry lookup, conditional, exact install); the GitHub README shows the live npm badge and pins nothing."
     },
     {
-      "path": "README_ko-KR.md",
+      "path": "docs/guide_ko-KR.md",
       "kind": "pinned",
-      "occurrences": 4,
-      "why": "The Korean GitHub page loads its images by relative path; it pins only the version badge's alt text and the reproducible install example (registry lookup, conditional, exact install)."
+      "occurrences": 3,
+      "why": "The Korean guide pins only the reproducible install example (registry lookup, conditional, exact install); the Korean GitHub README shows the live npm badge and pins nothing."
     },
     {
       "path": "README_npm.md",

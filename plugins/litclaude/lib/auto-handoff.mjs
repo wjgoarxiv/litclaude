@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { latestUsageTokens } from "./cache-measurement.mjs";
+import { ensureStateDirIgnored } from "./project-state-root.mjs";
 
 export const AUTO_HANDOFF_FLAG = "LITCLAUDE_AUTO_HANDOFF";
 export const AUTO_HANDOFF_PERCENT = "LITCLAUDE_AUTO_HANDOFF_PERCENT";
@@ -62,6 +63,7 @@ const stateDirectory = (stateRoot, { create = false } = {}) => {
     }
     if (!stat.isDirectory()) throw new Error("state folder is not a real folder");
   }
+  if (create) ensureStateDirIgnored(directory);
   return directory;
 };
 

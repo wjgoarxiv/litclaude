@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 
-import { resolveProjectStateRoot } from "./project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
 
 export const MOTION_MAX_BLOCKS = 2;
 export const MOTION_DISCIPLINE = "lit-typographic-motion";
@@ -34,6 +34,7 @@ const readTurn = (cwd) => {
 const writeTurn = (cwd, state) => {
   const target = motionTurnPath(cwd);
   mkdirSync(join(target, ".."), { recursive: true });
+  ensureStateDirIgnored(target);
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state));
   renameSync(tmp, target);

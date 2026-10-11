@@ -8,8 +8,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const publicRoute = "npm exec --yes --package @litfamily/litclaude -- litclaude wikify <capture|save|review|query|config>";
 const operations = ["capture", "save", "review", "query", "config"];
 const boundaryDocuments = [
-  ["README.md", readFileSync(join(root, "README.md"), "utf8")],
-  ["README_ko-KR.md", readFileSync(join(root, "README_ko-KR.md"), "utf8")],
+  ["docs/guide.md", readFileSync(join(root, "docs", "guide.md"), "utf8")],
+  ["docs/guide_ko-KR.md", readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8")],
   ["plugins/litclaude/skills/wikify/SKILL.md", readFileSync(join(root, "plugins", "litclaude", "skills", "wikify", "SKILL.md"), "utf8")],
   ["plugins/litclaude/commands/wikify.md", readFileSync(join(root, "plugins", "litclaude", "commands", "wikify.md"), "utf8")],
   ["docs/hooks.md", readFileSync(join(root, "docs", "hooks.md"), "utf8")],
@@ -31,10 +31,10 @@ const boundaryPatterns = [
   /identity changes?|identity change|identity 변경/iu,
 ];
 
-test("English and Korean READMEs expose the same Wikify CLI operations", () => {
+test("English and Korean guides expose the same Wikify CLI operations", () => {
   const documents = [
-    ["README.md", readFileSync(join(root, "README.md"), "utf8")],
-    ["README_ko-KR.md", readFileSync(join(root, "README_ko-KR.md"), "utf8")],
+    ["docs/guide.md", readFileSync(join(root, "docs", "guide.md"), "utf8")],
+    ["docs/guide_ko-KR.md", readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8")],
   ];
 
   for (const [name, content] of documents) {

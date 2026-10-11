@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -57,12 +57,45 @@ test("LitClaude HUD renders a branded pretty status line from Claude status inpu
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, new RegExp(`^\\[🔥LITCLAUDE v${packageJson.version.replaceAll(".", "\\.")}\\] \\| O4\\.8 │ ctx `, "u"));
-    assert.match(result.stdout, /9%\/1000k/u);
-    assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\] 4%/u);
-    assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\] 35%/u);
+    assert.match(result.stdout, new RegExp(`^\\[🔥LIT v${packageJson.version.replaceAll(".", "\\.")}\\] \\| O4\\.8 │ ctx `, "u"));
+    assert.match(result.stdout, /9%\/1m/u);
+    assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\]4%/u);
+    assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\]35%/u);
     assert.match(result.stdout, /git /u);
     assert.match(result.stdout, /└─ Make the HUD prettier\./u);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("LitClaude HUD keeps the compact layout: short brand, effort beside the model, 1m window, tight usage", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "litclaude-hud-compact-"));
+  const render = (extra) => {
+    const env = { ...colorEnv, LITCLAUDE_HUD_TEST_USAGE: "5h=1,1w=3", LITCLAUDE_HUD_NO_COLOR: "1", LITCLAUDE_VERSION: "9.8.7" };
+    delete env.LITCLAUDE_JEV;
+    const status = {
+      model: { display_name: "Opus 5.5 (1M context)" },
+      cwd: tmp,
+      context_window: { context_window_size: 1000000, used_percentage: 10 },
+      rate_limits: {
+        five_hour: { resets_at: Math.floor(Date.now() / 1000) + (4 * 60 + 51) * 60 + 30 },
+        seven_day: { resets_at: Math.floor(Date.now() / 1000) + (6 * 24 + 17) * 3600 + 1800 },
+      },
+      ...extra,
+    };
+    const result = spawnSync(process.execPath, [hudPath], { cwd: tmp, encoding: "utf8", input: `${JSON.stringify(status)}\n`, env });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.split("\n")[0];
+  };
+  try {
+    assert.equal(render({ effort: { level: "high" } }), "[🔥LIT v9.8.7] | O5.5 [high] │ ctx [▎░░] 10%/1m │ 5h [▏░]1% ↻ 4h51m │ 1w [▏░]3% ↻ 6d17h");
+    for (const level of ["low", "medium", "xhigh", "max"]) {
+      assert.match(render({ effort: { level } }), new RegExp(`^\\[🔥LIT v9\\.8\\.7\\] \\| O5\\.5 \\[${level}\\] │ ctx `, "u"));
+    }
+    // A model without the effort parameter gets no bracket, and an odd value is not echoed.
+    assert.match(render({}), /^\[🔥LIT v9\.8\.7\] \| O5\.5 │ ctx /u);
+    assert.match(render({ effort: { level: "\u001b[31mevil" } }), /^\[🔥LIT v9\.8\.7\] \| O5\.5 │ ctx /u);
+    assert.match(render({ context_window: { context_window_size: 200000, used_percentage: 10 } }), /ctx \[▎░░\] 10%\/200k │/u);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -87,7 +120,7 @@ test("LitClaude HUD renders the neon brand prefix (256-color fallback) when colo
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LITCLAUDE v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
+  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LIT v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
 });
 
 test("LitClaude HUD renders a truecolor neon gradient brand when COLORTERM=truecolor", () => {
@@ -107,7 +140,7 @@ test("LitClaude HUD renders a truecolor neon gradient brand when COLORTERM=truec
   assert.equal(result.status, 0, result.stderr);
   // bold + 🔥 + first letter at hot-pink #ff2d95 ... last letter at electric-cyan #00e5ff
   assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mE/u);
+  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
 });
 
 test("LitClaude HUD renders the truecolor gradient in Windows Terminal/WSL2 (WT_SESSION, no COLORTERM)", () => {
@@ -129,7 +162,7 @@ test("LitClaude HUD renders the truecolor gradient in Windows Terminal/WSL2 (WT_
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mE/u);
+  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
 });
 
 test("LitClaude HUD renders the truecolor gradient in WSL2 even when Claude drops WT_SESSION", () => {
@@ -153,7 +186,7 @@ test("LitClaude HUD renders the truecolor gradient in WSL2 even when Claude drop
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mE/u);
+  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
   assert.doesNotMatch(result.stdout, /^\x1b\[0m\x1b\[1m\x1b\[38;5;201m/u);
 });
 
@@ -178,7 +211,7 @@ test("LitClaude HUD keeps the neon brand accent-independent while accent themes 
 
   assert.equal(result.status, 0, result.stderr);
   // brand prefix is the fixed neon (201), NOT the rose accent...
-  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LITCLAUDE v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
+  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LIT v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
   // ...but the configured rose accent (198) still themes the HUD body.
   assert.match(result.stdout, /\x1b\[38;5;198m/u);
 });
@@ -207,9 +240,9 @@ test("LitClaude HUD applies the configured accent to optional separators and gau
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal((result.stdout.match(/\x1b\[38;5;198m/gu) ?? []).length >= 5, true);
-  assert.match(stripAnsi(result.stdout), /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 0%\/1000k/u);
-  assert.match(stripAnsi(result.stdout), /5h \[░░\] --%/u);
-  assert.match(stripAnsi(result.stdout), /1w \[░░\] --%/u);
+  assert.match(stripAnsi(result.stdout), /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 0%\/1m/u);
+  assert.match(stripAnsi(result.stdout), /5h \[░░\]--%/u);
+  assert.match(stripAnsi(result.stdout), /1w \[░░\]--%/u);
 });
 
 test("LitClaude HUD falls back to cyan for malformed accent input", () => {
@@ -233,7 +266,7 @@ test("LitClaude HUD falls back to cyan for malformed accent input", () => {
 
   assert.equal(result.status, 0, result.stderr);
   // brand prefix stays the fixed neon (201); malformed accent falls the body back to cyan (81).
-  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LITCLAUDE v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
+  assert.match(result.stdout, new RegExp(`^\\x1b\\[0m\\x1b\\[1m\\x1b\\[38;5;201m\\[🔥LIT v${packageJson.version.replaceAll(".", "\\.")}\\]\\x1b\\[0m`, "u"));
   assert.match(result.stdout, /\x1b\[38;5;81m/u);
 });
 
@@ -250,7 +283,7 @@ test("LitClaude HUD keeps the neon brand prefix on fallback output", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, new RegExp(`^\\[🔥LITCLAUDE v${packageJson.version.replaceAll(".", "\\.")}\\] \\| HUD unavailable:`, "u"));
+  assert.match(result.stdout, new RegExp(`^\\[🔥LIT v${packageJson.version.replaceAll(".", "\\.")}\\] \\| HUD unavailable:`, "u"));
 });
 
 test("LitClaude HUD reads Claude Code rate_limits from status stdin", () => {
@@ -276,9 +309,9 @@ test("LitClaude HUD reads Claude Code rate_limits from status stdin", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 9%\/1000k/u);
-  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\] 24%/u);
-  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\] 67% ↻/u);
+  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 9%\/1m/u);
+  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\]24%/u);
+  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\]67% ↻/u);
   assert.doesNotMatch(result.stdout, /23\.5%|67\.4%/u);
 });
 
@@ -306,8 +339,8 @@ test("LitClaude HUD shows low non-zero usage as visible partial bars with separa
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█][░]+\] 1% ↻4h3[56]m/u);
-  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█][░]+\] 7% ↻4d3?h/u);
+  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█][░]+\]1% ↻ 4h3[56]m/u);
+  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█][░]+\]7% ↻ 4d3?h/u);
 });
 
 test("LitClaude HUD renders compact bracketed bars for constrained status width", () => {
@@ -329,10 +362,10 @@ test("LitClaude HUD renders compact bracketed bars for constrained status width"
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 4%\/1000k/u);
-  assert.match(result.stdout, /5h \[░░\] --%/u);
-  assert.match(result.stdout, /1w \[░░\] --%/u);
-  assert.doesNotMatch(result.stdout, /ctx [▏▎▍▌▋▊▉█░]{6} 4%\/1000k/u);
+  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 4%\/1m/u);
+  assert.match(result.stdout, /5h \[░░\]--%/u);
+  assert.match(result.stdout, /1w \[░░\]--%/u);
+  assert.doesNotMatch(result.stdout, /ctx [▏▎▍▌▋▊▉█░]{6} 4%\/1m/u);
 });
 
 test("LitClaude HUD renders reset countdowns from Claude Code epoch seconds", () => {
@@ -359,8 +392,8 @@ test("LitClaude HUD renders reset countdowns from Claude Code epoch seconds", ()
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\] 7% ↻2h1[34]m/u);
-  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\] 44% ↻3d5?h/u);
+  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\]7% ↻ 2h1[34]m/u);
+  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\]44% ↻ 3d5?h/u);
 });
 
 test("LitClaude HUD rounds noisy percentage values before display", () => {
@@ -386,9 +419,9 @@ test("LitClaude HUD rounds noisy percentage values before display", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 43%\/1000k/u);
-  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\] 7%/u);
-  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\] 24%/u);
+  assert.match(result.stdout, /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 43%\/1m/u);
+  assert.match(result.stdout, /5h \[[▏▎▍▌▋▊▉█░]+\]7%/u);
+  assert.match(result.stdout, /1w \[[▏▎▍▌▋▊▉█░]+\]24%/u);
   assert.doesNotMatch(result.stdout, /42\.8000000001%|7\.000000000000001%|24\.4%/u);
 });
 
@@ -478,6 +511,50 @@ test("LitClaude HUD ignores Claude command XML transcript entries", () => {
   }
 });
 
+test("LitClaude HUD skips loaded skill bodies and compaction summaries in the prompt row", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "litclaude-hud-test-"));
+
+  try {
+    const transcript = join(tmp, "transcript.jsonl");
+    writeFileSync(
+      transcript,
+      [
+        JSON.stringify({ type: "user", message: { content: "lit add a --shout flag that prints the greeting in capitals" } }),
+        JSON.stringify({
+          type: "user",
+          isMeta: true,
+          sourceToolUseID: "toolu_skill",
+          message: { content: [{ type: "text", text: "## #contract.activation ```yaml contract_schema_version: litclaude.llm-contract.v1" }] },
+        }),
+        JSON.stringify({ type: "user", isCompactSummary: true, message: { content: "This session is being continued from a previous conversation." } }),
+      ].join("\n"),
+    );
+
+    const result = spawnSync(process.execPath, [hudPath], {
+      cwd: root,
+      encoding: "utf8",
+      input: `${JSON.stringify({
+        model: { display_name: "Opus 4.8" },
+        cwd: root,
+        transcript_path: transcript,
+      })}\n`,
+      env: {
+        ...colorEnv,
+        LITCLAUDE_HUD_NO_COLOR: "1",
+        LITCLAUDE_HUD_TEST_USAGE: "",
+        CLAUDE_HUD_TEST_USAGE: "",
+        LITCLAUDE_VERSION: packageJson.version,
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /└─ lit add a --shout flag/u);
+    assert.doesNotMatch(result.stdout, /contract\.activation|continued from a previous conversation/u);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("LitClaude HUD keeps 5h and 1w placeholders visible when rate limits are absent", () => {
   const result = spawnSync(process.execPath, [hudPath], {
     cwd: root,
@@ -493,8 +570,8 @@ test("LitClaude HUD keeps 5h and 1w placeholders visible when rate limits are ab
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /5h \[░░\] --%/u);
-  assert.match(result.stdout, /1w \[░░\] --%/u);
+  assert.match(result.stdout, /5h \[░░\]--%/u);
+  assert.match(result.stdout, /1w \[░░\]--%/u);
 });
 
 test("LitClaude HUD keeps compact no-color line within constrained status width", () => {
@@ -516,9 +593,9 @@ test("LitClaude HUD keeps compact no-color line within constrained status width"
 
   const firstLine = result.stdout.trim().split(/\n/u)[0];
   assert.equal(result.status, 0, result.stderr);
-  assert.match(firstLine, /ctx \[░░░\] 0%\/1000k/u);
-  assert.match(firstLine, /5h \[░░\] --%/u);
-  assert.match(firstLine, /1w \[░░\] --%/u);
+  assert.match(firstLine, /ctx \[░░░\] 0%\/1m/u);
+  assert.match(firstLine, /5h \[░░\]--%/u);
+  assert.match(firstLine, /1w \[░░\]--%/u);
   assert.equal([...firstLine].length <= 85, true, firstLine);
 });
 
@@ -558,7 +635,7 @@ const runReadabilityFixture = (overrides = {}) => {
   });
 };
 
-const essentialHudTokens = ["O4.8", "ctx", "18%/1000k", "5h", "4%", "1w", "35%", "git"];
+const essentialHudTokens = ["O4.8", "ctx", "18%/1m", "5h", "4%", "1w", "35%", "git"];
 const sgrStateBefore = (value, offset) => {
   let foreground = "default";
   let dim = false;
@@ -617,7 +694,7 @@ test("LitClaude HUD keeps essential text on the terminal default foreground for 
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1000k.*5h.*4%.*1w.*35%/u);
+  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1m.*5h.*4%.*1w.*35%/u);
   assertDefaultForeground(result.stdout);
 });
 
@@ -634,7 +711,7 @@ for (const [label, overrides] of [["dark appearances", { LITCLAUDE_HUD_APPEARANC
     const result = runReadabilityFixture({ COLORTERM: "truecolor", ...overrides });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(stripAnsi(result.stdout), /O4\.8.*ctx.*18%\/1000k.*5h.*4%.*1w.*35%/u);
+    assert.match(stripAnsi(result.stdout), /O4\.8.*ctx.*18%\/1m.*5h.*4%.*1w.*35%/u);
     assertColoredTokens(result.stdout);
     assert.match(result.stdout, /\x1b\[38;2;/u);
   });
@@ -647,9 +724,9 @@ test("LitClaude HUD defaults essential text to the terminal foreground for unkno
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1000k.*5h.*4%.*1w.*35%/u);
+  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1m.*5h.*4%.*1w.*35%/u);
   assertDefaultForeground(result.stdout);
-  const brand = `[🔥LITCLAUDE v${packageJson.version}]`;
+  const brand = `[🔥LIT v${packageJson.version}]`;
   const brandOffset = result.stdout.indexOf(brand);
   assert.equal(brandOffset >= 0, true, "missing HUD brand");
   assert.deepEqual(sgrStateBefore(result.stdout, brandOffset), { foreground: "default", dim: false });
@@ -665,7 +742,7 @@ test("LitClaude HUD explicit 16-color depth takes precedence over truecolor capa
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stdout, /\x1b\[38;2;/u);
   assert.doesNotMatch(result.stdout, /\x1b\[38;5;/u);
-  assert.match(stripAnsi(result.stdout), /O4\.8.*ctx.*18%\/1000k.*5h.*4%.*1w.*35%/u);
+  assert.match(stripAnsi(result.stdout), /O4\.8.*ctx.*18%\/1m.*5h.*4%.*1w.*35%/u);
 });
 
 test("LitClaude HUD explicit 256-color depth suppresses truecolor escapes", () => {
@@ -689,7 +766,7 @@ test("LitClaude HUD treats TERM=dumb as plain even when COLORTERM advertises tru
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.includes("\x1b"), false, result.stdout);
-  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1000k.*5h.*4%.*1w.*35%/u);
+  assert.match(result.stdout, /O4\.8.*ctx.*18%\/1m.*5h.*4%.*1w.*35%/u);
 });
 
 test("LitClaude HUD treats an empty NO_COLOR presence as a no-color request", () => {
@@ -772,7 +849,7 @@ test("LitClaude HUD shows the Jev badge and the hinted skill next to the model n
 test("LitClaude HUD no longer ends with a Jev segment or shows the hint latency", (t) => {
   for (const [record, env] of [[undefined, jevOn], [hinted, jevOn], [hinted, { LITCLAUDE_JEV: "1" }]]) {
     const line = runJevHud(jevProject(t, record), jevEnv(env));
-    assert.match(line, / 1w \[░░\] --%$/u, line);
+    assert.match(line, / 1w \[░░\]--%$/u, line);
     assert.doesNotMatch(line, /│ Jev|Jev ✓|key missing|0\.27s/u, line);
   }
 });
@@ -895,5 +972,68 @@ test("LitClaude HUD follows the colour tiers for the Jev rainbow", (t) => {
     const missing = runJevHud(cwd, jevColorEnv({ ...overrides, TYPESAFE_API_KEY: undefined }));
     assert.equal(missing.includes("\x1b"), false, JSON.stringify(overrides));
     assert.equal(jevBadge(missing), " ✦Jev ⚠ key", JSON.stringify(overrides));
+  }
+});
+
+const runPlainHud = (status) => spawnSync(process.execPath, [hudPath], {
+  cwd: root,
+  encoding: "utf8",
+  input: `${JSON.stringify(status)}\n`,
+  env: { ...colorEnv, LITCLAUDE_HUD_NO_COLOR: "1", LITCLAUDE_HUD_TEST_USAGE: "", CLAUDE_HUD_TEST_USAGE: "", LITCLAUDE_VERSION: packageJson.version },
+});
+
+test("LitClaude HUD shows an unknown context instead of inventing one", () => {
+  const result = runPlainHud({ model: { display_name: "Opus 4.8" }, context_window: { context_window_size: 200000 } });
+
+  assert.equal(result.status, 0, result.stderr);
+  const firstLine = result.stdout.split(/\n/u)[0];
+  assert.match(firstLine, /│ ctx \?\/200k │/u);
+  assert.doesNotMatch(firstLine, /ctx \[/u, "no bar may suggest a measured value");
+});
+
+test("LitClaude HUD measures context from a transcript larger than the bounded-read limit", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "litclaude-hud-long-"));
+  try {
+    const transcript = join(tmp, "transcript.jsonl");
+    const filler = `${JSON.stringify({ type: "user", message: { content: "x".repeat(64 * 1024) } })}\n`;
+    writeFileSync(transcript, [
+      filler.repeat(12 * 16),
+      JSON.stringify({ type: "assistant", message: { usage: { input_tokens: 150000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } }),
+      "",
+    ].join(""));
+    const result = runPlainHud({ model: { display_name: "Opus 4.8" }, transcript_path: transcript, context_window: { context_window_size: 200000 } });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout.split(/\n/u)[0], /ctx \[[▏▎▍▌▋▊▉█░]{3}\] 75%\/200k/u);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("LitClaude HUD reuses its context measurement while the transcript is unchanged", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "litclaude-hud-cache-"));
+  const stateRoot = join(tmp, "hud-state");
+  try {
+    const transcript = join(tmp, "transcript.jsonl");
+    const filler = `${JSON.stringify({ type: "user", message: { content: "x".repeat(64 * 1024) } })}\n`;
+    writeFileSync(transcript, `${filler.repeat(12 * 16)}${JSON.stringify({ type: "assistant", message: { usage: { input_tokens: 150000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } })}\n`);
+    const render = () => spawnSync(process.execPath, [hudPath], {
+      cwd: root,
+      encoding: "utf8",
+      input: `${JSON.stringify({ model: { display_name: "Opus 4.8" }, session_id: "cache-session", transcript_path: transcript, context_window: { context_window_size: 200000 } })}\n`,
+      env: { ...colorEnv, LITCLAUDE_HUD_STATE_ROOT: stateRoot, LITCLAUDE_HUD_NO_COLOR: "1", LITCLAUDE_HUD_TEST_USAGE: "", CLAUDE_HUD_TEST_USAGE: "", LITCLAUDE_VERSION: packageJson.version },
+    });
+
+    const first = render();
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stdout, /75%\/200k/u);
+    const [cacheFile] = readdirSync(stateRoot).filter((name) => name.startsWith("usage-"));
+    assert.ok(cacheFile, "the HUD keeps its measurement in its state folder");
+    const cachePath = join(stateRoot, cacheFile);
+    writeFileSync(cachePath, JSON.stringify({ ...JSON.parse(readFileSync(cachePath, "utf8")), tokens: 20000 }));
+    const second = render();
+    assert.match(second.stdout, /10%\/200k/u, "an unchanged transcript is answered from the cache");
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
 });

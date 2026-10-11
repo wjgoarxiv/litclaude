@@ -39,7 +39,7 @@ for (const packageName of ["litclaude-ai", "@litfamily/claude", "@litfamily/othe
       const bytes = JSON.stringify({ schema: 3, packageName, latestVersion: "9.9.9", checkedAt: new Date(now).toISOString(), attemptedAt: new Date(now).toISOString(), generation: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
       writeFileSync(cachePath, bytes);
       assert.equal(readUpdateCache(cachePath, { now }), null);
-      const result = runAutomaticUpdate({ surface: "session-start", input: { session_id: "migration" }, currentVersion: "0.1.0", cachePath, litHome: home, claudeHome: join(home, "claude"), env: {}, now, spawn: () => assert.fail("old cache launched npm") });
+      const result = runAutomaticUpdate({ surface: "session-start", input: { session_id: "migration" }, currentVersion: "0.1.0", cachePath, litHome: home, claudeHome: join(home, "claude"), env: {}, now, spawn: () => assert.fail("old cache launched npm"), spawnRefresh: () => assert.fail("old cache started a registry refresh") });
       assert.equal(result.status, "no-candidate");
       assert.equal(readFileSync(cachePath, "utf8"), bytes);
     } finally { rmSync(home, { recursive: true, force: true }); }

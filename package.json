@@ -1,7 +1,7 @@
 {
   "name": "@litfamily/litclaude",
   "version": "1.0.21",
-  "description": "Claude Code-native workflow distribution.",
+  "description": "Claude Code plugin: add lit to a prompt and Claude plans, tests, checks and reviews the work, then leaves a handoff for the next session.",
   "type": "module",
   "bin": {
     "litclaude-ai": "bin/litclaude-ai.js",
@@ -82,9 +82,19 @@
   },
   "keywords": [
     "claude-code",
+    "claude-code-plugin",
+    "claude",
     "plugin",
     "ai-agents",
-    "orchestration"
+    "agent-workflow",
+    "orchestration",
+    "planning",
+    "code-review",
+    "research",
+    "tdd",
+    "context-handoff",
+    "korean",
+    "office-documents"
   ],
   "author": "LitClaude contributors",
   "license": "MIT",

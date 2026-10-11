@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, isAbsolute, join } from "node:path";
 
-import { resolveProjectStateRoot } from "./project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
 
 export const INTERFACE_PROBE_MAX_BLOCKS = 2;
 // start-work is left out: its prompt turn must stay side-effect-free, and the plan rows it runs
@@ -41,6 +41,7 @@ const readTurn = (cwd) => {
 const writeTurn = (cwd, state) => {
   const target = interfaceProbeTurnPath(cwd);
   mkdirSync(join(target, ".."), { recursive: true });
+  ensureStateDirIgnored(target);
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state));
   renameSync(tmp, target);

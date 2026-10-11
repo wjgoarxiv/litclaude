@@ -25,6 +25,13 @@ export async function main(argv, { env = process.env, stdout = process.stdout, s
     stdout.write(USAGE);
     return command ? 0 : 2;
   }
+  // An install flag this script does not know (a dry-run guess, a typo) stops before anything
+  // is installed rather than being ignored.
+  const unknownInstallFlag = command === "install" ? rest.find((arg) => !["--audio", "--word-timing"].includes(arg)) : undefined;
+  if (unknownInstallFlag !== undefined) {
+    stderr.write(`unknown install option: ${unknownInstallFlag}\n${USAGE}`);
+    return 2;
+  }
   const runtime = await import("../engine/node/runtime.mjs");
   if (command === "status") {
     const status = runtime.runtimeStatus({ env });

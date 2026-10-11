@@ -29,47 +29,70 @@ const assets = {
   "Lucide-LICENSE.txt": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
 };
 
-// The GitHub README: every asset loads from the repository by a relative path that exists.
-function assertPresentation(content, installAnchor, docsAnchor) {
+// The GitHub README is a landing page with exactly one cover. Every asset loads from the repository
+// by a relative path that exists; the brand mark and copyable ASCII sit in the LITFAMILY section at
+// the end, and the remaining README artwork (film poster, GIF, licenses) lives on the guide.
+function assertPresentation(content, installAnchor, guidePage) {
   const assetRef = (path) => `./${path}`;
   const coverSrc = assetRef("docs/assets/cover-motion.webp");
   const motionStillSrc = assetRef("docs/assets/cover-motion-still.webp");
   const coverAlt = coverAlts[installAnchor];
-  const hero = /^<p align="center"><picture>[\s\S]*?<\/picture><\/p>\n\n<h1 align="center">LitClaude<\/h1>\n([\s\S]*?)\n<p align="center"><img src="[^"]+" width="480" alt="[^"]+" \/><\/p>/u.exec(content);
-  assert.ok(hero, "title must precede the centered ASCII mark");
-  assert.ok(content.includes(`<p align="center"><img src="${assetRef("docs/assets/readme/ascii-readme.svg")}" width="480" alt="LIT ASCII B mark" /></p>`), "ASCII mark path must match its README surface");
-  assert.ok(content.includes(coverSrc), "README must use the repository cover path");
-  assert.ok(content.includes('<source media="(prefers-reduced-motion: reduce)" srcset="' + motionStillSrc + '" />'), "reduced motion must select the existing still cover");
-  assert.ok(content.includes('<img src="' + coverSrc + '" width="100%" alt="' + coverAlt + '" />'), "animated cover needs product-specific alt text");
+  const mark = `<p align="center"><img src="${assetRef("docs/assets/readme/ascii-readme.svg")}" width="480" alt="LitClaude ASCII logo" /></p>`;
   assert.ok(
     content.includes('<picture><source media="(prefers-reduced-motion: reduce)" srcset="' + motionStillSrc
       + '" /><img src="' + coverSrc + '" width="100%" alt="' + coverAlt
       + '" /></picture></p>\n\n<h1 align="center">LitClaude</h1>'),
     "the motion cover must be the only picture above the title",
   );
+  assert.ok(content.startsWith('<p align="center"><picture>'), "the page opens with the cover");
   assert.doesNotMatch(content, /View the static cover|정지 표지 보기/u, "no keyboard-only static-cover link should remain");
+  const hero = /^<p align="center"><picture>[\s\S]*?<\/picture><\/p>\n\n<h1 align="center">LitClaude<\/h1>\n([\s\S]*?)\n<!-- demo-gif -->/u.exec(content);
+  assert.ok(hero, "the title, pitch, badges and nav come straight after the cover and before the demo slot");
   assert.match(hero[1], /^<p align="center"><strong>[^<\n]+<\/strong><\/p>$/mu, "hero needs a text headline");
-  assert.match(hero[1], /^<p align="center">[^<\n]*Claude Code[^<\n]*<\/p>$/mu, "hero must explain the host-specific value before the mark");
-  assert.ok(hero[1].includes(`href="#${installAnchor}"`), "install action must precede the mark");
-  assert.doesNotMatch(hero[1], /^#{1,6} |<details>|<img\b/mu, "hero must precede body sections and other artwork");
+  assert.match(hero[1], /^<p align="center">[^<\n]*Claude Code[^<\n]*<\/p>$/mu, "hero must explain the host-specific value");
+  for (const badge of ["img.shields.io/npm/v/@litfamily/litclaude", "img.shields.io/npm/dm/@litfamily/litclaude", "img.shields.io/badge/license-MIT", "img.shields.io/github/stars/wjgoarxiv/litclaude"]) {
+    assert.ok(hero[1].includes(`src="https://${badge}`), `hero shows the ${badge} badge`);
+  }
+  assert.ok(hero[1].includes(`href="#${installAnchor}"`), "install action is in the hero nav");
+  assert.ok(hero[1].includes(`href="${assetRef(guidePage)}"><img src="${assetRef("docs/assets/readme/lucide-book-open.svg")}"`), "the book icon opens the guide");
+  assert.ok(hero[1].includes(`href="${assetRef("docs/assets/readme/ignition-film.mp4")}"><img src="${assetRef("docs/assets/readme/lucide-play.svg")}"`), "the play icon opens the film");
+  assert.ok(hero[1].includes(`<img src="${assetRef("docs/assets/readme/lucide-shield-check.svg")}"`), "the shield icon stays in the nav");
+  const heroImages = [...hero[1].matchAll(/<img src="([^"]+)"/gu)].map((match) => match[1]);
+  assert.ok(heroImages.every((src) => src.startsWith("https://img.shields.io/") || src.startsWith(assetRef("docs/assets/readme/lucide-"))), "no artwork other than badges and icons before the demo");
+  assert.doesNotMatch(hero[1], /^#{1,6} |<details>/mu, "hero precedes body sections");
+  const beforeFirstSection = content.slice(0, content.indexOf("\n## "));
+  for (const artwork of ["ascii-readme.svg", "litclaude-wordmark.svg", "litclaude-clay-icon.png", "badge-version.svg"]) {
+    assert.ok(!beforeFirstSection.includes(artwork), `${artwork} does not stack above the first section`);
+  }
+  const demo = content.split("\n").find((line) => line.startsWith("<!-- demo-gif -->"));
+  assert.match(demo, /^<!-- demo-gif --><p align="center"><img src="\.\/docs\/assets\/demo\.webp" width="960" alt="[^"]{60,}" \/><\/p>$/u, "the demo slot plays the session film");
   assert.ok(content.split("\n").some((line) => line.toLowerCase() === `## ${installAnchor}`), "install action must resolve to its section");
+  const litfamily = content.indexOf("\n## LITFAMILY\n");
+  assert.ok(litfamily > 0, "the LITFAMILY section holds the brand mark");
+  assert.ok(content.indexOf(mark) > litfamily, "the centered ASCII mark sits in the LITFAMILY section");
   const copyable = /^<details>\n<summary>[^\n]+<\/summary>\n\n```text\n([\s\S]*?)\n```\n\n<\/details>$/mu.exec(content);
   assert.ok(copyable, "copyable ASCII details are required");
+  assert.ok(content.indexOf(copyable[0]) > content.indexOf(mark), "the copyable ASCII follows the mark");
   assert.equal(copyable[1], ascii, "all canonical ASCII cells and rows must remain copyable");
-  assert.ok(content.includes(`href="#${installAnchor}"`));
-  assert.ok(content.includes(`href="#${docsAnchor}"><img src="${assetRef("docs/assets/readme/lucide-book-open.svg")}"`));
-  assert.ok(content.includes(`href="${assetRef("docs/assets/readme/ignition-film.mp4")}"><img src="${assetRef("docs/assets/readme/lucide-play.svg")}"`));
-  assert.ok(content.includes(`href="${assetRef("LICENSE")}"><img src="${assetRef("docs/assets/readme/lucide-shield-check.svg")}"`));
-  assert.ok(content.includes(`src="${assetRef("docs/assets/readme/badge-version.svg")}" alt="${version}"`));
-  assert.ok(content.includes(`](${assetRef("docs/assets/readme/ignition-poster.png")})](${assetRef("docs/assets/readme/ignition-film.mp4")})`));
-  for (const name of [...Object.keys(assets), "badge-version.svg"]) {
-    assert.ok(content.includes(`./docs/assets/readme/${name}`), `${name} must have a reader-facing use`);
-  }
   for (const [, target] of content.matchAll(/\b(?:src|srcset|href)="(\.\/[^"#]+)"|\]\((\.\/[^)\s#]+)/gu)) {
     if (target) assert.ok(lstatSync(new URL(target, root)).isFile(), `GitHub README target must exist on disk: ${target}`);
   }
   assert.doesNotMatch(content, /cdn\.jsdelivr\.net/u, "the GitHub README must not wait for an npm publish to show its images");
-  assert.doesNotMatch(content, /https?:\/\/img\.shields\.io|<!-- README visual draft|(?:src|href)="assets\/readme\//u);
+  assert.doesNotMatch(content, /<!-- README visual draft|(?:src|href)="assets\/readme\//u);
+}
+
+// Every packed README asset keeps a reader-facing use on the GitHub README, its guide or its npm card.
+function assertAssetsUsed(lang) {
+  const suffix = lang === "ko" ? "_ko-KR" : "";
+  const pages = [read(`README${suffix}.md`), read(`docs/guide${suffix}.md`), read(`README_npm${suffix}.md`)].join("\n");
+  for (const name of [...Object.keys(assets), "badge-version.svg"]) {
+    assert.ok(pages.includes(`assets/readme/${name}`), `${name} must have a reader-facing use (${lang})`);
+  }
+  const guide = read(`docs/guide${suffix}.md`);
+  assert.ok(guide.includes(`](./assets/readme/ignition-poster.png)](./assets/readme/ignition-film.mp4)`), `the ${lang} guide plays the film from its poster`);
+  for (const [, target] of guide.matchAll(/\b(?:src|srcset|href)="(\.\/[^"#]+)"|\]\((\.\.?\/[^)\s#]+)/gu)) {
+    if (target) assert.ok(lstatSync(new URL(target, new URL("docs/", root))).isFile(), `guide target must exist on disk: ${target}`);
+  }
 }
 
 // The npm README: a short card whose cover and badge load from jsDelivr at the package version.
@@ -86,9 +109,11 @@ function assertNpmCard(content, coverAlt, guide) {
   assert.doesNotMatch(content, /(?:src|srcset|href)="\.{0,2}\/|\]\(\.{0,2}\//u, "no relative targets on the npm page");
 }
 
-test("bilingual README motion links preserve centered and copyable native ASCII", () => {
-  assertPresentation(read("README.md"), "install", "deeper-docs");
-  assertPresentation(read("README_ko-KR.md"), "설치", "추가-문서");
+test("bilingual READMEs open with one cover and keep the centered, copyable native ASCII in the LITFAMILY section", () => {
+  assertPresentation(read("README.md"), "install", "docs/guide.md");
+  assertPresentation(read("README_ko-KR.md"), "설치", "docs/guide_ko-KR.md");
+  assertAssetsUsed("en");
+  assertAssetsUsed("ko");
 });
 
 test("bilingual npm READMEs open with the pinned cover, the same name and tagline, and the GitHub guide", () => {
@@ -106,30 +131,33 @@ test("bilingual npm READMEs open with the pinned cover, the same name and taglin
   }
 });
 
-test("README presentation rejects missing, shifted, or disconnected visual resources", () => {
+test("README presentation rejects missing, shifted, stacked, or disconnected visual resources", () => {
   const content = read("README.md");
-  assertPresentation(content, "install", "deeper-docs");
-  const mark = `<p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LIT ASCII B mark" /></p>`;
+  assertPresentation(content, "install", "docs/guide.md");
+  const mark = `<p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LitClaude ASCII logo" /></p>`;
   const hostValue = content.match(/^<p align="center">[^<\n]*Claude Code[^<\n]*<\/p>$/mu)?.[0];
   assert.ok(hostValue);
   for (const mutation of [
-    content.replace('align="center"', 'align="left"'),
     content.replace('<h1 align="center">LitClaude</h1>', ""),
     content.replace(/^<p align="center"><strong>[^<\n]+<\/strong><\/p>$/mu, ""),
-    content.replace(mark, mark.replace('align="center"', 'align="left"')),
-    content.replace(mark, ""),
-    `${mark}\n${content.replace(mark, "")}`,
-    content.replace(mark, "").replace("## Install", `## Install\n${mark}`),
     content.replace(hostValue, ""),
+    content.replace("<h1 align=\"center\">LitClaude</h1>", `<h1 align="center">LitClaude</h1>\n${mark}`),
+    content.replace("<!-- demo-gif -->", `<p align="center"><img src="./docs/assets/litclaude-wordmark.svg" width="480" alt="LITCLAUDE display type" /></p>\n\n<!-- demo-gif -->`),
+    content.replace(mark, ""),
+    content.replace(mark, "").replace("## Install", `## Install\n${mark}`),
     content.replace('href="#install"', 'href="#missing-install"'),
     content.replace("## Install", "## Removed installation section"),
+    content.replace("<!-- demo-gif -->", ""),
+    content.replace("img.shields.io/github/stars/wjgoarxiv/litclaude", "img.shields.io/github/forks/wjgoarxiv/litclaude"),
     content.replace("<details>", "<section>"),
     content.replace(ascii, ascii.replace("▄▄▄▄", "▄▄▄")),
     content.replaceAll("./docs/assets/readme/ignition-film.mp4", "missing.mp4"),
-    content.replaceAll("./docs/assets/readme/Lucide-LICENSE.txt", "missing-license.txt"),
     content.replace('src="./docs/assets/readme/lucide-play.svg"', 'src="./docs/assets/readme/lucide-missing.svg"'),
     content.replace("./docs/assets/cover-motion.webp", `${npmCdn}/docs/assets/cover-motion.webp`),
-  ]) assert.throws(() => assertPresentation(mutation, "install", "deeper-docs"));
+  ]) {
+    assert.notEqual(mutation, content);
+    assert.throws(() => assertPresentation(mutation, "install", "docs/guide.md"));
+  }
 });
 
 test("README assets retain the approved outlined mark, motion bytes, and used icon licenses", () => {
@@ -185,8 +213,8 @@ const promoSource = {
   "treatment.json": "fed094af5a158ffc48cc03202874cde9ddbc29f6f21b7e620b26247f4842ec18",
 };
 const promoVariants = [
-  { page: "README.md", heading: "## Watch it in motion", suffix: "" },
-  { page: "README_ko-KR.md", heading: "## 움직이는 모습 보기", suffix: "-ko" },
+  { page: "docs/guide.md", readme: "README.md", heading: "## Watch it in motion", suffix: "" },
+  { page: "docs/guide_ko-KR.md", readme: "README_ko-KR.md", heading: "## 움직이는 모습 보기", suffix: "-ko" },
 ];
 
 test("promo film files keep their formats, sizes and approved bytes", () => {
@@ -235,19 +263,18 @@ test("the film source sets its copy in Pretendard at weights 400 and 700 and kee
   assert.match(license, /Pretendard/u);
 });
 
-test("both GitHub pages embed their promo like the cover and the npm cards leave it out", () => {
-  for (const { page: file, heading, suffix } of promoVariants) {
+test("both guides embed their promo like the cover, the READMEs keep one cover, and the npm cards leave it out", () => {
+  for (const { page: file, readme, heading, suffix } of promoVariants) {
     const content = read(file);
     assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${file} has one motion section`);
     const section = content.slice(content.indexOf(heading), content.indexOf("\n## ", content.indexOf(heading) + 4));
-    const picture = new RegExp(`<picture><source media="\\(prefers-reduced-motion: reduce\\)" srcset="\\./docs/assets/promo/litclaude-promo${suffix}-still\\.webp" /><img src="\\./docs/assets/promo/litclaude-promo${suffix}-preview\\.webp" width="100%" alt="([^"]{80,})" /></picture>`, "u").exec(section);
+    const picture = new RegExp(`<picture><source media="\\(prefers-reduced-motion: reduce\\)" srcset="\\./assets/promo/litclaude-promo${suffix}-still\\.webp" /><img src="\\./assets/promo/litclaude-promo${suffix}-preview\\.webp" width="100%" alt="([^"]{80,})" /></picture>`, "u").exec(section);
     assert.ok(picture, `${file} uses the cover's picture pattern with the still first and the preview as the image`);
-    assert.ok(section.includes(`](./docs/assets/promo/litclaude-promo${suffix}.mp4)`), `${file} links its MP4 separately`);
+    assert.ok(section.includes(`](./assets/promo/litclaude-promo${suffix}.mp4)`), `${file} links its MP4 separately`);
     assert.ok(content.indexOf(heading) > content.indexOf("\n## "), `${file} places the section after the opening sections`);
-    const cover = content.indexOf("cover-motion.webp");
-    assert.ok(cover >= 0 && cover < content.indexOf(heading), `${file} keeps the cover first`);
+    assert.doesNotMatch(read(readme), /assets\/promo/u, `${readme} keeps the cover as its only motion`);
     for (const [, target] of section.matchAll(/(?:src|srcset)="(\.\/[^"]+)"|\]\((\.\/[^)\s]+)\)/gu)) {
-      if (target) assert.ok(lstatSync(new URL(target, root)).isFile(), `promo target must exist: ${target}`);
+      if (target) assert.ok(lstatSync(new URL(target, new URL("docs/", root))).isFile(), `promo target must exist: ${target}`);
     }
   }
   for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /assets\/promo|promo/u, `${card} does not embed the film`);

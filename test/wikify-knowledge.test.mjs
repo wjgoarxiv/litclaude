@@ -800,7 +800,7 @@ describe("Wikify local knowledge runtime", () => {
       assert.equal(capture(project).status, 0);
       assert.equal(readFileSync(dirtyPath, "utf8"), "user change\n");
       assert.equal(readFileSync(join(project, ".git", "index"), "utf8"), "index-sentinel");
-      assert.deepEqual(readdirSync(join(project, ".litclaude")), ["knowledge"]);
+      assert.deepEqual(readdirSync(join(project, ".litclaude")).sort(), [".gitignore", "knowledge"]);
       assert.deepEqual(readdirSync(knowledgeDir(project)).sort(), ["claims.jsonl"]);
     } finally {
       rmSync(project, { recursive: true, force: true });

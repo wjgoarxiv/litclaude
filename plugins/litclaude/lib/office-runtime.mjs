@@ -229,6 +229,12 @@ function main(argv) {
       return 0;
     }
     if (command === "ensure") {
+      // An unknown flag (a dry-run guess, a typo) stops before anything is installed.
+      const unknown = rest.find((arg) => !["--node", "--python", "--json"].includes(arg));
+      if (unknown !== undefined) {
+        console.error(`unknown ensure option: ${unknown}`);
+        return 2;
+      }
       const wantNode = rest.includes("--node") || !rest.includes("--python");
       const wantPython = rest.includes("--python") || !rest.includes("--node");
       const result = {};

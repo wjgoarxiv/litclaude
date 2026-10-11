@@ -744,11 +744,13 @@ const hasUiModeIntent = (normalized) => hasInterfaceModeWord(normalized) && uiSu
 // ("the report says", "deck of cards", "문서 참고"). Hangul terms are bare substrings for the
 // reason given above, except 덱, which would match inside 인덱스 and so needs a non-Hangul
 // neighbour. Code documentation and tool reports are excluded by name: a README, API docs,
-// a docstring, a bug, test, coverage or error report are not Word files.
+// a docstring, a bug, test, coverage or error report are not Word files. A Markdown file is
+// excluded only when it is a named project document or sits under docs/; any other `.md` is
+// usually the source of the deck or report ("turn notes.md into slides").
 const officeVerb = /\b(?:make|making|made|create|creating|write|writing|draft|drafting|prepare|preparing|build|building|generate|generating|produce|producing|put\s+together|turn\b.*\binto|compile)\b|만들|만드|작성|써\s?줘|써\s?주|써서|써봐|쓰고|정리해|정리하|준비|초안|뽑아|짜\s?줘|구성해/u;
 const slideNoun = /\b(?:slides?|slide\s?deck|deck|presentation|pptx?|powerpoint|keynote)\b|발표|슬라이드|피피티|파워포인트|(?<![가-힣])덱(?![가-힣])|(?<![가-힣])덱을|(?<![가-힣])덱으로/u;
 const documentNoun = /\b(?:reports?|docx|doc|documents?|word\s+(?:doc(?:ument)?|file)|ms\s?word|white\s?papers?|proposals?|memos?)\b|보고서|리포트|기획서|제안서|계획서|문서|워드|백서/u;
-const codeDocumentation = /readme|changelog|contributing|api\s?(?:문서|docs?\b|reference)|docstrings?|jsdoc|javadoc|주석|\.md\b|\bdocs\/|\b(?:bug|test|coverage|error|crash|lint|issue|incident)\s+reports?\b|\breport\s+(?:a|the|this|that)\s+(?:bug|issue|error|problem)/u;
+const codeDocumentation = /readme|changelog|contributing|api\s?(?:문서|docs?\b|reference)|docstrings?|jsdoc|javadoc|주석|\b(?:agents|claude|gemini|skill|security|code_of_conduct|license|authors|architecture|support|governance)\.md\b|\bdocs\/|\b(?:bug|test|coverage|error|crash|lint|issue|incident)\s+reports?\b|\breport\s+(?:a|the|this|that)\s+(?:bug|issue|error|problem)/u;
 
 // Returns the office skills a bare-lit prompt asks for, slides first when both are named.
 const officeIntent = (normalized) => {

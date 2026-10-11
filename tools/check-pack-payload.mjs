@@ -67,6 +67,16 @@ const APPROVED_PAYLOAD_PATHS = new Set([
   ...README_SKILL_IMAGE_PATHS,
 ]);
 
+// The Claude Code mod and every file it imports. The whole plugin folder ships through `files`,
+// so this list only makes a missing or renamed mod file fail the guard instead of shipping a band
+// that cannot load.
+export const MOD_PAYLOAD_PATHS = Object.freeze([
+  'plugins/litclaude/hooks/lit-mod.mjs',
+  'plugins/litclaude/hooks/lit-band-client.mjs',
+  ...['frame', 'layout', 'motion', 'render', 'settings', 'state', 'timeline', 'view']
+    .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
+]);
+
 // Forbidden path segments (regex patterns tested against each file path).
 //
 // These were SINGULAR-ONLY and let real leaks through while printing "none forbidden":
@@ -329,6 +339,11 @@ if (unpinnedSkillPaths.length > 0) {
   for (const path of unpinnedSkillPaths) {
     process.stderr.write(`[check-pack-payload] UNPINNED_SKILL_PAYLOAD: ${path}\n`);
   }
+  process.exit(1);
+}
+const missingModPaths = MOD_PAYLOAD_PATHS.filter((path) => !packedPaths.has(path));
+if (missingModPaths.length > 0) {
+  for (const path of missingModPaths) process.stderr.write(`[check-pack-payload] FAIL: mod payload path missing: ${path}\n`);
   process.exit(1);
 }
 const missingCanonicalPaths = [...requiredCanonicalPaths].filter((path) => !packedPaths.has(path));

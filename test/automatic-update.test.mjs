@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -194,6 +194,7 @@ describe("foreground automatic update", () => {
         input: { hook_event_name: "SessionStart", session_id: "session-test" },
         surface: "session-start",
         spawn: () => assert.fail("stale cache must not spawn npm"),
+        spawnRefresh: () => true,
       });
       assert.equal(result.status, "stale-cache");
     } finally {
@@ -363,6 +364,247 @@ describe("foreground automatic update", () => {
       const receipt = JSON.parse(readFileSync(result.receiptPath, "utf8"));
       assert.equal(receipt.rollback.ok, false);
       assert.match(receipt.rollback.error, /simulated restore I\/O failure/u);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("stale cache on session-start refreshes latest.json", async () => {
+    const { refreshSessionUpdateCache } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-refresh-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    const stale = new Date(now - CACHE_TTL_MS - 1).toISOString();
+    mkdirSync(join(litHome, "update-notifier"), { recursive: true });
+    writeFileSync(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      latestVersion: "0.3.40",
+      checkedAt: stale,
+      attemptedAt: stale,
+      generation: GENERATION,
+    })}\n`);
+    const scheduled = [];
+    const base = {
+      surface: "session-start",
+      currentVersion: "0.3.40",
+      cachePath,
+      litHome,
+      claudeHome,
+      env: { LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome, npm_config_registry: "http://127.0.0.1:9/" },
+      input: { hook_event_name: "SessionStart", session_id: "session-test" },
+      now,
+      spawn: () => assert.fail("a stale cache must not install"),
+      spawnRefresh: (...args) => {
+        scheduled.push(args);
+        return true;
+      },
+    };
+    try {
+      for (const optOut of ["CI", "NO_UPDATE_NOTIFIER", "LITCLAUDE_NO_UPDATE_CHECK", "LITCLAUDE_NO_AUTO_UPDATE"]) {
+        const gated = runAutomaticUpdate({ ...base, env: { ...base.env, [optOut]: "" } });
+        assert.equal(gated.status, "gated", optOut);
+      }
+      assert.equal(runAutomaticUpdate({ ...base, noAutoUpdate: true }).status, "gated");
+      assert.equal(scheduled.length, 0, "an opt-out must not schedule a registry request");
+
+      const first = runAutomaticUpdate(base);
+      assert.equal(first.status, "stale-cache");
+      assert.equal(first.refresh, "scheduled");
+      assert.equal(scheduled.length, 1);
+      const [refreshCachePath, generation, registryUrl] = scheduled[0];
+      assert.equal(refreshCachePath, cachePath);
+      assert.equal(registryUrl, "http://127.0.0.1:9/%40litfamily%2Flitclaude/latest");
+      const attempted = JSON.parse(readFileSync(cachePath, "utf8"));
+      assert.equal(attempted.generation, generation);
+      assert.equal(attempted.attemptedAt, new Date(now).toISOString());
+      assert.equal(attempted.latestVersion, "0.3.40");
+
+      const second = runAutomaticUpdate(base);
+      assert.equal(second.refresh, "throttled");
+      assert.equal(scheduled.length, 1, "a second session inside the attempt window must not request again");
+
+      const requests = [];
+      const refreshed = await refreshSessionUpdateCache({
+        cachePath,
+        generation,
+        registryUrl,
+        now: () => now + 1_000,
+        fetch: async (url, init) => {
+          requests.push({ url, init });
+          return new Response(JSON.stringify({ name: "@litfamily/litclaude", version: "9.9.9" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        },
+      });
+      assert.equal(refreshed, true);
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].url, registryUrl);
+      assert.equal(requests[0].init.redirect, "error");
+      assert.equal(requests[0].init.signal instanceof AbortSignal, true);
+      const cache = JSON.parse(readFileSync(cachePath, "utf8"));
+      assert.equal(cache.latestVersion, "9.9.9");
+      assert.equal(cache.checkedAt, new Date(now + 1_000).toISOString());
+      assert.equal(cache.generation, generation);
+
+      const installs = [];
+      const third = runAutomaticUpdate({
+        ...base,
+        now: now + 2_000,
+        spawn: (command, args) => {
+          installs.push(args);
+          return { status: 1, stdout: "", stderr: "" };
+        },
+      });
+      assert.equal(third.status, "rolled-back");
+      assert.equal(installs[0].includes("@litfamily/litclaude@9.9.9"), true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("an offline refresh leaves the attempt record and settles", async () => {
+    const { refreshSessionUpdateCache } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-offline-"));
+    const cachePath = join(home, "latest.json");
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    const record = `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      latestVersion: null,
+      checkedAt: null,
+      attemptedAt: new Date(now).toISOString(),
+      generation: GENERATION,
+    })}\n`;
+    writeFileSync(cachePath, record);
+    try {
+      for (const fetch of [
+        async () => { throw new TypeError("fetch failed"); },
+        async () => new Response("{}", { status: 503, headers: { "content-type": "application/json" } }),
+        async () => new Response(JSON.stringify({ name: "other-package", version: "9.9.9" }), { status: 200, headers: { "content-type": "application/json" } }),
+      ]) {
+        const refreshed = await refreshSessionUpdateCache({
+          cachePath,
+          generation: GENERATION,
+          registryUrl: "https://registry.npmjs.org/%40litfamily%2Flitclaude/latest",
+          now: () => now + 1_000,
+          fetch,
+        });
+        assert.equal(refreshed, false);
+        assert.equal(readFileSync(cachePath, "utf8"), record);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("installed target is not reinstalled", () => {
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-installed-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    mkdirSync(join(litHome, "update-notifier"), { recursive: true });
+    mkdirSync(join(claudeHome, "plugins"), { recursive: true });
+    writeFileSync(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      latestVersion: "0.3.41",
+      checkedAt: new Date(now - 1_000).toISOString(),
+      attemptedAt: new Date(now - 1_000).toISOString(),
+      generation: GENERATION,
+    })}\n`);
+    // A long-lived Claude Code process keeps running the hook from the folder it started
+    // with, so its plugin version stays 0.3.40 after 0.3.41 was already installed.
+    writeFileSync(join(claudeHome, "plugins", "installed_plugins.json"), `${JSON.stringify({
+      version: 2,
+      plugins: { "litclaude@litclaude-ai": [{ scope: "user", version: "0.3.41" }] },
+    })}\n`);
+    try {
+      const result = runAutomaticUpdate({
+        surface: "session-start",
+        currentVersion: "0.3.40",
+        cachePath,
+        litHome,
+        claudeHome,
+        env: { LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome },
+        input: { hook_event_name: "SessionStart", session_id: "session-test" },
+        now,
+        spawn: () => assert.fail("an installed target must not be installed again"),
+        spawnRefresh: () => assert.fail("a fresh cache must not schedule a refresh"),
+      });
+      assert.equal(result.status, "already-installed");
+      assert.equal(result.targetVersion, "0.3.41");
+      assert.equal(existsSync(join(litHome, "update-notifier", "automatic")), false, "no backup or receipt for a skipped install");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("a failed target backs off for 24 hours", () => {
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-backoff-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const receiptPath = join(litHome, "update-notifier", "automatic", "receipt.json");
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    const writeCache = (latestVersion, at) => writeFileSync(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      latestVersion,
+      checkedAt: new Date(at - 1_000).toISOString(),
+      attemptedAt: new Date(at - 1_000).toISOString(),
+      generation: GENERATION,
+    })}\n`);
+    mkdirSync(join(litHome, "update-notifier", "automatic"), { recursive: true });
+    writeCache("9.9.9", now);
+    writeFileSync(receiptPath, `${JSON.stringify({
+      schema: 1,
+      generation: GENERATION,
+      status: "rolled-back",
+      packageName: "@litfamily/litclaude",
+      fromVersion: "0.3.40",
+      targetVersion: "9.9.9",
+      finishedAt: new Date(now - 60 * 60 * 1_000).toISOString(),
+    })}\n`);
+    const installs = [];
+    const run = (at) => runAutomaticUpdate({
+      surface: "session-start",
+      currentVersion: "0.3.40",
+      cachePath,
+      litHome,
+      claudeHome,
+      env: { LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome },
+      input: { hook_event_name: "SessionStart", session_id: "session-test" },
+      now: at,
+      spawn: (command, args) => {
+        installs.push(args.find((arg) => arg.startsWith("@litfamily/litclaude@")));
+        return { status: 1, stdout: "", stderr: "" };
+      },
+      spawnRefresh: () => true,
+    });
+    try {
+      const blocked = run(now);
+      assert.equal(blocked.status, "backoff");
+      assert.equal(blocked.targetVersion, "9.9.9");
+      assert.deepEqual(installs, [], "a target that failed within 24 hours must not be installed again");
+
+      writeCache("9.9.10", now);
+      assert.equal(run(now).status, "rolled-back");
+      assert.deepEqual(installs, ["@litfamily/litclaude@9.9.10"], "a newer target is not blocked");
+
+      const later = now + CACHE_TTL_MS + 60 * 60 * 1_000;
+      writeCache("9.9.9", later);
+      writeFileSync(receiptPath, `${JSON.stringify({
+        ...JSON.parse(readFileSync(receiptPath, "utf8")),
+        targetVersion: "9.9.9",
+        finishedAt: new Date(now - 60 * 60 * 1_000).toISOString(),
+      })}\n`);
+      assert.equal(run(later).status, "rolled-back");
+      assert.deepEqual(installs, ["@litfamily/litclaude@9.9.10", "@litfamily/litclaude@9.9.9"], "the target is tried again after 24 hours");
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

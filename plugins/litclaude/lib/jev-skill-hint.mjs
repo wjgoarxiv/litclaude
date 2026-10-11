@@ -13,6 +13,7 @@ import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, ren
 import { join } from "node:path";
 
 import { canonicalSkillIds } from "./canonical-skill-catalog.mjs";
+import { ensureStateDirIgnored } from "./project-state-root.mjs";
 import { SECRET_SHAPE_PATTERNS } from "./secret-shapes.mjs";
 
 export const JEV_FLAG = "LITCLAUDE_JEV";
@@ -253,6 +254,7 @@ const jevStateDirectory = (stateRoot, { create = false } = {}) => {
     }
     if (!stat.isDirectory()) throw new Error("state folder is not a real folder");
   }
+  if (create) ensureStateDirIgnored(directory);
   return directory;
 };
 

@@ -102,7 +102,7 @@ silent no-op for callers that still invoke it directly.
 
 | Event | Runner | Purpose |
 | --- | --- | --- |
-| `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session, discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
+| `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session (or starts the detached version-cache refresh when the cache is stale), discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
 | `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
@@ -182,8 +182,27 @@ commands. `--no-auto-update`, `LITCLAUDE_NO_AUTO_UPDATE`,
 `NO_UPDATE_NOTIFIER`, and `LITCLAUDE_NO_UPDATE_CHECK` disable it. CI, JSON,
 dry-run, non-TTY management commands, import, and tool surfaces remain no-op;
 the host-owned SessionStart hook is the lifecycle exception to the TTY check.
-The detached registry cache refresh described in the update-notifier section is
-advisory and never performs an install.
+
+SessionStart also keeps that cache fresh. When the cache is missing or older than
+24 hours, and no attempt was recorded in the last 24 hours, the hook records the
+attempt and starts a detached child
+(`plugins/litclaude/lib/automatic-update-refresh.mjs`) that makes one GET for the
+package's latest version, with a 3-second limit, no redirect and a 64 KiB cap. The
+hook does not wait for it. The child writes `latest.json` only if its attempt still
+owns the cache, and never installs anything. A cache file that is not LitClaude's own record, such as another package's, is left untouched; the next fresh session applies the
+version through the transaction above. The request goes to the registry in
+`npm_config_registry` when that is a plain origin, the same registry the install
+uses, and to `registry.npmjs.org` otherwise. Every opt-out above stops the request
+too. Offline, the attempt fails quietly and the next try waits a day.
+
+Before installing, the hook reads `installed_plugins.json` under the Claude home. If
+the registered LitClaude version is already the cached version or newer, it skips the
+install. A long-lived Claude Code process keeps running the hook from the version
+folder it started with, so without this check every new session in that process
+would install the same version again. The hook also skips a version whose latest receipt
+under `update-notifier/automatic/` is `rolled-back` or `failed` and less than 24 hours old,
+so a version that just failed is retried once a day, not on every session. A newer version
+is tried at once.
 
 ### Jev skill hint (optional)
 
@@ -262,9 +281,9 @@ through. The `.litclaude` and `.litclaude/jev` folders must be real folders too:
 is a symlink, the hint reads and writes nothing there, sends no request, and shows no hint or note. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
 agent's own tools can read it too; use a key dedicated to this feature, with a low spend limit.
 `litclaude doctor` prints `Jev skill hint: off`, `Jev skill hint: on`,
-or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The GitHub README shows each
+or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The Jev page shows each
 visible state in sample output under
-[What you will see](https://github.com/wjgoarxiv/litclaude#what-you-will-see). The offline regression tests,
+[What you will see](https://github.com/wjgoarxiv/litclaude/blob/main/docs/jev.md#what-you-will-see). The offline regression tests,
 which replace `fetch` in the real hook process, live in `test/jev-skill-hint.test.mjs`.
 
 ## Automatic handoff
@@ -319,6 +338,82 @@ The pieces, in the order they run:
 `litclaude doctor` prints `Auto-handoff: off` or `Auto-handoff: on at <percent>%` for the
 project it runs in. The model still has to follow the block reason to write the file; the hook
 can require nothing more than that.
+
+## The LIT band (Claude Code mod)
+
+From Claude Code 2.1.287 a plugin can ship a mod: a hooks module that draws inside Claude Code
+itself. LitClaude's is `plugins/litclaude/hooks/lit-mod.mjs`, named under `modules` in
+`hooks/hooks.json` next to the settings hooks above. It installs with the plugin and needs no
+setup. The status line stays as it is; the band adds a live layer above the prompt.
+
+While LitClaude work is active in the session (a start-work plan, an open litgoal goal, a lit
+discipline on a running turn, or live subagents) a band sits above the prompt:
+
+- A ribbon of rounded pills, `LIT · PLAN · WORK n/m · REVIEW`, then a pink-to-cyan progress bar
+  whose leading cell fades in as it fills, the next task, the number of lanes, and the autoloop
+  count with the time left in its 30-minute budget. It is fitted to the terminal width, with Hangul
+  and emoji counted as two cells; parts drop in a fixed order when the row is narrow.
+- A card with a round border when two or more lanes run or a warning needs a row: the phase
+  line, the next task, each lane with its state and elapsed time, and the gates (plan saved,
+  interface probe, motion gate, auto-handoff).
+- Amber when something needs attention: a lane quiet for more than 10 minutes, or context within
+  five points of the auto-handoff percent (the WORK pill crossfades to amber and the ribbon shows
+  `ctx 76% → 80%`). A failed interface probe adds a red row and turns the border red.
+- A notice row and a toast when a gate fires: lit-plan not saved, interface probe pending or
+  failed, motion gate, context near the auto-handoff percent, auto-handoff fired.
+- A completion moment when the last task is checked, the work completes or the goal is met: a
+  light passes over the brand, embers scatter, and `COMPLETE` shows for about a second.
+
+The spinner gains ` · <discipline> · n/m` after its ellipsis. `/lit-evidence` opens a pane with
+three tabs (keys `1`, `2`, `3`): the goal's criteria with their last evidence, blockers and the
+newest litgoal ledger entries; the lanes; and the gates. When the session is idle the band is not
+drawn at all.
+
+Motion: entrances pop in 60 ms apart with a slight overshoot (160 ms each), fills and colour
+changes ease in and out (300 ms and 140 ms), notices slide in over 220 ms and leave over 150 ms,
+and the finish lasts at most 1.2 s. The band's `Client` element animates on Claude Code's frame
+clock only while something moves and stops its timer as soon as everything settles. In Claude
+Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
+moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
+and a glyph swaps only together with its words.
+
+Options, in `/config` under LitClaude (stored in `pluginConfigs`):
+
+| Option | Values | Default |
+| --- | --- | --- |
+| `motion` | `full`, `subtle` (no overshoot, shimmer or embers, shorter), `off` (final frames only) | `full` |
+| `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
+| `band` | `auto` (only while work is active), `always`, `off` | `auto` |
+
+Unknown values fall back to the default. The fields are plain strings with no `options` list on
+purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and
+that would take every LitClaude hook down with it. Nerd glyphs reach only the terminal; the
+desktop app and the other surfaces always get the basic set.
+
+The rounded pill caps (U+E0B6, U+E0B4) and icons come from a Nerd Font. `litclaude-ai install
+--icon-font`, or a Yes to the install question (default No), adds the symbols-only Nerd Font,
+Symbols Nerd Font Mono (MIT), to the per-user font folder (`~/Library/Fonts` on macOS,
+`~/.local/share/fonts` on Linux, then `fc-cache -f` if present; on Windows it prints how to
+install it by hand). Your terminal font stays as it is: most macOS terminals take the missing
+icons from the installed font through system font fallback, and the installer prints one line for
+your terminal (from `TERM_PROGRAM`) in case it does not. The archive is the pinned Nerd Fonts
+release asset, refused unless its SHA-256 matches; `LITCLAUDE_ICON_FONT_SOURCE` names an offline
+copy of the same archive. The licence goes next to the font, a manifest under `~/.litclaude`
+records the two files, `uninstall` removes only those (and only while unchanged), and `doctor`
+prints `ICON_FONT:`. With `glyphs` on `auto`, the band checks those font folders by stat at session
+start and says what it decided on the `/lit-evidence` gates tab.
+
+The mod is read-only. It reads LitClaude's own state and nothing else: the ignition record in
+the per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
+linked worktree), and under the outermost Git root's `.litclaude/` the litgoal goal, autoloop
+counter and ledger, the lit-plan, interface-probe and motion turn records, and the auto-handoff
+settings and session record. Each file must be a regular file under its size cap that resolves
+exactly where its path says, so a symlinked file or state folder is skipped. It writes nothing,
+starts no process, uses no network and calls no model. Its pure parts live in
+`plugins/litclaude/lib/mod/` and are tested under Node.
+
+On Claude Code releases before 2.1.287 the `modules` key is ignored and every settings hook runs
+as before; there is no band.
 
 ## Bounded-authority start-work lifecycle
 

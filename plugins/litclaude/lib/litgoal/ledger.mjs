@@ -1,8 +1,11 @@
 import { appendFileSync, closeSync, fsyncSync, mkdirSync, openSync } from "node:fs";
 import { dirname } from "node:path";
 
+import { ensureStateDirIgnored } from "../project-state-root.mjs";
+
 export const appendLitgoalLedger = (path, entry) => {
   mkdirSync(dirname(path), { recursive: true });
+  ensureStateDirIgnored(path);
   const record = {
     timestamp: new Date().toISOString(),
     ...entry,

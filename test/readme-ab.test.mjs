@@ -5,7 +5,10 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 
-const READMES = ["README.md", "README_ko-KR.md", "README_npm.md", "README_npm_ko-KR.md"];
+const READMES = [
+  "README.md", "README_ko-KR.md", "README_npm.md", "README_npm_ko-KR.md",
+  "docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md",
+];
 const FORBIDDEN = [
   /A\/B/u,
   /blind judge/iu,
@@ -16,22 +19,24 @@ const FORBIDDEN = [
   /최종 판정/u,
 ];
 
-test("no README or npm card shows an A/B comparison, a blind judge or a final verdict", () => {
+test("no README, npm card or guide page shows an A/B comparison, a blind judge or a final verdict", () => {
   for (const path of READMES) {
     const content = read(path);
     for (const pattern of FORBIDDEN) assert.doesNotMatch(content, pattern, `${path} must not match ${pattern}`);
   }
 });
 
-test("no A/B heading remains and the skills section leads into How it works", () => {
-  const headings = { "README.md": ["## Skills at a glance", "## How it works"], "README_ko-KR.md": ["## 스킬 한눈에 보기", "## 작동 방식"] };
-  for (const [path, [skills, next]] of Object.entries(headings)) {
+test("no A/B heading remains and nothing follows the skills section on the skills page", () => {
+  for (const path of ["README.md", "README_ko-KR.md", "docs/guide.md", "docs/guide_ko-KR.md"]) {
+    assert.ok(!read(path).split("\n").some((line) => /^#{1,6} .*A\/B/u.test(line)), `${path} has no A/B heading`);
+  }
+  const headings = { "docs/skills.md": "## Skills at a glance", "docs/skills_ko-KR.md": "## 스킬 한눈에 보기" };
+  for (const [path, skills] of Object.entries(headings)) {
     const lines = read(path).split("\n");
-    const headingLines = lines.filter((line) => line.startsWith("## "));
-    assert.ok(!headingLines.some((line) => /A\/B/u.test(line)), `${path} has no A/B heading`);
+    assert.ok(!lines.some((line) => /^#{1,6} .*A\/B/u.test(line)), `${path} has no A/B heading`);
     const at = lines.indexOf(skills);
     assert.notEqual(at, -1, `${path} keeps ${skills}`);
-    assert.equal(lines.slice(at + 1).find((line) => line.startsWith("## ")), next, `${path} follows ${skills} with ${next}`);
+    assert.equal(lines.slice(at + 1).find((line) => /^#{1,2} /u.test(line)), undefined, `${path} ends with ${skills}`);
   }
 });
 

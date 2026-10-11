@@ -25,7 +25,7 @@ import {
 } from "./secure-path-read.mjs";
 import { decodeStrictUtf8, parseStrictJson } from "./strict-json.mjs";
 import { containsSecret, URI_USERINFO_PATTERN } from "./secret-shapes.mjs";
-import { resolveProjectStateRoot } from "./project-state-root.mjs";
+import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
 
 const MAX_LEDGER_BYTES = 4 * 1024 * 1024;
 const MAX_TEXT_BYTES = 512;
@@ -159,6 +159,7 @@ const prepareKnowledgeDirectory = (root) => {
   const litDirectory = join(canonical, ".litclaude");
   const directory = join(litDirectory, "knowledge");
   ensurePrivateDirectory(litDirectory);
+  ensureStateDirIgnored(litDirectory);
   ensurePrivateDirectory(directory);
   return directory;
 };

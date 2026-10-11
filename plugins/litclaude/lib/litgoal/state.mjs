@@ -1,6 +1,8 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
+import { ensureStateDirIgnored } from "../project-state-root.mjs";
+
 export class LitgoalStateError extends Error {
   constructor(message, status = 65) {
     super(message);
@@ -21,6 +23,7 @@ export const readLitgoalState = (path, fallback = {}) => {
 export const writeLitgoalState = (path, state) => {
   const dir = dirname(path);
   mkdirSync(dir, { recursive: true });
+  ensureStateDirIgnored(dir);
   const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(state, null, 2)}\n`);
   // Flush tmp file data to disk before rename so the rename is durable.
@@ -46,6 +49,7 @@ const sleepSync = (milliseconds) => {
 
 export const withLitgoalLock = (lockDir, fn) => {
   mkdirSync(dirname(lockDir), { recursive: true });
+  ensureStateDirIgnored(lockDir);
   const startedAt = Date.now();
   while (true) {
     try {

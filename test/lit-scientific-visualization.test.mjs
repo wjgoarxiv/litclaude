@@ -134,7 +134,7 @@ describe("LitClaude scientific-visualization payload", () => {
   });
 
   it("enrolls the capability in docs and both doctor surfaces", () => {
-    for (const file of ["README.md", "README_ko-KR.md", "docs/hooks.md", "docs/workflow-compatibility-audit.md"]) {
+    for (const file of ["docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md", "docs/hooks.md", "docs/workflow-compatibility-audit.md"]) {
       assert.match(readFileSync(join(root, file), "utf8"), /lit-scientific-visualization/u, `${file} must list the skill`);
     }
     for (const file of ["scripts/doctor.mjs", "bin/litclaude-ai.js"]) {
@@ -149,8 +149,8 @@ describe("LitClaude scientific-visualization payload", () => {
     const capabilityDoctor = readFileSync(doctorPath, "utf8");
     assert.match(capabilityDoctor, /source_root \/ "assets"/u);
     assert.match(capabilityDoctor, /import color_palettes/u);
-    assert.match(readFileSync(join(root, "README.md"), "utf8"), /exact bare `lit-scientific-visualization`/u);
-    assert.match(readFileSync(join(root, "README_ko-KR.md"), "utf8"), /정확한 bare `lit-scientific-visualization`/u);
+    assert.match(readFileSync(join(root, "docs", "guide.md"), "utf8"), /exact bare `lit-scientific-visualization`/u);
+    assert.match(readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8"), /정확한 bare `lit-scientific-visualization`/u);
     assert.match(readFileSync(join(root, "docs", "hooks.md"), "utf8"), /exact-bare.*`lit-scientific-visualization`/isu);
     assert.match(readFileSync(join(root, "docs", "workflow-compatibility-audit.md"), "utf8"), /exact-bare hook/iu);
   });

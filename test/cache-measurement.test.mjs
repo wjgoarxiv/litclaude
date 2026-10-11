@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, symlinkSync, writeFileSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
+  latestUsageTokens,
+  latestUsageTokensCached,
   latestUsageTokensFromText,
+  latestUsageTokensInTail,
   measureProviderCache,
   measureProviderCacheFromText,
   measureRuleDedup,
@@ -156,4 +159,123 @@ test("rule dedup measurement remains UNPROVEN without usable rules", () => {
     dedupRate: null,
   });
   assert.equal(measureRuleDedup(null).reason, "rules-not-provided");
+});
+
+// A long session: usage records early on, megabytes of tool output, the latest usage near the end.
+const writeLongTranscript = (path, { megabytes, tailUsage = true }) => {
+  const usageLine = (input) => `${JSON.stringify({ type: "assistant", message: { usage: { input_tokens: input, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } })}\n`;
+  const filler = `${JSON.stringify({ type: "user", message: { content: "x".repeat(64 * 1024) } })}\n`;
+  const fd = openSync(path, "w");
+  try {
+    writeSync(fd, usageLine(111));
+    for (let written = 0; written < megabytes * 1024 * 1024; written += filler.length) writeSync(fd, filler);
+    if (tailUsage) writeSync(fd, usageLine(150000));
+    writeSync(fd, `${JSON.stringify({ type: "user", message: { content: "latest prompt" } })}\n`);
+  } finally {
+    closeSync(fd);
+  }
+};
+
+test("latest usage reads the tail of a transcript larger than the bounded-read limit", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "long.jsonl");
+    writeLongTranscript(path, { megabytes: 12 });
+    assert.equal(latestUsageTokens(path), 150000);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("latest usage stays unknown when a large transcript has no usage record near its end", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "long.jsonl");
+    writeLongTranscript(path, { megabytes: 12, tailUsage: false });
+    assert.equal(latestUsageTokens(path), 0, "an old record beyond the tail window must not be reported");
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("latest usage refuses a symlinked large transcript", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "long.jsonl");
+    writeLongTranscript(path, { megabytes: 12 });
+    const link = join(temp, "link.jsonl");
+    symlinkSync(path, link);
+    assert.equal(latestUsageTokens(link), 0);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+const TAIL_WINDOW = 2 * 1024 * 1024;
+const usageRecord = (input) => JSON.stringify({ type: "assistant", message: { usage: { input_tokens: input, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } });
+
+// 12 MiB of filler, then the latest usage record starting `offsetFromWindow` bytes after the
+// start of the 2 MiB tail window (negative: before it), then padding up to the window's end.
+const writeWindowFixture = (path, offsetFromWindow, eol = "\n") => {
+  const record = `${usageRecord(150000)}${eol}`;
+  const padLine = `${JSON.stringify({ type: "user", message: { content: "p".repeat(1000) } })}${eol}`;
+  const tailBytes = TAIL_WINDOW - offsetFromWindow;
+  let padding = "";
+  while (padding.length + padLine.length <= tailBytes - record.length) padding += padLine;
+  const lastLineFill = tailBytes - record.length - padding.length;
+  const fillerLine = `${JSON.stringify({ type: "user", message: { content: "x".repeat(64 * 1024) } })}${eol}`;
+  const head = `${usageRecord(111)}${eol}${fillerLine.repeat(12 * 16)}`;
+  writeFileSync(path, `${head}${record}${padding}${"z".repeat(Math.max(0, lastLineFill - eol.length))}${lastLineFill >= eol.length ? eol : ""}`);
+};
+
+test("a tail window that starts exactly on a record keeps that record", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "boundary.jsonl");
+    writeWindowFixture(path, 0);
+    assert.equal(latestUsageTokensInTail(path, TAIL_WINDOW).tokens, 150000);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("a record that straddles the 2 MiB window is found through the 8 MiB read", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "straddle.jsonl");
+    writeWindowFixture(path, -100);
+    assert.equal(latestUsageTokensInTail(path, TAIL_WINDOW).tokens, 0, "the cut record must not be parsed from the short tail");
+    assert.equal(latestUsageTokens(path), 150000);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("latest usage reads a large CRLF transcript", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "crlf.jsonl");
+    writeWindowFixture(path, 4096, "\r\n");
+    assert.equal(latestUsageTokens(path), 150000);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("the cached reader reuses its answer until the transcript changes", () => {
+  const temp = makeTemp();
+  try {
+    const path = join(temp, "long.jsonl");
+    const cachePath = join(temp, "hud", "usage-s1.json");
+    writeLongTranscript(path, { megabytes: 12 });
+    assert.equal(latestUsageTokensCached(path, cachePath), 150000);
+    assert.equal(existsSync(cachePath), true);
+    const cached = JSON.parse(readFileSync(cachePath, "utf8"));
+    writeFileSync(cachePath, JSON.stringify({ ...cached, tokens: 42 }));
+    assert.equal(latestUsageTokensCached(path, cachePath), 42, "an unchanged transcript is not read again");
+    appendFileSync(path, `${usageRecord(160000)}\n`);
+    assert.equal(latestUsageTokensCached(path, cachePath), 160000, "a changed transcript is read again");
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
 });

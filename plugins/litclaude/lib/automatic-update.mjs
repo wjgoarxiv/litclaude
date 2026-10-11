@@ -1,4 +1,4 @@
-import { spawnSync as nodeSpawnSync } from "node:child_process";
+import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   appendFileSync,
@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const PACKAGE_NAME = "@litfamily/litclaude";
 const MARKETPLACE_NAME = "litclaude-ai";
@@ -25,6 +26,9 @@ export const AUTO_UPDATE_TIMEOUT_MS = AUTO_UPDATE_INSTALL_TIMEOUT_MS + AUTO_UPDA
 export const AUTO_UPDATE_LOCK_STALE_MS = 60_000;
 export const AUTO_UPDATE_MAX_OUTPUT_BYTES = 128 * 1_024;
 export const AUTO_UPDATE_SCHEMA = 1;
+const REGISTRY_REQUEST_TIMEOUT_MS = 3_000;
+const REGISTRY_MAX_RESPONSE_BYTES = 64 * 1_024;
+const DEFAULT_REGISTRY = "https://registry.npmjs.org/";
 
 const stableSemverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const generationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
@@ -456,6 +460,131 @@ const resultWithoutSecrets = ({ receiptPath, journalPath, backupPath, ...result 
   backupPath: backupPath ?? null,
 });
 
+const readCacheRecord = (cachePath, now) => {
+  try {
+    const parsed = JSON.parse(readFileSync(cachePath, "utf8"));
+    return validCacheRecord(parsed, now) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+// The install child sees only a sanitized `npm_config_registry`, so the version check
+// reads that same registry, and the npm default otherwise.
+const registryLatestUrl = (env = process.env) => {
+  const registry = safeUrl(env?.npm_config_registry ?? env?.NPM_CONFIG_REGISTRY) ?? DEFAULT_REGISTRY;
+  return new URL(`${encodeURIComponent(PACKAGE_NAME)}/latest`, registry).toString();
+};
+
+const readCappedBody = async (response) => {
+  const length = response.headers.get("content-length");
+  if (length !== null && (!/^(0|[1-9]\d*)$/u.test(length) || Number(length) > REGISTRY_MAX_RESPONSE_BYTES)) {
+    throw new Error("registry response is too large");
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body ?? []) {
+    size += chunk.byteLength;
+    if (size > REGISTRY_MAX_RESPONSE_BYTES) throw new Error("registry response is too large");
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+};
+
+// Runs in the detached child. It writes only when the attempt it was started for still
+// owns the cache, so a newer attempt or the terminal notifier is never overwritten.
+export const refreshSessionUpdateCache = async ({
+  cachePath,
+  generation,
+  registryUrl,
+  fetch = globalThis.fetch,
+  now = () => Date.now(),
+} = {}) => {
+  try {
+    if (!safeUrl(registryUrl, { allowPath: true })) return false;
+    const response = await fetch(registryUrl, {
+      headers: { accept: "application/json", "user-agent": "litclaude-ai-update-notifier" },
+      redirect: "error",
+      signal: AbortSignal.timeout(REGISTRY_REQUEST_TIMEOUT_MS),
+    });
+    if (response.status !== 200) return false;
+    if (!/^application\/json(?:\s*;\s*charset=(?:utf-8|utf8))?$/iu.test(response.headers.get("content-type")?.trim() ?? "")) return false;
+    const parsed = JSON.parse(await readCappedBody(response));
+    if (parsed?.name !== PACKAGE_NAME) return false;
+    parseStableSemver(parsed.version);
+    const completedAt = canonicalNow(now);
+    const previous = readCacheRecord(cachePath, completedAt);
+    if (previous?.generation !== generation) return false;
+    writeAtomic(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: PACKAGE_NAME,
+      latestVersion: parsed.version,
+      checkedAt: new Date(completedAt).toISOString(),
+      attemptedAt: previous.attemptedAt,
+      generation,
+    })}\n`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const spawnSessionCacheRefresh = (cachePath, generation, registryUrl, env = process.env, spawnProcess = nodeSpawn) => {
+  const child = spawnProcess(
+    process.execPath,
+    [fileURLToPath(new URL("./automatic-update-refresh.mjs", import.meta.url)), cachePath, generation, registryUrl],
+    { detached: true, stdio: "ignore", windowsHide: true, env: sanitizeNpmEnvironment(env) },
+  );
+  child.once("error", () => {});
+  child.unref();
+  return true;
+};
+
+// SessionStart never waits on the network. It records the attempt (one per 24 hours),
+// hands the registry request to a detached child, and a later session reads the result.
+// A cache file it cannot read as its own record, such as another package's, is left as is.
+const scheduleSessionCacheRefresh = ({ cachePath, env, now, spawnRefresh }) => {
+  try {
+    const previous = readCacheRecord(cachePath, now);
+    if (!previous && existsSync(cachePath)) return "preserved";
+    if (previous && now - Date.parse(previous.attemptedAt) < CACHE_TTL_MS) return "throttled";
+    const generation = randomUUID();
+    writeAtomic(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: PACKAGE_NAME,
+      latestVersion: previous?.latestVersion ?? null,
+      checkedAt: previous?.checkedAt ?? null,
+      attemptedAt: new Date(now).toISOString(),
+      generation,
+    })}\n`);
+    return spawnRefresh(cachePath, generation, registryLatestUrl(env), env) === false ? "spawn-error" : "scheduled";
+  } catch {
+    return "spawn-error";
+  }
+};
+
+const installedPluginVersion = (claudeHome) => {
+  try {
+    const registry = JSON.parse(readFileSync(join(claudeHome, "plugins", "installed_plugins.json"), "utf8"));
+    const version = registry?.plugins?.["litclaude@litclaude-ai"]?.[0]?.version;
+    parseStableSemver(version);
+    return version;
+  } catch {
+    return null;
+  }
+};
+
+const recentlyFailed = (autoRoot, targetVersion, now) => {
+  try {
+    const receipt = JSON.parse(readFileSync(join(autoRoot, "receipt.json"), "utf8"));
+    if (!["rolled-back", "failed"].includes(receipt?.status) || receipt.targetVersion !== targetVersion) return false;
+    const age = now - Date.parse(receipt.finishedAt);
+    return age >= 0 && age < CACHE_TTL_MS;
+  } catch {
+    return false;
+  }
+};
+
 export const runAutomaticUpdate = ({
   surface = "management",
   command = "install",
@@ -477,6 +606,7 @@ export const runAutomaticUpdate = ({
   spawn = nodeSpawnSync,
   verifyInstall = verifyInstalledVersion,
   restore = restoreTransaction,
+  spawnRefresh = spawnSessionCacheRefresh,
 } = {}) => {
   const resolvedLitHome = litHome ?? env.LITCLAUDE_HOME ?? resolveHome();
   const resolvedClaudeHome = claudeHome ?? env.CLAUDE_CONFIG_DIR ?? env.CLAUDE_HOME ?? resolveClaudeHome();
@@ -493,9 +623,26 @@ export const runAutomaticUpdate = ({
   }
   const timestamp = canonicalNow(now);
   const candidate = readCacheCandidate(resolvedCachePath, currentVersion, timestamp);
+  if (surface === "session-start" && ["stale-cache", "no-candidate"].includes(candidate.status)) {
+    return {
+      ...candidate,
+      refresh: scheduleSessionCacheRefresh({ cachePath: resolvedCachePath, env, now: timestamp, spawnRefresh }),
+    };
+  }
   if (candidate.status !== "candidate") return candidate;
+  // A long-lived Claude Code process keeps running the hook from the version folder it
+  // started with, so its own version lags behind what an earlier session installed.
+  const installedVersion = installedPluginVersion(resolvedClaudeHome);
+  if (installedVersion && compareStableSemver(installedVersion, candidate.version) >= 0) {
+    return { status: "already-installed", installedVersion, targetVersion: candidate.version };
+  }
 
   const autoRoot = automaticUpdateRoot(resolvedLitHome);
+  // A failed target stays in the cache until the registry moves on, so without this every
+  // new session would spend the whole install budget on it again.
+  if (recentlyFailed(autoRoot, candidate.version, timestamp)) {
+    return { status: "backoff", targetVersion: candidate.version };
+  }
   const lockPath = join(autoRoot, "install.lock");
   let lease;
   try {
