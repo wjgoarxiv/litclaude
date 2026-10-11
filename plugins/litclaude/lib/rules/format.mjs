@@ -41,6 +41,23 @@ export const truncateRuleBody = (body, { maxChars, relativePath }) => {
   return { body: `${body.slice(0, end)}${notice}`, truncated: true, originalLength: body.length };
 };
 
+const utf8Bytes = (text) => Buffer.byteLength(text, "utf8");
+
+/** Like truncateRuleBody, but counted in UTF-8 bytes; "" when not even one character fits. */
+const truncateRuleBodyToBytes = (body, { maxBytes, relativePath }) => {
+  if (utf8Bytes(body) <= maxBytes) return body;
+  const notice = truncationNotice(relativePath);
+  let room = maxBytes - utf8Bytes(notice);
+  let end = 0;
+  for (const char of body) {
+    const size = utf8Bytes(char);
+    if (size > room) break;
+    room -= size;
+    end += char.length;
+  }
+  return end === 0 ? "" : `${body.slice(0, end)}${notice}`;
+};
+
 const formatOne = (rule) => {
   const body = normalizeBody(rule.body);
   const header = `Instructions from ${inertPathLabel(rule.relativePath)}`;
@@ -65,10 +82,12 @@ const SAFETY_LINE =
 
 const emptyBlock = () => ({ text: "", emittedRules: [] });
 
-const formatBudgetedBlock = (rules, title, { maxRuleChars, maxResultChars }) => {
+// `maxResultBytes` is an optional second cap in UTF-8 bytes, for callers that share a byte budget
+// with other context; a char cap alone would have to assume the worst bytes-per-char.
+const formatBudgetedBlock = (rules, title, { maxRuleChars, maxResultChars, maxResultBytes = Infinity }) => {
   if (rules.length === 0 || maxResultChars <= 0) return emptyBlock();
   const prefix = [title, "", SAFETY_LINE].join("\n");
-  if (prefix.length >= maxResultChars) return emptyBlock();
+  if (prefix.length >= maxResultChars || utf8Bytes(prefix) >= maxResultBytes) return emptyBlock();
 
   let text = prefix;
   const emittedRules = [];
@@ -86,9 +105,11 @@ const formatBudgetedBlock = (rules, title, { maxRuleChars, maxResultChars }) => 
       if (availableBodyChars <= notice.length) break;
       body = truncateRuleBody(body, { maxChars: availableBodyChars, relativePath: rule.relativePath }).body;
     }
+    const availableBodyBytes = maxResultBytes - utf8Bytes(text) - utf8Bytes(header) - 4;
+    body = truncateRuleBodyToBytes(body, { maxBytes: availableBodyBytes, relativePath: rule.relativePath });
     if (body.length === 0) break;
     const rendered = `\n\n${formatOne({ ...rule, body })}`;
-    if (text.length + rendered.length > maxResultChars) break;
+    if (text.length + rendered.length > maxResultChars || utf8Bytes(text) + utf8Bytes(rendered) > maxResultBytes) break;
     text += rendered;
     emittedRules.push(rule);
     if (body.length < capped.length) break;

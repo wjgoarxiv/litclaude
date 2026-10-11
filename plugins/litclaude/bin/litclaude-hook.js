@@ -1142,7 +1142,7 @@ const rulesBlockOrEmpty = (build) => {
   }
 };
 
-const staticRulesContext = ({ cwd, sessionId, maxRuleChars, maxResultChars }) =>
+const staticRulesContext = ({ cwd, sessionId, maxRuleChars, maxResultChars, maxResultBytes }) =>
   rulesBlockOrEmpty(() =>
     staticRulesBlock({
       cwd,
@@ -1150,6 +1150,7 @@ const staticRulesContext = ({ cwd, sessionId, maxRuleChars, maxResultChars }) =>
       sessionId,
       ...(maxRuleChars === undefined ? {} : { maxRuleChars }),
       ...(maxResultChars === undefined ? {} : { maxResultChars }),
+      ...(maxResultBytes === undefined ? {} : { maxResultBytes }),
     }),
   );
 
@@ -1256,11 +1257,12 @@ switch (eventName) {
     // Prompt-time static injection is the straggler lane: SessionStart already recorded
     // what it injected, so this is normally empty and only speaks when a rule file
     // appeared mid-session. Reduced budget, because it can fire on every turn.
-    const promptRulesFor = (maxResultChars = DEFAULT_PROMPT_MAX_RESULT_CHARS) => staticRulesContext({
+    const promptRulesFor = (maxResultChars = DEFAULT_PROMPT_MAX_RESULT_CHARS, maxResultBytes) => staticRulesContext({
       cwd: typeof input.cwd === "string" ? input.cwd : process.cwd(),
       sessionId: input.session_id,
       maxRuleChars: Math.min(DEFAULT_PROMPT_MAX_RULE_CHARS, maxResultChars),
       maxResultChars,
+      maxResultBytes,
     });
     // The exact-bare canonical routes and the trusted-resume authority envelope are
     // deliberately excluded: both are fixed payloads where an appended block would
@@ -1271,9 +1273,11 @@ switch (eventName) {
         ? undefined
         : maxBytes - Buffer.byteLength(context, "utf8") - separatorBytes;
       if (remainingBytes !== undefined && remainingBytes <= 0) return context;
-      const promptRules = promptRulesFor(remainingBytes === undefined
-        ? DEFAULT_PROMPT_MAX_RESULT_CHARS
-        : Math.floor(remainingBytes / 4));
+      // Count the rules in real bytes: a worst-case bytes-per-char guess left a long install
+      // path in the context with too little room for even a rule's first line.
+      const promptRules = remainingBytes === undefined
+        ? promptRulesFor()
+        : promptRulesFor(Math.min(DEFAULT_PROMPT_MAX_RESULT_CHARS, remainingBytes), remainingBytes);
       if (!promptRules) return context;
       const combined = `${context}\n\n${promptRules}`;
       return maxBytes === undefined || Buffer.byteLength(combined, "utf8") <= maxBytes

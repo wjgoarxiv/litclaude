@@ -127,6 +127,7 @@ export const staticRulesBlock = ({
   skipUserHome = false,
   maxRuleChars = DEFAULT_MAX_RULE_CHARS,
   maxResultChars = DEFAULT_STATIC_MAX_RESULT_CHARS,
+  maxResultBytes,
   sessionId,
   platform,
 } = {}) => {
@@ -139,7 +140,7 @@ export const staticRulesBlock = ({
     const unique = dedupeByBody(rules);
     return claimFormattedBlock({
       rules: unique,
-      format: (selected) => formatStaticBlock(selected, { maxRuleChars, maxResultChars }),
+      format: (selected) => formatStaticBlock(selected, { maxRuleChars, maxResultChars, maxResultBytes }),
       projectRoot,
       sessionId,
     });

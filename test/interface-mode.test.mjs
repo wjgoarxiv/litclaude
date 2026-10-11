@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -12,8 +12,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = fileURLToPath(new URL("../plugins/litclaude/bin/litclaude-hook.js", import.meta.url));
 // The hook lower-cases, drops code and turns `-`/`_` into spaces before any route test.
 const normalize = (text) => text.toLowerCase().replace(/[_-]+/gu, " ");
-const context = (prompt, cwd = root) => {
-  const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+const context = (prompt, cwd = root, hook = hookPath) => {
+  const result = spawnSync(process.execPath, [hook, "user-prompt-submit"], {
     cwd: root,
     encoding: "utf8",
     input: JSON.stringify({ hook_event_name: "UserPromptSubmit", cwd, prompt, session_id: "interface-mode-test" }),
@@ -137,6 +137,32 @@ describe("interface modes: routing through the hook", () => {
       } finally {
         rmSync(temp, { recursive: true, force: true });
       }
+    }
+  });
+
+  // The skill pointer embeds the installed path, so a long install path must not crowd the rule out.
+  it("keeps the oversized project rule when the plugin is installed under a long path", () => {
+    const base = mkdtempSync(join(tmpdir(), "litclaude-interface-mode-long-"));
+    try {
+      const longRoot = join(base, ...Array.from({ length: 12 }, () => "p".repeat(60)));
+      // Skill bodies and assets stay behind; the hook imports only skill scripts.
+      cpSync(join(root, "plugins", "litclaude"), join(longRoot, "plugins", "litclaude"), {
+        recursive: true,
+        filter: (source) => !/[/\\]skills[/\\][^/\\]+[/\\](?!scripts(?:[/\\]|$))[^/\\]+[/\\]/u.test(relative(root, source)),
+      });
+      const longHook = join(longRoot, "plugins", "litclaude", "bin", "litclaude-hook.js");
+      for (const [index, prompt] of ["Harden the settings screen against empty data.", "이 화면 점검만 해줘, 코드는 건드리지 말고.", "이 화면 여백 다듬어줘."].entries()) {
+        const project = join(base, `project-${index}`);
+        mkdirSync(join(project, ".claude", "rules"), { recursive: true });
+        writeFileSync(join(project, "package.json"), "{}\n");
+        writeFileSync(join(project, ".claude", "rules", "oversized.md"), `---\nalwaysApply: true\n---\nOVERSIZED_MODE_RULE\n${"규칙가나다라마바사".repeat(2_000)}\n`);
+        const text = context(prompt, project, longHook);
+        assert.ok(text.includes(longRoot), "the context names the long installed entrypoint");
+        assert.match(text, /OVERSIZED_MODE_RULE/u, prompt);
+        assert.ok(Buffer.byteLength(text, "utf8") <= 4096, prompt);
+      }
+    } finally {
+      rmSync(base, { recursive: true, force: true });
     }
   });
 
