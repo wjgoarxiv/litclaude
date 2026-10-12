@@ -522,13 +522,14 @@ uses `[🔥LIT vX.Y.Z]`, the model with its reasoning effort (`O5.5 [high]`), a 
 `ctx [▎░░]` bar, and a `5h [▏░]4% ↻` rate-limit reset countdown. Set `LITCLAUDE_HUD_ACCENT` before installation to
 choose an accent.
 
-When a prompt starts a LitClaude workflow, the HUD shows a bold, ignition-orange
-`🔥 LIT IGNITED · lit-loop 🔥` mark right after the brand. It stays until a turn comes
-along that starts nothing. To remember which workflow is active, the hook writes a small
-note per session under `litclaude-hud/` in your per-user temp directory, never in the
-repository or your home directory; `LITCLAUDE_HUD_STATE_ROOT` moves it elsewhere. Claude's
-reply opens with `🔥 **LIT IGNITED · <discipline>** 🔥`, and the hook system message and
-the HUD show the same mark without Markdown.
+When a prompt starts a LitClaude workflow, the LIT card above the prompt (Claude Code 2.1.287
+and later) names it in its top edge and lights a chip for each LitFamily skill that fires; the
+status line keeps its room for the model, context, usage and Git figures. To remember which
+workflow is active, the hook writes a small note per session under `litclaude-hud/` in your
+per-user temp directory, never in the repository or your home directory;
+`LITCLAUDE_HUD_STATE_ROOT` moves it elsewhere. Claude's reply opens with
+`🔥 **LIT IGNITED · <discipline>** 🔥`, and the hook system message shows the same mark
+without Markdown.
 
 Two separate settings decide how the HUD looks: whether your terminal background is dark
 or light, and how many colors the terminal can show.

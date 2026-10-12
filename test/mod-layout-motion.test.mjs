@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { charWidth, fitSegments, textWidth, truncateToWidth } from "../plugins/litclaude/lib/mod/layout.mjs";
+import { charWidth, textWidth, truncateToWidth } from "../plugins/litclaude/lib/mod/layout.mjs";
 import {
   EASE,
   TIMINGS,
@@ -36,26 +36,6 @@ test("truncation never splits a double-width cell and ends with an ellipsis", ()
   assert.equal(truncateToWidth("README 데모 GIF 교체", 9), "README…");
   assert.equal(truncateToWidth("데모", 1), "…");
   assert.equal(truncateToWidth("데모", 0), "");
-});
-
-test("segment fitting drops low-priority segments first and shrinks the flexible one", () => {
-  const segment = (id, width, priority, extra = {}) => ({ id, width, priority, ...extra });
-  const segments = [
-    segment("brand", 8, 0),
-    segment("work", 10, 0),
-    segment("bar", 12, 1),
-    segment("next", 30, 2, { minWidth: 12 }),
-    segment("lanes", 9, 3),
-    segment("loop", 10, 4),
-  ];
-  const ids = (columns) => fitSegments(segments, columns, 1).map(({ id }) => id);
-  assert.deepEqual(ids(200), ["brand", "work", "bar", "next", "lanes", "loop"]);
-  assert.deepEqual(ids(60), ["brand", "work", "bar", "next", "lanes"]);
-  const shrunk = fitSegments(segments, 50, 1).find(({ id }) => id === "next");
-  assert.equal(shrunk.width, 50 - 8 - 10 - 12 - 3);
-  assert.deepEqual(ids(30), ["brand", "work"]);
-  assert.deepEqual(ids(10), ["brand"]);
-  assert.deepEqual(ids(4), []);
 });
 
 test("easings hit their ends and ease-out-back overshoots before settling", () => {
@@ -143,9 +123,9 @@ test("a moving bar brightens its leading cell, and only that cell", () => {
 });
 
 test("settings fall back to safe defaults", () => {
-  assert.deepEqual(normalizeModSettings({}), { motion: "full", glyphs: "auto", band: "auto" });
-  assert.deepEqual(normalizeModSettings({ motion: "Subtle", glyphs: "NERD", band: "always" }), { motion: "subtle", glyphs: "nerd", band: "always" });
-  assert.deepEqual(normalizeModSettings({ motion: "wild", glyphs: "emoji", band: "sometimes" }), { motion: "full", glyphs: "auto", band: "auto" });
+  assert.deepEqual(normalizeModSettings({}), { motion: "full", glyphs: "auto", band: "always" });
+  assert.deepEqual(normalizeModSettings({ motion: "Subtle", glyphs: "NERD", band: "auto" }), { motion: "subtle", glyphs: "nerd", band: "auto" });
+  assert.deepEqual(normalizeModSettings({ motion: "wild", glyphs: "emoji", band: "sometimes" }), { motion: "full", glyphs: "auto", band: "always" });
   assert.equal(normalizeModSettings(undefined).motion, "full");
 });
 

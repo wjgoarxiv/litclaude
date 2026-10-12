@@ -1,4 +1,4 @@
-// Read-only view of LitClaude's own state for the LIT band. Nothing here writes, spawns, fetches or
+// Read-only view of LitClaude's own state (and the Git HEAD it works on) for the LIT band. Nothing here writes, spawns, fetches or
 // follows a link: every read goes through an injected `io` ({ stat, read }) that the mod backs with
 // `$.fs.stat(path, { resolve: true })` and `$.fs.read`, and the tests back with a map. A file is read
 // only when it is a regular file, under its size cap, not itself a link, and lands exactly where its
@@ -309,6 +309,43 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     motion: parseMotionTurn(motion, sessionId),
     handoff: parseAutoHandoff(handoffSettings, handoffSession, env),
   };
+};
+
+const readSmall = async (io, path, cap) => {
+  const stat = await statOf(io, path);
+  if (!stat || stat.kind !== "file" || !(stat.size <= cap)) return null;
+  try {
+    const text = await io.read(path);
+    return typeof text === "string" && text.length <= cap ? text : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The branch the working directory is on, for the card's bottom edge: the nearest `.git` above
+ * `cwd`, followed through a linked worktree's `gitdir:` file, and its HEAD read as text. A
+ * detached HEAD gives the short commit; anything unreadable gives null.
+ */
+export const readGitBranch = async (io, cwd) => {
+  for (const directory of ancestors(cwd)) {
+    const marker = joinPath(directory, ".git");
+    const stat = await statOf(io, marker);
+    if (!stat) continue;
+    let gitDir = marker;
+    if (stat.kind === "file") {
+      const pointer = await readSmall(io, marker, STATE_CAPS.gitMarker);
+      const match = pointer === null ? null : /^gitdir:\s*(.+?)\s*$/mu.exec(pointer);
+      if (!match) return null;
+      gitDir = resolvePath(directory, match[1]);
+    }
+    const head = (await readSmall(io, joinPath(gitDir, "HEAD"), STATE_CAPS.gitMarker))?.trim();
+    if (!head) return null;
+    const ref = /^ref:\s*refs\/heads\/(.+)$/u.exec(head);
+    if (ref) return ref[1].slice(0, 120);
+    return /^[0-9a-f]{7,64}$/u.test(head) ? head.slice(0, 7) : null;
+  }
+  return null;
 };
 
 // The icon font the installer's opt-in step writes (bin/icon-font.mjs), or the proportional

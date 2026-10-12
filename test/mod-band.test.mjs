@@ -39,13 +39,14 @@ const working = (overrides = {}) => ({
 });
 const agent = (id, status = "running", name = id) => ({ id, status, name, type: "general-purpose", description: name });
 
-test("an idle session draws no band unless the person asked for it always", () => {
-  assert.equal(buildBandModel({ snapshot: idle(), now: NOW }).visible, false);
-  assert.equal(buildBandModel({ snapshot: idle(), now: NOW, band: "always" }).visible, true);
+test("on auto an idle session draws no band; the default always does", () => {
+  assert.equal(buildBandModel({ snapshot: idle(), now: NOW, band: "auto" }).visible, false);
+  assert.equal(buildBandModel({ snapshot: idle(), now: NOW }).visible, true);
   assert.equal(buildBandModel({ snapshot: working(), now: NOW, band: "off" }).visible, false);
   const ignitedButDone = { ...idle(), ignition: { discipline: "lit-loop", at: NOW } };
-  assert.equal(buildBandModel({ snapshot: ignitedButDone, now: NOW, isWorking: false }).visible, false);
-  assert.equal(buildBandModel({ snapshot: ignitedButDone, now: NOW, isWorking: true }).visible, true);
+  assert.equal(buildBandModel({ snapshot: ignitedButDone, now: NOW, band: "auto", isWorking: false }).visible, false);
+  assert.equal(buildBandModel({ snapshot: ignitedButDone, now: NOW, band: "auto", isWorking: true }).visible, true);
+  assert.equal(buildBandModel({ snapshot: ignitedButDone, now: NOW, isWorking: false }).idle, true);
 });
 
 test("active work shows its phases, progress, next task and autoloop budget", () => {
@@ -55,7 +56,6 @@ test("active work shows its phases, progress, next task and autoloop budget", ()
   assert.deepEqual(model.progress, { done: 4, total: 7, unit: "tasks" });
   assert.equal(model.next, "5. README 데모 GIF 교체");
   assert.deepEqual(model.autoloop, { n: 3, max: 8, leftMs: 12 * 60_000 });
-  assert.equal(model.card, false);
   assert.equal(spinnerSuffix(model), "… · lit-loop · 4/7");
   assert.equal(spinnerSuffix(buildBandModel({ snapshot: idle(), now: NOW })), null);
 
@@ -63,15 +63,14 @@ test("active work shows its phases, progress, next task and autoloop budget", ()
   assert.deepEqual(allChecked.phases, { plan: "done", work: "done", review: "now" });
 });
 
-test("two lanes or a warning row expand the band into the card", () => {
+test("live subagents are counted as lanes in the phase row, and a failed probe is a red warning", () => {
   const agents = [agent("a1", "running", "readme-ko"), agent("a2", "running", "demo-gif"), agent("a3", "completed", "old")];
   const model = buildBandModel({ snapshot: working(), agents, now: NOW });
   assert.equal(model.lanes.count, 2, "finished agents are not lanes");
-  assert.equal(model.card, true);
+  assert.match(rowText(composeBand(model, settledSample(model), { columns: 100, glyphs: "basic" }).rows[1]), /●● 2 lanes/u);
 
   const failedProbe = working({ probe: { editAt: 10, probeAt: null, issue: "a HIGH finding remains", issueAt: 12, paths: ["a.css"], blockCount: 1 } });
   const warned = buildBandModel({ snapshot: failedProbe, now: NOW });
-  assert.equal(warned.card, true);
   assert.equal(warned.warnings[0].tone, "red");
   assert.deepEqual(warned.gates.find(({ id }) => id === "probe"), { id: "probe", state: "fail", label: "ui probe failed" });
 });
@@ -195,69 +194,25 @@ test("a notice slides in from fourteen cells with an overshoot and leaves accele
   assert.ok(offsets.every((offset, i) => i === 0 || offset <= offsets[i - 1]), "subtle never overshoots");
 });
 
-test("the ribbon reads like the approved preview in basic glyphs", () => {
+test("the progress bar in the phase row is coloured spaces, so every step repaints", () => {
   const model = buildBandModel({ snapshot: working(), agents: [agent("a1", "running", "readme-ko")], now: NOW });
-  const frame = composeBand(model, settledSample(model), { columns: 160, glyphs: "basic" });
-  assert.equal(frame.mode, "ribbon");
-  assert.equal(rowText(frame.rows[0]), "(🔥 LIT)  PLAN ✓ ─ WORK ● 4/7 ─ REVIEW ○        ░░░░  4/7  ▸ 5. README 데모 GIF 교체  ● 1 lane  ⟳ 3/8 · 12m");
-  const solid = frame.rows[0].filter(({ text, bg }) => text === " " && bg);
-  assert.equal(solid.length, 6, "five whole cells and the fading head are spaces on their colour, so each step repaints");
+  const frame = composeBand(model, settledSample(model), { columns: 100, glyphs: "basic" });
+  assert.match(rowText(frame.rows[1]), /^│ ● PLAN ━+ {2}WORK {2}━+ ○ REVIEW .*tasks +░+ 4\/7 │$/u);
+  const solid = frame.rows[1].slice(frame.rows[1].findIndex(({ text }) => text === "tasks ")).filter(({ text, bg }) => text === " " && bg);
+  assert.ok(solid.length >= 4, "whole cells and the fading head are spaces on their colour");
   assert.equal(solid[0].bg, "#ff2d95");
-  const pink = frame.rows[0].find(({ text }) => text === "(");
-  assert.equal(pink.fg, "#ff6337", "the brand starts the orange-pink-cyan gradient");
+  const brand = frame.rows[0].find(({ text }) => text === "🔥 LIT");
+  assert.equal(brand.bg, "#ff2d95", "the brand in the title is the status line prefix's pink, as a pill");
 });
 
-test("Nerd glyphs give the pills rounded caps on their own background", () => {
-  const model = buildBandModel({ snapshot: working(), now: NOW });
-  const row = composeBand(model, settledSample(model), { columns: 160, glyphs: "nerd" }).rows[0];
-  const text = rowText(row);
-  assert.match(text, /^🔥 LIT   PLAN  ● WORK 4\/7   REVIEW/u);
-  const work = row.find(({ text: part }) => part === "● WORK 4/7");
-  assert.equal(work.bg, "#0aa6c2");
-  const cap = row[row.indexOf(work) - 1];
-  assert.equal(cap.fg, "#0aa6c2", "the cap is the pill colour on the terminal background");
-});
-
-test("every row fits its width from 20 to 200 columns, Hangul included", () => {
-  const agents = [agent("a1", "running", "리드미-한국어"), agent("a2", "idle", "demo-gif")];
-  const snapshot = working({
-    probe: { editAt: 1, probeAt: null, issue: "a HIGH finding remains in the 화면 layout", issueAt: 2, paths: [], blockCount: 1 },
-    handoff: { percent: 80, firedAt: null, firedAtPercent: null, pending: false },
-  });
-  const notice = { id: "n", tone: "amber", title: "interface probe pending", detail: "run the interface probe before finishing · stop 1/2" };
-  const completion = { id: "c", detail: "7/7 tasks" };
-  for (const glyphs of ["basic", "nerd"]) {
-    for (const lanes of [agents.slice(0, 1), agents]) {
-      const model = buildBandModel({ snapshot, agents: lanes, activity: { last: { a2: NOW - STALL_MS - 1 }, first: {} }, usage: { context: { percent: 77 } }, now: NOW, notice, completion });
-      const profile = motionProfile("full");
-      const timeline = createTimeline(model, 0, profile);
-      for (let columns = 20; columns <= 200; columns += 3) {
-        for (const t of [0, 90, 200, 400, 700, 2000]) {
-          const frame = composeBand(model, sampleTimeline(timeline, t, profile), { columns, glyphs });
-          const room = frame.mode === "card" ? Math.max(10, columns - 4) : columns;
-          for (const row of frame.rows) assert.ok(rowWidth(row) <= room, `${glyphs} ${columns} cols t=${t}: ${rowWidth(row)} > ${room} in "${rowText(row)}"`);
-        }
-      }
-    }
-  }
-});
-
-test("the card lists lanes and gates under a round border that turns amber or red", () => {
-  const agents = [agent("a1", "running", "readme-ko"), agent("a2", "running", "demo-gif"), agent("a3", "waiting", "review")];
-  const model = buildBandModel({ snapshot: working({ litPlan: null }), agents, activity: { last: {}, first: { a1: NOW - 120_000, a2: NOW - 41_000 } }, now: NOW });
-  const frame = composeBand(model, settledSample(model), { columns: 120, glyphs: "basic" });
-  assert.equal(frame.mode, "card");
-  assert.equal(frame.border, "#3a2a4a");
-  const texts = frame.rows.map(rowText);
-  assert.match(texts[0], /^🔥 L I T   ✓ PLAN ━━━━━━ ● WORK ━━━━━━ ○ REVIEW/u);
-  assert.equal(texts[1], "next  5. README 데모 GIF 교체");
-  assert.equal(texts[2], "lanes ● readme-ko  working 2m    ● demo-gif  working 41s    ◌ review  waiting");
-  assert.equal(texts[3], "gates ✓ plan saved");
-
-  const stalled = buildBandModel({ snapshot: working(), agents: [agent("a1", "idle", "demo-gif")], activity: { last: { a1: NOW - 12 * 60_000 }, first: {} }, now: NOW });
-  const amber = composeBand(stalled, settledSample(stalled), { columns: 120, glyphs: "basic" });
-  assert.equal(amber.border, "#ffaf3c");
-  assert.ok(amber.rows.map(rowText).includes("⚠ demo-gif quiet for 12m — wake it? (ctrl+x tab)"));
+test("Nerd glyphs draw the chip bolt and the branch from the icon font; basic needs none", () => {
+  const model = buildBandModel({ snapshot: working(), now: NOW, git: "main", isWorking: true, skills: [{ id: "lit-plan", at: NOW, state: "current" }] });
+  const nerd = composeBand(model, settledSample(model), { columns: 100, glyphs: "nerd" }).rows.map(rowText);
+  assert.match(nerd[2], /\uf0e7 lit-plan/u);
+  assert.match(nerd[3], /\ue0a0 main/u);
+  const basic = composeBand(model, settledSample(model), { columns: 100, glyphs: "basic" }).rows.map(rowText);
+  assert.match(basic[2], /⚡ lit-plan/u);
+  assert.match(basic[3], /git main/u);
 });
 
 test("the completion row scatters embers in full motion and stays a quiet line in subtle", () => {
@@ -265,20 +220,20 @@ test("the completion row scatters embers in full motion and stays a quiet line i
   const full = motionProfile("full");
   const timeline = createTimeline(model, 0, full);
   const mid = composeBand(model, sampleTimeline(timeline, 400, full), { columns: 120, glyphs: "basic" });
-  const row = rowText(mid.rows.at(-1));
+  const row = rowText(mid.rows[2]);
   assert.match(row.split("COMPLETE")[0], /[.+*]/u, "embers are ASCII sparks");
-  assert.match(row, /COMPLETE · 7\/7 tasks$/u);
+  assert.match(row, /COMPLETE · 7\/7 tasks +│$/u);
   assert.equal(timelineBusy(timeline, TIMINGS.completion - 1, full), true);
   const subtle = motionProfile("subtle");
   const quiet = composeBand(model, sampleTimeline(createTimeline(model, 0, subtle), 400, subtle), { columns: 120, glyphs: "basic" });
-  assert.equal(rowText(quiet.rows.at(-1)), "✦ COMPLETE · 7/7 tasks");
+  assert.match(rowText(quiet.rows[2]), /^│ ✦ COMPLETE · 7\/7 tasks +│$/u);
 });
 
 test("the shimmer passes over the brand during the finish", () => {
   const model = buildBandModel({ snapshot: working(), now: NOW, completion: { id: "c", detail: "done" } });
   const full = motionProfile("full");
   const timeline = createTimeline(model, 0, full);
-  const colors = (t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: 120, glyphs: "nerd" }).rows[0].slice(1, 6).map(({ fg }) => fg);
+  const colors = (t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: 120, glyphs: "nerd" }).rows[0].filter(({ text }) => "LIT".includes(text) && text.length === 1).map(({ bg }) => bg);
   assert.notDeepEqual(colors(200), colors(1000), "letters brighten while the light passes and return after");
 });
 

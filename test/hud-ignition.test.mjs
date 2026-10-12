@@ -33,7 +33,7 @@ const statusFor = (tmp, sessionId) => ({
   context_window: { context_window_size: 200000, used_percentage: 12 },
 });
 
-test("prompt hook records the ignited discipline per session and the HUD renders a bold, colored 🔥 mark", () => {
+test("prompt hook records the ignited discipline per session, and the HUD leaves the mark to the LIT band", () => {
   const tmp = mkdtempSync(join(tmpdir(), "litclaude-ignition-"));
   try {
     mkdirSync(join(tmp, "workspace"));
@@ -51,9 +51,8 @@ test("prompt hook records the ignited discipline per session and the HUD renders
     const lit = runHud(statusFor(tmp, sessionId), env);
     assert.equal(lit.status, 0, lit.stderr);
     const litPlain = stripAnsi(lit.stdout);
-    assert.match(litPlain, /🔥 LIT IGNITED · lit-loop 🔥/u);
-    assert.match(lit.stdout, /\x1b\[1m/u, "ignition mark must be bold");
-    assert.match(lit.stdout, /\x1b\[38;2;\d+;\d+;\d+m/u, "ignition mark must be truecolor-painted");
+    assert.doesNotMatch(litPlain, /IGNITED/u, "the ignition segment no longer crowds the status line");
+    assert.match(litPlain, /^\[🔥LIT v[\d.]+\] \| /u, "the brand prefix stays");
 
     const idle = runHook({ session_id: sessionId, cwd: join(tmp, "workspace"), prompt: "what time is it in Seoul?" }, env);
     assert.equal(idle.status, 0, idle.stderr);
@@ -86,7 +85,7 @@ test("HUD with no ignition record for the session shows no mark and another sess
   }
 });
 
-test("NO_COLOR keeps the 🔥 ignition text without any escape codes", () => {
+test("NO_COLOR keeps the lit status line free of escape codes and of the ignition mark", () => {
   const tmp = mkdtempSync(join(tmpdir(), "litclaude-ignition-"));
   try {
     mkdirSync(join(tmp, "workspace"));
@@ -97,7 +96,8 @@ test("NO_COLOR keeps the 🔥 ignition text without any escape codes", () => {
     const hud = runHud(statusFor(tmp, "plain-session"), env);
     assert.equal(hud.status, 0, hud.stderr);
     assert.doesNotMatch(hud.stdout, /\x1b\[/u);
-    assert.match(hud.stdout, /🔥 LIT IGNITED · [a-z-]+ 🔥/u);
+    assert.doesNotMatch(hud.stdout, /IGNITED/u);
+    assert.match(hud.stdout, /^\[🔥LIT v[\d.]+\] \| /u);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -112,7 +112,7 @@ test("unsafe session ids cannot escape the ignition state root", () => {
     assert.equal(hook.status, 0, hook.stderr);
     const hud = runHud(statusFor(tmp, "../../escape"), env);
     assert.equal(hud.status, 0, hud.stderr);
-    assert.match(stripAnsi(hud.stdout), /🔥 LIT IGNITED · lit-loop 🔥/u);
+    assert.match(stripAnsi(hud.stdout), /^\[🔥LIT v[\d.]+\] \| /u);
     assert.equal(existsSync(join(tmp, "escape.json")), false);
     assert.ok(readdirSync(join(tmp, "hud-state")).every((name) => /^[A-Za-z0-9._-]+\.json$/u.test(name)));
   } finally {
@@ -134,9 +134,10 @@ test("without an override the HUD record lives in the per-user temp directory, n
     assert.equal(existsSync(join(workspace, ".litclaude", "hud")), false, "HUD state never uses the workspace state root");
     assert.equal(existsSync(join(tmp, "home", ".litclaude")), false, "home directory stays untouched");
 
+    assert.equal(JSON.parse(readFileSync(join(tmp, "tmp", "litclaude-hud", "rooted-session.json"), "utf8")).discipline, "lit-loop");
     const hud = runHud({ ...statusFor(tmp, "rooted-session"), cwd: join(workspace, "packages", "deep") }, env);
     assert.equal(hud.status, 0, hud.stderr);
-    assert.match(stripAnsi(hud.stdout), /🔥 LIT IGNITED · lit-loop 🔥/u);
+    assert.doesNotMatch(stripAnsi(hud.stdout), /IGNITED/u);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

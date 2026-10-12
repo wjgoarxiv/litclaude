@@ -1,5 +1,5 @@
-// What the LIT band says, decided from a state snapshot (state.mjs) and what Claude Code reports live
-// (subagents, context usage). Pure: the mod calls these on each refresh and hands the result to the
+// What the LIT band says, decided from a state snapshot (state.mjs), the skills that fired
+// (skills.mjs) and what Claude Code reports live (subagents, context and rate-limit usage). Pure: the mod calls these on each refresh and hands the result to the
 // band's surface module, which only draws and animates it.
 
 import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
@@ -63,14 +63,15 @@ const progressOf = (snapshot) => {
 };
 
 const phasesOf = ({ snapshot, discipline, progress, completing }) => {
-  const planned = Boolean(snapshot.work) || goalIsOpen(snapshot.goal);
-  const allDone = progress !== null && progress.done >= progress.total;
+  const met = snapshot.goal?.status === "complete";
+  const planned = Boolean(snapshot.work) || goalIsOpen(snapshot.goal) || met;
+  const allDone = (progress !== null && progress.done >= progress.total) || met;
   const plan = planned || completing ? "done" : discipline === "lit-plan" ? "now" : "todo";
   let work = "todo";
   if (completing || allDone) work = "done";
   else if (progress !== null || WORK_DISCIPLINES.has(discipline)) work = "now";
   let review = "todo";
-  if (completing || snapshot.goal?.status === "complete") review = "done";
+  if (completing || met) review = "done";
   else if (discipline === "review-work" || allDone) review = "now";
   return { plan, work, review };
 };
@@ -102,11 +103,28 @@ const contextWarningOf = (snapshot, usage) => {
   return percent >= handoff.percent - CONTEXT_LEAD ? { percent: Math.round(percent), threshold: handoff.percent } : null;
 };
 
+const goalSummaryOf = (goal) => {
+  if (!goal || goal.criteria.length === 0) return null;
+  return { status: goal.status, passed: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length };
+};
+
+// The bottom edge's live figures, as the status line shows them: context fill, the five-hour
+// window (the weekly one when that is all there is) and the Git branch.
+const figuresOf = (usage, git) => {
+  const context = Number.isFinite(usage?.context?.percent) ? Math.round(usage.context.percent) : null;
+  const windows = Array.isArray(usage?.rateLimits) ? usage.rateLimits : [];
+  const window = windows.find(({ kind }) => kind === "five_hour") ?? windows.find(({ kind }) => kind === "seven_day") ?? null;
+  const rate = window && Number.isFinite(window.percentUsed) ? { label: window.kind === "five_hour" ? "5h" : "1w", percent: Math.round(window.percentUsed) } : null;
+  return { context, rate, git: typeof git === "string" && git ? git : null };
+};
+
 /**
  * The band's model. `agents` is `$.agent.list()`, `activity` the per-agent last-seen map, `usage`
- * `$.session.usage()`, `notice` and `completion` whatever the mod is currently playing.
+ * `$.session.usage()`, `notice` and `completion` whatever the mod is currently playing, `skills`
+ * the chips (skills.mjs chipStates), `lastDiscipline` the discipline or skill the session last
+ * lit (the idle title) and `git` the branch.
  */
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "auto", isWorking = false, notice = null, completion = null }) => {
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -131,10 +149,13 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const probe = snapshot.probe;
   if (probe?.issue && probe.issueAt >= (probe.editAt ?? 0)) warnings.push({ tone: "red", subject: "ui probe", text: probe.issue, hint: "interface check failed" });
   const active = Boolean(snapshot.work) || goalIsOpen(goal) || (discipline !== null && isWorking) || liveAgents.length > 0;
-  const visible = band === "off" ? false : band === "always" || active || notice !== null || completion !== null || warnings.length > 0;
+  const lit = skills.some(({ state }) => state === "current");
+  const visible = band === "off" ? false : band === "always" || active || lit || notice !== null || completion !== null || warnings.length > 0;
   return {
     visible,
+    idle: !active && !lit,
     discipline,
+    title: discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline,
     phases,
     progress,
     next: snapshot.work?.nextTask ?? (goalIsOpen(goal) ? goal.criteria.find(({ status }) => status !== "pass")?.description || goal.objective || null : null),
@@ -143,7 +164,9 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
     ctxWarning,
     warnings,
     gates: gatesOf(snapshot),
-    card: lanes.length >= 2 || warnings.length > 0,
+    goal: goalSummaryOf(goal),
+    skills: skills.map(({ id, at, state }) => ({ id, at, state })),
+    figures: figuresOf(usage, git),
     notice,
     completion,
   };

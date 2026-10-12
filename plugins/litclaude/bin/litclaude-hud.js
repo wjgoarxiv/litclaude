@@ -14,7 +14,7 @@ import {
   toneText,
 } from "../lib/hud-accent-palette.mjs";
 import { latestUsageTokensCached } from "../lib/cache-measurement.mjs";
-import { ignitionStatePath, readIgnitionState, renderIgnitionSegment } from "../lib/hud-ignition.mjs";
+import { ignitionStatePath } from "../lib/hud-ignition.mjs";
 import { jevHudState } from "../lib/jev-skill-hint.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { recordContextUsage, resolveAutoHandoff } from "../lib/auto-handoff.mjs";
@@ -344,13 +344,10 @@ const main = async () => {
   const contextText = contextPct === null
     ? `${text("ctx")} ${text(`?/${windowText}`)}`
     : `${text("ctx")} ${accent("[")}${makeContextBar(contextPct)}${accent("]")} ${text(`${contextPct}%/${windowText}`)}`;
-  const ignition = renderIgnitionSegment(readIgnitionState(status.session_id), {
-    depth: plainOutput ? "plain" : colorDepth,
-  });
   const effort = effortLabel(status);
   const jev = jevBadge(status);
   const autoHandoff = autoHandoffSegment(status, knownContextPct);
-  const line = `${prefix}${ignition ? ` ${ignition}` : ""} ${accent("|")} ${text(model)}${effort ? ` ${text(effort)}` : ""}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
+  const line = `${prefix} ${accent("|")} ${text(model)}${effort ? ` ${text(effort)}` : ""}${jev ? ` ${jev}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);

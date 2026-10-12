@@ -10,6 +10,18 @@ const fractionOf = (model) => (model.progress && model.progress.total > 0 ? Math
 
 const entryEnd = (profile) => 3 * profile.duration(TIMINGS.stagger) + profile.duration(TIMINGS.entry);
 
+// One entry per chip: `at` is the firing the model reported, `arrivedAt` when this timeline saw
+// that firing arrive (null for chips already there when the band appeared, so they do not shimmer),
+// and the state crossfade from `from` to `state` starting at `changedAt`.
+const chipsOf = (model, now, previous = null) => Object.fromEntries((model.skills ?? []).map((chip) => {
+  const known = previous?.[chip.id];
+  if (!known || known.at !== chip.at) {
+    return [chip.id, { at: chip.at, arrivedAt: previous === null ? null : now, state: chip.state, from: chip.state, changedAt: now }];
+  }
+  if (known.state !== chip.state) return [chip.id, { ...known, from: known.state, state: chip.state, changedAt: now }];
+  return [chip.id, known];
+}));
+
 export const createTimeline = (model, now, profile) => {
   const restAt = now + entryEnd(profile);
   return {
@@ -23,6 +35,7 @@ export const createTimeline = (model, now, profile) => {
     notice: model.notice ? { data: model.notice, at: restAt } : null,
     leaving: null,
     completion: model.completion ? { data: model.completion, at: now } : null,
+    chips: chipsOf(model, now),
   };
 };
 
@@ -49,6 +62,7 @@ export const advanceTimeline = (timeline, model, now, profile) => {
   if ((model.completion?.id ?? null) !== (timeline.completion?.data.id ?? null)) {
     next.completion = model.completion ? { data: model.completion, at: now } : null;
   }
+  next.chips = chipsOf(model, now, timeline.chips);
   return next;
 };
 
@@ -62,13 +76,16 @@ export const timelineBusy = (timeline, now, profile) => {
   if (timeline.notice && now < timeline.notice.at + d(TIMINGS.noticeIn)) return true;
   if (timeline.leaving && now < timeline.leaving.at + d(TIMINGS.noticeOut)) return true;
   if (timeline.completion && now < timeline.completion.at + d(TIMINGS.completion)) return true;
-  return false;
+  return Object.values(timeline.chips).some((chip) => (chip.arrivedAt !== null && now < chip.arrivedAt + d(TIMINGS.shimmer))
+    || (chip.from !== chip.state && now < chip.changedAt + d(TIMINGS.crossfade)));
 };
 
 /**
  * Everything one frame needs, as numbers: how far each pill has popped in (ease-out-back, so it may
  * pass 1 briefly), the bar's fill, the count flash, the amber mix, each phase's colour crossfade,
- * the notice row's offset in cells, and the completion shimmer and embers.
+ * the notice row's offset in cells, the completion shimmer and embers, and per chip how far its
+ * arrival has run (`arrive`, 0 to 1; 1 once settled), where full motion's light stands on its
+ * name (`shimmer`, null when none) and its state crossfade.
  */
 export const sampleTimeline = (timeline, now, profile) => {
   const d = profile.duration;
@@ -103,6 +120,16 @@ export const sampleTimeline = (timeline, now, profile) => {
       detail: EASE.outCubic(phase(now, at + d(100), d(200))),
     };
   }
+  const chips = Object.fromEntries(Object.entries(timeline.chips).map(([id, chip]) => {
+    const arrive = chip.arrivedAt === null ? 1 : phase(now, chip.arrivedAt, d(TIMINGS.shimmer));
+    return [id, {
+      arrive,
+      shimmer: profile.shimmer && arrive < 1 ? EASE.outCubic(arrive) * 1.3 - 0.15 : null,
+      from: chip.from,
+      to: chip.state,
+      mix: chip.from === chip.state ? 1 : EASE.inOutCubic(phase(now, chip.changedAt, d(TIMINGS.crossfade))),
+    }];
+  }));
   return {
     pills,
     rest,
@@ -114,6 +141,7 @@ export const sampleTimeline = (timeline, now, profile) => {
     phases,
     notice,
     completion,
+    chips,
   };
 };
 

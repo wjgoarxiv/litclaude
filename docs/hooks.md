@@ -346,36 +346,65 @@ itself. LitClaude's is `plugins/litclaude/hooks/lit-mod.mjs`, named under `modul
 `hooks/hooks.json` next to the settings hooks above. It installs with the plugin and needs no
 setup. The status line stays as it is; the band adds a live layer above the prompt.
 
-While LitClaude work is active in the session (a start-work plan, an open litgoal goal, a lit
-discipline on a running turn, or live subagents) a band sits above the prompt:
+From the first prompt to the end of the session a LIT card sits above the prompt. It keeps the
+same four rows whether LitClaude is working or idle, and takes the status line's accent
+(`LITCLAUDE_HUD_ACCENT`, read from the installed status line command), so the card and the
+status line read as one family:
 
-- A ribbon of rounded pills, `LIT · PLAN · WORK n/m · REVIEW`, then a pink-to-cyan progress bar
-  whose leading cell fades in as it fills, the next task, the number of lanes, and the autoloop
-  count with the time left in its 30-minute budget. It is fitted to the terminal width, with Hangul
-  and emoji counted as two cells; parts drop in a fixed order when the row is narrow.
-- A card with a round border when two or more lanes run or a warning needs a row: the phase
-  line, the next task, each lane with its state and elapsed time, and the gates (plan saved,
-  interface probe, motion gate, auto-handoff).
-- Amber when something needs attention: a lane quiet for more than 10 minutes, or context within
-  five points of the auto-handoff percent (the WORK pill crossfades to amber and the ribbon shows
-  `ctx 76% → 80%`). A failed interface probe adds a red row and turns the border red.
-- A notice row and a toast when a gate fires: lit-plan not saved, interface probe pending or
-  failed, motion gate, context near the auto-handoff percent, auto-handoff fired.
-- A completion moment when the last task is checked, the work completes or the goal is met: a
-  light passes over the brand, embers scatter, and `COMPLETE` shows for about a second.
+```
+╭─ [🔥 LIT] · lit-loop ─────────────────────────── WORK ● ─╮
+│ ● PLAN ━━ [WORK] ━━ ○ REVIEW              goal ██░░░ 2/5 │
+│ skills [⚡ lit-plan] [⚡ litresearch] [↯ lit-docx]        │
+╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · git main ──────────────────────╯
+```
+
+The brackets stand for the ends of filled pills: rounded caps from the icon font with `nerd`
+glyphs, one cell of the pill's colour with `basic`. The brand is a pink pill, the active phase
+and the skills of this request are pills on the accent with dark text, and skills from earlier
+requests are muted grey pills.
+
+- The top edge names the discipline the prompt hook ignited (the last one, dimmed, while the
+  session is idle; `ready` before any) and, on the right, the current phase: `WORK ●`, `idle`,
+  or `DONE ✓` during the finish.
+- The phase row lights `PLAN ━━ WORK ━━ REVIEW` from the start-work plan, the litgoal goal and
+  the discipline (the active phase as a pill, done phases `●`, the rest `○`), and on its right shows a pink-to-cyan progress bar with the checked tasks or
+  passed criteria (`goal ✓ 5/5` once a goal is met), the number of live subagents, the autoloop
+  count with the time left in its 30-minute budget, and `ctx 76% → 80%` when the context is
+  within five points of the auto-handoff percent.
+- The chips row shows each LitFamily skill that fired as a pill: a Skill tool call naming a LitClaude
+  skill, a typed `/litclaude:<name>`, or bare `lit` routing seen through the ignition record.
+  A skill fired in the current request is bright, with a short light passing over its name as
+  it arrives; when the turn completes it dims into the `recent` list, and a new firing brightens
+  it again. Chips follow a dim `skills` label; those that do not fit collapse into a muted `+N`. Skills of other plugins never get a chip.
+  With no chip yet, the row shows the next task while work runs, or how to start (`lit <task>`)
+  while idle.
+- The bottom edge carries the live figures from the status line: context fill, the five-hour
+  rate window and the Git branch (read from `HEAD`, across a linked worktree).
+- A notice takes the chips row for a few seconds, with a toast, when a gate fires: lit-plan not
+  saved, interface probe pending or failed, motion gate, context near the auto-handoff percent,
+  auto-handoff fired. The completion moment takes it when the last task is checked, the work
+  completes or the goal is met: a light passes over the brand, embers scatter, and `COMPLETE`
+  shows for about a second.
+- Amber or red when something needs attention: a lane quiet for more than 10 minutes turns the
+  border amber and puts `⚠ <lane> quiet for 12m` on the bottom edge; a failed interface probe
+  turns it red.
+
+The card is the terminal's width up to 80 columns and every row is fitted to it, with Hangul and
+emoji counted as two cells. Nothing wraps: on a narrow terminal the Git branch goes first, then
+the rate window, the lanes, the autoloop count and the long phase labels (`P ━ W ━ R`).
 
 The spinner gains ` · <discipline> · n/m` after its ellipsis. `/lit-evidence` opens a pane with
 three tabs (keys `1`, `2`, `3`): the goal's criteria with their last evidence, blockers and the
-newest litgoal ledger entries; the lanes; and the gates. When the session is idle the band is not
-drawn at all.
+newest litgoal ledger entries; the lanes; and the gates.
 
 Motion: entrances pop in 60 ms apart with a slight overshoot (160 ms each), fills and colour
 changes ease in and out (300 ms and 140 ms), notices slide in over 220 ms and leave over 150 ms,
-and the finish lasts at most 1.2 s. The band's `Client` element animates on Claude Code's frame
+a chip's arrival light runs 400 ms (a plain fade under `subtle`, nothing under `off`), and the
+finish lasts at most 1.2 s. The band's `Client` element animates on Claude Code's frame
 clock only while something moves and stops its timer as soon as everything settles. In Claude
 Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
 moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
-and a glyph swaps only together with its words.
+a chip's light moves over its ASCII name, and a glyph swaps only together with its words.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs`):
 
@@ -383,14 +412,15 @@ Options, in `/config` under LitClaude (stored in `pluginConfigs`):
 | --- | --- | --- |
 | `motion` | `full`, `subtle` (no overshoot, shimmer or embers, shorter), `off` (final frames only) | `full` |
 | `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
-| `band` | `auto` (only while work is active), `always`, `off` | `auto` |
+| `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 
 Unknown values fall back to the default. The fields are plain strings with no `options` list on
 purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and
 that would take every LitClaude hook down with it. Nerd glyphs reach only the terminal; the
 desktop app and the other surfaces always get the basic set.
 
-The rounded pill caps (U+E0B6, U+E0B4) and icons come from a Nerd Font. `litclaude-ai install
+The icons on `nerd` (the rounded pill caps U+E0B6 and U+E0B4, the chip bolt and the branch mark)
+come from a Nerd Font. `litclaude-ai install
 --icon-font`, or a Yes to the install question (default No), adds the symbols-only Nerd Font,
 Symbols Nerd Font Mono (MIT), to the per-user font folder (`~/Library/Fonts` on macOS,
 `~/.local/share/fonts` on Linux, then `fc-cache -f` if present; on Windows it prints how to
@@ -403,8 +433,9 @@ records the two files, `uninstall` removes only those (and only while unchanged)
 prints `ICON_FONT:`. With `glyphs` on `auto`, the band checks those font folders by stat at session
 start and says what it decided on the `/lit-evidence` gates tab.
 
-The mod is read-only. It reads LitClaude's own state and nothing else: the ignition record in
-the per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
+The mod is read-only. It reads LitClaude's own state, the Git `HEAD` of the working directory and
+the merged settings (for the status line's accent) and nothing else: the ignition record in the
+per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
 linked worktree), and under the outermost Git root's `.litclaude/` the litgoal goal, autoloop
 counter and ledger, the lit-plan, interface-probe and motion turn records, and the auto-handoff
 settings and session record. Each file must be a regular file under its size cap that resolves

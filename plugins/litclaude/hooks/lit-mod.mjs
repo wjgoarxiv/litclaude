@@ -1,7 +1,9 @@
-// LitClaude's Claude Code mod (hooks/hooks.json `modules`). It draws the LIT band above the prompt
-// while LitClaude work is active, adds the discipline and progress to the spinner, raises gate
-// notices, and serves /lit-evidence. It is read-only: it reads LitClaude's own state files through
-// lib/mod/state.mjs and the host's live figures, and never writes, spawns, fetches or calls a model.
+// LitClaude's Claude Code mod (hooks/hooks.json `modules`). It draws the LIT card above the prompt
+// for the whole session (the `band` setting can limit it to active work or turn it off), lights a
+// chip for each LitFamily skill that fires, adds the discipline and progress to the spinner, raises
+// gate notices, and serves /lit-evidence. It is read-only: it reads LitClaude's own state files and
+// the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and the host's
+// live figures, and never writes, spawns, fetches or calls a model.
 // Claude Code releases before mods ignore the `modules` key and keep running the settings hooks.
 //
 // The mods loader only follows `$` into functions declared at the top of this file, so each helper
@@ -10,8 +12,9 @@
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
-import { normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
-import { detectIconFont, readLedgerTail, readLitSnapshot } from "../lib/mod/state.mjs";
+import { accentFromSettings, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
+import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
+import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
 import {
   EMPTY_ACTIVITY,
@@ -55,6 +58,12 @@ const createLive = (options) => ({
   evidenceTab: "goal",
   ledger: [],
   celebrated: new Set(),
+  accent: undefined,
+  git: null,
+  fired: [],
+  settledAt: 0,
+  ignitionAt: undefined,
+  lastDiscipline: null,
 });
 
 const stateIo = ($) => ({
@@ -77,6 +86,9 @@ async function rebuild($, live) {
     isWorking: live.isWorking,
     notice: live.notice,
     completion: live.completion,
+    skills: chipStates(live.fired, live.settledAt),
+    lastDiscipline: live.lastDiscipline,
+    git: live.git,
   });
   live.model = next;
   if (previous?.visible && !next.visible && !live.exiting) {
@@ -112,12 +124,32 @@ function celebrate($, live, finish) {
   });
 }
 
+// A firing of a skill or command by name; anything that is not LitClaude's is ignored.
+async function noteFiring($, live, name) {
+  const id = litSkillId(name);
+  if (!id) return;
+  live.fired = noteSkill(live.fired, id, await $.clock.now());
+  live.lastDiscipline = id;
+  await rebuild($, live);
+}
+
+// The prompt hook rewrites the ignition record on every prompt; a new record naming a discipline is
+// a bare `lit` (or slash) routing, and lights that skill's chip at the time the hook wrote it.
+function noteIgnition(live, ignition, now) {
+  if (!ignition || ignition.at === live.ignitionAt) return;
+  live.ignitionAt = ignition.at;
+  live.lastDiscipline = ignition.discipline;
+  const id = litSkillId(ignition.discipline);
+  if (id) live.fired = noteSkill(live.fired, id, ignition.at ?? now);
+}
+
 async function refresh($, live) {
   if (live.refreshing) return;
   live.refreshing = true;
   try {
     const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
     const fresh = await readLitSnapshot(stateIo($), { cwd, sessionId, env: live.env });
+    live.git = await readGitBranch(stateIo($), cwd).catch(() => live.git);
     live.agents = await $.agent.list().catch(() => []);
     live.usage = await $.session.usage().catch(() => live.usage);
     const now = await $.clock.now();
@@ -126,6 +158,7 @@ async function refresh($, live) {
     const before = live.snapshot;
     const previousModel = live.model;
     live.snapshot = fresh;
+    noteIgnition(live, fresh.ignition, now);
     const finish = detectCompletion(before, fresh);
     if (finish) celebrate($, live, finish);
     const next = await rebuild($, live);
@@ -167,6 +200,8 @@ export const register = (on, options) => {
       XDG_DATA_HOME: await $.env.get("XDG_DATA_HOME"),
       LOCALAPPDATA: await $.env.get("LOCALAPPDATA"),
     });
+    live.settledAt = await $.clock.now();
+    live.accent = accentFromSettings(await $.settings.read().catch(() => null), await $.env.get("LITCLAUDE_HUD_ACCENT"));
     await $.command.register({ name: PANE, description: "Show LitClaude goal criteria, evidence, lanes and gates in a pane" });
     await refresh($, live);
     $.clock.every(POLL_MS, () => {
@@ -183,6 +218,8 @@ export const register = (on, options) => {
 
   on("turn.complete", async ($, e, next) => {
     live.isWorking = false;
+    // The request is over: its chips dim to the recent list until a skill fires again.
+    live.settledAt = await $.clock.now();
     refreshSoon($, live);
     return next(e);
   });
@@ -194,10 +231,18 @@ export const register = (on, options) => {
   });
 
   on("tool.call", async ($, e, next) => {
+    if (e.tool === "Skill") await noteFiring($, live, e.skill);
     const result = await next(e);
     if (typeof e.agentId === "string") live.activity = noteAgentActivity(live.activity, e.agentId, await $.clock.now());
     refreshSoon($, live);
     return result;
+  }).catch(($, e, next) => next(e));
+
+  // A typed `/litclaude:<name>` and the Skill tool both expand the skill's prompt here; the text
+  // passes through untouched.
+  on("skill.prompt", async ($, e, next) => {
+    await noteFiring($, live, e.skill);
+    return next(e);
   }).catch(($, e, next) => next(e));
 
   on("ui.fault", async ($, e, next) => {
@@ -214,9 +259,9 @@ export const register = (on, options) => {
     const columns = Math.max(20, e.props.bodyColumns ?? e.viewport?.columns ?? 80);
     let drawn = null;
     if (elements.Client && !live.clientFailed) {
-      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion: settings.motion } });
+      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion: settings.motion, accent: live.accent } });
     } else if (model.visible) {
-      drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs }));
+      drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent }));
     }
     const below = await next(e);
     if (!drawn) return below;

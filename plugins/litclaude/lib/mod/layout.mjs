@@ -51,26 +51,3 @@ export const truncateToWidth = (text, cells, ellipsis = "…") => {
   }
   return `${out.trimEnd()}${ellipsis}`;
 };
-
-// Segments arrive in display order with a priority (lower numbers outlast higher ones) and an
-// optional `minWidth`, which marks the one flexible segment (the next task) that may shrink. Fitting
-// drops the highest priority numbers until the row fits with that segment at its minimum, then lets
-// it grow back into whatever room is left. Returns the kept segments, in display order, with widths.
-export const fitSegments = (segments, columns, gap = 1) => {
-  let kept = segments.map((segment) => ({ ...segment, natural: segment.width }));
-  const isFlexible = (segment) => Number.isFinite(segment.minWidth);
-  const total = () => kept.reduce((sum, segment) => sum + (isFlexible(segment) ? Math.min(segment.minWidth, segment.natural) : segment.width), 0)
-    + Math.max(0, kept.length - 1) * gap;
-  while (kept.length > 0 && total() > columns) {
-    const worst = kept.reduce((a, b) => (b.priority >= a.priority ? b : a));
-    kept = kept.filter((segment) => segment !== worst);
-  }
-  let spare = columns - total();
-  return kept.map(({ natural, ...segment }) => {
-    if (!isFlexible(segment)) return segment;
-    const base = Math.min(segment.minWidth, natural);
-    const width = Math.min(natural, base + spare);
-    spare -= width - base;
-    return { ...segment, width };
-  });
-};

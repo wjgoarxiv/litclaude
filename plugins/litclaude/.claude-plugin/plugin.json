@@ -30,8 +30,8 @@
     "band": {
       "type": "string",
       "title": "LIT band",
-      "description": "When the band shows above the prompt: auto (only while LitClaude work is active), always or off.",
-      "default": "auto"
+      "description": "When the LIT card shows above the prompt: always (the whole session, idle included), auto (only while LitClaude work is active or a skill of this request is lit) or off.",
+      "default": "always"
     }
   }
 }

@@ -484,13 +484,13 @@ litclaude install
 색과 커서 제어, 질문 꾸밈을 끄고 ANSI 없이 출력합니다. `LITCLAUDE_SPINNER=1`로 자세한
 진행 표시를 켜도 이 규칙은 그대로이고, `--yes`와 직접 지정한 설정도 그대로 적용됩니다.
 
-프롬프트가 LitClaude 작업 흐름을 시작하면, HUD는 brand 바로 뒤에 굵은 주황색
-`🔥 LIT IGNITED · lit-loop 🔥` 표시를 붙이고, 아무것도 시작하지 않은 다음 턴에서 지웁니다.
-어떤 작업 흐름이 켜져 있는지 기억하려고 hook이 세션마다 짧은 기록을 사용자 임시 디렉터리의
-`litclaude-hud/`에 남기며, 저장소와 홈 디렉터리에는 쓰지 않습니다. 위치는
-`LITCLAUDE_HUD_STATE_ROOT`로 바꿀 수 있습니다. Claude의 답은
-`🔥 **LIT IGNITED · <discipline>** 🔥`로 시작하고, hook 시스템 메시지와 HUD는 같은 표시를
-Markdown 없이 보여 줍니다.
+프롬프트가 LitClaude 작업 흐름을 시작하면, 프롬프트 위의 LIT 카드(Claude Code 2.1.287 이상)가
+위쪽 테두리에 그 이름을 보여 주고, 실행되는 LitFamily 스킬마다 칩을 하나씩 켭니다. 상태 줄은
+모델, 컨텍스트, 사용량, Git 정보를 보여 줄 자리를 그대로 지킵니다. 어떤 작업 흐름이 켜져
+있는지 기억하려고 hook이 세션마다 짧은 기록을 사용자 임시 디렉터리의 `litclaude-hud/`에
+남기며, 저장소와 홈 디렉터리에는 쓰지 않습니다. 위치는 `LITCLAUDE_HUD_STATE_ROOT`로 바꿀 수
+있습니다. Claude의 답은 `🔥 **LIT IGNITED · <discipline>** 🔥`로 시작하고, hook 시스템
+메시지는 같은 표시를 Markdown 없이 보여 줍니다.
 
 HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어두운지 밝은지, 그리고 터미널이 색을
 몇 가지까지 보여 줄 수 있는지입니다.
