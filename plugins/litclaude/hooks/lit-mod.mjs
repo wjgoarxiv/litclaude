@@ -22,7 +22,11 @@ import {
   buildEvidenceModel,
   detectCompletion,
   diffNotices,
+  mergeSpawned,
   noteAgentActivity,
+  noteSpawn,
+  noteSpawnActivity,
+  noteSpawnEnded,
   spinnerSuffix,
   trackAgents,
 } from "../lib/mod/view.mjs";
@@ -44,6 +48,7 @@ const createLive = (options) => ({
   snapshot: null,
   model: null,
   agents: [],
+  spawned: {},
   usage: null,
   activity: EMPTY_ACTIVITY,
   statusById: {},
@@ -150,9 +155,10 @@ async function refresh($, live) {
     const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
     const fresh = await readLitSnapshot(stateIo($), { cwd, sessionId, env: live.env });
     live.git = await readGitBranch(stateIo($), cwd).catch(() => live.git);
-    live.agents = await $.agent.list().catch(() => []);
+    const listed = await $.agent.list().catch(() => []);
     live.usage = await $.session.usage().catch(() => live.usage);
     const now = await $.clock.now();
+    ({ agents: live.agents, spawned: live.spawned } = mergeSpawned(listed, live.spawned, now));
     live.activity = trackAgents(live.activity, live.agents, live.statusById, now);
     live.statusById = Object.fromEntries(live.agents.map((agent) => [agent.id, agent.status]));
     const before = live.snapshot;
@@ -217,6 +223,12 @@ export const register = (on, options) => {
   });
 
   on("turn.complete", async ($, e, next) => {
+    // A subagent's or teammate's turn ends its run, not the main turn the card follows.
+    if (typeof e.agentId === "string") {
+      live.spawned = noteSpawnEnded(live.spawned, e.agentId);
+      refreshSoon($, live);
+      return next(e);
+    }
     live.isWorking = false;
     // The request is over: its chips dim to the recent list until a skill fires again.
     live.settledAt = await $.clock.now();
@@ -232,9 +244,25 @@ export const register = (on, options) => {
 
   on("tool.call", async ($, e, next) => {
     if (e.tool === "Skill") await noteFiring($, live, e.skill);
+    if (typeof e.agentId === "string") live.spawned = noteSpawnActivity(live.spawned, e.agentId, await $.clock.now());
     const result = await next(e);
-    if (typeof e.agentId === "string") live.activity = noteAgentActivity(live.activity, e.agentId, await $.clock.now());
+    if (typeof e.agentId === "string") {
+      const now = await $.clock.now();
+      live.activity = noteAgentActivity(live.activity, e.agentId, now);
+      live.spawned = noteSpawnActivity(live.spawned, e.agentId, now);
+    }
     refreshSoon($, live);
+    return result;
+  }).catch(($, e, next) => next(e));
+
+  // Every subagent, teammate and workflow agent starts here. A workflow's never shows in
+  // `$.agent.list()`, so the card keeps its own record until the agent's turn.complete.
+  on("agent.spawn", async ($, e, next) => {
+    const result = await next(e);
+    if (typeof result?.agentId === "string") {
+      live.spawned = noteSpawn(live.spawned, { id: result.agentId, description: e.description, type: e.subagentType, at: await $.clock.now() });
+      refreshSoon($, live);
+    }
     return result;
   }).catch(($, e, next) => next(e));
 

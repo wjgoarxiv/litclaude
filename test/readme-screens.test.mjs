@@ -106,3 +106,96 @@ test("the README demo film is an animated WebP that stays out of the package and
   assert.ok(!read("tools/check-pack-payload.mjs").includes("demo.webp"), "the pack guard never approves demo.webp");
   for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /demo\.(?:gif|webp)/u, `${card} does not embed the demo film`);
 });
+
+// The LIT card in its three states, cropped from one recorded Claude Code session; both READMEs show it.
+const cardShots = {
+  "idle.webp": "69b8c1b39b70f65ed976e28e0fc9905f0c624b8f433ecf60d1014c1c0e489690",
+  "working.webp": "ac4472084edfe7467bcf64eedad0b2b42459ec57608d8590c90e113d2413ab35",
+  "after.webp": "576ef625e0c4f7562acdd0f2d12b2b74c888499166cc7adddb778771c486bc5c",
+};
+const cardQuotes = {
+  idle: ["LIT · ready", "type lit &lt;task&gt; to start one"],
+  working: ["LIT · lit-loop", "WORK ●", "Musing… · lit-loop"],
+  after: ["idle", "Crunched for 20s"],
+};
+
+test("both READMEs show the LIT card in its idle, working and after states", () => {
+  const cardRoot = new URL("docs/assets/card/", root);
+  assert.deepEqual(readdirSync(cardRoot).sort(), Object.keys(cardShots).sort());
+  for (const [name, expected] of Object.entries(cardShots)) {
+    const bytes = readFileSync(new URL(name, cardRoot));
+    assert.ok(bytes.length <= MAX_SCREEN_BYTES, `card/${name} must stay under 60 KiB`);
+    assert.equal(bytes.subarray(8, 12).toString(), "WEBP");
+    assert.ok(!bytes.includes(Buffer.from("ANIM")), `card/${name} is a still picture`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected, `card/${name}`);
+  }
+  for (const [readme, heading] of [["README.md", "## The LIT card"], ["README_ko-KR.md", "## LIT 카드"]]) {
+    const content = read(readme);
+    assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${readme} has one card section`);
+    const start = content.indexOf(heading);
+    const section = content.slice(start, content.indexOf("\n## ", start + 4));
+    const pictures = [...section.matchAll(/<img src="\.\/docs\/assets\/card\/([\w-]+)\.webp" width="730" alt="([^"]{60,})" \/>/gu)];
+    assert.deepEqual(pictures.map((m) => m[1]), ["idle", "working", "after"], `${readme} shows the three states in order`);
+    for (const [, name, alt] of pictures) {
+      for (const quote of cardQuotes[name]) {
+        assert.ok(alt.includes(quote), `${readme}: alt of ${name} must quote "${quote}"`);
+      }
+    }
+    assert.ok(section.includes("2.1.287"), `${readme} names the Claude Code version the card needs`);
+    assert.match(section, /`band`[\s\S]*`auto`[\s\S]*`off`/u, `${readme} names the band setting`);
+    assert.ok(section.includes("(./docs/hooks.md#the-lit-band-claude-code-mod)"), `${readme} links the card reference`);
+  }
+  const files = JSON.parse(read("package.json")).files;
+  assert.equal(files.some((entry) => /^docs\/assets\/card/u.test(entry)), false, "card pictures stay out of the npm tarball");
+  for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /assets\/card\//u);
+});
+
+// The automatic handoff previews: the three prompts, the reminder and /compact, and the shell route.
+const handoffShots = {
+  "compact-dark.webp": "7e308b05925756c651dd4b6d10b2198a9e706f34452743368bc300e9ec9ae5f8",
+  "compact-light.webp": "213aacb61d0c97af157fe9d2cfda99a94aaf322ae7c3ced497239781636381e1",
+  "env-dark.webp": "10ae2c9a60987973cbfcb00876ae20e96c91628590e6189d2834bdc9063c4ef1",
+  "env-light.webp": "04e64cfc5d70b2e3978369b1908ec70621796978ed81ea8026f1a8965df9b339",
+  "settings-dark.webp": "8c3dcdba7e75e2b6291564253aeca25241156d8629eb1b86b77ba85818cf1f53",
+  "settings-light.webp": "c90fc70f9708428e0231a4d323b1757cb64c46671364c4ee2e3caa594edb67c7",
+};
+const handoffQuotes = {
+  settings: ["lit-handoff auto on 65", "Automatic handoff is on at 65%.", "lit-handoff auto status", "lit-handoff auto off", "Automatic handoff is off."],
+  compact: ["Handoff saved. Run /compact now.", "/compact", "handoff@65%"],
+  env: ["LITCLAUDE_AUTO_HANDOFF=1", "LITCLAUDE_AUTO_HANDOFF_PERCENT=65", "npx @litfamily/litclaude@latest doctor", "Auto-handoff: on at 65%"],
+};
+
+test("both READMEs show automatic handoff with the strings LitClaude really prints", () => {
+  const source = read("plugins/litclaude/lib/auto-handoff.mjs");
+  for (const line of ["`Automatic handoff is on at ${resolved.percent}%.`", '"Automatic handoff is off."', '"Handoff saved. Run /compact now."', "`Auto-handoff: on at ${resolved.percent}%`"]) {
+    assert.ok(source.includes(line), `auto-handoff.mjs still prints ${line}`);
+  }
+  assert.ok(read("plugins/litclaude/bin/litclaude-hud.js").includes("text(`handoff@${setting.percent}%`)"), "the status line still shows handoff@<percent>%");
+  const handoffRoot = new URL("docs/assets/handoff/", root);
+  assert.deepEqual(readdirSync(handoffRoot).sort(), Object.keys(handoffShots).sort());
+  for (const [name, expected] of Object.entries(handoffShots)) {
+    const bytes = readFileSync(new URL(name, handoffRoot));
+    assert.ok(bytes.length <= MAX_SCREEN_BYTES, `handoff/${name} must stay under 60 KiB`);
+    assert.equal(bytes.subarray(8, 12).toString(), "WEBP");
+    assert.ok(!bytes.includes(Buffer.from("ANIM")), `handoff/${name} is a still picture`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected, `handoff/${name}`);
+  }
+  for (const [readme, heading, guide] of [["README.md", "## Automatic handoff", "(./docs/guide.md#automatic-handoff)"], ["README_ko-KR.md", "## 자동 핸드오프", "(./docs/guide_ko-KR.md#자동-핸드오프)"]]) {
+    const content = read(readme);
+    assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${readme} has one automatic handoff section`);
+    const start = content.indexOf(heading);
+    const section = content.slice(start, content.indexOf("\n## ", start + 4));
+    const pictures = [...section.matchAll(/<picture><source media="\(prefers-color-scheme: dark\)" srcset="\.\/docs\/assets\/handoff\/(\w+)-dark\.webp" \/><img src="\.\/docs\/assets\/handoff\/(\w+)-light\.webp" width="686" alt="([^"]{60,})" \/><\/picture>/gu)];
+    assert.deepEqual(pictures.map((m) => m[1]), ["settings", "compact", "env"], `${readme} shows the three previews in order`);
+    for (const [, dark, light, alt] of pictures) {
+      assert.equal(dark, light, `${readme}: ${dark} pairs its dark and light files`);
+      for (const quote of handoffQuotes[dark]) assert.ok(alt.includes(quote), `${readme}: alt of ${dark} must quote "${quote}"`);
+    }
+    for (const needle of ["`lit-handoff auto on 65`", "`/compact`", "`handoff@65%`", guide]) {
+      assert.ok(section.includes(needle), `${readme} automatic handoff section mentions ${needle}`);
+    }
+  }
+  const files = JSON.parse(read("package.json")).files;
+  assert.equal(files.some((entry) => /^docs\/assets\/handoff/u.test(entry)), false, "handoff previews stay out of the npm tarball");
+  for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /assets\/handoff\//u);
+});

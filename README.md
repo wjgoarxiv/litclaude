@@ -58,6 +58,25 @@ from the LitFamily marketplace:
 Pick one of the two routes. Enabling the plugin both ways loads its hooks twice.
 [Choosing between the npm and marketplace routes](./docs/migration.md#scoped-npm-migration).
 
+You can also hand the install to a coding agent. Paste this prompt into it; the agent checks
+your setup, shows you what would change and waits for your yes before it installs anything:
+
+```text
+Please install LitClaude, a plugin for Claude Code, on this computer.
+
+- Use only the official npm package @litfamily/litclaude. Do not clone repositories or
+  install anything else.
+- Before you change anything, check that Node.js, npm and Claude Code are installed, then run
+  npx @litfamily/litclaude@latest --dry-run install --yes
+  Show me what it would change and ask whether to go ahead. Wait for my answer.
+- When I say yes, run npx @litfamily/litclaude@latest install --yes
+  (--yes keeps the default status-line colour and output style; I can run the install again
+  in my own terminal later to pick them.)
+- Then run npx @litfamily/litclaude@latest doctor and tell me the result. It should end in
+  DOCTOR_PASS. If it does not, show me the lines that failed and stop there.
+- Finally, remind me to quit Claude Code and start it again so the plugin loads.
+```
+
 ## Quick start
 
 Start Claude Code in a project folder the usual way, then type `lit`:
@@ -86,6 +105,66 @@ had no browser to test with, ask it to mark the look and the clicks as unverifie
 When you stop for the day, type `handoff` and keep the file path it gives you. In the next
 session, open the same project and ask Claude to read that file, check the current state and
 name the next step.
+
+## The LIT card
+
+While you work, LitClaude keeps a small card just above the prompt. It shows which workflow is
+running, how far it has come and which skills it has used, so you can follow Claude without
+scrolling back through the conversation. The top edge names the workflow and its phase, the
+first row follows the work from plan through build to review, the second row holds a chip for
+each LitFamily skill that fired, and the bottom edge repeats the context, five-hour usage and
+Git branch from the status line.
+
+Before anything runs, the card rests and tells you how to begin:
+
+<p align="center"><img src="./docs/assets/card/idle.webp" width="730" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the phase row shows PLAN, WORK and REVIEW as empty rings, the next row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 2% and the branch main." /></p>
+
+Give it a request with `lit`, and the card names the workflow, fills the phase it is in and
+lights a chip for the skill that took the request:
+
+<p align="center"><img src="./docs/assets/card/working.webp" width="730" alt="The LIT card while Claude works. Above it the spinner reads Musing… · lit-loop. The top edge reads LIT · lit-loop with WORK ● on the right, WORK is a filled pill between PLAN and REVIEW, the skills row holds a bright lit-loop chip, and the bottom edge shows ctx 5%, 5h 2% and the branch main." /></p>
+
+When the turn ends, the card goes back to idle. The chip turns grey and stays as a recent
+skill, so you can still see what ran last:
+
+<p align="center"><img src="./docs/assets/card/after.webp" width="730" alt="The LIT card after the turn. Above it Claude Code reads Crunched for 20s · done 1:04 AM. The top edge reads LIT · lit-loop in a dim colour with idle on the right, WORK stays filled in the phase row, the skills row keeps lit-loop as a grey chip, and the bottom edge shows ctx 6%, 5h 2% and the branch main." /></p>
+
+The card needs Claude Code 2.1.287 or later. It stays for the whole session; to see it only
+while work runs, set `band` to `auto` in `/config` under LitClaude, and `off` hides it.
+[Everything the card can show](./docs/hooks.md#the-lit-band-claude-code-mod).
+
+## Automatic handoff
+
+A long session fills Claude's context window, and when Claude Code compacts it, details of your
+work can drop out of the summary. Automatic handoff has Claude write a handoff file while there
+is still room, then reads it back after the compaction, so the rest of the session picks up from
+your own notes.
+
+It stays off until you turn it on and choose the percent. Type `lit-handoff auto on 65` as your
+whole prompt, with any whole number from 1 to 99, and LitClaude answers with a single line
+without starting any other work. Later, `status` tells you
+what is in force, and `off` turns it off while keeping your percent for next time:
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/settings-dark.webp" /><img src="./docs/assets/handoff/settings-light.webp" width="686" alt="Terminal window titled claude. The prompt lit-handoff auto on 65, the hook line UserPromptSubmit says: Automatic handoff is on at 65%. and Claude replying Automatic handoff is on at 65%. Then lit-handoff auto status, answered with Automatic handoff is on at 65%. again, and lit-handoff auto off, answered with Automatic handoff is off." /></picture></p>
+
+The setting belongs to the project folder you start Claude Code in, so each project keeps its
+own. Choose a percent below the point where Claude Code compacts by itself; if the compaction
+comes first, there is no handoff to bring back. While it is on, the status line shows
+`handoff@65%`.
+
+When a turn ends with the context at or past your percent, the Stop hook asks Claude to write
+the handoff before it stops. Claude Code gives a plugin no way to start a compaction, so
+Claude ends with a one-line reminder and you run `/compact`. When the compaction is done,
+LitClaude reads the fresh handoff back into the conversation:
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/compact-dark.webp" /><img src="./docs/assets/handoff/compact-light.webp" width="686" alt="Terminal window titled claude. Claude ends its turn with Handoff saved. Run /compact now. The user types /compact, and Claude Code reports Compacted (ctrl+o to see full summary) and Read .handoff/HANDOFF.md (44 lines). The status line below reads ctx 0%/1m │ handoff@65%." /></picture></p>
+
+You can also switch it on from the shell before you start Claude Code. The two variables win
+over the saved setting, and the doctor shows what is in force:
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/env-dark.webp" /><img src="./docs/assets/handoff/env-light.webp" width="686" alt="Terminal window titled zsh. The commands export LITCLAUDE_AUTO_HANDOFF=1, export LITCLAUDE_AUTO_HANDOFF_PERCENT=65 and npx @litfamily/litclaude@latest doctor, then among the doctor lines Auto-handoff: on at 65% and, last, DOCTOR_PASS." /></picture></p>
+
+[How automatic handoff works, step by step](./docs/guide.md#automatic-handoff).
 
 ## What you get
 

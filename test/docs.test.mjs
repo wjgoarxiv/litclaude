@@ -296,6 +296,24 @@ test("both READMEs state the install-time network pre-warm and the switches the 
   }
 });
 
+test("both READMEs give a copyable install prompt for coding agents that asks before changing anything", async () => {
+  for (const [path, heading, askFirst, restart] of [
+    ["README.md", "\n## Install\n", "Wait for my answer.", "start it again so the plugin loads"],
+    ["README_ko-KR.md", "\n## 설치\n", "제 답을 기다리세요.", "다시 시작하라고 알려 주세요"],
+  ]) {
+    const readme = await text(path);
+    const start = readme.indexOf(heading);
+    const install = readme.slice(start, readme.indexOf("\n## ", start + 1));
+    const prompts = [...install.matchAll(/```text\n([\s\S]*?)```/gu)].map((m) => m[1]).filter((block) => block.includes("DOCTOR_PASS"));
+    assert.equal(prompts.length, 1, `${path} install section has one agent prompt`);
+    const [prompt] = prompts;
+    for (const phrase of ["@litfamily/litclaude", "npx @litfamily/litclaude@latest --dry-run install --yes", "npx @litfamily/litclaude@latest install --yes", "npx @litfamily/litclaude@latest doctor", askFirst, restart]) {
+      assert.ok(prompt.includes(phrase), `${path} agent prompt includes ${phrase}`);
+    }
+    assert.ok(prompt.indexOf("@latest --dry-run install") < prompt.indexOf("@latest install --yes"), `${path}: the plan comes before the install`);
+  }
+});
+
 test("English and Korean route tables retain browser-drive and omit removed skill learning", async () => {
   for (const [label, path, heading, inventory] of [
     ["English guide", "docs/guide.md", "## What to type", /package's 35 skills/u],

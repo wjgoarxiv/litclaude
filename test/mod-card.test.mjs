@@ -12,7 +12,7 @@ import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xter
 import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
 import { readGitBranch } from "../plugins/litclaude/lib/mod/state.mjs";
 import { advanceTimeline, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
-import { STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
+import { AGENT_STALE_MS, STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 
 const NOW = 10_000_000;
@@ -306,7 +306,7 @@ test("the git branch comes from HEAD, across a linked worktree, read-only", asyn
 
 // A stand-in for Claude Code's mods host: enough of `on` and `$` to drive the hooks module the way a
 // session does, and an element table that records the drawn text.
-const harness = async (options = {}) => {
+const harness = async (options = {}, agents = []) => {
   const hooks = [];
   const on = (event, matcher, hook) => {
     const entry = typeof matcher === "function" ? { event, matcher: {}, hook: matcher } : { event, matcher, hook };
@@ -319,7 +319,7 @@ const harness = async (options = {}) => {
   const $ = {
     fs: { stat: async () => null, read: async () => { throw new Error("ENOENT"); } },
     session: { cwd: async () => "/nowhere/project", id: async () => "card-session", usage: async () => usage },
-    agent: { list: async () => [] },
+    agent: { list: async () => agents },
     clock: { now: async () => now, after: (ms, fn) => timers.push(fn), every: () => () => undefined },
     env: { get: async () => undefined },
     settings: { read: async () => ({ statusLine: { type: "command", command: "LITCLAUDE_HUD_ACCENT=rose node hud.js" } }) },
@@ -330,9 +330,9 @@ const harness = async (options = {}) => {
     Box: ({ children = [] }) => ({ kind: "box", children }),
     Text: ({ children, color, backgroundColor }) => ({ kind: "text", text: children, color, backgroundColor }),
   };
-  const fire = async (event, e, matcher = {}) => {
+  const fire = async (event, e, matcher = {}, core = undefined) => {
     const chain = hooks.filter((entry) => entry.event === event && Object.entries(matcher).every(([key, value]) => entry.matcher[key] === value));
-    const run = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => run(index + 1, next)) : undefined);
+    const run = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => run(index + 1, next)) : core);
     return run(0, e);
   };
   const flush = async () => {
@@ -378,4 +378,106 @@ test("the mod lights a chip for a LitClaude Skill call or slash command and dims
   assert.equal(lines.length, 4, "the card stays after the work ends");
   assert.match(lines[2], /skills {2}↯ litresearch {3}↯ lit-plan/u);
   assert.match(lines[0], /🔥 LIT {2}· litresearch ─+ idle/u);
+});
+
+// A workflow script's agents never appear in `$.agent.list()`; `agent.spawn` names them and their
+// own `turn.complete` (carrying `agentId`) ends them.
+const spawnWorkflowAgent = (host, agentId, description = "sleep probe") => host.fire(
+  "agent.spawn",
+  { tool_use_id: "toolu_wf", prompt: "Run the tests.", description, subagentType: "general-purpose", background: true, fork: false, workflow: { runId: "wf_probe", agentIndex: 1 } },
+  {},
+  { model: "claude-opus-5-5", agentId },
+);
+
+test("the card stays at work while a background agent runs after the main turn, and settles when the last one ends", async () => {
+  const host = await harness({ glyphs: "basic", motion: "off" });
+  await host.fire("session.start", {});
+  await host.fire("turn.start", { text: "run it", turnId: "t1" });
+  await spawnWorkflowAgent(host, "wf-agent-1");
+  await spawnWorkflowAgent(host, "wf-agent-2", "lint");
+  host.tick(1000);
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "Started.", durationMs: 1000, isAborted: false });
+  await host.flush();
+  let { lines } = await host.band();
+  assert.doesNotMatch(lines[0], /idle|DONE/u, "two agents still run, so the card is not idle");
+  assert.match(lines[0], /LIVE/u);
+  assert.match(lines[1], /2 lanes/u, "the phase row counts the running agents");
+
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "done", durationMs: 9000, isAborted: false, agentId: "wf-agent-1" });
+  await host.flush();
+  ({ lines } = await host.band());
+  assert.match(lines[0], /LIVE/u, "one agent is left");
+  assert.match(lines[1], /1 lane\b/u);
+
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "done", durationMs: 9000, isAborted: false, agentId: "wf-agent-2" });
+  await host.flush();
+  ({ lines } = await host.band());
+  assert.match(lines[0], /─ idle ─╮/u, "the last agent ended, so the card settles");
+  assert.doesNotMatch(lines[1], /lane/u);
+});
+
+test("a subagent's turn ending inside the main turn neither idles the card nor dims this request's chips", async () => {
+  const host = await harness({ glyphs: "basic", motion: "off" });
+  await host.fire("session.start", {});
+  host.tick(1000);
+  await host.fire("turn.start", { text: "plan it", turnId: "t1" });
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-plan" });
+  await spawnWorkflowAgent(host, "helper-1");
+  host.tick(1000);
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "report", durationMs: 1000, isAborted: false, agentId: "helper-1" });
+  await host.flush();
+  const { lines } = await host.band();
+  assert.match(lines[2], /skills {2}⚡ lit-plan/u, "the chip stays bright: the request is still running");
+  assert.doesNotMatch(lines[0], /idle/u);
+});
+
+test("an agent that never reports back cannot pin the card: it is dropped once it has been quiet past the stale limit", async () => {
+  const host = await harness({ glyphs: "basic", motion: "off" });
+  await host.fire("session.start", {});
+  await host.fire("turn.start", { text: "go", turnId: "t1" });
+  await spawnWorkflowAgent(host, "lost-1");
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "Started.", durationMs: 1000, isAborted: false });
+  host.tick(AGENT_STALE_MS / 2);
+  await host.fire("tool.call", { tool: "Bash", agentId: "lost-1" });
+  host.tick(AGENT_STALE_MS / 2);
+  await host.fire("session.measure", { context: null, rateLimits: [], changed: ["context"] });
+  await host.flush();
+  let { lines } = await host.band();
+  assert.match(lines[1], /1 lane\b/u, "a tool call from the agent keeps it alive");
+
+  host.tick(AGENT_STALE_MS + 1000);
+  await host.fire("session.measure", { context: null, rateLimits: [], changed: ["context"] });
+  await host.flush();
+  ({ lines } = await host.band());
+  assert.match(lines[0], /─ idle ─╮/u, "quiet past the stale limit, the agent no longer holds the card");
+});
+
+test("an agent the host lists as ended is not counted, even before its turn.complete arrives", async () => {
+  const listed = [];
+  const host = await harness({ glyphs: "basic", motion: "off" }, listed);
+  await host.fire("session.start", {});
+  await host.fire("turn.start", { text: "go", turnId: "t1" });
+  await host.fire("agent.spawn", { tool_use_id: "toolu_a", prompt: "x", description: "review", subagentType: "general-purpose", background: true, fork: false }, {}, { model: "m", agentId: "bg-1" });
+  listed.push({ id: "bg-1", description: "review", type: "general-purpose", status: "running" });
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "Started.", durationMs: 1000, isAborted: false });
+  await host.flush();
+  let { lines } = await host.band();
+  assert.match(lines[1], /1 lane\b/u, "the listed agent and its spawn record count once");
+  listed[0] = { ...listed[0], status: "completed" };
+  await host.fire("session.measure", { context: null, rateLimits: [], changed: ["context"] });
+  await host.flush();
+  ({ lines } = await host.band());
+  assert.match(lines[0], /─ idle ─╮/u);
+});
+
+test("the top edge never reads DONE while an agent is still running", () => {
+  const model = buildBandModel({
+    snapshot: lit({ goal: goalOf(5, 5, "complete") }),
+    agents: [{ id: "a", description: "reviewer", type: "general-purpose", status: "running" }],
+    now: NOW,
+  });
+  assert.doesNotMatch(texts(draw(model, 80))[0], /DONE/u, "the goal is met but a lane still works");
+  assert.match(texts(draw(model, 80))[0], /LIVE/u);
+  const settled = buildBandModel({ snapshot: lit({ goal: goalOf(5, 5, "complete") }), now: NOW, isWorking: true });
+  assert.match(texts(draw(settled, 80))[0], /DONE/u, "with no lane left the finished goal reads DONE");
 });

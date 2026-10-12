@@ -365,10 +365,11 @@ requests are muted grey pills.
 
 - The top edge names the discipline the prompt hook ignited (the last one, dimmed, while the
   session is idle; `ready` before any) and, on the right, the current phase: `WORK ●`, `idle`,
-  or `DONE ✓` during the finish.
+  or `DONE ✓` during the finish. While a subagent is still running the card stays at work
+  (`LIVE ●` when no phase is active) and never reads `DONE`, even after the main turn ended.
 - The phase row lights `PLAN ━━ WORK ━━ REVIEW` from the start-work plan, the litgoal goal and
   the discipline (the active phase as a pill, done phases `●`, the rest `○`), and on its right shows a pink-to-cyan progress bar with the checked tasks or
-  passed criteria (`goal ✓ 5/5` once a goal is met), the number of live subagents, the autoloop
+  passed criteria (`goal ✓ 5/5` once a goal is met), the number of live subagents (`● 2 lanes`), the autoloop
   count with the time left in its 30-minute budget, and `ctx 76% → 80%` when the context is
   within five points of the auto-handoff percent.
 - The chips row shows each LitFamily skill that fired as a pill: a Skill tool call naming a LitClaude
@@ -388,6 +389,13 @@ requests are muted grey pills.
 - Amber or red when something needs attention: a lane quiet for more than 10 minutes turns the
   border amber and puts `⚠ <lane> quiet for 12m` on the bottom edge; a failed interface probe
   turns it red.
+
+Subagents and teammates come from Claude Code's agent list. A workflow script's agents never
+appear there, so the mod also records every agent at `agent.spawn` and counts it until that
+agent's own `turn.complete` arrives. A subagent's turn ending does not end the main turn: the
+chips of the current request stay bright until the main turn completes. An agent the list shows
+as ended stops counting at once, and one quiet for 30 minutes (no tool call, no status change)
+stops counting too, so a crashed or lost agent cannot hold the card at work.
 
 The card is the terminal's width up to 80 columns and every row is fitted to it, with Hangul and
 emoji counted as two cells. Nothing wraps: on a narrow terminal the Git branch goes first, then

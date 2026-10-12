@@ -163,7 +163,7 @@ const indicatorSpans = (model, sample, glyphs, accent) => {
   if (model.idle) return [span("idle", { fg: PALETTE.dim })];
   const current = PHASES.find((id) => model.phases[id] === "now");
   if (current) return [span(`${LABELS[current]} ${warned(current, sample) ? glyphs.warn : glyphs.now}`, { fg: phaseColor(current, sample, inkOf(accent)), bold: true })];
-  if (PHASES.every((id) => model.phases[id] === "done")) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
+  if (PHASES.every((id) => model.phases[id] === "done") && model.lanes.count === 0) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
   return [span(`LIVE ${glyphs.now}`, { fg: accent, bold: true })];
 };
 

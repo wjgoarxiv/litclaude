@@ -56,6 +56,25 @@ npx @litfamily/litclaude@latest install
 두 방법 중 하나만 고르세요. 두 경로로 모두 켜면 hook이 두 번 실행됩니다.
 [npm 설치와 마켓플레이스 중 고르기](./docs/migration.md#scoped-npm-migration)
 
+설치를 코딩 에이전트에게 맡길 수도 있습니다. 아래 프롬프트를 붙여 넣으면 에이전트가 환경을
+확인하고, 무엇이 바뀌는지 보여 준 뒤, 내가 좋다고 답해야 설치를 시작합니다.
+
+```text
+이 컴퓨터에 Claude Code 플러그인 LitClaude를 설치해 주세요.
+
+- 공식 npm 패키지 @litfamily/litclaude만 사용하세요. 저장소를 복제하거나 다른 것을
+  설치하지 마세요.
+- 무엇이든 바꾸기 전에 Node.js, npm, Claude Code가 설치되어 있는지 확인한 뒤 다음을 실행하세요.
+  npx @litfamily/litclaude@latest --dry-run install --yes
+  무엇이 바뀌는지 보여 주고, 진행할지 물어본 다음 제 답을 기다리세요.
+- 제가 좋다고 하면 npx @litfamily/litclaude@latest install --yes 를 실행하세요.
+  (--yes는 상태 줄 색상과 출력 스타일을 기본값으로 둡니다. 나중에 제 터미널에서 설치를
+  다시 실행해 고를 수 있습니다.)
+- 그다음 npx @litfamily/litclaude@latest doctor 를 실행하고 결과를 알려 주세요. 마지막 줄이
+  DOCTOR_PASS여야 합니다. 그렇지 않으면 실패한 줄을 보여 주고 거기서 멈추세요.
+- 마지막으로, 플러그인이 로드되도록 Claude Code를 종료했다가 다시 시작하라고 알려 주세요.
+```
+
 ## 빠른 시작
 
 프로젝트 폴더에서 평소처럼 Claude Code를 실행하고 `lit`을 입력합니다.
@@ -84,6 +103,63 @@ Claude의 답은 **🔥 LIT IGNITED · lit-loop 🔥**로 시작해 목표와 �
 하루 작업을 마칠 때는 `handoff`를 입력하고 알려 주는 파일 경로를 적어 두세요. 다음 세션에서
 같은 프로젝트를 열고, Claude에게 그 파일을 읽고 현재 상태를 확인한 뒤 다음 할 일을 말해 달라고
 하면 됩니다.
+
+## LIT 카드
+
+작업하는 동안 LitClaude는 프롬프트 바로 위에 작은 카드를 띄워 둡니다. 지금 어떤 작업 흐름이
+돌고 있는지, 어디까지 왔는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를 거슬러 올라가지
+않아도 Claude가 하는 일을 따라갈 수 있습니다. 위쪽 테두리에는 작업 흐름의 이름과 단계가,
+첫 줄에는 계획에서 작업을 거쳐 리뷰로 가는 흐름이, 둘째 줄에는 실행된 LitFamily 스킬마다 칩이
+하나씩 놓이고, 아래쪽 테두리는 상태 줄의 컨텍스트, 5시간 사용량, Git 브랜치를 다시 보여 줍니다.
+
+아직 아무것도 돌지 않을 때는 카드가 쉬면서 시작하는 방법을 알려 줍니다.
+
+<p align="center"><img src="./docs/assets/card/idle.webp" width="730" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 단계 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있고, 아래쪽 테두리에는 5h 2%와 브랜치 main이 보입니다." /></p>
+
+`lit`을 붙여 요청하면 카드가 작업 흐름의 이름을 띄우고, 지금 단계를 채우고, 요청을 맡은
+스킬의 칩을 밝힙니다.
+
+<p align="center"><img src="./docs/assets/card/working.webp" width="730" alt="Claude가 일하는 동안의 LIT 카드. 위에는 Musing… · lit-loop 스피너가 돕니다. 위쪽 테두리에 LIT · lit-loop, 오른쪽에 WORK ●가 있고, PLAN과 REVIEW 사이의 WORK가 채워진 알약 모양입니다. skills 줄에는 밝은 lit-loop 칩이 있고, 아래쪽 테두리에는 ctx 5%, 5h 2%, 브랜치 main이 보입니다." /></p>
+
+턴이 끝나면 카드는 다시 idle로 돌아갑니다. 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에
+무엇이 돌았는지 계속 알 수 있습니다.
+
+<p align="center"><img src="./docs/assets/card/after.webp" width="730" alt="턴이 끝난 뒤의 LIT 카드. 위에는 Crunched for 20s · done 1:04 AM이라고 나옵니다. 위쪽 테두리의 LIT · lit-loop는 흐린 색이고 오른쪽에는 idle이 있습니다. 단계 줄의 WORK는 채워진 채로 남고, skills 줄에는 lit-loop가 회색 칩으로 남아 있으며, 아래쪽 테두리에는 ctx 6%, 5h 2%, 브랜치 main이 보입니다." /></p>
+
+카드는 Claude Code 2.1.287 이상에서 나옵니다. 세션 내내 떠 있고, 작업할 때만 보고 싶다면
+`/config`의 LitClaude 항목에서 `band`를 `auto`로, 숨기려면 `off`로 바꾸세요.
+[카드가 보여 주는 모든 것](./docs/hooks.md#the-lit-band-claude-code-mod)
+
+## 자동 핸드오프
+
+세션이 길어지면 Claude의 컨텍스트 창이 차고, Claude Code가 대화를 압축할 때 작업의 세부 내용이
+요약에서 빠질 수 있습니다. 자동 핸드오프를 켜 두면 아직 여유가 있을 때 Claude가 핸드오프 파일을
+쓰고, 압축이 끝난 뒤 LitClaude가 그 파일을 다시 읽어 줍니다. 그래서 세션의 나머지는 내가 남긴
+기록에서 이어집니다.
+
+직접 켜고 비율을 정하기 전까지는 꺼져 있습니다. 프롬프트 전체로 `lit-handoff auto on 65`처럼
+1부터 99 사이의 정수를 붙여 입력하면 LitClaude가 한 줄로 답하고 다른 작업은 시작하지 않습니다. 나중에 `status`로 지금 설정을 확인하고, `off`로
+끄면 정해 둔 비율은 다음을 위해 남습니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/settings-dark.webp" /><img src="./docs/assets/handoff/settings-light.webp" width="686" alt="제목이 claude인 터미널 창. 프롬프트 lit-handoff auto on 65에 훅 줄 UserPromptSubmit says: Automatic handoff is on at 65%.가 붙고 Claude가 Automatic handoff is on at 65%.라고 답합니다. 이어서 lit-handoff auto status에는 다시 Automatic handoff is on at 65%.가, lit-handoff auto off에는 Automatic handoff is off.가 돌아옵니다." /></picture></p>
+
+설정은 Claude Code를 시작한 프로젝트 폴더마다 따로 저장됩니다. 비율은 Claude Code가 스스로
+압축하는 지점보다 낮게 고르세요. 압축이 먼저 일어나면 되살릴 핸드오프가 없습니다. 켜져 있는
+동안 상태 줄에 `handoff@65%`가 보입니다.
+
+턴이 끝날 때 컨텍스트가 정한 비율에 닿아 있으면, Stop 훅이 Claude에게 멈추기 전에
+핸드오프를 쓰라고 합니다. Claude Code는 플러그인이 압축을 시작할 방법을 주지 않기 때문에,
+Claude가 한 줄로 알려 주면 `/compact`는 직접 실행합니다. 압축이 끝나면 LitClaude가 방금 쓴
+핸드오프를 대화에 다시 읽어 넣습니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/compact-dark.webp" /><img src="./docs/assets/handoff/compact-light.webp" width="686" alt="제목이 claude인 터미널 창. Claude가 Handoff saved. Run /compact now.로 턴을 마치고, 사용자가 /compact를 입력하면 Claude Code가 Compacted (ctrl+o to see full summary)와 Read .handoff/HANDOFF.md (44 lines)를 보여 줍니다. 아래 상태 줄에는 ctx 0%/1m │ handoff@65%가 나옵니다." /></picture></p>
+
+Claude Code를 시작하기 전에 셸에서 켤 수도 있습니다. 두 환경 변수가 저장된 설정보다 우선하고,
+doctor가 지금 적용 중인 설정을 알려 줍니다.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/env-dark.webp" /><img src="./docs/assets/handoff/env-light.webp" width="686" alt="제목이 zsh인 터미널 창. export LITCLAUDE_AUTO_HANDOFF=1, export LITCLAUDE_AUTO_HANDOFF_PERCENT=65, npx @litfamily/litclaude@latest doctor를 차례로 입력하고, doctor 출력 가운데 Auto-handoff: on at 65%가, 마지막 줄에 DOCTOR_PASS가 보입니다." /></picture></p>
+
+[자동 핸드오프가 단계별로 어떻게 돌아가는지](./docs/guide_ko-KR.md#자동-핸드오프)
 
 ## 무엇을 할 수 있나요
 
