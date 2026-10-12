@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.25 - 2026-10-12
+
+- The LIT card now moves while LitClaude is at work, so a glance tells you it is busy. The LIT pill and the border slowly glow from pink to flame orange and back, a light passes over the current phase and the skill chips of this request, and a spark runs along the top edge and back along the bottom one. When the turn ends the card goes still again. With the `motion` setting at `subtle` only the glow stays, and `off` keeps the card still.
+- The card is wider. It now grows with the terminal up to 120 columns instead of 80.
+- The bottom edge shows the weekly usage window next to the five-hour one, as the status line does.
+- The installer sets up the Claude desktop app too. The app's Code tab reads the same settings as the terminal but has no editor for the card's options, so the installer now writes the defaults for `motion`, `glyphs` and `band`, keeping any value you already chose. The new `litclaude-ai config` command shows them, and `litclaude-ai config <option> <value>` changes one from a terminal. Uninstall removes only the defaults it wrote that you never changed.
+- The README demo film now opens on a title card and names each step with a numbered two-line caption, and the card pictures show the new width and the weekly window.
+
 ## 1.0.24 - 2026-10-12
 
 - The LIT card no longer drops to idle while background work is still running. When the main turn ends after starting background subagents or a workflow, the card stays at work and counts the running agents until the last one finishes, and it never reads `DONE` while an agent is still busy. A workflow's agents now count too, and a subagent that finishes in the middle of a turn no longer dims the chips of the request that is still running. An agent that never reports back stops counting after 30 quiet minutes, so it cannot hold the card at work.

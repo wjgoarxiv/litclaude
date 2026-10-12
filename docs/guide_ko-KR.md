@@ -433,13 +433,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 설치를 재현하려면 registry에서 현재 package version을 조회한 뒤 고정합니다.
 
 ```bash
-npm view @litfamily/litclaude@1.0.24 version
+npm view @litfamily/litclaude@1.0.25 version
 ```
 
-조회 결과가 `1.0.24`이면 exact install을 사용할 수 있습니다.
+조회 결과가 `1.0.25`이면 exact install을 사용할 수 있습니다.
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.24 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.25 -- litclaude install
 ```
 
 그렇지 않으면 명시적인 human publication을 기다립니다. Pin은 그 뒤에 사용합니다.

@@ -636,7 +636,7 @@ describe("portable LitClaude install layout", () => {
 
       assert.notEqual(doctor.status, 0);
       assert.match(doctor.stderr, /Claude plugin details did not show current LitClaude agent inventory/u);
-      assert.match(doctor.stderr, /expected version 1\.0\.24/u);
+      assert.match(doctor.stderr, /expected version 1\.0\.25/u);
     } finally {
       rmSync(home, { recursive: true, force: true });
       rmSync(claudeHome, { recursive: true, force: true });
