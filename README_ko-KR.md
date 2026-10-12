@@ -13,7 +13,7 @@
 
 <p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
-<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션입니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답하고, 프롬프트 위 LIT 카드가 idle에서 WORK로 바뀌며 lit-loop 스킬 칩이 켜집니다. Claude가 실패하는 테스트를 먼저 쓰고 실패를 확인한 뒤 greet.js를 고치고, 테스트 두 개가 통과합니다. 카드는 lit-loop을 최근 스킬로 남긴 채 차분해지고, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
+<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="영상은 LIT 마크, LitClaude, The lit workflow for Claude Code가 적힌 제목 화면으로 시작해 LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션으로 넘어가며, 단계마다 번호가 붙은 두 줄 자막이 나옵니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답하고, 프롬프트 위 LIT 카드가 idle에서 WORK로 바뀌며 lit-loop 스킬 칩이 켜집니다. Claude가 실패하는 테스트를 먼저 쓰고 실패를 확인한 뒤 greet.js를 고치고, 테스트 두 개가 통과합니다. 카드는 lit-loop을 최근 스킬로 남긴 채 차분해지고, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
 
 ## 왜 LitClaude인가요
 
@@ -110,24 +110,37 @@ Claude의 답은 **🔥 LIT IGNITED · lit-loop 🔥**로 시작해 목표와 �
 돌고 있는지, 어디까지 왔는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를 거슬러 올라가지
 않아도 Claude가 하는 일을 따라갈 수 있습니다. 위쪽 테두리에는 작업 흐름의 이름과 단계가,
 첫 줄에는 계획에서 작업을 거쳐 리뷰로 가는 흐름이, 둘째 줄에는 실행된 LitFamily 스킬마다 칩이
-하나씩 놓이고, 아래쪽 테두리는 상태 줄의 컨텍스트, 5시간 사용량, Git 브랜치를 다시 보여 줍니다.
+하나씩 놓이고, 아래쪽 테두리는 상태 줄의 컨텍스트, 5시간과 1주 사용량, Git 브랜치를 다시 보여 줍니다.
 
 아직 아무것도 돌지 않을 때는 카드가 쉬면서 시작하는 방법을 알려 줍니다.
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="730" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 단계 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있고, 아래쪽 테두리에는 5h 2%와 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 단계 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있고, 아래쪽 테두리에는 5h 2%, 1w 47%와 브랜치 main이 보입니다." /></p>
 
 `lit`을 붙여 요청하면 카드가 작업 흐름의 이름을 띄우고, 지금 단계를 채우고, 요청을 맡은
 스킬의 칩을 밝힙니다.
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="730" alt="Claude가 일하는 동안의 LIT 카드. 위에는 Musing… · lit-loop 스피너가 돕니다. 위쪽 테두리에 LIT · lit-loop, 오른쪽에 WORK ●가 있고, PLAN과 REVIEW 사이의 WORK가 채워진 알약 모양입니다. skills 줄에는 밝은 lit-loop 칩이 있고, 아래쪽 테두리에는 ctx 5%, 5h 2%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="Claude가 일하는 동안의 LIT 카드. 위쪽 테두리에 LIT · lit-loop, 오른쪽에 WORK ●가 있고 분홍 불꽃이 테두리를 따라 달립니다. PLAN과 REVIEW 사이의 WORK는 채워진 알약 모양이고 그 위로 빛이 지나갑니다. skills 줄에는 밝은 lit-loop 칩이 있고, 아래쪽 테두리에는 ctx 5%, 5h 2%, 1w 47%, 브랜치 main이 보입니다." /></p>
 
-턴이 끝나면 카드는 다시 idle로 돌아갑니다. 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에
+Claude가 일하는 동안 카드는 가만히 있지 않습니다. LIT 알약이 분홍에서 주황으로 천천히
+숨 쉬듯 빛나고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 불꽃 하나가 위쪽 테두리를 따라 갔다가
+아래쪽 테두리로 돌아옵니다. 한눈에 봐도 LitClaude가 아직 일하는 중인지 알 수 있습니다.
+
+턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에
 무엇이 돌았는지 계속 알 수 있습니다.
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="730" alt="턴이 끝난 뒤의 LIT 카드. 위에는 Crunched for 20s · done 1:04 AM이라고 나옵니다. 위쪽 테두리의 LIT · lit-loop는 흐린 색이고 오른쪽에는 idle이 있습니다. 단계 줄의 WORK는 채워진 채로 남고, skills 줄에는 lit-loop가 회색 칩으로 남아 있으며, 아래쪽 테두리에는 ctx 6%, 5h 2%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="턴이 끝난 뒤의 LIT 카드. 위쪽 테두리의 LIT · lit-loop는 흐린 색이고 오른쪽에는 idle이 있습니다. 단계 줄의 WORK는 흐린 색으로 채워진 채 남고, skills 줄에는 lit-loop가 회색 칩으로 남아 있으며, 아래쪽 테두리에는 ctx 5%, 5h 2%, 1w 47%, 브랜치 main이 보입니다." /></p>
 
-카드는 Claude Code 2.1.287 이상에서 나옵니다. 세션 내내 떠 있고, 작업할 때만 보고 싶다면
-`/config`의 LitClaude 항목에서 `band`를 `auto`로, 숨기려면 `off`로 바꾸세요.
+카드는 Claude Code 2.1.287 이상의 터미널과 Claude 데스크톱 앱의 Code 탭에서 나옵니다. 앱도
+같은 설정 파일을 읽기 때문에 설치 프로그램이 둘 다 준비해 둡니다. 설치한 뒤 앱에서 새 세션을
+열면 됩니다. 카드는 세션 내내 떠 있고, 작업할 때만 보고 싶다면 `/config`의 LitClaude 항목에서
+`band`를 `auto`로, 숨기려면 `off`로 바꾸세요. 움직임을 줄이려면 `motion`을 `subtle`로, 멈추려면
+`off`로 두면 됩니다. 데스크톱 앱에는 이 설정을 바꾸는 화면이 없으니 터미널에서 바꾸세요.
+
+```bash
+npx @litfamily/litclaude@latest config             # 지금 설정 보기
+npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic도 같은 방식
+```
+
 [카드가 보여 주는 모든 것](./docs/hooks.md#the-lit-band-claude-code-mod)
 
 ## 자동 핸드오프

@@ -27,18 +27,24 @@ export const TIMINGS = Object.freeze({
   completion: 1200,
   exit: 150,
   frame: 33,
+  breath: 2400,
+  sweep: 1800,
+  comet: 2600,
+  ambientFrame: 66,
 });
 
-// full: the approved motion. subtle: no overshoot, no shimmer or embers, three quarters the time.
-// off: every duration is zero, so the band draws its final frame and never starts a frame timer.
+// full: the approved motion, and while LitClaude works the brand breathes, a light sweeps the active
+// phase and a comet runs around the card's rules. subtle: no overshoot, no shimmer or embers, three
+// quarters the time, and only the breathing while working. off: every duration is zero, so the band
+// draws its final frame and never starts a frame timer.
 export const motionProfile = (mode) => {
   if (mode === "off") {
-    return { mode, duration: () => 0, enterEase: EASE.linear, noticeEase: EASE.linear, shimmer: false, embers: false };
+    return { mode, duration: () => 0, enterEase: EASE.linear, noticeEase: EASE.linear, shimmer: false, embers: false, ambient: null };
   }
   if (mode === "subtle") {
-    return { mode, duration: (ms) => Math.round(ms * 0.75), enterEase: EASE.outCubic, noticeEase: EASE.outCubic, shimmer: false, embers: false };
+    return { mode, duration: (ms) => Math.round(ms * 0.75), enterEase: EASE.outCubic, noticeEase: EASE.outCubic, shimmer: false, embers: false, ambient: { sweep: false, comet: false } };
   }
-  return { mode: "full", duration: (ms) => ms, enterEase: EASE.outBack, noticeEase: EASE.outBack, shimmer: true, embers: true };
+  return { mode: "full", duration: (ms) => ms, enterEase: EASE.outBack, noticeEase: EASE.outBack, shimmer: true, embers: true, ambient: { sweep: true, comet: true } };
 };
 
 export const clamp01 = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x);

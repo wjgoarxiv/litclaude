@@ -355,7 +355,7 @@ status line read as one family:
 ╭─ [🔥 LIT] · lit-loop ─────────────────────────── WORK ● ─╮
 │ ● PLAN ━━ [WORK] ━━ ○ REVIEW              goal ██░░░ 2/5 │
 │ skills [⚡ lit-plan] [⚡ litresearch] [↯ lit-docx]        │
-╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · git main ──────────────────────╯
+╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────╯
 ```
 
 The brackets stand for the ends of filled pills: rounded caps from the icon font with `nerd`
@@ -380,7 +380,7 @@ requests are muted grey pills.
   With no chip yet, the row shows the next task while work runs, or how to start (`lit <task>`)
   while idle.
 - The bottom edge carries the live figures from the status line: context fill, the five-hour
-  rate window and the Git branch (read from `HEAD`, across a linked worktree).
+  and weekly rate windows and the Git branch (read from `HEAD`, across a linked worktree).
 - A notice takes the chips row for a few seconds, with a toast, when a gate fires: lit-plan not
   saved, interface probe pending or failed, motion gate, context near the auto-handoff percent,
   auto-handoff fired. The completion moment takes it when the last task is checked, the work
@@ -397,9 +397,9 @@ chips of the current request stay bright until the main turn completes. An agent
 as ended stops counting at once, and one quiet for 30 minutes (no tool call, no status change)
 stops counting too, so a crashed or lost agent cannot hold the card at work.
 
-The card is the terminal's width up to 80 columns and every row is fitted to it, with Hangul and
+The card is the terminal's width up to 120 columns and every row is fitted to it, with Hangul and
 emoji counted as two cells. Nothing wraps: on a narrow terminal the Git branch goes first, then
-the rate window, the lanes, the autoloop count and the long phase labels (`P ━ W ━ R`).
+the weekly and five-hour windows, the lanes, the autoloop count and the long phase labels (`P ━ W ━ R`).
 
 The spinner gains ` · <discipline> · n/m` after its ellipsis. `/lit-evidence` opens a pane with
 three tabs (keys `1`, `2`, `3`): the goal's criteria with their last evidence, blockers and the
@@ -408,17 +408,26 @@ newest litgoal ledger entries; the lanes; and the gates.
 Motion: entrances pop in 60 ms apart with a slight overshoot (160 ms each), fills and colour
 changes ease in and out (300 ms and 140 ms), notices slide in over 220 ms and leave over 150 ms,
 a chip's arrival light runs 400 ms (a plain fade under `subtle`, nothing under `off`), and the
-finish lasts at most 1.2 s. The band's `Client` element animates on Claude Code's frame
-clock only while something moves and stops its timer as soon as everything settles. In Claude
+finish lasts at most 1.2 s. While LitClaude is at work the card keeps moving so you can tell it
+is active at a glance: the LIT pill breathes from pink to flame orange every 2.4 s, a light sweeps
+across the active phase and this request's skill chips every 1.8 s, and a comet runs along the top rule and back along the
+bottom one every 2.6 s. Under `subtle` only the breathing stays; under `off` nothing moves. An
+idle card holds still. The band's `Client` element animates on Claude Code's frame clock, every
+33 ms while a transition plays and every 66 ms during work, and stops its timer once the card is
+idle and settled. In Claude
 Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
 moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
 a chip's light moves over its ASCII name, and a glyph swaps only together with its words.
 
-Options, in `/config` under LitClaude (stored in `pluginConfigs`):
+Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
+which the terminal and the desktop app's Code tab both read). The installer writes each default
+you have not set, so the desktop app, which has no editor for them, starts with all three;
+`litclaude-ai config` prints them and `litclaude-ai config <option> <value>` changes one.
+Uninstall removes only the defaults it wrote that are still unchanged.
 
 | Option | Values | Default |
 | --- | --- | --- |
-| `motion` | `full`, `subtle` (no overshoot, shimmer or embers, shorter), `off` (final frames only) | `full` |
+| `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work), `off` (final frames only) | `full` |
 | `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 

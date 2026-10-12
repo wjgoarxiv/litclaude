@@ -109,14 +109,14 @@ test("the README demo film is an animated WebP that stays out of the package and
 
 // The LIT card in its three states, cropped from one recorded Claude Code session; both READMEs show it.
 const cardShots = {
-  "idle.webp": "69b8c1b39b70f65ed976e28e0fc9905f0c624b8f433ecf60d1014c1c0e489690",
-  "working.webp": "ac4472084edfe7467bcf64eedad0b2b42459ec57608d8590c90e113d2413ab35",
-  "after.webp": "576ef625e0c4f7562acdd0f2d12b2b74c888499166cc7adddb778771c486bc5c",
+  "idle.webp": "0d9da522d831191cdb0e867cc6bc57628ddab365e76000898d5821b25a2d03f6",
+  "working.webp": "36ce64842cba9a404aa8ba63e1cbeb8342a4d99d54b62b3138146e79079dc922",
+  "after.webp": "84412f8d4640f657dce62235c2d0f3cbbc4f6af4e0eb2883b55edcc3eccb033a",
 };
 const cardQuotes = {
-  idle: ["LIT · ready", "type lit &lt;task&gt; to start one"],
-  working: ["LIT · lit-loop", "WORK ●", "Musing… · lit-loop"],
-  after: ["idle", "Crunched for 20s"],
+  idle: ["LIT · ready", "type lit &lt;task&gt; to start one", "1w"],
+  working: ["LIT · lit-loop", "WORK ●", "1w"],
+  after: ["idle", "lit-loop", "1w"],
 };
 
 test("both READMEs show the LIT card in its idle, working and after states", () => {
@@ -134,7 +134,7 @@ test("both READMEs show the LIT card in its idle, working and after states", () 
     assert.equal(content.split("\n").filter((line) => line === heading).length, 1, `${readme} has one card section`);
     const start = content.indexOf(heading);
     const section = content.slice(start, content.indexOf("\n## ", start + 4));
-    const pictures = [...section.matchAll(/<img src="\.\/docs\/assets\/card\/([\w-]+)\.webp" width="730" alt="([^"]{60,})" \/>/gu)];
+    const pictures = [...section.matchAll(/<img src="\.\/docs\/assets\/card\/([\w-]+)\.webp" width="960" alt="([^"]{60,})" \/>/gu)];
     assert.deepEqual(pictures.map((m) => m[1]), ["idle", "working", "after"], `${readme} shows the three states in order`);
     for (const [, name, alt] of pictures) {
       for (const quote of cardQuotes[name]) {

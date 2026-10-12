@@ -18,7 +18,7 @@
     "motion": {
       "type": "string",
       "title": "LIT band motion",
-      "description": "How the band above the prompt moves: full, subtle (no overshoot, shimmer or embers) or off.",
+      "description": "How the band above the prompt moves: full (during work the LIT pill breathes, a light sweeps the phase and a comet runs the border), subtle (only the breathing) or off.",
       "default": "full"
     },
     "glyphs": {

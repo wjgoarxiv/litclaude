@@ -7,7 +7,7 @@
 //   ╭─ [🔥 LIT] · lit-loop ─────────────────────────── WORK ● ─╮
 //   │ ● PLAN ━━ [WORK] ━━ ○ REVIEW              goal ██░░░ 2/5 │
 //   │ skills [⚡ lit-plan] [⚡ litresearch] [↯ lit-docx]        │
-//   ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · git main ──────────────────────╯
+//   ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────╯
 //
 // Each bracket pair stands for the two end cells of a filled pill: the brand on pink, the active
 // phase and this request's skills on the accent with dark text, skills from earlier requests on
@@ -44,7 +44,7 @@ export const PALETTE = Object.freeze({
 // The status line's level colours (xterm 71, 178, 167) and its empty bar cells (238).
 const HUD = Object.freeze({ green: "#5faf5f", yellow: "#d7af00", red: "#d75f5f", empty: "#444444" });
 // Past this many columns the card stops growing, so a wide terminal does not stretch it thin.
-export const CARD_MAX = 80;
+export const CARD_MAX = 120;
 // Pill colours: dark text on the bright fills, the muted pill for earlier skills and +N, the brand
 // pink of the status line's prefix, and the connectors between phases.
 const PILL = Object.freeze({ ink: "#0b0f14", muted: "#2d333b", mutedText: "#adb5bf", brand: PALETTE.pink, rail: "#46505c" });
@@ -145,18 +145,52 @@ const fitJoined = (segments, room) => {
 
 const joinSegments = (kept, joinerColor) => kept.flatMap((part, index) => (index > 0 ? [span(part.joiner, { fg: joinerColor }), ...part.spans] : part.spans));
 
-// An edge of the card: `open` and `close` are its corners, `left` its title or figures and
-// `right` the phase indicator, with the rule filling whatever room is left.
-const edgeRow = (open, left, right, close, width, color) => {
-  const tail = right.length ? [span(" "), ...right, span(` ${close}`, { fg: color })] : [span(close, { fg: color })];
-  const fill = Math.max(1, width - textWidth(open) - rowWidth(left) - 1 - rowWidth(tail));
-  return clipRow([span(open, { fg: color }), ...left, span(" "), span("─".repeat(fill), { fg: color }), ...tail], width);
+const COMET_TAIL = 12;
+
+// The comet's colour `k` of the way from its tail (0) to its head (1): flame orange fading in, pink
+// through the body and white at the head, laid over the rule's own colour.
+const cometColor = (base, k) => {
+  const hue = k > 0.8 ? lerpColor(PALETTE.pink, "#ffffff", (k - 0.8) / 0.2) : lerpColor(PALETTE.orange, PALETTE.pink, k / 0.8);
+  return lerpColor(base, hue, Math.min(1, k * 1.6));
 };
 
+// The rule of an edge, `count` cells from column `start`. With a comet ({ x, dir }: its head's
+// column and travel direction) the cells behind the head light up, brightest at the head, and the
+// rule becomes one span per cell; without one it stays a single span.
+const ruleSpans = (count, color, start, comet) => {
+  if (!comet) return [span("─".repeat(count), { fg: color })];
+  return Array.from({ length: count }, (_, i) => {
+    const behind = comet.dir * (comet.x - (start + i));
+    const k = behind >= 0 && behind <= COMET_TAIL ? 1 - behind / COMET_TAIL : 0;
+    return span("─", { fg: k > 0 ? cometColor(color, k) : color });
+  });
+};
+
+// An edge of the card: `open` and `close` are its corners, `left` its title or figures and
+// `right` the phase indicator, with the rule filling whatever room is left.
+const edgeRow = (open, left, right, close, width, color, comet = null) => {
+  const tail = right.length ? [span(" "), ...right, span(` ${close}`, { fg: color })] : [span(close, { fg: color })];
+  const fill = Math.max(1, width - textWidth(open) - rowWidth(left) - 1 - rowWidth(tail));
+  const start = textWidth(open) + rowWidth(left) + 1;
+  return clipRow([span(open, { fg: color }), ...left, span(" "), ...ruleSpans(fill, color, start, comet), ...tail], width);
+};
+
+// Where the ambient comet is on this card: along the top rule left to right for the first half of
+// its loop, then back along the bottom rule, starting and ending just off the card.
+const cometOn = (sample, edge, width) => {
+  const u = sample.ambient?.comet;
+  if (u === null || u === undefined) return null;
+  const span = width + 2 * COMET_TAIL;
+  if (edge === "top") return u < 0.5 ? { x: u * 2 * span - COMET_TAIL, dir: 1 } : null;
+  return u >= 0.5 ? { x: width + COMET_TAIL - (u - 0.5) * 2 * span, dir: -1 } : null;
+};
+
+// While LitClaude works the brand pill breathes from its pink toward the flame orange and back.
 const brandSpans = (sample, glyphs) => {
   const reveal = revealText("🔥 LIT", sample.pills[0]);
   if (reveal === null) return [];
-  return pill(litText(reveal, { fg: PILL.ink, bg: PILL.brand, bold: true }, sample.completion?.shimmer ?? null), PILL.brand, glyphs);
+  const fill = sample.ambient ? lerpColor(PILL.brand, PALETTE.orange, 0.85 * sample.ambient.breath) : PILL.brand;
+  return pill(litText(reveal, { fg: PILL.ink, bg: fill, bold: true }, sample.completion?.shimmer ?? null), fill, glyphs);
 };
 const indicatorSpans = (model, sample, glyphs, accent) => {
   if (sample.completion) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
@@ -177,10 +211,11 @@ const topEdge = (model, sample, { width, glyphs, accent, edge }) => {
   const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle)] : []);
   const fixed = textWidth("╭─ ") + rowWidth(brand) + 1 + 1;
   const withRight = fixed + rowWidth(title(name)) + 1 + rowWidth(right) + textWidth(" ─╮");
-  if (withRight <= width) return edgeRow("╭─ ", [...brand, ...title(name)], right, "─╮", width, edge);
+  const comet = cometOn(sample, "top", width);
+  if (withRight <= width) return edgeRow("╭─ ", [...brand, ...title(name)], right, "─╮", width, edge, comet);
   const room = width - fixed - textWidth("─╮") - textWidth(" · ");
   const shown = room >= 4 ? truncateToWidth(name, room) : "";
-  return edgeRow("╭─ ", [...brand, ...title(shown)], [], "─╮", width, edge);
+  return edgeRow("╭─ ", [...brand, ...title(shown)], [], "─╮", width, edge, comet);
 };
 
 const barSpans = (fraction, sample, cells) => barCells(fraction, cells, sample.fillGlow ?? 0)
@@ -223,7 +258,8 @@ const phaseTrack = (model, sample, { glyphs, accent, rail, short }) => {
     if (out.length) out.push(span(` ${glyphs.rail.repeat(rail)} `, { fg: sample.phases[PHASES[index - 1]].to === "done" ? ink.done : PILL.rail }));
     if (state === "now") {
       const fill = model.idle ? lerpColor(phaseColor(id, sample, ink), PILL.muted, 0.5) : phaseColor(id, sample, ink);
-      out.push(...pill([span(shown.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true })], fill, glyphs));
+      const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
+      out.push(...pill(litText(shown.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs));
     } else {
       out.push(span(warned(id, sample) ? shown.replace(/^[●○]/u, glyphs.warn) : shown, { fg: phaseColor(id, sample, ink) }));
     }
@@ -264,7 +300,7 @@ const CHIP_TONE = Object.freeze({
 // One chip pill: the bolt and the skill name, on the accent for this request or muted for an
 // earlier one. A chip that just arrived carries full motion's light along its name, or fills up
 // from the muted pill under subtle; a chip changing state crossfades its colours.
-const chipSpans = (chip, timed, glyphs, accent) => {
+const chipSpans = (chip, timed, glyphs, accent, sweep = null) => {
   const to = timed?.to ?? chip.state;
   const from = timed?.from ?? to;
   const mix = timed?.mix ?? 1;
@@ -275,7 +311,7 @@ const chipSpans = (chip, timed, glyphs, accent) => {
   const bold = to === "current";
   return pill([
     span(`${to === "current" ? glyphs.bolt : glyphs.recentBolt} `, { fg: text, bg: fill }),
-    ...litText(chip.id, { fg: text, bg: fill, bold }, timed?.shimmer),
+    ...litText(chip.id, { fg: text, bg: fill, bold }, timed?.shimmer ?? (to === "current" && arrive >= 1 ? sweep : null)),
   ], fill, glyphs);
 };
 
@@ -296,7 +332,8 @@ const chipsRow = (model, sample, { inner, glyphs, accent }) => {
   const row = inner >= 30 ? [span("skills", { fg: PALETTE.dim })] : [];
   let shown = 0;
   for (const chip of chips) {
-    const entry = chipSpans(chip, sample.chips?.[chip.id], glyphs, accent);
+    // While LitClaude works the light that crosses the active phase crosses this request's chips too.
+    const entry = chipSpans(chip, sample.chips?.[chip.id], glyphs, accent, model.idle ? null : sample.ambient?.sweep ?? null);
     const gap = row.length ? [span(" ")] : [];
     const rest = chips.length - shown - 1;
     const reserve = rest > 0 ? 1 + rowWidth(mutedPill(`+${rest}`, glyphs)) : 0;
@@ -346,10 +383,10 @@ const completionRow = (sample, inner) => {
 
 const levelColor = (percent) => (percent >= 90 ? HUD.red : percent >= 70 ? HUD.yellow : HUD.green);
 
-// ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · git main ───╯, or a warning first when one is up. The branch goes
-// first on a narrow card, then the rate window, then the context bar.
-const bottomEdge = (model, { width, glyphs, accent, edge }) => {
-  const { context, rate, git } = model.figures;
+// ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ───╯, or a warning first when one is up. The branch goes
+// first on a narrow card, then the weekly window, the five-hour one and the context bar.
+const bottomEdge = (model, sample, { width, glyphs, accent, edge }) => {
+  const { context, rates, git } = model.figures;
   const warning = model.warnings[0];
   const segments = [];
   if (warning) {
@@ -361,19 +398,21 @@ const bottomEdge = (model, { width, glyphs, accent, edge }) => {
     const filled = Math.max(0, Math.min(5, Math.round(context / 20)));
     segments.push(segment("ctxbar", 2, [span("▰".repeat(filled), { fg: accent }), span("▱".repeat(5 - filled), { fg: HUD.empty })], " "));
   }
-  if (rate) segments.push(segment("rate", 3, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · "));
+  rates.forEach((rate, index) => segments.push(segment(`rate-${rate.label}`, 3 + index * 0.5, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · ")));
   if (git) segments.push(segment("git", 4, [span(`${glyphs.branch} `, { fg: PALETTE.dim }), span(git, { fg: accent })], " · "));
   const room = width - textWidth("╰─ ") - 1 - 1 - textWidth("─╯");
   let kept = fitJoined(segments, room);
   if (kept[0]?.id === "ctxbar") kept = kept.slice(1);
   if (kept.length === 0 && warning) kept = [{ ...segments[0], spans: clipRow(segments[0].spans, room) }];
-  return edgeRow("╰─ ", joinSegments(kept, edge), [], "─╯", width, edge);
+  return edgeRow("╰─ ", joinSegments(kept, edge), [], "─╯", width, edge, cometOn(sample, "bottom", width));
 };
 
-const edgeColor = (model, accent) => {
+// The border: red or amber under a warning, otherwise the accent, dimmer while idle and breathing
+// toward full accent with the brand pill while LitClaude works.
+const edgeColor = (model, sample, accent) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return PALETTE.red;
   if (model.warnings.length) return PALETTE.amber;
-  return lerpColor(PALETTE.faint, accent, model.idle ? 0.35 : 0.6);
+  return lerpColor(PALETTE.faint, accent, model.idle ? 0.35 : 0.6 + 0.4 * (sample.ambient?.breath ?? 0));
 };
 
 /**
@@ -385,7 +424,7 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
   const glyphs = glyphSet(glyphMode);
   const width = Math.max(12, Math.min(CARD_MAX, columns));
   const inner = width - 4;
-  const edge = edgeColor(model, accent);
+  const edge = edgeColor(model, sample, accent);
   const side = (row) => [span("│ ", { fg: edge }), ...row, span(" │", { fg: edge })];
   const options = { width, inner, glyphs, accent, edge };
   const middle = sample.completion ? completionRow(sample, inner) : sample.notice ? noticeRow(sample, inner) : chipsRow(model, sample, options);
@@ -393,7 +432,7 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
     mode: "card",
     border: edge,
     width,
-    rows: [topEdge(model, sample, options), side(phaseRow(model, sample, options)), side(middle), bottomEdge(model, options)],
+    rows: [topEdge(model, sample, options), side(phaseRow(model, sample, options)), side(middle), bottomEdge(model, sample, options)],
   };
 };
 

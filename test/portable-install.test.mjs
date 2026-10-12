@@ -447,6 +447,50 @@ describe("portable LitClaude install layout", () => {
     }
   });
 
+  it("writes the mod options for the desktop app on install, changes them with config, and removes only its own on uninstall", () => {
+    const home = makeHome();
+    const claudeHome = makeClaudeHome();
+    const settingsPath = join(claudeHome, "settings.json");
+    const options = () => JSON.parse(readFileSync(settingsPath, "utf8")).pluginConfigs?.["litclaude@litclaude-ai"]?.options;
+    try {
+      mkdirSync(claudeHome, { recursive: true });
+      writeFileSync(settingsPath, `${JSON.stringify({ pluginConfigs: { "other@market": { options: { keep: "me" } }, "litclaude@litclaude-ai": { options: { band: "auto" } } } }, null, 2)}\n`);
+      const install = runCli(["install"], home, claudeHome);
+      assert.equal(install.status, 0, install.stderr);
+      assert.deepEqual(options(), { band: "auto", motion: "full", glyphs: "auto" }, "defaults fill in; the user's band stays");
+      assert.match(install.stdout, /DESKTOP_APP: ready/u);
+      assert.match(install.stdout, /MOD_OPTIONS: motion full · glyphs auto · band auto/u);
+
+      const shown = runCli(["config"], home, claudeHome);
+      assert.equal(shown.status, 0, shown.stderr);
+      assert.match(shown.stdout, /motion\s+full/u);
+      const set = runCli(["config", "motion", "subtle"], home, claudeHome);
+      assert.equal(set.status, 0, set.stderr);
+      assert.equal(options().motion, "subtle");
+      const bad = runCli(["config", "motion", "wild"], home, claudeHome);
+      assert.equal(bad.status, 64);
+      assert.match(bad.stderr, /full, subtle, off/u);
+      assert.equal(runCli(["config", "colour", "red"], home, claudeHome).status, 64);
+
+      const doctor = runCli(["doctor"], home, claudeHome);
+      assert.match(doctor.stdout, /MOD_OPTIONS: motion subtle · glyphs auto · band auto/u);
+
+      const reinstall = runCli(["install"], home, claudeHome);
+      assert.equal(reinstall.status, 0, reinstall.stderr);
+      assert.equal(options().motion, "subtle", "a reinstall never resets a chosen option");
+
+      const uninstall = runCli(["uninstall"], home, claudeHome);
+      assert.equal(uninstall.status, 0, uninstall.stderr);
+      const after = JSON.parse(readFileSync(settingsPath, "utf8"));
+      assert.deepEqual(after.pluginConfigs["other@market"], { options: { keep: "me" } });
+      assert.deepEqual(after.pluginConfigs["litclaude@litclaude-ai"], { options: { band: "auto", motion: "subtle" } }, "only the untouched default goes");
+      assert.equal(after.litclaude?.modOptionsWritten, undefined);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(claudeHome, { recursive: true, force: true });
+    }
+  });
+
   it("preserves a user-changed statusLine on uninstall", () => {
     const home = makeHome();
     const claudeHome = makeClaudeHome();

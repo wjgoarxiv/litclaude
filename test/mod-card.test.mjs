@@ -11,7 +11,7 @@ import { TIMINGS, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs"
 import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
 import { readGitBranch } from "../plugins/litclaude/lib/mod/state.mjs";
-import { advanceTimeline, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
+import { advanceTimeline, ambientActive, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { AGENT_STALE_MS, STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 
@@ -63,7 +63,7 @@ test("the working card reads like the chosen sketch, every row exactly the card 
   assert.match(top, /^╭─ {2}🔥 LIT {2}· lit-loop ─+ WORK ● ─╮$/u);
   assert.match(phases, /^│ ● PLAN ━+ {2}WORK {2}━+ ○ REVIEW +goal [ ░]+ 2\/5 │$/u);
   assert.match(skills, /^│ skills {2}⚡ lit-plan {3}⚡ litresearch {3}⚡ lit-docx +│$/u);
-  assert.match(bottom, /^╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · git main ─+╯$/u);
+  assert.match(bottom, /^╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─+╯$/u);
   const name = frame.rows[2].find(({ text }) => text === "lit-plan");
   assert.equal(name.bg, CYAN, "a skill of this request is a pill on the HUD accent");
   assert.equal(name.bold, true);
@@ -111,8 +111,9 @@ test("too many chips collapse to +N and the narrow card drops git, then the rate
   assert.match(narrow[3], /ctx 42%/u);
   const tiny = texts(draw(model, 24));
   assert.doesNotMatch(tiny[3], /5h/u);
-  assert.ok(CARD_MAX >= 64 && CARD_MAX <= 100, "a wide terminal does not stretch the card thin");
-  for (const columns of [20, 24, 44, 64, 100, 160]) {
+  assert.match(narrow[3], /5h 31% · 1w 12%/u, "both usage windows, as the status line shows them");
+  assert.ok(CARD_MAX >= 110 && CARD_MAX <= 140, "the card spans a wide terminal but stops before it stretches thin");
+  for (const columns of [20, 24, 44, 64, 100, 120, 160, 200]) {
     for (const glyphs of ["basic", "nerd"]) {
       const frame = draw(model, columns, glyphs);
       for (const row of frame.rows) assert.equal(rowWidth(row), Math.min(columns, CARD_MAX), `${glyphs} ${columns}: ${rowText(row)}`);
@@ -480,4 +481,83 @@ test("the top edge never reads DONE while an agent is still running", () => {
   assert.match(texts(draw(model, 80))[0], /LIVE/u);
   const settled = buildBandModel({ snapshot: lit({ goal: goalOf(5, 5, "complete") }), now: NOW, isWorking: true });
   assert.match(texts(draw(settled, 80))[0], /DONE/u, "with no lane left the finished goal reads DONE");
+});
+
+test("while LitClaude works the card keeps moving: the brand breathes, a light sweeps the phase pill, a comet runs the rules", () => {
+  const full = motionProfile("full");
+  const model = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage, git: "main", skills: chips(["lit-plan"]) });
+  const timeline = createTimeline(model, 0, full);
+  const settled = 2000;
+  assert.equal(timelineBusy(timeline, settled, full), false, "the entry transitions have settled");
+  assert.equal(ambientActive(timeline, full), true, "but the ambient loop keeps running while work is live");
+  const at = (t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: 80, glyphs: "basic", accent: CYAN });
+  const brandFill = (frame) => frame.rows[0].find(({ text }) => text.includes("LIT")).bg;
+  const fills = new Set([0, 300, 600, 900, 1200].map((dt) => brandFill(at(settled + dt))));
+  assert.ok(fills.size >= 3, `the brand pill breathes through several colours, saw ${[...fills]}`);
+  const sweeps = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600].map((dt) => at(settled + dt).rows[1].filter(({ text, bg }) => /^[WORK]$/u.test(text) && bg && bg !== CYAN).length);
+  assert.ok(sweeps.some((n) => n > 0), "a light crosses the WORK pill at some point of the loop");
+  const chipLight = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600].some((dt) => at(settled + dt).rows[2].some(({ text, bg }) => text.length === 1 && /[a-z-]/u.test(text) && bg && bg !== CYAN));
+  assert.ok(chipLight, "and over this request's skill chip");
+  const ruleColours = (frame, row) => frame.rows[row].filter(({ text }) => /^─+$/u.test(text)).map(({ fg }) => fg);
+  const loop = TIMINGS.comet;
+  assert.ok(new Set(ruleColours(at(2 * loop + loop * 0.25), 0)).size >= 2, "a quarter into its loop the comet lights the top rule");
+  assert.equal(new Set(ruleColours(at(2 * loop + loop * 0.25), 3)).size, 1, "and leaves the bottom rule alone");
+  assert.ok(new Set(ruleColours(at(2 * loop + loop * 0.75), 3)).size >= 2, "three quarters in it runs back along the bottom rule");
+  for (const dt of [0, 500, 1000, 1500]) for (const row of at(settled + dt).rows) assert.equal(rowWidth(row), 80, "ambient motion never changes the card's width");
+});
+
+test("ambient motion stops when the card is idle, is breath-only under subtle and absent with motion off", () => {
+  const full = motionProfile("full");
+  const resting = buildBandModel({ snapshot: idle(), now: NOW, usage, git: "main" });
+  assert.equal(resting.idle, true);
+  const quiet = createTimeline(resting, 0, full);
+  assert.equal(ambientActive(quiet, full), false, "an idle card stays still so motion means work");
+  const frameAt = (model, timeline, profile, t) => JSON.stringify(composeBand(model, sampleTimeline(timeline, t, profile), { columns: 80, glyphs: "basic", accent: CYAN }));
+  assert.equal(frameAt(resting, quiet, full, 3000), frameAt(resting, quiet, full, 3700));
+
+  const working = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage, git: "main" });
+  const subtle = motionProfile("subtle");
+  const soft = createTimeline(working, 0, subtle);
+  assert.equal(ambientActive(soft, subtle), true);
+  const soft1 = composeBand(working, sampleTimeline(soft, 2100, subtle), { columns: 80, glyphs: "basic", accent: CYAN });
+  assert.equal(new Set(soft1.rows[0].filter(({ text }) => /^─+$/u.test(text)).map(({ fg }) => fg)).size, 1, "subtle runs no comet");
+  assert.notEqual(frameAt(working, soft, subtle, 2000), frameAt(working, soft, subtle, 2900), "but the brand still breathes");
+
+  const off = motionProfile("off");
+  const still = createTimeline(working, 0, off);
+  assert.equal(ambientActive(still, off), false);
+  assert.equal(frameAt(working, still, off, 2000), frameAt(working, still, off, 2900));
+  assert.equal(settledSample(working).ambient, null, "the static fallback draws one still frame");
+
+  const finished = advanceTimeline(createTimeline(working, 0, full), resting, 5000, full);
+  assert.equal(ambientActive(finished, full), false, "the loop ends with the work");
+});
+
+test("the surface module keeps a slower timer running through work and stops it once the card idles", async () => {
+  const { default: LitBand } = await import("../plugins/litclaude/hooks/lit-band-client.mjs");
+  const timers = [];
+  const surface = {
+    state: undefined,
+    elements: { Box: (props) => ({ type: "Box", props }), Text: (props) => ({ type: "Text", props }) },
+    every: (ms, fn) => {
+      const timer = { ms, fn, stopped: false };
+      timers.push(timer);
+      return () => { timer.stopped = true; };
+    },
+    setState(next) { this.state = { ...this.state, ...next }; },
+  };
+  const running = () => timers.filter((timer) => !timer.stopped);
+  const tick = (n) => { for (let i = 0; i < n; i += 1) for (const timer of running()) timer.fn(); };
+  const working = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage, git: "main" });
+  const props = { model: working, columns: 80, glyphs: "basic", motion: "full", accent: CYAN };
+  LitBand(props, surface);
+  assert.equal(running().length, 1);
+  assert.equal(running()[0].ms, TIMINGS.frame, "transitions run on the fast frame");
+  tick(120);
+  assert.equal(running().length, 1, "after the entry settles a timer still runs while work is live");
+  assert.equal(running()[0].ms, TIMINGS.ambientFrame, "on the slower ambient frame");
+  const resting = buildBandModel({ snapshot: idle(), now: NOW, usage, git: "main" });
+  LitBand({ ...props, model: resting }, surface);
+  tick(120);
+  assert.equal(running().length, 0, "an idle card stops every timer");
 });

@@ -22,9 +22,17 @@ const chipsOf = (model, now, previous = null) => Object.fromEntries((model.skill
   return [chip.id, known];
 }));
 
+// The ambient loop runs while the card shows LitClaude at work, so motion itself says "active";
+// `at` is when the current run of work began, so the loop does not restart on every new model.
+const ambientOf = (model, now, profile, previous = null) => {
+  const on = Boolean(profile.ambient) && model.visible && !model.idle;
+  return { on, at: on && previous?.on ? previous.at : now };
+};
+
 export const createTimeline = (model, now, profile) => {
   const restAt = now + entryEnd(profile);
   return {
+    ambient: ambientOf(model, now, profile),
     enterAt: now,
     exitAt: null,
     fill: { from: 0, to: fractionOf(model), at: restAt, dur: profile.duration(TIMINGS.fill) },
@@ -63,7 +71,26 @@ export const advanceTimeline = (timeline, model, now, profile) => {
     next.completion = model.completion ? { data: model.completion, at: now } : null;
   }
   next.chips = chipsOf(model, now, timeline.chips);
+  next.ambient = ambientOf(model, now, profile, timeline.ambient);
   return next;
+};
+
+/** True while the ambient loop runs; the surface module then keeps a slower frame timer going. */
+export const ambientActive = (timeline, profile) => Boolean(profile.ambient) && timeline.exitAt === null && timeline.ambient.on;
+
+// One frame of the ambient loop: `breath` (0 to 1 and back over TIMINGS.breath), where the light
+// stands on the active phase (`sweep`, null between passes) and how far the comet has gone around
+// the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left).
+const ambientSample = (timeline, now, profile) => {
+  if (!ambientActive(timeline, profile)) return null;
+  const elapsed = Math.max(0, now - timeline.ambient.at);
+  const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * elapsed) / TIMINGS.breath);
+  const pass = ((elapsed % TIMINGS.sweep) / TIMINGS.sweep) * 1.6 - 0.3;
+  return {
+    breath,
+    sweep: profile.ambient.sweep && pass >= -0.2 && pass <= 1.2 ? pass : null,
+    comet: profile.ambient.comet ? (elapsed % TIMINGS.comet) / TIMINGS.comet : null,
+  };
 };
 
 export const timelineBusy = (timeline, now, profile) => {
@@ -142,6 +169,7 @@ export const sampleTimeline = (timeline, now, profile) => {
     notice,
     completion,
     chips,
+    ambient: ambientSample(timeline, now, profile),
   };
 };
 

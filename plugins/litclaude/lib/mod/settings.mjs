@@ -3,7 +3,7 @@
 // one; the values are checked here instead, and anything unknown falls back to the default (the
 // first choice).
 
-const CHOICES = Object.freeze({
+export const MOD_CHOICES = Object.freeze({
   motion: ["full", "subtle", "off"],
   glyphs: ["auto", "nerd", "basic"],
   band: ["always", "auto", "off"],
@@ -15,9 +15,9 @@ const pick = (value, choices) => {
 };
 
 export const normalizeModSettings = (options) => ({
-  motion: pick(options?.motion, CHOICES.motion),
-  glyphs: pick(options?.glyphs, CHOICES.glyphs),
-  band: pick(options?.band, CHOICES.band),
+  motion: pick(options?.motion, MOD_CHOICES.motion),
+  glyphs: pick(options?.glyphs, MOD_CHOICES.glyphs),
+  band: pick(options?.band, MOD_CHOICES.band),
 });
 
 // The glyph set one surface draws. Private-use Nerd Font glyphs only reach the terminal, which

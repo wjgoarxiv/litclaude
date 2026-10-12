@@ -137,14 +137,16 @@ const goalSummaryOf = (goal) => {
   return { status: goal.status, passed: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length };
 };
 
-// The bottom edge's live figures, as the status line shows them: context fill, the five-hour
-// window (the weekly one when that is all there is) and the Git branch.
+// The bottom edge's live figures, as the status line shows them: context fill, the five-hour and
+// weekly windows and the Git branch.
 const figuresOf = (usage, git) => {
   const context = Number.isFinite(usage?.context?.percent) ? Math.round(usage.context.percent) : null;
   const windows = Array.isArray(usage?.rateLimits) ? usage.rateLimits : [];
-  const window = windows.find(({ kind }) => kind === "five_hour") ?? windows.find(({ kind }) => kind === "seven_day") ?? null;
-  const rate = window && Number.isFinite(window.percentUsed) ? { label: window.kind === "five_hour" ? "5h" : "1w", percent: Math.round(window.percentUsed) } : null;
-  return { context, rate, git: typeof git === "string" && git ? git : null };
+  const rates = [["five_hour", "5h"], ["seven_day", "1w"]].flatMap(([kind, label]) => {
+    const window = windows.find((entry) => entry.kind === kind);
+    return window && Number.isFinite(window.percentUsed) ? [{ label, percent: Math.round(window.percentUsed) }] : [];
+  });
+  return { context, rates, git: typeof git === "string" && git ? git : null };
 };
 
 /**

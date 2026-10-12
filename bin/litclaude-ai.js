@@ -30,6 +30,7 @@ import {
   themeForAccent,
 } from "../plugins/litclaude/lib/hud-accent-palette.mjs";
 import { readPublicSource } from "../plugins/litclaude/lib/public-source-reader/reader.mjs";
+import { MOD_CHOICES } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
@@ -80,12 +81,16 @@ const prewarmMotionRuntime = () => {
 };
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|path|run|update|uninstall|litgoal|wikify|workflow-check|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|path|run|update|uninstall|litgoal|wikify|workflow-check|start-work|start-work-next|public-read|motion-runtime> [...args]
        litclaude-ai --version
 
 Commands:
   install       Register the packaged LitClaude plugin in Claude Code.
   doctor        Validate the installed LitClaude plugin path.
+  config [<option> <value>]
+                Show or change the LIT card options (motion, glyphs, band) in
+                pluginConfigs, the same values /config edits. Works for the
+                desktop app too, which shows no editor for them.
   path          Print the installed Claude plugin path.
   run -- ...    Run Claude Code after the global plugin install.
   litgoal       Manage litgoal runtime state and evidence.
@@ -720,6 +725,82 @@ const registerMarketplace = (marketplacePath, home = claudeHome()) => {
   writeKnownMarketplaces(knownMarketplaces, home);
 };
 
+// The LIT card's options live in settings.json `pluginConfigs`, which the terminal and the desktop
+// app both read; the desktop app has no editor for them, so install writes each default the user
+// has not set and records which ones it wrote. Uninstall removes only those still at that value.
+const modOptionDefaults = () => Object.fromEntries(Object.keys(MOD_CHOICES).map((key) => [key, MOD_CHOICES[key][0]]));
+const modOptionsOf = (settings) => ({ ...modOptionDefaults(), ...(settings.pluginConfigs?.[pluginKey]?.options ?? {}) });
+const modOptionsLine = (settings) => {
+  const options = modOptionsOf(settings);
+  return Object.keys(MOD_CHOICES).map((key) => `${key} ${options[key]}`).join(" · ");
+};
+
+const writeModOptions = (settings, options) => {
+  settings.pluginConfigs = settings.pluginConfigs ?? {};
+  const entry = settings.pluginConfigs[pluginKey] ?? {};
+  settings.pluginConfigs[pluginKey] = { ...entry, options: { ...(entry.options ?? {}), ...options } };
+};
+
+const installModOptions = (home = claudeHome()) => {
+  const settings = readClaudeSettings(home);
+  const present = settings.pluginConfigs?.[pluginKey]?.options ?? {};
+  const existingLitClaude = settings[litClaudeSettingsKey] ?? {};
+  const written = { ...(existingLitClaude.modOptionsWritten ?? {}) };
+  const missing = Object.fromEntries(Object.entries(modOptionDefaults()).filter(([key]) => present[key] === undefined));
+  if (Object.keys(missing).length === 0) return;
+  writeModOptions(settings, missing);
+  settings[litClaudeSettingsKey] = { ...existingLitClaude, modOptionsWritten: { ...written, ...missing } };
+  writeClaudeSettings(settings, home);
+};
+
+const uninstallModOptions = (home = claudeHome()) => {
+  if (!existsSync(claudeSettingsPath(home))) return;
+  const settings = readClaudeSettings(home);
+  const litClaude = settings[litClaudeSettingsKey];
+  if (!litClaude?.modOptionsWritten) return;
+  const entry = settings.pluginConfigs?.[pluginKey];
+  if (entry?.options) {
+    const options = { ...entry.options };
+    for (const [key, value] of Object.entries(litClaude.modOptionsWritten)) if (options[key] === value) delete options[key];
+    const rest = { ...entry };
+    if (Object.keys(options).length > 0) rest.options = options;
+    else delete rest.options;
+    if (Object.keys(rest).length > 0) settings.pluginConfigs[pluginKey] = rest;
+    else delete settings.pluginConfigs[pluginKey];
+    if (Object.keys(settings.pluginConfigs).length === 0) delete settings.pluginConfigs;
+  }
+  const remainingLitClaude = { ...litClaude };
+  delete remainingLitClaude.modOptionsWritten;
+  if (Object.keys(remainingLitClaude).length > 0) settings[litClaudeSettingsKey] = remainingLitClaude;
+  else delete settings[litClaudeSettingsKey];
+  writeClaudeSettings(settings, home);
+};
+
+// `config` prints the options; `config <option> <value>` sets one. A value the user sets is theirs,
+// so it leaves the install record and uninstall keeps it.
+const configModOptions = (rest, home = claudeHome()) => {
+  if (rest.length === 0) {
+    const options = modOptionsOf(readClaudeSettings(home));
+    for (const key of Object.keys(MOD_CHOICES)) process.stdout.write(`${key.padEnd(7)} ${options[key].padEnd(7)} (${MOD_CHOICES[key].join(", ")})\n`);
+    process.stdout.write("Change one with: litclaude-ai config <option> <value>. New Claude Code sessions, terminal or desktop app, pick it up.\n");
+    return;
+  }
+  const [key, raw] = rest;
+  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${Object.keys(MOD_CHOICES).join(", ")}`, 64);
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (!MOD_CHOICES[key].includes(value) || rest.length > 2) fail(`${key} takes one of: ${MOD_CHOICES[key].join(", ")}`, 64);
+  const settings = readClaudeSettings(home);
+  writeModOptions(settings, { [key]: value });
+  const litClaude = settings[litClaudeSettingsKey];
+  if (litClaude?.modOptionsWritten && Object.hasOwn(litClaude.modOptionsWritten, key)) {
+    const written = { ...litClaude.modOptionsWritten };
+    delete written[key];
+    settings[litClaudeSettingsKey] = { ...litClaude, modOptionsWritten: written };
+  }
+  writeClaudeSettings(settings, home);
+  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(settings)}\n`);
+};
+
 const ownsHudStatusLine = (settings, ownership) =>
   settings.statusLine?.type === "command" && settings.statusLine.command === ownership.statusLineCommand &&
   Object.keys(settings.statusLine).every((key) => key === "type" || key === "command");
@@ -1025,6 +1106,7 @@ const registerClaudePlugin = (installRoot, marketplacePath, home = claudeHome(),
   writeInstalledPlugins(registry, home);
   registerMarketplace(marketplacePath, home);
   installHudStatusLine(installRoot, home, hudAccent);
+  installModOptions(home);
   recordPermissionConfiguration(permissionMode, home);
 };
 
@@ -1384,6 +1466,8 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write(`Plugin path: ${intendedPluginPath(home)}\n`);
   process.stdout.write(hudManaged ? `HUD: LitClaude statusLine installed (${hudAccent})\n` : "HUD: user statusLine setting preserved\n");
   process.stdout.write(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`);
+  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)\n`);
+  process.stdout.write("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n");
   process.stdout.write(`${prewarmMotionRuntime()}\n`);
   if (wantsIconFont) await runIconFontInstall();
   process.stdout.write("Launch with: claude\n");
@@ -1505,6 +1589,7 @@ const doctor = ({ dryRun }) => {
   process.stdout.write(`${jevStatusLine(process.env)}\n`);
   writeAutoHandoffDoctorLines();
   process.stdout.write(`${iconFontDoctorLine()}\n`);
+  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
 
   // lit-typographic-motion: the five readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.
@@ -1635,6 +1720,7 @@ const uninstall = ({ dryRun }) => {
   uninstallHudStatusLine();
   uninstallOutputStyle();
   uninstallPermissionRules();
+  uninstallModOptions();
   rmSync(claudePluginRoot(), { recursive: true, force: true });
   removeEmptyDirectory(dirname(claudePluginRoot()));
   removeEmptyDirectory(pluginCacheRoot);
@@ -1729,6 +1815,9 @@ const main = async () => {
       break;
     case "doctor":
       doctor(parsed);
+      break;
+    case "config":
+      configModOptions(parsed.rest);
       break;
     case "path":
       printPath(parsed);

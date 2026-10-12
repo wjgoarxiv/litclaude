@@ -13,7 +13,7 @@
 
 <p align="center"><a href="#install">Install</a> &nbsp; <a href="#quick-start">Quick start</a> &nbsp; <a href="./docs/guide.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> Guide</a> &nbsp; <a href="./docs/skills.md">Skills</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> Film</a> &nbsp; <a href="./docs/guide.md#safety"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> Safety</a> &nbsp; <a href="./README_ko-KR.md">한국어</a></p>
 
-<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="A Claude Code session in a small Node project with LitClaude installed. The prompt &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot; is sent, the hook answers with the LIT mark and LIT IGNITED · lit-loop, and the LIT card above the prompt moves from idle to WORK with a lit-loop skill chip. Claude writes the failing test first and sees it fail, changes greet.js, and both tests pass. The card settles back with lit-loop listed as a recent skill, and the film ends on the LitClaude mark and the install command npx @litfamily/litclaude@latest install." /></p>
+<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="The film opens on a title card with the LIT mark, LitClaude and The lit workflow for Claude Code, then cuts to a Claude Code session in a small Node project with LitClaude installed, where a numbered two-line caption names each step. The prompt &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot; is sent, the hook answers with the LIT mark and LIT IGNITED · lit-loop, and the LIT card above the prompt moves from idle to WORK with a lit-loop skill chip. Claude writes the failing test first and sees it fail, changes greet.js, and both tests pass. The card settles back with lit-loop listed as a recent skill, and the film ends on the LitClaude mark and the install command npx @litfamily/litclaude@latest install." /></p>
 
 ## Why LitClaude
 
@@ -112,25 +112,39 @@ While you work, LitClaude keeps a small card just above the prompt. It shows whi
 running, how far it has come and which skills it has used, so you can follow Claude without
 scrolling back through the conversation. The top edge names the workflow and its phase, the
 first row follows the work from plan through build to review, the second row holds a chip for
-each LitFamily skill that fired, and the bottom edge repeats the context, five-hour usage and
-Git branch from the status line.
+each LitFamily skill that fired, and the bottom edge repeats the context, the five-hour and
+weekly usage and the Git branch from the status line.
 
 Before anything runs, the card rests and tells you how to begin:
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="730" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the phase row shows PLAN, WORK and REVIEW as empty rings, the next row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 2% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the phase row shows PLAN, WORK and REVIEW as empty rings, the next row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 2%, 1w 47% and the branch main." /></p>
 
 Give it a request with `lit`, and the card names the workflow, fills the phase it is in and
 lights a chip for the skill that took the request:
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="730" alt="The LIT card while Claude works. Above it the spinner reads Musing… · lit-loop. The top edge reads LIT · lit-loop with WORK ● on the right, WORK is a filled pill between PLAN and REVIEW, the skills row holds a bright lit-loop chip, and the bottom edge shows ctx 5%, 5h 2% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="The LIT card while Claude works. The top edge reads LIT · lit-loop with WORK ● on the right and a pink comet running along the border, WORK is a filled pill between PLAN and REVIEW with a light passing over it, the skills row holds a bright lit-loop chip, and the bottom edge shows ctx 5%, 5h 2%, 1w 47% and the branch main." /></p>
 
-When the turn ends, the card goes back to idle. The chip turns grey and stays as a recent
+While Claude is busy, the card does not sit still. The LIT pill slowly glows from pink to
+orange and back, a light passes over the phase it is in and over the skill chip, and a spark runs along the top edge
+and back along the bottom. A glance is enough to tell that LitClaude is still at work.
+
+When the turn ends, the card goes back to idle and stops moving. The chip turns grey and stays as a recent
 skill, so you can still see what ran last:
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="730" alt="The LIT card after the turn. Above it Claude Code reads Crunched for 20s · done 1:04 AM. The top edge reads LIT · lit-loop in a dim colour with idle on the right, WORK stays filled in the phase row, the skills row keeps lit-loop as a grey chip, and the bottom edge shows ctx 6%, 5h 2% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="The LIT card after the turn. The top edge reads LIT · lit-loop in a dim colour with idle on the right, WORK stays filled in a muted colour in the phase row, the skills row keeps lit-loop as a grey chip, and the bottom edge shows ctx 5%, 5h 2%, 1w 47% and the branch main." /></p>
 
-The card needs Claude Code 2.1.287 or later. It stays for the whole session; to see it only
-while work runs, set `band` to `auto` in `/config` under LitClaude, and `off` hides it.
+The card needs Claude Code 2.1.287 or later, in the terminal or in the Code tab of the Claude
+desktop app. The installer sets up both, since the app reads the same settings; open a new
+session in the app after installing. The card stays for the whole session; to see it only while
+work runs, set `band` to `auto` in `/config` under LitClaude, and `off` hides it. Set `motion`
+to `subtle` for a quieter card, or `off` to keep it still. The desktop app has no editor for
+these options, so change them from a terminal instead:
+
+```bash
+npx @litfamily/litclaude@latest config             # show the options
+npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs basic
+```
+
 [Everything the card can show](./docs/hooks.md#the-lit-band-claude-code-mod).
 
 ## Automatic handoff
