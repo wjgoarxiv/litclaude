@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.24 - 2026-10-12
+
+- The LIT card no longer drops to idle while background work is still running. When the main turn ends after starting background subagents or a workflow, the card stays at work and counts the running agents until the last one finishes, and it never reads `DONE` while an agent is still busy. A workflow's agents now count too, and a subagent that finishes in the middle of a turn no longer dims the chips of the request that is still running. An agent that never reports back stops counting after 30 quiet minutes, so it cannot hold the card at work.
+- The README shows the LIT card as it really appears: resting before anything runs, at work with the skill's chip lit, and after the turn, when the chip dims into the recent list.
+- The README walks through automatic handoff with terminal pictures: turning it on with `lit-handoff auto on 65`, checking and turning it off, the reminder to run `/compact`, and the two shell variables that switch it on before Claude Code starts.
+- The install section has a prompt you can paste into a coding agent so it installs LitClaude for you. The agent shows what would change and waits for your yes, runs the doctor, and reminds you to restart Claude Code.
+- The office runtime now pins sharp 0.35.5, and the README Studio cover templates use sharp 0.35.5 and source-map-js 1.2.2.
+
 ## 1.0.23 - 2026-10-12
 
 - The LIT card above the prompt now stays on screen for the whole session, so you can still see the status after the work ends. It is a small four-row card in the colours of your status line. The top edge names the workflow and the current phase. Below it are the plan, work and review steps with the progress of the plan or goal. Every LitClaude skill that runs gets its own chip, several at once. A chip is bright while its request is running and dims into a recent list when the turn ends. At the bottom are the context use, the five-hour usage window and the Git branch. The card fits narrow terminals by leaving out the least important parts and never wraps. The `band` setting now defaults to `always`; `auto` brings back the old behaviour, and `off` hides the card.
