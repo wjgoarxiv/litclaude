@@ -452,13 +452,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 For a reproducible install, pin the current package version:
 
 ```bash
-npm view @litfamily/litclaude@1.0.22 version
+npm view @litfamily/litclaude@1.0.23 version
 ```
 
-If that lookup returns `1.0.22`, the exact install is available:
+If that lookup returns `1.0.23`, the exact install is available:
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.22 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.23 -- litclaude install
 ```
 
 Otherwise, wait for explicit human publication before using that pin. Check the
@@ -522,8 +522,9 @@ uses `[🔥LIT vX.Y.Z]`, the model with its reasoning effort (`O5.5 [high]`), a 
 `ctx [▎░░]` bar, and a `5h [▏░]4% ↻` rate-limit reset countdown. Set `LITCLAUDE_HUD_ACCENT` before installation to
 choose an accent.
 
-When a prompt starts a LitClaude workflow, the LIT card above the prompt (Claude Code 2.1.287
-and later) names it in its top edge and lights a chip for each LitFamily skill that fires; the
+The LIT card above the prompt (Claude Code 2.1.287 and later) stays on screen for the whole
+session. While a LitClaude workflow runs it names it in its top edge and lights a chip for each
+LitFamily skill that fires; between workflows it rests as idle and keeps the recent skills; the
 status line keeps its room for the model, context, usage and Git figures. To remember which
 workflow is active, the hook writes a small note per session under `litclaude-hud/` in your
 per-user temp directory, never in the repository or your home directory;

@@ -1,6 +1,6 @@
 {
   "name": "@litfamily/litclaude",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "Claude Code plugin: add lit to a prompt and Claude plans, tests, checks and reviews the work, then leaves a handoff for the next session.",
   "type": "module",
   "bin": {

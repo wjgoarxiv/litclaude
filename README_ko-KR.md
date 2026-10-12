@@ -13,9 +13,7 @@
 
 <p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
-<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="작은 Node 프로젝트에서 실제로 진행한 Claude Code 세션을 짧은 영상으로 만들었고, 기다리는 시간은 줄였으며 카메라가 터미널 위를 천천히 움직입니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 입력해 보내면 훅이 LIT 마크와 &quot;🔥 LIT IGNITED · lit-loop 🔥&quot;로 응답하고, 프롬프트 위 LIT 띠에 PLAN, WORK, REVIEW 표시가 나오며, 상태 줄에는 [🔥LIT …] | O5.5 [xhigh] │ ctx와 사용량 막대가 붙습니다. Claude는 테스트를 먼저 써서 expected HELLO, ADA!로 실패하는 것을 확인하고, greet.js를 고친 뒤 테스트를 돌려 # tests 2를 얻습니다. 이어서 node greet.js --shout Ada가 이제 HELLO, ADA!를 출력한다고 정리하고 Cooked for 30s · done으로 끝납니다. 영상은 LitClaude 마크와 설치 명령으로 끝납니다." /></p>
-
-<p align="center"><sub>LitClaude를 설치한 실제 Claude Code 세션을 터미널에서 녹화한 뒤, 그린 터미널 창 위에서 카메라를 움직이며 다시 재생했습니다. 기다리는 시간을 줄이고 프로젝트 폴더를 ~/greet로 표시했으며 긴 임시 파일 경로는 흐리게 처리했습니다. 나머지 글자는 Claude Code가 출력한 그대로입니다.</sub></p>
+<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션입니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답하고, 프롬프트 위 LIT 카드가 idle에서 WORK로 바뀌며 lit-loop 스킬 칩이 켜집니다. Claude가 실패하는 테스트를 먼저 쓰고 실패를 확인한 뒤 greet.js를 고치고, 테스트 두 개가 통과합니다. 카드는 lit-loop을 최근 스킬로 남긴 채 차분해지고, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
 
 ## 왜 LitClaude인가요
 

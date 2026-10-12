@@ -433,13 +433,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 설치를 재현하려면 registry에서 현재 package version을 조회한 뒤 고정합니다.
 
 ```bash
-npm view @litfamily/litclaude@1.0.22 version
+npm view @litfamily/litclaude@1.0.23 version
 ```
 
-조회 결과가 `1.0.22`이면 exact install을 사용할 수 있습니다.
+조회 결과가 `1.0.23`이면 exact install을 사용할 수 있습니다.
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.22 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.23 -- litclaude install
 ```
 
 그렇지 않으면 명시적인 human publication을 기다립니다. Pin은 그 뒤에 사용합니다.
@@ -484,8 +484,9 @@ litclaude install
 색과 커서 제어, 질문 꾸밈을 끄고 ANSI 없이 출력합니다. `LITCLAUDE_SPINNER=1`로 자세한
 진행 표시를 켜도 이 규칙은 그대로이고, `--yes`와 직접 지정한 설정도 그대로 적용됩니다.
 
-프롬프트가 LitClaude 작업 흐름을 시작하면, 프롬프트 위의 LIT 카드(Claude Code 2.1.287 이상)가
-위쪽 테두리에 그 이름을 보여 주고, 실행되는 LitFamily 스킬마다 칩을 하나씩 켭니다. 상태 줄은
+프롬프트 위의 LIT 카드(Claude Code 2.1.287 이상)는 세션 내내 화면에 남아 있습니다. LitClaude
+작업 흐름이 돌아가는 동안에는 위쪽 테두리에 그 이름을 보여 주고, 실행되는 LitFamily 스킬마다
+칩을 하나씩 켭니다. 작업이 끝나면 idle 상태로 쉬면서 최근 스킬을 남겨 둡니다. 상태 줄은
 모델, 컨텍스트, 사용량, Git 정보를 보여 줄 자리를 그대로 지킵니다. 어떤 작업 흐름이 켜져
 있는지 기억하려고 hook이 세션마다 짧은 기록을 사용자 임시 디렉터리의 `litclaude-hud/`에
 남기며, 저장소와 홈 디렉터리에는 쓰지 않습니다. 위치는 `LITCLAUDE_HUD_STATE_ROOT`로 바꿀 수

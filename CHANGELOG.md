@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.23 - 2026-10-12
+
+- The LIT card above the prompt now stays on screen for the whole session, so you can still see the status after the work ends. It is a small four-row card in the colours of your status line. The top edge names the workflow and the current phase. Below it are the plan, work and review steps with the progress of the plan or goal. Every LitClaude skill that runs gets its own chip, several at once. A chip is bright while its request is running and dims into a recent list when the turn ends. At the bottom are the context use, the five-hour usage window and the Git branch. The card fits narrow terminals by leaving out the least important parts and never wraps. The `band` setting now defaults to `always`; `auto` brings back the old behaviour, and `off` hides the card.
+- The status line no longer shows the `🔥 LIT IGNITED · <workflow> 🔥` mark. It took up so much room that the model, context and usage figures were cut off, and the card now shows which workflow is active.
+- Project rules now fit in the skill context when LitClaude is installed under a long folder path. Before, a long install path could cut off the first line of a rule or leave the rules out entirely.
+
 ## 1.0.22 - 2026-10-11
 
 - The README is shorter for first-time readers. It says what LitClaude does, how to install it and what to type first, and the detailed material now lives in docs pages (guide, skills, Jev, development) in English and Korean. The GitHub page also plays a short film of a real session.
