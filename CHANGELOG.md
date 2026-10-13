@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.26 - 2026-10-13
+
+- The LIT card now shows where you are in the LIT workflow. A map row lights the current stage of the running family (interview, plan, work, review, loop, research), and a detail line under it says what that stage is doing: the interview round and ambiguity, whether the plan awaits approval, how many tasks are checked and which comes next, each review lane's verdict. On the right of that line the live step names the tool the main loop is running and for how long, or `thinking` between tool calls, and never shows its arguments.
+- The map moves on its own. LitClaude's hooks advance it as lit-plan saves the plan, start-work's tasks are checked, review lanes report their verdicts and a lit-loop criterion goes from RED to GREEN to VERIFY, so the model does not have to report each step. For what the hooks cannot see, such as a loop step or a crucible verdict, the new `litclaude-ai workflow-stage` command records the stage.
+- In the Claude desktop app the card is drawn as one picture. The app sets text in a proportional font, which pulled the terminal card apart there, so the desktop and editor surfaces now get the same rows as a single drawing, moving under the same `motion` setting. The terminal keeps the card it had.
+- A new `notify` option raises a notification through your own notification channel when LIT work completes or a LIT turn longer than three minutes ends. It is `off` unless you turn it on with `/config` or `litclaude-ai config notify finish`.
+- The start-work gate no longer blocks read-only searches. It used to read a grep or rg pattern, a quoted phrase passed to a node script, or `litclaude-ai start-work status` as an unverified path and deny it. Patterns and plain words now count as data, while the searched paths are still checked against the work's grants.
+- `litclaude-ai doctor` reports the card options before the Claude validation step.
+- The README card pictures are retaken to show the workflow map and the detail line.
+
 ## 1.0.25 - 2026-10-12
 
 - The LIT card now moves while LitClaude is at work, so a glance tells you it is busy. The LIT pill and the border slowly glow from pink to flame orange and back, a light passes over the current phase and the skill chips of this request, and a spark runs along the top edge and back along the bottom one. When the turn ends the card goes still again. With the `motion` setting at `subtle` only the glow stays, and `off` keeps the card still.
