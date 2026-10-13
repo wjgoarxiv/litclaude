@@ -30,6 +30,8 @@ export const TIMINGS = Object.freeze({
   breath: 2400,
   sweep: 1800,
   comet: 2600,
+  flow: 1400,
+  spin: 120,
   ambientFrame: 66,
 });
 

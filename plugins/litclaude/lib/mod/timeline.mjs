@@ -6,7 +6,16 @@
 import { EASE, TIMINGS, isSettled, phase, retarget, sample, still } from "./motion.mjs";
 
 const PHASES = ["plan", "work", "review"];
-const fractionOf = (model) => (model.progress && model.progress.total > 0 ? Math.min(1, model.progress.done / model.progress.total) : 0);
+// The count the bar follows: the workflow stage's n/m, else the plan or goal progress.
+const countOf = (model) => model.workflow?.count ?? model.progress ?? null;
+const fractionOf = (model) => {
+  const count = countOf(model);
+  return count && count.total > 0 ? Math.min(1, count.done / count.total) : 0;
+};
+
+// The live step's clock: the elapsed time the model carried and the frame it arrived on, so the
+// surface counts on between models.
+const stepOf = (model, now) => (model.step ? { name: model.step.name, base: model.step.elapsedMs, at: now } : null);
 
 const entryEnd = (profile) => 3 * profile.duration(TIMINGS.stagger) + profile.duration(TIMINGS.entry);
 
@@ -36,8 +45,9 @@ export const createTimeline = (model, now, profile) => {
     enterAt: now,
     exitAt: null,
     fill: { from: 0, to: fractionOf(model), at: restAt, dur: profile.duration(TIMINGS.fill) },
-    done: model.progress?.done ?? null,
+    done: countOf(model)?.done ?? null,
     flashAt: null,
+    step: stepOf(model, now),
     warn: still(model.ctxWarning ? 1 : 0),
     phases: Object.fromEntries(PHASES.map((id) => [id, { from: model.phases[id], to: model.phases[id], at: now }])),
     notice: model.notice ? { data: model.notice, at: restAt } : null,
@@ -52,7 +62,7 @@ export const advanceTimeline = (timeline, model, now, profile) => {
   if (!model.visible && timeline.exitAt === null) next.exitAt = now;
   if (model.visible && timeline.exitAt !== null) return createTimeline(model, now, profile);
   next.fill = retarget(timeline.fill, fractionOf(model), now, profile.duration(TIMINGS.fill));
-  const done = model.progress?.done ?? null;
+  const done = countOf(model)?.done ?? null;
   if (done !== timeline.done) {
     next.done = done;
     if (timeline.done !== null && done !== null) next.flashAt = now;
@@ -72,6 +82,7 @@ export const advanceTimeline = (timeline, model, now, profile) => {
   }
   next.chips = chipsOf(model, now, timeline.chips);
   next.ambient = ambientOf(model, now, profile, timeline.ambient);
+  next.step = stepOf(model, now);
   return next;
 };
 
@@ -79,8 +90,9 @@ export const advanceTimeline = (timeline, model, now, profile) => {
 export const ambientActive = (timeline, profile) => Boolean(profile.ambient) && timeline.exitAt === null && timeline.ambient.on;
 
 // One frame of the ambient loop: `breath` (0 to 1 and back over TIMINGS.breath), where the light
-// stands on the active phase (`sweep`, null between passes) and how far the comet has gone around
-// the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left).
+// stands on the active phase (`sweep`, null between passes), how far the comet has gone around
+// the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left) and
+// where the bright head stands on the rail leaving the current stage (`flow`, 0 to 1).
 const ambientSample = (timeline, now, profile) => {
   if (!ambientActive(timeline, profile)) return null;
   const elapsed = Math.max(0, now - timeline.ambient.at);
@@ -90,6 +102,7 @@ const ambientSample = (timeline, now, profile) => {
     breath,
     sweep: profile.ambient.sweep && pass >= -0.2 && pass <= 1.2 ? pass : null,
     comet: profile.ambient.comet ? (elapsed % TIMINGS.comet) / TIMINGS.comet : null,
+    flow: profile.ambient.sweep ? (elapsed % TIMINGS.flow) / TIMINGS.flow : null,
   };
 };
 
@@ -170,6 +183,8 @@ export const sampleTimeline = (timeline, now, profile) => {
     completion,
     chips,
     ambient: ambientSample(timeline, now, profile),
+    step: timeline.step ? { name: timeline.step.name, elapsedMs: timeline.step.base + Math.max(0, now - timeline.step.at) } : null,
+    spin: Math.floor(Math.max(0, now) / TIMINGS.spin) % 4,
   };
 };
 

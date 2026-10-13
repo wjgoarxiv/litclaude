@@ -1,9 +1,12 @@
 // LitClaude's Claude Code mod (hooks/hooks.json `modules`). It draws the LIT card above the prompt
-// for the whole session (the `band` setting can limit it to active work or turn it off), lights a
-// chip for each LitFamily skill that fires, adds the discipline and progress to the spinner, raises
-// gate notices, and serves /lit-evidence. It is read-only: it reads LitClaude's own state files and
-// the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and the host's
-// live figures, and never writes, spawns, fetches or calls a model.
+// for the whole session (the `band` setting can limit it to active work or turn it off): where the
+// session stands in the LIT workflow, the tool the main loop is running and for how long, a chip
+// for each LitFamily skill that fires. It adds the discipline and progress to the spinner, raises
+// gate notices, serves /lit-evidence and, when the `notify` option asks, raises a notification
+// when LIT work completes or a long LIT turn ends. It is read-only: it reads LitClaude's own state
+// files and the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and
+// the host's live figures, and never writes, spawns, fetches or calls a model. Of a tool call it
+// keeps the tool's name and start time, never its arguments.
 // Claude Code releases before mods ignore the `modules` key and keep running the settings hooks.
 //
 // The mods loader only follows `$` into functions declared at the top of this file, so each helper
@@ -13,6 +16,7 @@ import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
 import { accentFromSettings, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
+import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
@@ -22,6 +26,7 @@ import {
   buildEvidenceModel,
   detectCompletion,
   diffNotices,
+  formatDuration,
   mergeSpawned,
   noteAgentActivity,
   noteSpawn,
@@ -39,7 +44,9 @@ const TABS = Object.freeze([
   { id: "lanes", label: "lanes", hotkey: "2" },
   { id: "gates", label: "gates", hotkey: "3" },
 ]);
-const NO_SNAPSHOT = Object.freeze({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const NO_SNAPSHOT = Object.freeze({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null, workflow: null });
+// A LIT turn at least this long notifies when it ends, under `notify`.
+const LONG_TURN_MS = 3 * 60 * 1000;
 
 const createLive = (options) => ({
   band: normalizeModSettings(options).band,
@@ -69,11 +76,16 @@ const createLive = (options) => ({
   settledAt: 0,
   ignitionAt: undefined,
   lastDiscipline: null,
+  step: null,
+  mainToolCalls: 0,
+  turnStartedAt: null,
+  turnNotified: false,
 });
 
 const stateIo = ($) => ({
   stat: (path) => $.fs.stat(path, { resolve: true }),
   read: (path) => $.fs.read(path),
+  list: (path) => $.fs.list(path),
 });
 
 const toastText = (raised) => `🔥 ${raised.title}${raised.detail ? ` · ${raised.detail}` : ""}`;
@@ -94,6 +106,7 @@ async function rebuild($, live) {
     skills: chipStates(live.fired, live.settledAt),
     lastDiscipline: live.lastDiscipline,
     git: live.git,
+    step: live.step,
   });
   live.model = next;
   if (previous?.visible && !next.visible && !live.exiting) {
@@ -118,10 +131,18 @@ function showNotice($, live, raised) {
   });
 }
 
-function celebrate($, live, finish) {
+// The opt-in finish notification. No sound file ships yet, so `finish+sound` notifies like `finish`.
+function notifyFinish($, options, text) {
+  if (normalizeModSettings(options).notify === "off") return;
+  $.ui.notify(text, { title: "LitClaude" }).catch(() => undefined);
+}
+
+function celebrate($, live, finish, options) {
   if (live.celebrated.has(finish.id)) return;
   live.celebrated.add(finish.id);
   live.completion = finish;
+  live.turnNotified = true;
+  notifyFinish($, options, `LIT complete · ${finish.detail}`);
   $.clock.after(TIMINGS.completion + 200, () => {
     if (live.completion?.id !== finish.id) return;
     live.completion = null;
@@ -148,7 +169,7 @@ function noteIgnition(live, ignition, now) {
   if (id) live.fired = noteSkill(live.fired, id, ignition.at ?? now);
 }
 
-async function refresh($, live) {
+async function refresh($, live, options) {
   if (live.refreshing) return;
   live.refreshing = true;
   try {
@@ -166,7 +187,7 @@ async function refresh($, live) {
     live.snapshot = fresh;
     noteIgnition(live, fresh.ignition, now);
     const finish = detectCompletion(before, fresh);
-    if (finish) celebrate($, live, finish);
+    if (finish) celebrate($, live, finish, options);
     const next = await rebuild($, live);
     const raised = diffNotices(before, fresh, previousModel, next);
     if (raised.length > 0) {
@@ -182,12 +203,12 @@ async function refresh($, live) {
   }
 }
 
-function refreshSoon($, live) {
+function refreshSoon($, live, options) {
   if (live.quickPending) return;
   live.quickPending = true;
   $.clock.after(QUICK_REFRESH_MS, () => {
     live.quickPending = false;
-    void refresh($, live);
+    void refresh($, live, options);
   });
 }
 
@@ -209,16 +230,19 @@ export const register = (on, options) => {
     live.settledAt = await $.clock.now();
     live.accent = accentFromSettings(await $.settings.read().catch(() => null), await $.env.get("LITCLAUDE_HUD_ACCENT"));
     await $.command.register({ name: PANE, description: "Show LitClaude goal criteria, evidence, lanes and gates in a pane" });
-    await refresh($, live);
+    await refresh($, live, options);
     $.clock.every(POLL_MS, () => {
-      void refresh($, live);
+      void refresh($, live, options);
     });
     return next(e);
   });
 
   on("turn.start", async ($, e, next) => {
     live.isWorking = true;
-    refreshSoon($, live);
+    live.mainToolCalls = 0;
+    live.turnStartedAt = await $.clock.now();
+    live.turnNotified = false;
+    refreshSoon($, live, options);
     return next(e);
   });
 
@@ -226,34 +250,63 @@ export const register = (on, options) => {
     // A subagent's or teammate's turn ends its run, not the main turn the card follows.
     if (typeof e.agentId === "string") {
       live.spawned = noteSpawnEnded(live.spawned, e.agentId);
-      refreshSoon($, live);
+      refreshSoon($, live, options);
       return next(e);
     }
     live.isWorking = false;
+    live.step = null;
+    live.mainToolCalls = 0;
+    const now = await $.clock.now();
+    const took = Number.isFinite(e.durationMs) ? e.durationMs : now - (live.turnStartedAt ?? now);
+    const lit = live.model && (live.model.discipline || live.model.workflow || live.model.skills.some(({ state }) => state === "current"));
+    if (lit && !live.turnNotified && took >= LONG_TURN_MS) {
+      live.turnNotified = true;
+      notifyFinish($, options, `LIT turn finished · ${live.model.title ?? "LitClaude"} · ${formatDuration(took)}`);
+    }
     // The request is over: its chips dim to the recent list until a skill fires again.
-    live.settledAt = await $.clock.now();
-    refreshSoon($, live);
+    live.settledAt = now;
+    refreshSoon($, live, options);
     return next(e);
   });
 
   on("session.measure", async ($, e, next) => {
     live.usage = { context: e.context, rateLimits: e.rateLimits };
-    if (e.changed.includes("context")) refreshSoon($, live);
+    if (e.changed.includes("context")) refreshSoon($, live, options);
     return next(e);
   });
 
   on("tool.call", async ($, e, next) => {
-    if (e.tool === "Skill") await noteFiring($, live, e.skill);
+    // The card follows the main loop: a skill a subagent loads (a reviewer reading `rules`) neither
+    // lights a chip nor retitles the card.
+    if (e.tool === "Skill" && typeof e.agentId !== "string") await noteFiring($, live, e.skill);
     if (typeof e.agentId === "string") live.spawned = noteSpawnActivity(live.spawned, e.agentId, await $.clock.now());
-    const result = await next(e);
+    // The live step: the main loop's tool by name and since when, nothing else of the call.
+    const step = typeof e.agentId === "string" ? null : { name: e.tool, at: await $.clock.now() };
+    if (step) live.mainToolCalls += 1;
+    if (step) {
+      live.step = step;
+      await rebuild($, live);
+    }
+    let result;
+    try {
+      result = await next(e);
+    } finally {
+      if (step && live.step === step) live.step = live.isWorking ? { name: "thinking", at: await $.clock.now() } : null;
+    }
     if (typeof e.agentId === "string") {
       const now = await $.clock.now();
       live.activity = noteAgentActivity(live.activity, e.agentId, now);
       live.spawned = noteSpawnActivity(live.spawned, e.agentId, now);
     }
-    refreshSoon($, live);
+    refreshSoon($, live, options);
     return result;
   }).catch(($, e, next) => next(e));
+
+  // A model request on the main loop: the step reads "thinking" until a tool call names itself.
+  on("turn.step", async function* ($, e, next) {
+    if (typeof e.agentId !== "string" && live.isWorking && live.step?.name !== "thinking") live.step = { name: "thinking", at: await $.clock.now() };
+    return yield* next(e);
+  });
 
   // Every subagent, teammate and workflow agent starts here. A workflow's never shows in
   // `$.agent.list()`, so the card keeps its own record until the agent's turn.complete.
@@ -261,15 +314,17 @@ export const register = (on, options) => {
     const result = await next(e);
     if (typeof result?.agentId === "string") {
       live.spawned = noteSpawn(live.spawned, { id: result.agentId, description: e.description, type: e.subagentType, at: await $.clock.now() });
-      refreshSoon($, live);
+      refreshSoon($, live, options);
     }
     return result;
   }).catch(($, e, next) => next(e));
 
   // A typed `/litclaude:<name>` and the Skill tool both expand the skill's prompt here; the text
-  // passes through untouched.
+  // passes through untouched. So does a subagent's preloaded skill (an agent's `skills:` list),
+  // and the event does not say whose it is: a firing counts only before the main loop's first tool
+  // call of the turn (a typed command) or inside its Skill call.
   on("skill.prompt", async ($, e, next) => {
-    await noteFiring($, live, e.skill);
+    if (live.mainToolCalls === 0 || live.step?.name === "Skill") await noteFiring($, live, e.skill);
     return next(e);
   }).catch(($, e, next) => next(e));
 
@@ -286,7 +341,14 @@ export const register = (on, options) => {
     const elements = $.ui.resolve(e);
     const columns = Math.max(20, e.props.bodyColumns ?? e.viewport?.columns ?? 80);
     let drawn = null;
-    if (elements.Client && !live.clientFailed) {
+    if (e.surface !== "terminal" && elements.Svg) {
+      // A desktop or editor draws Text in a proportional font, so the cell-built card comes apart
+      // there; those surfaces get the card as one drawing instead.
+      if (model.visible) {
+        const { source, alt, animated } = composeSvgCard(model, { motion: settings.motion, accent: live.accent });
+        drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
+      }
+    } else if (elements.Client && !live.clientFailed) {
       drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion: settings.motion, accent: live.accent } });
     } else if (model.visible) {
       drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent }));

@@ -37,6 +37,8 @@ const working = (overrides = {}) => ({
   autoloop: { blockCount: 3, firstBlockAt: NOW - 18 * 60_000 },
   ...overrides,
 });
+// The same work under start-work: the map's count is then the plan's tasks, as the progress is.
+const startWork = (overrides = {}) => working({ ignition: { discipline: "start-work", at: NOW - 1000 }, ...overrides });
 const agent = (id, status = "running", name = id) => ({ id, status, name, type: "general-purpose", description: name });
 
 test("on auto an idle session draws no band; the default always does", () => {
@@ -133,7 +135,7 @@ test("the completion moment fires on the last checked task, a completed work, or
 
 test("pills pop in 60 ms apart and the band stops animating once everything settles", () => {
   const profile = motionProfile("full");
-  const model = buildBandModel({ snapshot: working(), now: NOW });
+  const model = buildBandModel({ snapshot: startWork(), now: NOW });
   const timeline = createTimeline(model, 0, profile);
   const at = (t) => sampleTimeline(timeline, t, profile);
   assert.deepEqual(at(0).pills, [0, 0, 0, 0]);
@@ -156,9 +158,9 @@ test("pills pop in 60 ms apart and the band stops animating once everything sett
 
 test("a progress change fills ease-in-out and flashes the count; a warning crossfades in 140 ms", () => {
   const profile = motionProfile("full");
-  const start = buildBandModel({ snapshot: working(), now: NOW });
+  const start = buildBandModel({ snapshot: startWork(), now: NOW });
   let timeline = createTimeline(start, 0, profile);
-  const moved = buildBandModel({ snapshot: working({ work: { ...working().work, checked: 5 } }), now: NOW });
+  const moved = buildBandModel({ snapshot: startWork({ work: { ...working().work, checked: 5 } }), now: NOW });
   timeline = advanceTimeline(timeline, moved, 1000, profile);
   assert.ok(Math.abs(sampleTimeline(timeline, 1000, profile).fill - 4 / 7) < 1e-9);
   assert.ok(Math.abs(sampleTimeline(timeline, 1150, profile).fill - 4.5 / 7) < 1e-9);
@@ -194,11 +196,12 @@ test("a notice slides in from fourteen cells with an overshoot and leaves accele
   assert.ok(offsets.every((offset, i) => i === 0 || offset <= offsets[i - 1]), "subtle never overshoots");
 });
 
-test("the progress bar in the phase row is coloured spaces, so every step repaints", () => {
-  const model = buildBandModel({ snapshot: working(), agents: [agent("a1", "running", "readme-ko")], now: NOW });
+test("the progress bar on the detail line is coloured spaces, so every step repaints", () => {
+  const model = buildBandModel({ snapshot: startWork(), agents: [agent("a1", "running", "readme-ko")], now: NOW });
   const frame = composeBand(model, settledSample(model), { columns: 100, glyphs: "basic" });
-  assert.match(rowText(frame.rows[1]), /^│ ● PLAN ━+ {2}WORK {2}━+ ○ REVIEW .*tasks +░+ 4\/7 │$/u);
-  const solid = frame.rows[1].slice(frame.rows[1].findIndex(({ text }) => text === "tasks ")).filter(({ text, bg }) => text === " " && bg);
+  assert.match(rowText(frame.rows[1]), /^│ interview ✓ ━━ plan ✓ ━━ {2}work 4\/7 {2}━━ review · ── done · +● 1 lane {2}⟳ 3\/8 · 12m │$/u);
+  assert.match(rowText(frame.rows[2]), /^│ └ task 4\/7 +░+ · next ▸ 5\. README 데모 GIF 교체 +│$/u);
+  const solid = frame.rows[2].slice(frame.rows[2].findIndex(({ text }) => text === "task ")).filter(({ text, bg }) => text === " " && bg);
   assert.ok(solid.length >= 4, "whole cells and the fading head are spaces on their colour");
   assert.equal(solid[0].bg, "#ff2d95");
   const brand = frame.rows[0].find(({ text }) => text === "🔥 LIT");
@@ -208,11 +211,11 @@ test("the progress bar in the phase row is coloured spaces, so every step repain
 test("Nerd glyphs draw the chip bolt and the branch from the icon font; basic needs none", () => {
   const model = buildBandModel({ snapshot: working(), now: NOW, git: "main", isWorking: true, skills: [{ id: "lit-plan", at: NOW, state: "current" }] });
   const nerd = composeBand(model, settledSample(model), { columns: 100, glyphs: "nerd" }).rows.map(rowText);
-  assert.match(nerd[2], /\uf0e7 lit-plan/u);
-  assert.match(nerd[3], /\ue0a0 main/u);
+  assert.match(nerd[3], /\uf0e7 lit-plan/u);
+  assert.match(nerd[4], /\ue0a0 main/u);
   const basic = composeBand(model, settledSample(model), { columns: 100, glyphs: "basic" }).rows.map(rowText);
-  assert.match(basic[2], /⚡ lit-plan/u);
-  assert.match(basic[3], /git main/u);
+  assert.match(basic[3], /⚡ lit-plan/u);
+  assert.match(basic[4], /git main/u);
 });
 
 test("the completion row scatters embers in full motion and stays a quiet line in subtle", () => {
@@ -220,13 +223,13 @@ test("the completion row scatters embers in full motion and stays a quiet line i
   const full = motionProfile("full");
   const timeline = createTimeline(model, 0, full);
   const mid = composeBand(model, sampleTimeline(timeline, 400, full), { columns: 120, glyphs: "basic" });
-  const row = rowText(mid.rows[2]);
+  const row = rowText(mid.rows[3]);
   assert.match(row.split("COMPLETE")[0], /[.+*]/u, "embers are ASCII sparks");
   assert.match(row, /COMPLETE · 7\/7 tasks +│$/u);
   assert.equal(timelineBusy(timeline, TIMINGS.completion - 1, full), true);
   const subtle = motionProfile("subtle");
   const quiet = composeBand(model, sampleTimeline(createTimeline(model, 0, subtle), 400, subtle), { columns: 120, glyphs: "basic" });
-  assert.match(rowText(quiet.rows[2]), /^│ ✦ COMPLETE · 7\/7 tasks +│$/u);
+  assert.match(rowText(quiet.rows[3]), /^│ ✦ COMPLETE · 7\/7 tasks +│$/u);
 });
 
 test("the shimmer passes over the brand during the finish", () => {

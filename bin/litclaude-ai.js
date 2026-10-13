@@ -39,6 +39,7 @@ import { runStartWorkContinuationCli } from "../plugins/litclaude/lib/start-work
 import { runStartWorkCli } from "../plugins/litclaude/lib/start-work-cli.mjs";
 import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
 import { runWorkflowCheckCli } from "../plugins/litclaude/lib/workflow-check.mjs";
+import { runWorkflowStageCli } from "../plugins/litclaude/lib/workflow-stage.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { jevStatusLine } from "../plugins/litclaude/lib/jev-skill-hint.mjs";
@@ -81,14 +82,14 @@ const prewarmMotionRuntime = () => {
 };
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|path|run|update|uninstall|litgoal|wikify|workflow-check|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|start-work|start-work-next|public-read|motion-runtime> [...args]
        litclaude-ai --version
 
 Commands:
   install       Register the packaged LitClaude plugin in Claude Code.
   doctor        Validate the installed LitClaude plugin path.
   config [<option> <value>]
-                Show or change the LIT card options (motion, glyphs, band) in
+                Show or change the LIT card options (motion, glyphs, band, notify) in
                 pluginConfigs, the same values /config edits. Works for the
                 desktop app too, which shows no editor for them.
   path          Print the installed Claude plugin path.
@@ -98,6 +99,9 @@ Commands:
   workflow-check Verify Dynamic workflow, /goal, and subagent delegation readiness.
   start-work    Manage schema-3 bounded-authority lifecycle state.
   start-work-next Print the next active start-work continuation directive.
+  workflow-stage <family> <stage> [--n N --total M --unit U --verdict name=pass]
+                Record where a review, loop, iteration or crucible run stands, for
+                the LIT card's workflow map (.litclaude/workflow-stage.json).
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
   motion-runtime Pre-warm (install [--audio] [--word-timing]) or report (status) the
                 lit-typographic-motion runtime cache. Run it outside a sandboxed session.
@@ -383,7 +387,7 @@ const familyBanner = ({ color = shouldColorInstall() } = {}) => [
 ].join("\n");
 
 const printCommandBanner = (parsed) => {
-  if (["install", "update"].includes(parsed.command)) return;
+  if (["install", "update", "workflow-stage"].includes(parsed.command)) return;
   if (parsed.rest.some((arg) => arg === "--json" || arg.startsWith("--json="))) return;
   const color = shouldColorInstall();
   process.stdout.write(`${renderLitClaudeWordmark({ color }).join("\n")}\n`);
@@ -1836,6 +1840,9 @@ const main = async () => {
       break;
     case "workflow-check":
       exitAfterFlush(runWorkflowCheckCli(root, version, parsed.rest));
+      break;
+    case "workflow-stage":
+      exitAfterFlush(runWorkflowStageCli(parsed.rest, process.cwd()));
       break;
     case "public-read":
       exitAfterFlush(await runPublicRead(parsed));

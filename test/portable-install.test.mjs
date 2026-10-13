@@ -457,9 +457,9 @@ describe("portable LitClaude install layout", () => {
       writeFileSync(settingsPath, `${JSON.stringify({ pluginConfigs: { "other@market": { options: { keep: "me" } }, "litclaude@litclaude-ai": { options: { band: "auto" } } } }, null, 2)}\n`);
       const install = runCli(["install"], home, claudeHome);
       assert.equal(install.status, 0, install.stderr);
-      assert.deepEqual(options(), { band: "auto", motion: "full", glyphs: "auto" }, "defaults fill in; the user's band stays");
+      assert.deepEqual(options(), { band: "auto", motion: "full", glyphs: "auto", notify: "off" }, "defaults fill in; the user's band stays");
       assert.match(install.stdout, /DESKTOP_APP: ready/u);
-      assert.match(install.stdout, /MOD_OPTIONS: motion full · glyphs auto · band auto/u);
+      assert.match(install.stdout, /MOD_OPTIONS: motion full · glyphs auto · band auto · notify off/u);
 
       const shown = runCli(["config"], home, claudeHome);
       assert.equal(shown.status, 0, shown.stderr);
@@ -473,7 +473,10 @@ describe("portable LitClaude install layout", () => {
       assert.equal(runCli(["config", "colour", "red"], home, claudeHome).status, 64);
 
       const doctor = runCli(["doctor"], home, claudeHome);
-      assert.match(doctor.stdout, /MOD_OPTIONS: motion subtle · glyphs auto · band auto/u);
+      assert.match(doctor.stdout, /MOD_OPTIONS: motion subtle · glyphs auto · band auto · notify off/u);
+      const notify = runCli(["config", "notify", "finish"], home, claudeHome);
+      assert.equal(notify.status, 0, notify.stderr);
+      assert.equal(options().notify, "finish", "config sets the finish notification");
 
       const reinstall = runCli(["install"], home, claudeHome);
       assert.equal(reinstall.status, 0, reinstall.stderr);
@@ -483,7 +486,7 @@ describe("portable LitClaude install layout", () => {
       assert.equal(uninstall.status, 0, uninstall.stderr);
       const after = JSON.parse(readFileSync(settingsPath, "utf8"));
       assert.deepEqual(after.pluginConfigs["other@market"], { options: { keep: "me" } });
-      assert.deepEqual(after.pluginConfigs["litclaude@litclaude-ai"], { options: { band: "auto", motion: "subtle" } }, "only the untouched default goes");
+      assert.deepEqual(after.pluginConfigs["litclaude@litclaude-ai"], { options: { band: "auto", motion: "subtle", notify: "finish" } }, "only the untouched default goes");
       assert.equal(after.litclaude?.modOptionsWritten, undefined);
     } finally {
       rmSync(home, { recursive: true, force: true });

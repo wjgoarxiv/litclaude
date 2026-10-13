@@ -106,39 +106,49 @@ Claude의 답은 **🔥 LIT IGNITED · lit-loop 🔥**로 시작해 목표와 �
 
 ## LIT 카드
 
-작업하는 동안 LitClaude는 프롬프트 바로 위에 작은 카드를 띄워 둡니다. 지금 어떤 작업 흐름이
-돌고 있는지, 어디까지 왔는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를 거슬러 올라가지
-않아도 Claude가 하는 일을 따라갈 수 있습니다. 위쪽 테두리에는 작업 흐름의 이름과 단계가,
-첫 줄에는 계획에서 작업을 거쳐 리뷰로 가는 흐름이, 둘째 줄에는 실행된 LitFamily 스킬마다 칩이
-하나씩 놓이고, 아래쪽 테두리는 상태 줄의 컨텍스트, 5시간과 1주 사용량, Git 브랜치를 다시 보여 줍니다.
+작업하는 동안 LitClaude는 프롬프트 바로 위에 작은 카드를 띄워 둡니다. LIT 작업 흐름에서 지금
+어디쯤 있는지, Claude가 이 순간 무엇을 하는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를
+거슬러 올라가지 않아도 Claude가 하는 일을 따라갈 수 있습니다. 위쪽 테두리에는 작업 흐름의 이름과
+단계가 놓입니다. 첫 줄은 그 흐름의 지도입니다. 요청은 인터뷰에서 계획, 작업, 리뷰를 거쳐 완료로
+가고, 조사는 웨이브를 하나씩 넘기며, lit-loop의 기준 하나는 PIN에서 RED와 GREEN을 지나 RECORD까지
+갑니다. 지나온 단계에는 체크 표시가 붙고 지금 단계에는 불이 켜집니다. 둘째 줄은 그 단계를 조금 더
+알려 줍니다. 작업 개수와 다음 작업, 통과한 리뷰 레인, 인터뷰 회차 같은 것이 나오고, 오른쪽에는
+Claude가 지금 돌리는 도구와 걸린 시간이 나옵니다. 도구의 이름만 보여 주고 도구에 넘긴 내용은
+보여 주지 않습니다. 셋째 줄에는 실행된 LitFamily 스킬마다 칩이 하나씩 놓이고, 아래쪽 테두리는
+상태 줄의 컨텍스트, 5시간과 1주 사용량, Git 브랜치를 다시 보여 줍니다. 어느 흐름에도 들어맞지
+않는 요청에서는 예전처럼 PLAN, WORK, REVIEW 세 단계만 보입니다.
 
 아직 아무것도 돌지 않을 때는 카드가 쉬면서 시작하는 방법을 알려 줍니다.
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 단계 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있고, 아래쪽 테두리에는 5h 2%, 1w 47%와 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 첫 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 세부 줄은 비어 있고, skills 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있으며, 아래쪽 테두리에는 5h 17%, 1w 52%와 브랜치 main이 보입니다." /></p>
 
-`lit`을 붙여 요청하면 카드가 작업 흐름의 이름을 띄우고, 지금 단계를 채우고, 요청을 맡은
-스킬의 칩을 밝힙니다.
+`lit`을 붙여 요청하면 카드가 작업 흐름의 이름을 띄우고, 지금 단계와 요청을 맡은 스킬의
+칩을 밝힙니다. 계획이 저장되거나 작업 칸에 체크가 들어가거나 리뷰어가 결과를 내면 LitClaude의
+훅이 지도를 알아서 넘기므로, Claude가 단계마다 따로 알리지 않아도 카드가 따라갑니다.
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="Claude가 일하는 동안의 LIT 카드. 위쪽 테두리에 LIT · lit-loop, 오른쪽에 WORK ●가 있고 분홍 불꽃이 테두리를 따라 달립니다. PLAN과 REVIEW 사이의 WORK는 채워진 알약 모양이고 그 위로 빛이 지나갑니다. skills 줄에는 밝은 lit-loop 칩이 있고, 아래쪽 테두리에는 ctx 5%, 5h 2%, 1w 47%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="start-work가 한창 진행 중인 LIT 카드. 위쪽 테두리에 LIT · start-work, 오른쪽에 WORK ●가 있습니다. 지도에서는 interview와 plan이 주황과 분홍 체크로 끝나 있고, work 1/2가 채워진 하늘색 알약이며, review와 done은 아직 흐립니다. 세부 줄에는 task 1/2와 절반 찬 분홍 막대, next ▸ Task 2: GREEN, implement shout and verify가 있고 오른쪽에 thinking · 0:02가 보입니다. skills 줄에는 start-work가 있고, 아래쪽 테두리에는 ctx 9%, 5h 20%, 1w 53%, 브랜치 main이 보입니다." /></p>
 
 Claude가 일하는 동안 카드는 가만히 있지 않습니다. LIT 알약이 분홍에서 주황으로 천천히
-숨 쉬듯 빛나고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 불꽃 하나가 위쪽 테두리를 따라 갔다가
-아래쪽 테두리로 돌아옵니다. 한눈에 봐도 LitClaude가 아직 일하는 중인지 알 수 있습니다.
+숨 쉬듯 빛나고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 밝은 점 하나가 지도 위에서 다음
+단계 쪽으로 흘러가고, 불꽃 하나가 위쪽 테두리를 따라 갔다가 아래쪽 테두리로 돌아옵니다. 한눈에 봐도 LitClaude가 아직 일하는 중인지 알 수 있습니다.
 
-턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에
-무엇이 돌았는지 계속 알 수 있습니다.
+턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 지도는 작업이 도달한 단계를 그대로 보여 주고,
+칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에 무엇이 돌았는지 계속 알 수 있습니다.
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="턴이 끝난 뒤의 LIT 카드. 위쪽 테두리의 LIT · lit-loop는 흐린 색이고 오른쪽에는 idle이 있습니다. 단계 줄의 WORK는 흐린 색으로 채워진 채 남고, skills 줄에는 lit-loop가 회색 칩으로 남아 있으며, 아래쪽 테두리에는 ctx 5%, 5h 2%, 1w 47%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="리뷰가 끝난 뒤의 LIT 카드. 위쪽 테두리의 LIT · review-work는 흐린 색이고 오른쪽에는 idle이 있습니다. 지도의 interview부터 work, review, done까지 모든 단계에 체크가 붙어 있고, 세부 줄에는 complete가 있습니다. skills 줄에는 review-work가 회색 칩으로 남아 있고, 아래쪽 테두리에는 ctx 16%, 5h 21%, 1w 53%, 브랜치 main이 보입니다." /></p>
 
 카드는 Claude Code 2.1.287 이상의 터미널과 Claude 데스크톱 앱의 Code 탭에서 나옵니다. 앱도
 같은 설정 파일을 읽기 때문에 설치 프로그램이 둘 다 준비해 둡니다. 설치한 뒤 앱에서 새 세션을
-열면 됩니다. 카드는 세션 내내 떠 있고, 작업할 때만 보고 싶다면 `/config`의 LitClaude 항목에서
+열면 됩니다. 앱은 mod 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 카드를 같은 줄과 움직임을 담은
+그림 한 장으로 보여 줍니다. 카드는 세션 내내 떠 있고, 작업할 때만 보고 싶다면 `/config`의 LitClaude 항목에서
 `band`를 `auto`로, 숨기려면 `off`로 바꾸세요. 움직임을 줄이려면 `motion`을 `subtle`로, 멈추려면
-`off`로 두면 됩니다. 데스크톱 앱에는 이 설정을 바꾸는 화면이 없으니 터미널에서 바꾸세요.
+`off`로 두면 됩니다. 긴 작업 중에 자리를 비운다면 `notify`를 `finish`로 바꾸세요. 작업이
+끝나거나 3분 넘게 걸린 LIT 턴이 끝날 때 터미널을 통해 알림을 보냅니다. 직접 켜기 전까지는 꺼져
+있습니다. 데스크톱 앱에는 이 설정을 바꾸는 화면이 없으니 터미널에서 바꾸세요.
 
 ```bash
 npx @litfamily/litclaude@latest config             # 지금 설정 보기
-npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic도 같은 방식
+npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic, notify finish도 같은 방식
 ```
 
 [카드가 보여 주는 모든 것](./docs/hooks.md#the-lit-band-claude-code-mod)

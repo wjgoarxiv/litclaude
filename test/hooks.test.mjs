@@ -201,7 +201,7 @@ describe("Claude hook runner", () => {
 
   it("keeps the native PostToolUse matcher", () => {
     const hooks = JSON.parse(readFileSync(hooksConfigPath, "utf8")).hooks;
-    assert.equal(hooks.PostToolUse[0].matcher, "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$");
+    assert.equal(hooks.PostToolUse[0].matcher, "^(Write|Edit|MultiEdit|NotebookEdit|Bash|Agent)$");
   });
 
   it("handles SessionStart with project-rule context", () => {

@@ -105,10 +105,10 @@ silent no-op for callers that still invoke it directly.
 | `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session (or starts the detached version-cache refresh when the cache is stale), discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
 | `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
-| `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
+| `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate, and last of all, with automatic handoff on, blocks once per crossing of the chosen percent to have the handoff written. |
 | `SubagentStart` | `plugins/litclaude/bin/litclaude-hook.js subagent-start` | Registers child-lane and Claude-owned worktree identity. |
-| `SubagentStop` | `plugins/litclaude/bin/litclaude-hook.js subagent-stop` | Finalizes the lane without child continuation. |
+| `SubagentStop` | `plugins/litclaude/bin/litclaude-hook.js subagent-stop` | Finalizes the lane without child continuation, and gives a background review-work reviewer's verdict to the LIT card's stage record. |
 | `SessionEnd` | `plugins/litclaude/bin/litclaude-hook.js session-end` | Records root-session end without blocking Claude. |
 
 ### Changed-text humanizer guard
@@ -347,38 +347,74 @@ itself. LitClaude's is `plugins/litclaude/hooks/lit-mod.mjs`, named under `modul
 setup. The status line stays as it is; the band adds a live layer above the prompt.
 
 From the first prompt to the end of the session a LIT card sits above the prompt. It keeps the
-same four rows whether LitClaude is working or idle, and takes the status line's accent
+same five rows whether LitClaude is working or idle, and takes the status line's accent
 (`LITCLAUDE_HUD_ACCENT`, read from the installed status line command), so the card and the
 status line read as one family:
 
 ```
-╭─ [🔥 LIT] · lit-loop ─────────────────────────── WORK ● ─╮
-│ ● PLAN ━━ [WORK] ━━ ○ REVIEW              goal ██░░░ 2/5 │
-│ skills [⚡ lit-plan] [⚡ litresearch] [↯ lit-docx]        │
-╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────╯
+╭─ [🔥 LIT] · start-work ───────────────────────────────── WORK ● ─╮
+│ interview ✓ ━━ plan ✓ ━━ [work 3/7] ━━ review · ── done ·  1 lane │
+│ └ task 3/7 ███░░░░░ · next ▸ 4. README demo        - Bash · 0:12 │
+│ skills [⚡ start-work] [↯ lit-plan]                               │
+╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────────────╯
 ```
 
 The brackets stand for the ends of filled pills: rounded caps from the icon font with `nerd`
-glyphs, one cell of the pill's colour with `basic`. The brand is a pink pill, the active phase
+glyphs, one cell of the pill's colour with `basic`. The brand is a pink pill, the current stage
 and the skills of this request are pills on the accent with dark text, and skills from earlier
 requests are muted grey pills.
 
 - The top edge names the discipline the prompt hook ignited (the last one, dimmed, while the
-  session is idle; `ready` before any) and, on the right, the current phase: `WORK ●`, `idle`,
-  or `DONE ✓` during the finish. While a subagent is still running the card stays at work
-  (`LIVE ●` when no phase is active) and never reads `DONE`, even after the main turn ended.
-- The phase row lights `PLAN ━━ WORK ━━ REVIEW` from the start-work plan, the litgoal goal and
-  the discipline (the active phase as a pill, done phases `●`, the rest `○`), and on its right shows a pink-to-cyan progress bar with the checked tasks or
-  passed criteria (`goal ✓ 5/5` once a goal is met), the number of live subagents (`● 2 lanes`), the autoloop
-  count with the time left in its 30-minute budget, and `ctx 76% → 80%` when the context is
-  within five points of the auto-handoff percent.
-- The chips row shows each LitFamily skill that fired as a pill: a Skill tool call naming a LitClaude
+  session is idle; `ready` before any) and, on the right, the current stage: `WORK ●`, `RED ●`,
+  `idle`, or `DONE ✓` during the finish. While a subagent is still running the card stays at
+  work (`LIVE ●` when no stage is current) and never reads `DONE`, even after the main turn ended.
+- The second row is the workflow map: where the session stands in its LIT family
+  (`lib/mod/workflow.mjs`). The main chain is `interview › plan › work n/m › review › done`
+  (litgoal criteria and autoresearch iterations ride the work stage); litresearch is
+  `decompose › wave n › expand › verify › synthesis`; a lit-loop criterion cycles
+  `PIN › RED › GREEN › VERIFY › REVIEW › RECORD` (SURFACE shows on VERIFY, CLEAN on RECORD).
+  Done stages carry `✓` in a colour graded along the rail from flame orange through pink to the
+  accent, the current stage is a pill, the stages ahead are dim `name ·`. The rail into the
+  current stage is solid `━`; the rail leaving it fills with the stage's count and, while
+  LitClaude works, carries a bright head; the rails ahead are dim `─`. On its right the row keeps
+  the live subagents (`● 2 lanes`), the autoloop count and its time left, and `ctx 76% → 80%` when
+  the context nears the auto-handoff percent. A session no family places (a lit-docx request, a
+  fresh session) keeps the old `PLAN ━━ WORK ━━ REVIEW` track there.
+- The stage comes from the newest of the ignited discipline, a LitClaude skill this request
+  fired, and the stage record; with none of those, from the state that says work is under way.
+  The detail comes from files LitClaude already writes: the deep-interview state
+  (`round 3/12 · ambiguity 42% → 20%`), the lit-plan draft's approval gate (`drafting`,
+  `awaiting approval`), the start-work plan's tasks and next task, the litgoal criteria and the
+  litresearch session folder (`wave-*.md`, `verify-*.md`, `SYNTHESIS.md`). What no file
+  records goes into `.litclaude/workflow-stage.json`, a small record LitClaude's hooks keep
+  moving without the model's help. The prompt and PreToolUse hooks start it when lit-plan,
+  review-work, lit-loop, autoresearch or lit-crucible starts, and clear it for any other skill. PostToolUse checks the plan stage when lit-plan saves
+  `plans/<slug>.md` (`plan ✓`, detail `plan saved`), counts the tasks each time the active
+  start-work plan is edited (`work 1/2`), and steps a lit-loop criterion to RED when a test
+  file is written, GREEN when the code changes after it, VERIFY when the tests run and RECORD
+  when `litgoal record-evidence` runs. For review-work, PreToolUse marks a lane running when a
+  prompt titled `Review lane: <lane>.` is spawned, and the lane's `verdict:` line, read by
+  PostToolUse for a foreground reviewer and by SubagentStop for a background one, marks it
+  passed or failed. The card names the lanes `goal`, `quality`, `security`, `qa` and `context`
+  (review-work's scope/diff, package/payload, security/provenance, tests/evidence and
+  real-surface/docs lanes); five passes finish the review. The hooks keep only the stage, the
+  lane and the counts, never a path, command or prompt. The model can still refine the record
+  with `litclaude-ai workflow-stage <family> <stage> [--n --total --unit --verdict
+  name=pass|fail|pending|running]` for what the hooks cannot see: a lane run without a child
+  agent, a loop step such as SURFACE, an autoresearch iteration, the crucible verdict. Another
+  session's record is ignored and a source older than six hours no longer counts.
+- The third row is the detail line: `└` and the current stage's detail (a pink-to-cyan bar for a
+  count, the lane verdicts as `✓`, `✗`, `●` while a reviewer runs, or `·`, the next task), and on the right the live step,
+  the tool the main loop is running and for how long (`- Bash · 0:12`, `thinking` between tool
+  calls). The step shows the tool's name and its clock only, never its arguments, command,
+  prompt or paths.
+- The fourth row shows each LitFamily skill that fired as a pill: a Skill tool call naming a LitClaude
   skill, a typed `/litclaude:<name>`, or bare `lit` routing seen through the ignition record.
   A skill fired in the current request is bright, with a short light passing over its name as
   it arrives; when the turn completes it dims into the `recent` list, and a new firing brightens
   it again. Chips follow a dim `skills` label; those that do not fit collapse into a muted `+N`. Skills of other plugins never get a chip.
-  With no chip yet, the row shows the next task while work runs, or how to start (`lit <task>`)
-  while idle.
+  With no chip yet, the row shows the next task while work runs (when the detail line does not),
+  or how to start (`lit <task>`) while idle.
 - The bottom edge carries the live figures from the status line: context fill, the five-hour
   and weekly rate windows and the Git branch (read from `HEAD`, across a linked worktree).
 - A notice takes the chips row for a few seconds, with a toast, when a gate fires: lit-plan not
@@ -399,7 +435,9 @@ stops counting too, so a crashed or lost agent cannot hold the card at work.
 
 The card is the terminal's width up to 120 columns and every row is fitted to it, with Hangul and
 emoji counted as two cells. Nothing wraps: on a narrow terminal the Git branch goes first, then
-the weekly and five-hour windows, the lanes, the autoloop count and the long phase labels (`P ━ W ━ R`).
+the weekly and five-hour windows, the lanes and the autoloop count. The map drops its rails, then
+shortens the names (`int ✓ pla ✓ [wor 3/7] rev ·`), then shows only the current stage and its
+neighbours; the review verdicts shorten to three letters and then to their marks.
 
 The spinner gains ` · <discipline> · n/m` after its ellipsis. `/lit-evidence` opens a pane with
 three tabs (keys `1`, `2`, `3`): the goal's criteria with their last evidence, blockers and the
@@ -410,18 +448,31 @@ changes ease in and out (300 ms and 140 ms), notices slide in over 220 ms and le
 a chip's arrival light runs 400 ms (a plain fade under `subtle`, nothing under `off`), and the
 finish lasts at most 1.2 s. While LitClaude is at work the card keeps moving so you can tell it
 is active at a glance: the LIT pill breathes from pink to flame orange every 2.4 s, a light sweeps
-across the active phase and this request's skill chips every 1.8 s, and a comet runs along the top rule and back along the
-bottom one every 2.6 s. Under `subtle` only the breathing stays; under `off` nothing moves. An
+across the current stage and this request's skill chips every 1.8 s, a bright head runs the rail
+leaving the current stage every 1.4 s, the count bar's head shimmers, and a comet runs along the
+top rule and back along the bottom one every 2.6 s. Under `subtle` only the breathing stays; under `off` nothing moves. An
 idle card holds still. The band's `Client` element animates on Claude Code's frame clock, every
 33 ms while a transition plays and every 66 ms during work, and stops its timer once the card is
 idle and settled. In Claude
 Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
 moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
-a chip's light moves over its ASCII name, and a glyph swaps only together with its words.
+a chip's light moves over its ASCII name, the map's `━` and `─` cells move by colour alone, the
+step's spinner (`- \ | /`) and clock are ASCII, and a glyph swaps only together with its words.
+
+The desktop app's Code tab, and the other surfaces that are not a terminal, draw a mod's `Text` in
+a proportional font and cut each span to the cells it was laid out for, so the card above comes
+apart there. On those surfaces the mod draws the same five rows as one `Svg` element instead
+(`lib/mod/svg-card.mjs`): monospace text placed by counted cells, real pills and a rounded border.
+It shows the settled state, with no entrances or crossfades. While LitClaude works it moves with
+SMIL animation inside the drawing, which the surface runs in a script-less sandboxed frame: the
+pill and the border breathe and the step's spinner turns, and on `full` a light crosses the
+current stage and the current chips, a head runs the rail leaving it, the count bar's head
+shimmers and a comet runs around the border. An idle card is a still image. The step's clock
+moves with each new drawing, about every two seconds.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
 which the terminal and the desktop app's Code tab both read). The installer writes each default
-you have not set, so the desktop app, which has no editor for them, starts with all three;
+you have not set, so the desktop app, which has no editor for them, starts with all four;
 `litclaude-ai config` prints them and `litclaude-ai config <option> <value>` changes one.
 Uninstall removes only the defaults it wrote that are still unchanged.
 
@@ -430,6 +481,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work), `off` (final frames only) | `full` |
 | `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
+| `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
 
 Unknown values fall back to the default. The fields are plain strings with no `options` list on
 purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and

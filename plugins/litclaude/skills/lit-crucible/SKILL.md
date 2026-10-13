@@ -253,6 +253,10 @@ End with exactly one readiness verdict:
 When ready, tell the user to run `/litclaude:lit-plan` with the Lit Crucible packet
 as the planning input. Do not start implementation from this skill.
 
+Record the verdict for the LIT card's workflow map with
+`litclaude-ai workflow-stage main plan --verdict crucible=pass` for READY or
+`--verdict crucible=fail` for BLOCKED; the packet stays the record of substance.
+
 ## Completion Checklist
 
 - Brief clarified and scoped.

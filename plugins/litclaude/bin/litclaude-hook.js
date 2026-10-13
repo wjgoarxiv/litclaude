@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { standard, micro, colorMode, supportsBlocks } from "../lib/lit-mark.mjs";
 import { NEON_END, NEON_START, rainbowText } from "../lib/hud-accent-palette.mjs";
 import { ignitionMark, writeIgnitionState } from "../lib/hud-ignition.mjs";
+import { DISCIPLINE_ENTRY } from "../lib/mod/workflow.mjs";
+import { observeWorkflowPostTool, observeWorkflowPreTool, observeWorkflowSubagentStop, startWorkflowStage } from "../lib/workflow-stage.mjs";
 import { renameAliases, renameNote } from "../lib/rename-aliases.mjs";
 import { hasInterfaceModeWord, interfaceMode } from "../lib/interface-mode.mjs";
 import { transcriptHasContextPressure } from "../lib/context-pressure.mjs";
@@ -1322,6 +1324,13 @@ switch (eventName) {
       else clearLitPlanTurn(stateRoot);
       recordInterfaceProbeTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.safetyBlock ? null : trigger?.discipline });
       recordMotionTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.discipline });
+      // The LIT card's stage record follows the discipline this prompt ignited: it starts over for a
+      // skill only it can follow and is cleared for any other.
+      // A typed `/litclaude:<skill>` is expanded by the host and never routes here, so its skill
+      // is read off the prompt's first word.
+      const typed = /^\/(?:litclaude:)?([a-z][a-z-]{0,40})(?=\s|$)/u.exec(prompt.trim())?.[1];
+      const started = trigger?.discipline && !trigger.safetyBlock ? trigger.discipline : typed && Object.hasOwn(DISCIPLINE_ENTRY, typed) ? typed : null;
+      if (started) startWorkflowStage(cwd, { sessionId: input.session_id, skill: started });
     } catch {
       // Persistence-gate state is advisory to routing; an unwritable record never alters the prompt hook.
     }
@@ -1407,6 +1416,13 @@ switch (eventName) {
           },
         }));
       } else {
+        // The LIT card's stage record: a workflow skill starts it, a review lane's reviewer marks
+        // its lane running.
+        try {
+          observeWorkflowPreTool(cwd, guardInput);
+        } catch {
+          // The stage record only feeds the card; a failed write never changes the tool decision.
+        }
         let humanizerContext = "";
         try {
           const result = evaluateDeliverableHedgeGuard({ input: guardInput, pluginRoot });
@@ -1455,6 +1471,16 @@ switch (eventName) {
   case "post-tool-use": {
     const toolName = typeof input.tool_name === "string" ? input.tool_name : "unknown";
     const filePaths = extractMutatedFilePaths(input);
+    // The LIT card's stage record moves on from what this tool did: the plan saved, a task checked
+    // in the active plan, a lit-loop step, a reviewer's verdict.
+    try {
+      const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+      observeWorkflowPostTool(cwd, input, { filePaths, lifecycleRoot: lifecycleRootFor(cwd) });
+    } catch {
+      // The stage record only feeds the card; a failed write never changes the tool's result.
+    }
+    // A reviewer's report only moves the card; the post-edit checks below are for writes.
+    if (toolName === "Agent") break;
     try {
       const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
       observeInterfaceProbeTool(resolveProjectStateRoot(cwd), { input, filePaths });
@@ -1544,6 +1570,11 @@ switch (eventName) {
       recordStartWorkSubagentStop(lifecycleRootFor(cwd), input);
     } catch {
       // SubagentStop remains continuation-inert; completion will fail closed on an active lane.
+    }
+    try {
+      observeWorkflowSubagentStop(typeof input.cwd === "string" ? input.cwd : process.cwd(), input);
+    } catch {
+      // A background reviewer's verdict only feeds the card.
     }
     break;
   }

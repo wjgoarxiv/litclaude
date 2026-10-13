@@ -3,6 +3,7 @@
 // band's surface module, which only draws and animates it.
 
 import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
+import { buildWorkflow } from "./workflow.mjs";
 
 export const STALL_MS = 10 * 60 * 1000;
 // An agent quiet for this long no longer counts as running: a crashed loop or a lost report must not
@@ -149,13 +150,22 @@ const figuresOf = (usage, git) => {
   return { context, rates, git: typeof git === "string" && git ? git : null };
 };
 
+// The tool the main loop is running, by name only: an MCP tool by its own last segment. Never its
+// arguments, its command or the files it touches.
+export const stepName = (tool) => {
+  const name = String(tool ?? "").trim();
+  const mcp = /^mcp__.+__([^_].*)$/u.exec(name);
+  return (mcp ? mcp[1] : name).replace(/[^\w .:-]/gu, "").slice(0, 32) || null;
+};
+
 /**
  * The band's model. `agents` is `$.agent.list()`, `activity` the per-agent last-seen map, `usage`
  * `$.session.usage()`, `notice` and `completion` whatever the mod is currently playing, `skills`
  * the chips (skills.mjs chipStates), `lastDiscipline` the discipline or skill the session last
- * lit (the idle title) and `git` the branch.
+ * lit (the idle title), `git` the branch and `step` the live step (`{ name, at }`, the tool the
+ * main loop runs and since when).
  */
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null }) => {
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -198,6 +208,8 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
     goal: goalSummaryOf(goal),
     skills: skills.map(({ id, at, state }) => ({ id, at, state })),
     figures: figuresOf(usage, git),
+    workflow: buildWorkflow({ snapshot, skills, completion, now }),
+    step: step && isWorking && stepName(step.name) ? { name: stepName(step.name), elapsedMs: Math.max(0, now - step.at) } : null,
     notice,
     completion,
   };

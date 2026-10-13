@@ -73,7 +73,7 @@ const APPROVED_PAYLOAD_PATHS = new Set([
 export const MOD_PAYLOAD_PATHS = Object.freeze([
   'plugins/litclaude/hooks/lit-mod.mjs',
   'plugins/litclaude/hooks/lit-band-client.mjs',
-  ...['frame', 'layout', 'motion', 'render', 'settings', 'skills', 'state', 'timeline', 'view']
+  ...['frame', 'layout', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'view', 'workflow']
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
 ]);
 

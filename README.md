@@ -108,41 +108,54 @@ name the next step.
 
 ## The LIT card
 
-While you work, LitClaude keeps a small card just above the prompt. It shows which workflow is
-running, how far it has come and which skills it has used, so you can follow Claude without
-scrolling back through the conversation. The top edge names the workflow and its phase, the
-first row follows the work from plan through build to review, the second row holds a chip for
-each LitFamily skill that fired, and the bottom edge repeats the context, the five-hour and
-weekly usage and the Git branch from the status line.
+While you work, LitClaude keeps a small card just above the prompt. It shows where you are in
+the LIT workflow, what Claude is doing at this moment and which skills it has used, so you can
+follow Claude without scrolling back through the conversation. The top edge names the workflow
+and its stage. The first row is a map of that workflow: a request runs from the interview through
+the plan, the work and the review to done, a research run goes wave by wave, and a lit-loop
+criterion steps from PIN through RED and GREEN to RECORD. Stages behind you carry a check and
+the one you are in is lit. The second row tells you more about that stage, such as the task
+count and the next task, the review lanes that have passed or the interview round, and on its
+right the tool Claude is running and for how long. It shows only the tool's name, never what
+the tool was given. The third row holds a chip for each LitFamily skill that fired, and the
+bottom edge repeats the context, the five-hour and weekly usage and the Git branch from the
+status line. A request that fits none of these workflows keeps the simpler PLAN, WORK and
+REVIEW track.
 
 Before anything runs, the card rests and tells you how to begin:
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the phase row shows PLAN, WORK and REVIEW as empty rings, the next row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 2%, 1w 47% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the first row shows PLAN, WORK and REVIEW as empty rings, the detail row is empty, the skills row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 17%, 1w 52% and the branch main." /></p>
 
-Give it a request with `lit`, and the card names the workflow, fills the phase it is in and
-lights a chip for the skill that took the request:
+Give it a request with `lit`, and the card names the workflow, lights the stage it is in and a
+chip for the skill that took the request. LitClaude's own hooks move the map on as the work
+happens, when the plan is saved, a task is ticked or a reviewer reports, so it keeps up without
+Claude having to report each step:
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="The LIT card while Claude works. The top edge reads LIT · lit-loop with WORK ● on the right and a pink comet running along the border, WORK is a filled pill between PLAN and REVIEW with a light passing over it, the skills row holds a bright lit-loop chip, and the bottom edge shows ctx 5%, 5h 2%, 1w 47% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="The LIT card in the middle of a start-work run. The top edge reads LIT · start-work with WORK ● on the right, the map shows interview and plan checked in orange and pink, work 1/2 as a filled cyan pill and review and done still dim, the detail row reads task 1/2 with a half-filled pink bar and next ▸ Task 2: GREEN, implement shout and verify, with thinking · 0:02 on its right, the skills row holds start-work, and the bottom edge shows ctx 9%, 5h 20%, 1w 53% and the branch main." /></p>
 
 While Claude is busy, the card does not sit still. The LIT pill slowly glows from pink to
-orange and back, a light passes over the phase it is in and over the skill chip, and a spark runs along the top edge
-and back along the bottom. A glance is enough to tell that LitClaude is still at work.
+orange and back, a light passes over the stage it is in and over the skill chip, a bright point
+travels along the map toward the next stage, and a spark runs along the top edge and back along
+the bottom. A glance is enough to tell that LitClaude is still at work.
 
-When the turn ends, the card goes back to idle and stops moving. The chip turns grey and stays as a recent
-skill, so you can still see what ran last:
+When the turn ends, the card goes back to idle and stops moving. The map keeps where the work got to,
+and the chip turns grey and stays as a recent skill, so you can still see what ran last:
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="The LIT card after the turn. The top edge reads LIT · lit-loop in a dim colour with idle on the right, WORK stays filled in a muted colour in the phase row, the skills row keeps lit-loop as a grey chip, and the bottom edge shows ctx 5%, 5h 2%, 1w 47% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="The LIT card after the review. The top edge reads LIT · review-work in a dim colour with idle on the right, every stage of the map from interview through work and review to done carries a check, the detail row reads complete, the skills row keeps review-work as a grey chip, and the bottom edge shows ctx 16%, 5h 21%, 1w 53% and the branch main." /></p>
 
 The card needs Claude Code 2.1.287 or later, in the terminal or in the Code tab of the Claude
 desktop app. The installer sets up both, since the app reads the same settings; open a new
-session in the app after installing. The card stays for the whole session; to see it only while
+session in the app after installing. The app draws the card as a picture with the same rows and
+motion, because it sets mod text in a proportional font. The card stays for the whole session; to see it only while
 work runs, set `band` to `auto` in `/config` under LitClaude, and `off` hides it. Set `motion`
-to `subtle` for a quieter card, or `off` to keep it still. The desktop app has no editor for
-these options, so change them from a terminal instead:
+to `subtle` for a quieter card, or `off` to keep it still. If you step away during long work,
+set `notify` to `finish`: LitClaude then sends a notification through your terminal when the
+work completes or a LIT turn longer than three minutes ends. It is off until you turn it on.
+The desktop app has no editor for these options, so change them from a terminal instead:
 
 ```bash
 npx @litfamily/litclaude@latest config             # show the options
-npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs basic
+npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs basic, notify finish
 ```
 
 [Everything the card can show](./docs/hooks.md#the-lit-band-claude-code-mod).

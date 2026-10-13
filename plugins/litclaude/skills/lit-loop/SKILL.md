@@ -266,6 +266,14 @@ Use the shorthand `PIN -> RED -> GREEN -> VERIFY -> SURFACE -> REVIEW -> CLEAN
 -> RECORD` when writing plans or ledgers. The SURFACE step must include a
 Manual-QA artifact, not only automated tests.
 
+The LIT card's workflow map follows the steps on its own: LitClaude's hooks move
+it to RED when a test file is written, GREEN when the code changes after that,
+VERIFY when the tests run and RECORD when `litgoal record-evidence` runs. For a
+step they cannot see (REVIEW, SURFACE, CLEAN), record it with
+`litclaude-ai workflow-stage loop <STEP> --n <criterion number> --total <criteria>`
+(for example `litclaude-ai workflow-stage loop SURFACE --n 2 --total 5`). The
+record only moves the card; it is not evidence and never replaces the ledger entry.
+
 ## Adversarial Classes
 
 Probe relevant classes:

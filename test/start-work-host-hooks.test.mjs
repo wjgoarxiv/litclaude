@@ -184,6 +184,57 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  it("reads search patterns and bare words as data, not paths, and treats start-work status as a read", () => {
+    const root = fixtureRoot();
+    const outside = fixtureRoot();
+    try {
+      initialize(root);
+      mkdirSync(join(root, "src"), { recursive: true });
+      mkdirSync(join(root, "bin"), { recursive: true });
+      writeFileSync(join(root, "src", "a.mjs"), "pattern\n");
+      writeFileSync(join(root, "probe.mjs"), "console.log(1)\n");
+      writeFileSync(join(root, "bin", "litclaude-ai.js"), "\n");
+      writeFileSync(join(outside, "secret.txt"), "secret\n");
+      let n = 0;
+      const run = (command) => {
+        n += 1;
+        return preTool(root, "Bash", { command }, { prompt_id: `prompt-words-${n}`, tool_use_id: `tool-words-${n}` });
+      };
+      for (const command of [
+        `grep -rln "pattern" ${join(root, "src")}`,
+        `rg -n 'some words' ${join(root, "src")}`,
+        `grep -e "a|b" -A 2 ${join(root, "src")}`,
+        `node ${join(root, "probe.mjs")} ${join(root, "src")} "some words"`,
+        "node bin/litclaude-ai.js start-work status --json",
+        "litclaude-ai start-work status",
+        "litclaude-ai workflow-stage main review --verdict scope=pass",
+      ]) {
+        const result = run(command);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(result.stdout, "", `a read-only command must keep normal permissions: ${command}`);
+      }
+      for (const [command, reason] of [
+        [`grep -rln "pattern" ${outside}`, /outside/u],
+        [`grep -f ${join(outside, "secret.txt")} ${join(root, "src")}`, /unverified/u],
+        [`rg --pre ./evil.sh pattern ${join(root, "src")}`, /unverified/u],
+        [`node ${join(root, "probe.mjs")} ${join(outside, "secret.txt")}`, /outside/u],
+        [`node -e "require('fs').rmSync('x')"`, /unverified|unclassified/u],
+        [`node ${join(root, "probe.mjs")} "$HOME"`, /unverified/u],
+        [`grep "x" ${join(root, "src")}; rm -rf ${outside}`, /unverified/u],
+        ["git commit -m \"status\"", /forbidden/u],
+      ]) {
+        const output = parse(run(command));
+        assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+        assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
+      }
+      const state = parse(runCli(root, ["status"])).state;
+      assert.equal(state.revision, 1, "read-only classification never manufactures a boundary");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("pauses an outside boundary, accepts only exact namespaced single-use resume, and persists semantic authorization", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();

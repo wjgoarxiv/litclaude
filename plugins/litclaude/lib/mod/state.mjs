@@ -4,9 +4,15 @@
 // only when it is a regular file, under its size cap, not itself a link, and lands exactly where its
 // spelled path says once every link is resolved, so a symlinked `.litclaude` or state file is skipped.
 //
+// The workflow map's sources are read the same way: the newest deep-interview state, the newest
+// lit-plan draft, the newest litresearch session folder and the stage record. A folder is listed
+// through `io.list` when the host offers it; without it the map falls back to the other sources.
+//
 // The two roots mirror the hook: `.litclaude` sits at the outermost Git root (project-state-root.mjs),
 // while boulder.json is found the way `lifecycleRootFor` in bin/litclaude-hook.js finds it, walking up
 // from the working directory and across a linked Git worktree to its main checkout.
+
+import { parseStageRecord } from "./workflow.mjs";
 
 export const STATE_CAPS = Object.freeze({
   boulder: 2 * 1024 * 1024,
@@ -195,6 +201,7 @@ export const parseBoulder = (state, sessionId) => {
       checked: Math.min(int(progress.checked), total),
       nextTask: str(progress.next_task, 400),
       lanes: laneList(active.lanes),
+      lastEvent: str(Array.isArray(active.events) ? active.events.at(-1)?.event : null, 60),
     },
     completed,
   };
@@ -279,6 +286,81 @@ export const parseAutoHandoff = (settings, session, env) => {
   };
 };
 
+const listOf = async (io, path) => {
+  if (typeof io.list !== "function") return [];
+  try {
+    const entries = await io.list(path);
+    return Array.isArray(entries) ? entries.slice(0, 400) : [];
+  } catch {
+    return [];
+  }
+};
+
+const newestFile = (entries, pattern) => entries
+  .filter((entry) => entry?.kind === "file" && !entry.isLink && pattern.test(entry.name))
+  .sort((a, b) => b.mtimeMs - a.mtimeMs)[0] ?? null;
+
+export const parseInterviewState = (state, at) => {
+  const inner = state?.state && typeof state.state === "object" ? state.state : null;
+  if (!inner) return null;
+  return {
+    active: state.active === true,
+    round: Array.isArray(inner.rounds) ? inner.rounds.length : null,
+    max: Number.isInteger(inner.max_rounds) && inner.max_rounds > 0 ? inner.max_rounds : null,
+    ambiguity: num(inner.current_ambiguity),
+    threshold: num(inner.threshold),
+    at,
+  };
+};
+
+// The draft's resume gate: the last `status:` line wins, as the approval gate sits below the header.
+export const parseDraftStatus = (text, slug, at) => {
+  const statuses = [...String(text).matchAll(/^status:\s*([a-z-]+)\s*$/gmu)].map((match) => match[1]);
+  return statuses.length ? { slug, status: statuses.at(-1), at } : null;
+};
+
+export const summarizeResearchFiles = (entries, slug) => {
+  const files = entries.filter((entry) => entry?.kind === "file" && !entry.isLink);
+  const waves = files.map(({ name }) => /^wave-(\d{1,3})-.*\.md$/u.exec(name)).filter(Boolean).map((match) => Number(match[1]));
+  return {
+    slug,
+    wave: waves.length ? Math.max(...waves) : 0,
+    digests: waves.length,
+    verified: files.filter(({ name }) => /^verify-.*\.md$/u.test(name)).length,
+    synthesis: files.some(({ name }) => name === "SYNTHESIS.md"),
+    at: files.reduce((latest, { mtimeMs }) => Math.max(latest, Number.isFinite(mtimeMs) ? mtimeMs : 0), 0) || null,
+  };
+};
+
+const readWorkflowSources = async (io, stateRoot, sessionId) => {
+  const dir = (name) => joinPath(stateRoot, ".litclaude", name);
+  const [interviews, drafts, researches, record] = await Promise.all([
+    listOf(io, dir("deep-interview")),
+    listOf(io, dir("drafts")),
+    listOf(io, dir("litresearch")),
+    readGuardedJson(io, stateRoot, ".litclaude/workflow-stage.json", STATE_CAPS.small),
+  ]);
+  const interviewFile = newestFile(interviews, /^[A-Za-z0-9._-]+-state\.json$/u);
+  const draftFile = newestFile(drafts, /^[A-Za-z0-9._-]+\.md$/u);
+  let research = null;
+  const sessions = researches.filter((entry) => entry?.kind === "dir" && !entry.isLink && /^[A-Za-z0-9._-]+$/u.test(entry.name)).slice(0, 30);
+  if (sessions.length) {
+    const stamped = await Promise.all(sessions.map(async ({ name }) => ({ name, at: (await statOf(io, joinPath(dir("litresearch"), name)))?.mtimeMs ?? 0 })));
+    const newest = stamped.sort((a, b) => b.at - a.at)[0];
+    research = summarizeResearchFiles(await listOf(io, joinPath(dir("litresearch"), newest.name)), newest.name);
+  }
+  const [interview, draft] = await Promise.all([
+    interviewFile ? readGuardedJson(io, stateRoot, `.litclaude/deep-interview/${interviewFile.name}`, STATE_CAPS.small) : null,
+    draftFile ? readGuarded(io, stateRoot, `.litclaude/drafts/${draftFile.name}`, STATE_CAPS.goals) : null,
+  ]);
+  return {
+    record: parseStageRecord(record, sessionId),
+    interview: interview ? parseInterviewState(interview, interviewFile.mtimeMs) : null,
+    draft: draft === null ? null : parseDraftStatus(draft, draftFile.name.replace(/\.md$/u, ""), draftFile.mtimeMs),
+    research,
+  };
+};
+
 export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
   const stateRoot = await resolveStateRoot(io, cwd);
   const lifecycleRoot = await resolveLifecycleRoot(io, cwd, stateRoot);
@@ -296,6 +378,7 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     handoffId ? state(`auto-handoff/session-${handoffId}.json`) : null,
   ]);
   const { work, completed } = parseBoulder(boulder, sessionId);
+  const workflow = await readWorkflowSources(io, stateRoot, sessionId);
   return {
     stateRoot,
     lifecycleRoot,
@@ -308,6 +391,7 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     probe: parseProbeTurn(probe, sessionId),
     motion: parseMotionTurn(motion, sessionId),
     handoff: parseAutoHandoff(handoffSettings, handoffSession, env),
+    workflow,
   };
 };
 

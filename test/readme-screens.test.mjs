@@ -109,14 +109,14 @@ test("the README demo film is an animated WebP that stays out of the package and
 
 // The LIT card in its three states, cropped from one recorded Claude Code session; both READMEs show it.
 const cardShots = {
-  "idle.webp": "0d9da522d831191cdb0e867cc6bc57628ddab365e76000898d5821b25a2d03f6",
-  "working.webp": "36ce64842cba9a404aa8ba63e1cbeb8342a4d99d54b62b3138146e79079dc922",
-  "after.webp": "84412f8d4640f657dce62235c2d0f3cbbc4f6af4e0eb2883b55edcc3eccb033a",
+  "idle.webp": "b51f0a0202fa944ecdab6699125e309823e02e73f65c9406c0fa29bbd1ccdfa4",
+  "working.webp": "018f411330e022a13e5ac80fa824765423a9ec9e76afbf2366db1fe0e70c0f54",
+  "after.webp": "20781c9423d37112edb87d3b40f7ab46f1b1d293e7da74794ef0a1f71bdd3bf8",
 };
 const cardQuotes = {
   idle: ["LIT · ready", "type lit &lt;task&gt; to start one", "1w"],
-  working: ["LIT · lit-loop", "WORK ●", "1w"],
-  after: ["idle", "lit-loop", "1w"],
+  working: ["LIT · start-work", "WORK ●", "work 1/2", "task 1/2", "thinking", "1w"],
+  after: ["idle", "review-work", "done", "complete", "1w"],
 };
 
 test("both READMEs show the LIT card in its idle, working and after states", () => {

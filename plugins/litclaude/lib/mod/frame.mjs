@@ -1,16 +1,25 @@
-// Turns a band model and one sampled frame into the LIT card: four rows of coloured spans. A span is
+// Turns a band model and one sampled frame into the LIT card: five rows of coloured spans. A span is
 // { text, fg?, bg?, bold? }; the surface module draws each row as a line of Text elements. The card
 // draws its own rounded border so the top edge can carry the title and the bottom edge the live
 // figures, and every row is fitted to exactly the card's width, counting Hangul and emoji as two
 // cells, so nothing wraps and the card keeps its height whether LitClaude is working or idle.
 //
-//   ╭─ [🔥 LIT] · lit-loop ─────────────────────────── WORK ● ─╮
-//   │ ● PLAN ━━ [WORK] ━━ ○ REVIEW              goal ██░░░ 2/5 │
-//   │ skills [⚡ lit-plan] [⚡ litresearch] [↯ lit-docx]        │
-//   ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────╯
+//   ╭─ [🔥 LIT] · start-work ───────────────────────────────── WORK ● ─╮
+//   │ interview ✓ ━━ plan ✓ ━━ [work 3/7] ━━ review · ── done ·  1 lane │
+//   │ └ task 3/7 ███░░░░░ · next ▸ 4. README demo        - Bash · 0:12 │
+//   │ skills [⚡ start-work] [↯ lit-plan]                               │
+//   ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────────────╯
 //
-// Each bracket pair stands for the two end cells of a filled pill: the brand on pink, the active
-// phase and this request's skills on the accent with dark text, skills from earlier requests on
+// The second row is the workflow map (workflow.mjs): done stages carry a check in a colour graded
+// along the rail from flame orange through pink to the accent, the current stage is a pill, the
+// stages ahead are dim. The rail leaving the current stage fills with its count and, while
+// LitClaude works, carries a bright head; the rails ahead are dim `─`. A narrow card drops the
+// rails, then shortens the names, then shows only the current stage and its neighbours. With no
+// family to place the session in, the row is the PLAN / WORK / REVIEW track instead. The third row
+// is the stage's detail and, on the right, the tool the main loop is running and for how long.
+//
+// Each bracket pair stands for the two end cells of a filled pill: the brand on pink, the current
+// stage and this request's skills on the accent with dark text, skills from earlier requests on
 // dark grey. Those end cells are rounded Nerd Font caps in the pill's colour, or one cell of
 // padding in that colour with basic glyphs, so a pill is as wide in either glyph set.
 //
@@ -19,10 +28,12 @@
 // colour of an ASCII cell, repaints. So every change is carried by ASCII: a bar cell is a space on
 // its colour and the leading cell fades in by colour, embers are ASCII sparks, labels pop in letter
 // by letter, a notice slides by its leading spaces, a chip's light moves over its ASCII name, and a
-// glyph swaps only together with the colour of its words.
+// glyph swaps only together with the colour of its words. The map's rail cells keep their glyph
+// and move by colour alone (a colour change on `─` or `━` repaints), and the live step's spinner
+// and clock are ASCII.
 
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { barCells, lerpColor } from "./motion.mjs";
+import { barCells, gradientAt, lerpColor } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
 import { formatDuration } from "./view.mjs";
 
@@ -195,6 +206,12 @@ const brandSpans = (sample, glyphs) => {
 const indicatorSpans = (model, sample, glyphs, accent) => {
   if (sample.completion) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
   if (model.idle) return [span("idle", { fg: PALETTE.dim })];
+  const flow = model.workflow;
+  if (flow && flow.current >= 0) {
+    const warn = model.ctxWarning && sample.warn > 0.02;
+    return [span(`${flow.stages[flow.current].id.toUpperCase()} ${warn ? glyphs.warn : glyphs.now}`, { fg: warn ? lerpColor(accent, PALETTE.amber, sample.warn) : accent, bold: true })];
+  }
+  if (flow && model.lanes.count === 0) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
   const current = PHASES.find((id) => model.phases[id] === "now");
   if (current) return [span(`${LABELS[current]} ${warned(current, sample) ? glyphs.warn : glyphs.now}`, { fg: phaseColor(current, sample, inkOf(accent)), bold: true })];
   if (PHASES.every((id) => model.phases[id] === "done") && model.lanes.count === 0) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
@@ -292,6 +309,172 @@ const phaseRow = (model, sample, { inner, glyphs, accent }) => {
   return fitRow([...track, span(" ".repeat(Math.max(2, inner - rowWidth(track) - rowWidth(tail)))), ...tail], inner);
 };
 
+// The colour of a point `position` (0 to 1) of the way along the map: flame orange, pink, accent.
+const mapColor = (accent, position) => gradientAt([PALETTE.orange, PALETTE.pink, accent], position);
+
+// A stage name cut to its first three letters, its count kept: `work 3/7` becomes `wor 3/7`.
+const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(0, 3));
+
+// The rail from stage `index - 1` to stage `index`, `cells` wide. Behind the current stage it is
+// `━` graded along the map; leaving it, `━` filled by the stage's count with a bright head while
+// LitClaude works; ahead, dim `─`. With no room for rails, one space.
+const railSpans = (model, sample, index, cells, accent) => {
+  if (cells === 0) return [span(" ")];
+  const { stages } = model.workflow;
+  const last = Math.max(1, stages.length - 1);
+  const at = (cell) => (index - 1 + (cell + 0.5) / cells) / last;
+  const into = stages[index].state;
+  const from = stages[index - 1].state;
+  let body;
+  if (into === "done" || into === "now") {
+    body = Array.from({ length: cells }, (_, cell) => span("━", { fg: mapColor(accent, at(cell)) }));
+  } else if (from === "now") {
+    const filled = model.workflow.count ? sample.fill * cells : 0;
+    const flow = model.idle ? null : sample.ambient?.flow ?? null;
+    const head = flow === null ? -1 : Math.floor(flow * cells);
+    body = Array.from({ length: cells }, (_, cell) => {
+      const base = cell < filled ? mapColor(accent, at(cell)) : PILL.rail;
+      return span("━", { fg: cell === head ? lerpColor(base, "#ffffff", 0.75) : base });
+    });
+  } else {
+    body = [span("─".repeat(cells), { fg: PILL.rail })];
+  }
+  return [span(" "), ...body, span(" ")];
+};
+
+// interview ✓ ━━ plan ✓ ━━ [work 3/7] ━━ review · ── done ·
+const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window = false }) => {
+  const { stages, current } = model.workflow;
+  const last = Math.max(1, stages.length - 1);
+  const focus = current < 0 ? stages.length - 1 : current;
+  const shown = stages.map((_, index) => index).filter((index) => !window || Math.abs(index - focus) <= 1);
+  const out = [];
+  if (window && shown[0] > 0) out.push(span("… ", { fg: PALETTE.dim }));
+  shown.forEach((index) => {
+    const stage = stages[index];
+    const label = short ? shortLabel(stage.label) : stage.label;
+    const text = stage.state === "now" ? label : `${label} ${stage.state === "done" ? glyphs.done : "·"}`;
+    const revealed = revealText(text, sample.pills[Math.min(3, 1 + Math.floor(index / 2))]);
+    if (revealed === null) return;
+    if (out.length && !(window && out.length === 1 && shown[0] > 0)) out.push(...railSpans(model, sample, index, rail, accent));
+    if (stage.state === "now") {
+      let fill = model.idle ? lerpColor(accent, PILL.muted, 0.5) : accent;
+      if (model.ctxWarning) fill = lerpColor(fill, PALETTE.amber, sample.warn);
+      if (sample.ambient && !model.idle) fill = lerpColor(fill, "#ffffff", 0.2 * sample.ambient.breath);
+      const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
+      out.push(...pill(litText(revealed.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs));
+    } else {
+      out.push(span(revealed, { fg: stage.state === "done" ? mapColor(accent, index / last) : PALETTE.dim }));
+    }
+  });
+  if (window && shown.at(-1) < stages.length - 1) out.push(span(" …", { fg: PALETTE.dim }));
+  return out;
+};
+
+const MAP_VARIANTS = Object.freeze([
+  { rail: 2 },
+  { rail: 1 },
+  { rail: 0 },
+  { rail: 0, short: true },
+  { rail: 0, short: true, window: true },
+]);
+
+// The map, then the context warning, the lanes and the autoloop budget while there is room.
+const mapRow = (model, sample, { inner, glyphs, accent }) => {
+  const tracks = MAP_VARIANTS.map((variant) => mapTrack(model, sample, { glyphs, accent, ...variant }));
+  const track = tracks.find((candidate) => rowWidth(candidate) <= inner) ?? tracks.at(-1);
+  const right = [];
+  if (sample.rest > 0) {
+    if (model.ctxWarning && sample.warn > 0.02) {
+      right.push(segment("ctx", 1, [span(`ctx ${model.ctxWarning.percent}% → ${model.ctxWarning.threshold}%`, { fg: lerpColor(PALETTE.dim, PALETTE.amber, sample.warn), bold: sample.warn > 0.5 })]));
+    }
+    if (model.lanes.count > 0) {
+      const dots = model.lanes.list.slice(0, 4).map((lane) => span(glyphs.lane, { fg: lane.status === "stalled" ? PALETTE.amber : PALETTE.green }));
+      right.push(segment("lanes", 3, [...dots, span(` ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fg: PALETTE.dim })]));
+    }
+    if (model.autoloop) {
+      right.push(segment("loop", 4, [span(`${glyphs.loop} ${model.autoloop.n}/${model.autoloop.max}`, { fg: PALETTE.violet }), span(` · ${formatDuration(model.autoloop.leftMs)}`, { fg: PALETTE.dim })]));
+    }
+  }
+  const kept = fitJoined(right, inner - rowWidth(track) - 2);
+  const tail = joinSegments(kept, PALETTE.faint);
+  if (!tail.length) return fitRow(track, inner);
+  return fitRow([...track, span(" ".repeat(Math.max(2, inner - rowWidth(track) - rowWidth(tail)))), ...tail], inner);
+};
+
+const SPINNER = Object.freeze(["-", "\\", "|", "/"]);
+
+// m:ss, or h:mm:ss past the hour.
+export const formatClock = (ms) => {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const ss = String(seconds % 60).padStart(2, "0");
+  return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${ss}` : `${minutes}:${ss}`;
+};
+
+// The live step: an ASCII spinner, the tool's name and how long it has run. Nothing else of the call.
+const stepSpans = (sample, accent) => {
+  if (!sample.step) return [];
+  return [
+    span(`${SPINNER[sample.spin ?? 0]} `, { fg: accent, bold: true }),
+    span(sample.step.name, { fg: PALETTE.white }),
+    span(` · ${formatClock(sample.step.elapsedMs)}`, { fg: PALETTE.dim }),
+  ];
+};
+
+const VERDICT_STYLE = Object.freeze({
+  pass: (glyphs) => [glyphs.done, PALETTE.green],
+  fail: (glyphs) => [glyphs.fail, PALETTE.red],
+  pending: () => ["·", PALETTE.dim],
+  running: (glyphs) => [glyphs.lane, PALETTE.amber],
+});
+
+// The review lanes or a crucible verdict: each name in its verdict's colour (a lane under review
+// amber), so a change repaints.
+// `cut` shortens the names to that many letters; 0 drops them and leaves the marks.
+const verdictSpans = (verdicts, glyphs, cut = Infinity) => verdicts.flatMap(({ name, state }, index) => {
+  const [mark, color] = VERDICT_STYLE[state](glyphs);
+  const text = cut === 0 ? mark : `${name.slice(0, cut)} ${mark}`;
+  return [...(index > 0 ? [span(" ")] : []), span(text, { fg: color })];
+});
+
+// └ task 3/7 ███░░░░░ · paused · next ▸ <task>                    - Bash · 0:12
+const detailRow = (model, sample, { inner, glyphs, accent }) => {
+  const flow = model.workflow;
+  const right = stepSpans(sample, accent);
+  const segments = [];
+  if (flow?.count) {
+    const { done, total, unit } = flow.count;
+    const glow = sample.ambient && !model.idle ? 0.5 * sample.ambient.breath : sample.fillGlow ?? 0;
+    const bar = barCells(sample.fill, inner >= 70 ? 8 : 5, glow).map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
+    segments.push(segment("count", 1, [
+      span(`${unit} `, { fg: PALETTE.dim }),
+      span(String(done), { fg: lerpColor(PALETTE.white, PALETTE.cyan, Math.max(sample.flash, sample.fillGlow ?? 0)), bold: true }),
+      span(`/${total} `, { fg: PALETTE.dim }),
+      ...bar,
+    ], " · "));
+  }
+  const lead = [span("└ ", { fg: PALETTE.dim })];
+  const room = inner - rowWidth(lead) - (right.length ? rowWidth(right) + 2 : 0);
+  if (flow?.verdicts) {
+    const before = segments.reduce((sum, part) => sum + part.width + textWidth(part.joiner), 0);
+    const forms = [Infinity, 3, 0].map((cut) => segment("verdicts", 2, verdictSpans(flow.verdicts, glyphs, cut), " · "));
+    segments.push(forms.find((form) => before + form.width <= room) ?? forms.at(-1));
+  }
+  (flow?.items ?? []).forEach((item, index) => segments.push(segment(`item-${index}`, 3 + index, [span(item, { fg: PALETTE.white })], " · ")));
+  let left = joinSegments(fitJoined(segments, room), PALETTE.faint);
+  if (flow?.next) {
+    const gap = left.length ? [span(" · ", { fg: PALETTE.faint })] : [];
+    const label = [span("next ", { fg: PALETTE.dim }), span(`${glyphs.next} `, { fg: accent })];
+    const avail = room - rowWidth(left) - rowWidth(gap) - rowWidth(label);
+    if (avail >= 6) left = [...left, ...gap, ...label, span(truncateToWidth(flow.next, avail), { fg: PALETTE.white })];
+  }
+  if (!left.length && !right.length) return fitRow([], inner);
+  const body = [...lead, ...left];
+  if (!right.length) return fitRow(body, inner);
+  return fitRow([...body, span(" ".repeat(Math.max(1, inner - rowWidth(body) - rowWidth(right)))), ...right], inner);
+};
+
 const CHIP_TONE = Object.freeze({
   current: (accent) => ({ fill: accent, text: PILL.ink }),
   recent: () => ({ fill: PILL.muted, text: PILL.mutedText }),
@@ -320,7 +503,7 @@ const mutedPill = (text, glyphs) => pill([span(text, { fg: PALETTE.dim, bg: PILL
 const chipsRow = (model, sample, { inner, glyphs, accent }) => {
   const chips = model.skills;
   if (chips.length === 0) {
-    if (!model.idle && model.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
+    if (!model.idle && model.next && !model.workflow?.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
     if (!model.idle) return fitRow([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner);
     const hints = [
       [span("no LitFamily skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent }), span(" to start one", { fg: PALETTE.dim })],
@@ -416,9 +599,10 @@ const edgeColor = (model, sample, accent) => {
 };
 
 /**
- * The card for one frame: `{ mode: "card", border, width, rows }`, always four rows (top edge,
- * phase row, chips row, bottom edge), each exactly `width` cells: the terminal's columns up to
- * CARD_MAX. `accent` is the status line's accent colour (settings.mjs accentFromSettings).
+ * The card for one frame: `{ mode: "card", border, width, rows }`, always five rows (top edge,
+ * workflow map or phase track, detail line, chips row, bottom edge), each exactly `width` cells:
+ * the terminal's columns up to CARD_MAX. `accent` is the status line's accent colour
+ * (settings.mjs accentFromSettings).
  */
 export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic", accent = PALETTE.accent }) => {
   const glyphs = glyphSet(glyphMode);
@@ -432,7 +616,13 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
     mode: "card",
     border: edge,
     width,
-    rows: [topEdge(model, sample, options), side(phaseRow(model, sample, options)), side(middle), bottomEdge(model, sample, options)],
+    rows: [
+      topEdge(model, sample, options),
+      side(model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options)),
+      side(detailRow(model, sample, options)),
+      side(middle),
+      bottomEdge(model, sample, options),
+    ],
   };
 };
 

@@ -32,6 +32,12 @@
       "title": "LIT band",
       "description": "When the LIT card shows above the prompt: always (the whole session, idle included), auto (only while LitClaude work is active or a skill of this request is lit) or off.",
       "default": "always"
+    },
+    "notify": {
+      "type": "string",
+      "title": "LIT finish notification",
+      "description": "off, or finish: a notification through your own notification channel when LIT work completes or a LIT turn longer than three minutes ends. finish+sound also plays a sound once LitClaude ships one; until then it notifies like finish.",
+      "default": "off"
     }
   }
 }

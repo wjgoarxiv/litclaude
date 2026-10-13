@@ -1,12 +1,15 @@
-// The LIT band's three userConfig options. The manifest declares them as plain strings without an
+// The LIT band's four userConfig options. The manifest declares them as plain strings without an
 // `options` list, because Claude Code 2.1.270 and older refuse a whole plugin whose userConfig has
 // one; the values are checked here instead, and anything unknown falls back to the default (the
-// first choice).
+// first choice). `notify` raises a notification through the person's own channel when LIT work
+// completes or a LIT turn longer than three minutes ends; `finish+sound` adds a sound only where
+// the plugin ships one, and none ships yet, so it notifies like `finish`.
 
 export const MOD_CHOICES = Object.freeze({
   motion: ["full", "subtle", "off"],
   glyphs: ["auto", "nerd", "basic"],
   band: ["always", "auto", "off"],
+  notify: ["off", "finish", "finish+sound"],
 });
 
 const pick = (value, choices) => {
@@ -18,6 +21,7 @@ export const normalizeModSettings = (options) => ({
   motion: pick(options?.motion, MOD_CHOICES.motion),
   glyphs: pick(options?.glyphs, MOD_CHOICES.glyphs),
   band: pick(options?.band, MOD_CHOICES.band),
+  notify: pick(options?.notify, MOD_CHOICES.notify),
 });
 
 // The glyph set one surface draws. Private-use Nerd Font glyphs only reach the terminal, which

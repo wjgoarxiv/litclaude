@@ -15,7 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { ensureStateDirIgnored } from "./project-state-root.mjs";
@@ -841,6 +841,128 @@ const canonicalBashTargets = (cwd, targets, action) => {
   }
 };
 
+// Shell words for the forms below that take data beside paths. Quotes group a word; anything the
+// shell would expand, chain or redirect outside single quotes (an operator, `$`, a backtick, a
+// backslash, a glob, `~`, `#`, a newline) gives null, and the command meets the strict checks.
+const shellWords = (command) => {
+  const words = [];
+  let word = null;
+  let quote = null;
+  for (const ch of command) {
+    if (ch === "\n") return null;
+    if (quote === "'" || quote === '"') {
+      if (ch === quote) quote = null;
+      else if (quote === '"' && /[$`\\]/u.test(ch)) return null;
+      else word.text += ch;
+      continue;
+    }
+    if (/\s/u.test(ch)) {
+      if (word) words.push(word);
+      word = null;
+      continue;
+    }
+    if (/[;&|<>()`$\\*?[\]{}~#]/u.test(ch)) return null;
+    word ??= { text: "" };
+    if (ch === "'" || ch === '"') quote = ch;
+    else word.text += ch;
+  }
+  if (quote) return null;
+  if (word) words.push(word);
+  return words.length ? words : null;
+};
+
+const pathArgumentDenied = { denied: "unverified path-bearing Bash argument" };
+
+// grep and rg: the first operand is the search pattern (data) unless -e or --regexp gave it; the
+// rest are the paths searched. Flags that read a file, run a preprocessor or carry a path are
+// refused; the short flags that take a value consume the next word as that value.
+const SEARCH_VALUE_FLAGS = Object.freeze({ grep: "ABCmdD", rg: "ABCmgtTjMEr" });
+
+const classifySearchWords = (tool, args, cwd) => {
+  let pattern = false;
+  let operands = false;
+  const targets = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const text = args[index].text;
+    if (!operands && text === "--") {
+      operands = true;
+      continue;
+    }
+    if (!operands && text.startsWith("-")) {
+      if (/^--(?:file|pre|pre-glob|exclude-from|ignore-file)(?:=|$)/u.test(text)) return pathArgumentDenied;
+      if (/^-[A-Za-z0-9]+$/u.test(text)) {
+        if (text.includes("f")) return pathArgumentDenied;
+        if (text.includes("e")) {
+          pattern = true;
+          if (text.endsWith("e")) index += 1;
+        } else if (SEARCH_VALUE_FLAGS[tool].includes(text.at(-1))) {
+          index += 1;
+        }
+        continue;
+      }
+      if (/^--regexp(?:=|$)/u.test(text)) {
+        pattern = true;
+        if (!text.includes("=")) index += 1;
+        continue;
+      }
+      if (/^--[A-Za-z][\w-]*(?:=[^/]*)?$/u.test(text)) continue;
+      return pathArgumentDenied;
+    }
+    if (!pattern) pattern = true;
+    else targets.push(text);
+  }
+  return canonicalBashTargets(cwd, targets, "read");
+};
+
+// `node <script> [args]` runs the script: an execute under the working directory and the script,
+// with every argument that reads as a path checked too. Bare words are data.
+const classifyNodeScriptWords = (args, cwd) => {
+  const [script, ...rest] = args;
+  if (!script || script.text.startsWith("-")) return null;
+  const paths = [];
+  for (const { text } of rest) {
+    if (text.startsWith("-")) {
+      if (text.includes("=")) {
+        const value = text.slice(text.indexOf("=") + 1);
+        if (/^[./~]|\//u.test(value)) paths.push(value);
+      } else if (text.includes("/")) {
+        return pathArgumentDenied;
+      }
+    } else if (/^[./~]|\//u.test(text)) {
+      paths.push(text);
+    }
+  }
+  return canonicalBashTargets(cwd, [cwd, script.text, ...paths], "execute");
+};
+
+const LITCLAUDE_CLI_NAMES = new Set(["litclaude-ai", "litclaude"]);
+
+const classifyBashWords = (words, cwd) => {
+  const [head, ...args] = words;
+  if (head.text === "grep" || head.text === "rg") return classifySearchWords(head.text, args, cwd);
+  let cli = null;
+  let rest = [];
+  if (LITCLAUDE_CLI_NAMES.has(head.text)) {
+    cli = [];
+    rest = args.map(({ text }) => text);
+  } else if (head.text === "node" && args[0] && basename(args[0].text) === "litclaude-ai.js") {
+    cli = [args[0].text];
+    rest = args.slice(1).map(({ text }) => text);
+  }
+  if (cli) {
+    // `start-work status` only reads the lifecycle state; `workflow-stage` writes the LIT card's
+    // small stage record under the project's .litclaude directory.
+    if (rest[0] === "start-work" && rest[1] === "status" && rest.slice(2).every((word) => word === "--json")) {
+      return canonicalBashTargets(cwd, cli, "read");
+    }
+    if (rest[0] === "workflow-stage" && rest.every((word) => !word.includes("/"))) {
+      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+    }
+  }
+  if (head.text === "node") return classifyNodeScriptWords(args, cwd);
+  return null;
+};
+
 const classifyBash = (command, cwd) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) {
     return { denied: "unclassified mutating Bash command" };
@@ -848,6 +970,9 @@ const classifyBash = (command, cwd) => {
   if (forbiddenShellPattern.test(command)) return { denied: "forbidden authority action in Bash command" };
   const trimmed = command.trim();
   if (shellRelocationPattern.test(trimmed)) return { denied: "Bash relocation flags are not authorized" };
+  const words = shellWords(trimmed);
+  const worded = words ? classifyBashWords(words, cwd) : null;
+  if (worded) return worded;
   if (/[;&|`<>\n"'\\]/u.test(trimmed) || trimmed.includes("$(")) return { denied: "unverified path-bearing Bash argument" };
 
   const cat = /^cat\s+(.+)$/u.exec(trimmed);

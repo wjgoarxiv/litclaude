@@ -548,6 +548,16 @@ scope. Use `FAIL` when a lane found a concrete issue. Use `BLOCKED` when the
 lane cannot be completed because required access, environment, credentials, or
 user input is missing.
 
+The LIT card's workflow map follows the lanes on its own: LitClaude's hooks
+mark a lane running when a prompt titled `Review lane: <lane>.` is spawned and
+take the lane's `verdict:` line when it reports, so keep those titles and the
+fixed schema. The card names the lanes `goal` (scope/diff), `quality`
+(package/payload), `security`, `qa` (tests/evidence) and `context`
+(real-surface/docs). When you run a lane yourself without a child agent, record
+it with `litclaude-ai workflow-stage main review --verdict <lane>=<pass|fail|pending>`
+(`BLOCKED` stays `pending`). The record only draws the card; the table above
+stays the review's evidence.
+
 ## Aggregation Rules
 
 - Any P0 or P1 finding makes the overall review `FAIL`.
