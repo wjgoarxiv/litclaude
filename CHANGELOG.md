@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.27 - 2026-10-13
+
+- The lit-loop map now moves when the work happens in the shell. Writing a test with a shell command (`cat > test/…`, `>>`, `tee` or `sed -i`) turns the map to RED, changing a source file the same way turns it to GREEN, and the next test run turns it to VERIFY. A failing test run while the criterion is still pinned also counts as RED, including a bare `npm test` that exits with an error. The card keeps only the stage, never the command or the file names.
+- `litclaude-ai install` no longer stops with `INSTALL_OWNERSHIP_CONFLICT` when the Claude desktop app has marked the installed plugin as in use. The app's `.in_use` folder, with its process-numbered entries, is left in place; anything else inside it is still reported.
+- The start-work gate lets read-only git through during active work: `git status`, `git diff`, `git log` and `git show`, with any paths they name still checked against the work's grants. Its own lifecycle commands, `litclaude-ai start-work progress`, `complete` and `cancel`, pass too. `node -e` stays blocked, because its script cannot be read as read-only from the command alone.
+- The README demo film is retaken: the card's workflow map turns RED on the failing test, then GREEN and VERIFY when the tests pass, and the live step names the running tool and its time.
+
 ## 1.0.26 - 2026-10-13
 
 - The LIT card now shows where you are in the LIT workflow. A map row lights the current stage of the running family (interview, plan, work, review, loop, research), and a detail line under it says what that stage is doing: the interview round and ambiguity, whether the plan awaits approval, how many tasks are checked and which comes next, each review lane's verdict. On the right of that line the live step names the tool the main loop is running and for how long, or `thinking` between tool calls, and never shows its arguments.
