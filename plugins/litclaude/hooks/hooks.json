@@ -51,6 +51,19 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" post-tool-use-failure",
+            "timeout": 10,
+            "statusMessage": "moving the LIT card's workflow map"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

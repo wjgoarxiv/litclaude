@@ -46,7 +46,7 @@ import { jevStatusLine } from "../plugins/litclaude/lib/jev-skill-hint.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
-import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory } from "./install-ownership.mjs";
+import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
 import { banner, lockup, colorMode, supportsBlocks, terminalRows } from "./litfamily-banner.mjs";
 import {
   ICON_FONT,
@@ -1393,7 +1393,7 @@ const install = async ({ dryRun, rest }) => {
       target: targetPlugin,
     },
     async () => {
-      await rm(targetPlugin, { recursive: true, force: true });
+      clearOwnedTree(targetPlugin);
       await mkdir(dirname(targetPlugin), { recursive: true });
       await cp(sourcePlugin, targetPlugin, { recursive: true });
       writeOwnershipReceipt(targetPlugin, "plugin", version);

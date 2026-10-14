@@ -317,6 +317,7 @@ describe("reader-facing communication contract", () => {
     assert.match(source, /no generic[^.]*scrubber|do not buffer[^.]*stream/iu);
     assert.deepEqual(Object.keys(hooks).sort(), [
       "PostToolUse",
+      "PostToolUseFailure",
       "PreToolUse",
       "SessionEnd",
       "SessionStart",

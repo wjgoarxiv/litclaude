@@ -426,6 +426,29 @@ test("the empty .in_use folder Claude Code adds to a cache version does not coun
   assert.equal(existsSync(join(f.claude, "plugins/cache/litclaude-ai/litclaude", nextVersion)), false);
 });
 
+// The Claude desktop app marks a cache version it has loaded with one entry per process,
+// `.in_use/<pid>`. That marker is the host's, so it is neither foreign state nor the installer's to remove.
+test("a .in_use folder with pid-named entries is the host's marker: install passes and leaves it in place", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  mkdirSync(join(f.plugin, ".in_use", "12345"), { recursive: true });
+  pass(f.run("install"));
+  assert.equal(existsSync(join(f.plugin, ".in_use", "12345")), true, "the host marker stays");
+  const { nextBin } = newerCandidate(f);
+  pass(f.run("install", nextBin));
+  assert.equal(existsSync(join(f.plugin, ".in_use", "12345")), true);
+});
+
+test("a .in_use folder holding anything but pid-named entries is still foreign state", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  mkdirSync(join(f.plugin, ".in_use"));
+  writeFileSync(join(f.plugin, ".in_use", "notes.txt"), "mine");
+  const result = f.run("install");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /INSTALL_OWNERSHIP_CONFLICT/u);
+});
+
 // Python writes bytecode next to the scripts it runs. That cache is generated, never user data, so it must
 // not turn an installed plugin into foreign state.
 const pycacheDir = (f) => join(f.plugin, "vendor/scientific-visualization/scripts/__pycache__");

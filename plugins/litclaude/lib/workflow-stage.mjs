@@ -5,14 +5,14 @@
 // see, with no help from the model. The prompt and PreToolUse hooks start it when one of
 // STAGE_RECORD_SKILLS starts and clear it for any other discipline; PreToolUse marks a review
 // lane running when its reviewer is spawned; PostToolUse moves it when the plan file is saved, a
-// task is checked in the active plan, a lit-loop test is written, made to pass, run or recorded,
-// or a foreground reviewer reports; SubagentStop takes a background reviewer's verdict.
+// task is checked in the active plan, a lit-loop test is written (with Write or Edit or through
+// the shell), made to pass, run or recorded, or a foreground reviewer reports; SubagentStop takes a background reviewer's verdict.
 // `litclaude-ai workflow-stage` stays as the model's optional refinement. The card
 // (lib/mod/state.mjs) reads the record back. One small file, written whole, its fields checked
 // against the same tables the card draws from (lib/mod/workflow.mjs). The hooks keep only which
 // stage, which lane and how many; never a path, a command or a prompt.
 
-import { closeSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import { DISCIPLINE_ENTRY, STAGE_UNITS, VERDICT_STATES, WORKFLOW_FAMILIES, WORKFLOW_FRESH_MS, normalizeStage, reviewLaneOf } from "./mod/workflow.mjs";
@@ -174,10 +174,12 @@ const TEST_RUN = /(?:^|[\s;&|(])(?:npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|
 const PLAN_SCAFFOLD = /scaffold-plan\.mjs/u;
 const LITGOAL_EVIDENCE = /\blitgoal\s+record-evidence\b/u;
 
-// lit-loop's steps as the hooks see them: a test written, the code that makes it pass, the test
-// run, the evidence recorded. Each move happens only from the step before it.
+// lit-loop's steps as the hooks see them: a test written (or a failing run while the criterion is
+// pinned), the code that makes it pass, the test run, the evidence recorded. Each move happens only
+// from the step before it.
 const LOOP_MOVES = Object.freeze([
   Object.freeze({ on: "test-edit", from: Object.freeze(["PIN", "RECORD"]), to: "RED" }),
+  Object.freeze({ on: "test-fail", from: Object.freeze(["PIN"]), to: "RED" }),
   Object.freeze({ on: "source-edit", from: Object.freeze(["RED"]), to: "GREEN" }),
   Object.freeze({ on: "test-run", from: Object.freeze(["GREEN"]), to: "VERIFY" }),
   Object.freeze({ on: "evidence", from: Object.freeze(WORKFLOW_FAMILIES.loop), to: "RECORD" }),
@@ -187,6 +189,94 @@ const moveLoop = (cwd, sessionId, previous, signal) => {
   if (previous?.family !== "loop") return null;
   const move = LOOP_MOVES.find(({ on, from }) => on === signal && from.includes(previous.stage));
   return move ? moveStage(cwd, sessionId, previous, { family: "loop", stage: move.to }) : null;
+};
+
+// A test run's report of at least one failure: TAP (`not ok 2`, `# fail 1`) or a runner's summary
+// (`1 failed`, `2 failing`).
+const TEST_FAILED = /^\s*not ok \d|^# fail [1-9]|\b[1-9]\d* (?:failed|failing)\b/mu;
+const shellOutput = (response) => (typeof response === "string" ? response
+  : [response?.stdout, response?.stderr, resultText(response)].filter((text) => typeof text === "string").join("\n")).slice(0, 65_536);
+
+// A heredoc's body is data, so the command is read without it; the line that opens it stays.
+const withoutHeredocBodies = (command) => {
+  const opener = /<<-?\s*(["']?)([A-Za-z_][\w-]*)\1/u;
+  let rest = command;
+  let kept = "";
+  for (let match = opener.exec(rest); match; match = opener.exec(rest)) {
+    const lineEnd = rest.indexOf("\n", match.index);
+    if (lineEnd < 0) break;
+    kept += rest.slice(0, lineEnd + 1);
+    const body = rest.slice(lineEnd + 1);
+    const close = new RegExp(`^[\\t ]*${match[2]}[\\t ]*$`, "mu").exec(body);
+    rest = close ? body.slice(close.index + close[0].length) : "";
+  }
+  return kept + rest;
+};
+
+/**
+ * The files a shell command may write: `>` and `>>` targets, `tee` arguments and the files of an
+ * in-place `sed`. Words are read with their quotes and heredoc bodies are skipped; the caller keeps
+ * only targets that exist as files in the project, so a stray word never moves the map.
+ */
+export const shellWriteTargets = (command) => {
+  const text = withoutHeredocBodies(typeof command === "string" ? command.slice(0, 65_536) : "");
+  const segments = [[]];
+  const targets = [];
+  let word = null;
+  let quote = null;
+  let next = "word";
+  const push = () => {
+    if (word === null) return;
+    if (next === "target") targets.push(word);
+    else if (next === "word") segments.at(-1).push(word);
+    next = "word";
+    word = null;
+  };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote) {
+      if (char === quote) quote = null;
+      else word += char;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      word ??= "";
+    } else if (char === ">") {
+      if (/^(?:\d|&)?$/u.test(word ?? "")) word = null;
+      push();
+      if (text[index + 1] === ">") index += 1;
+      // `>&2` duplicates a descriptor; it names no file.
+      next = text[index + 1] === "&" ? "skip" : "target";
+      if (next === "skip") index += 1;
+    } else if (char === "<") {
+      push();
+      next = "skip";
+    } else if (/\s/u.test(char) || ";|&()".includes(char)) {
+      push();
+      if (!/[ \t]/u.test(char)) segments.push([]);
+    } else {
+      word = (word ?? "") + char;
+    }
+  }
+  push();
+  for (const words of segments) {
+    const args = words.filter((item) => !/^\w+=/u.test(item));
+    const [name, ...rest] = args;
+    const files = rest.filter((item) => item && !item.startsWith("-"));
+    if (name === "tee") targets.push(...files);
+    if (name === "sed" && rest.some((item) => /^-[A-Za-z]*i|^--in-place/u.test(item))) targets.push(...files);
+  }
+  return targets.filter((target) => target && target !== "/dev/null");
+};
+
+// A shell write counts as code only for a source file; a log or report the command writes is not the fix.
+const SOURCE_FILE = /\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|swift|c|cc|cpp|h|hpp|cs|php|lua|sh|zig|ex|exs|dart|scala)$/u;
+
+const isFile = (path) => {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
 };
 
 const realOrResolved = (path) => {
@@ -234,10 +324,13 @@ export const observeWorkflowPreTool = (cwd, input) => {
 /**
  * PostToolUse: the plan saved, a task checked in the active plan, a lit-loop step, a foreground
  * reviewer's verdict. `filePaths` are the paths the tool wrote (lib/mutated-file-paths.mjs).
+ * With `failed` (PostToolUseFailure) only a Bash command's lit-loop moves count: its writes, and its
+ * test run as a failing one, which never verifies.
  */
-export const observeWorkflowPostTool = (cwd, input, { filePaths = [], lifecycleRoot = cwd } = {}) => {
+export const observeWorkflowPostTool = (cwd, input, { filePaths = [], lifecycleRoot = cwd, failed = false } = {}) => {
   const sessionId = typeof input?.session_id === "string" ? input.session_id : null;
   if (!sessionId) return null;
+  if (failed && (input.tool_name !== "Bash" || input.is_interrupt === true)) return null;
   const previous = currentRecord(cwd, sessionId);
   const tool = input.tool_name;
   const planOpen = previous?.family === "main" && previous.stage === "plan" && previous.done !== true;
@@ -247,12 +340,33 @@ export const observeWorkflowPostTool = (cwd, input, { filePaths = [], lifecycleR
   }
   if (tool === "Bash") {
     const command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
-    if (planOpen && PLAN_SCAFFOLD.test(command) && !/--check\b|--draft-only\b/u.test(command)) {
+    if (!failed && planOpen && PLAN_SCAFFOLD.test(command) && !/--check\b|--draft-only\b/u.test(command)) {
       return moveStage(cwd, sessionId, previous, { family: "main", stage: "plan", done: true });
     }
-    if (LITGOAL_EVIDENCE.test(command)) return moveLoop(cwd, sessionId, previous, "evidence");
-    if (TEST_RUN.test(command)) return moveLoop(cwd, sessionId, previous, "test-run");
-    return null;
+    if (!failed && LITGOAL_EVIDENCE.test(command)) return moveLoop(cwd, sessionId, previous, "evidence");
+    // Files the command wrote move the loop as a Write or Edit would; then its test run, where a
+    // failing run while the criterion is pinned counts as the test that fails first.
+    let current = previous;
+    let moved = null;
+    const step = (signal) => {
+      const record = moveLoop(cwd, sessionId, current, signal);
+      if (record) current = moved = record;
+    };
+    if (previous?.family === "loop") {
+      const root = realOrResolved(resolveProjectStateRoot(cwd));
+      for (const target of shellWriteTargets(command).slice(0, 20)) {
+        const absolute = realOrResolved(resolve(cwd, target));
+        const inProject = relative(root, absolute).split("\\").join("/");
+        if (!isFile(absolute) || inProject.startsWith("..") || /^(?:\.litclaude|plans)\//u.test(inProject)) continue;
+        if (TEST_PATH.test(inProject)) step("test-edit");
+        else if (SOURCE_FILE.test(inProject)) step("source-edit");
+      }
+    }
+    if (TEST_RUN.test(command)) {
+      if (failed) step("test-fail");
+      else step(current?.stage === "PIN" && TEST_FAILED.test(shellOutput(input.tool_response)) ? "test-fail" : "test-run");
+    }
+    return moved;
   }
   if (!filePaths.length) return null;
   const root = resolveProjectStateRoot(cwd);

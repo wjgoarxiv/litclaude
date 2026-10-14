@@ -12,7 +12,7 @@ surface: Claude Code plugin hooks
 runtime: plugins/litclaude/bin/litclaude-hook.js
 registration: plugins/litclaude/hooks/hooks.json
 settings_activation: global Claude settings.json enabledPlugins entry for litclaude@litclaude-ai
-events: [SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SubagentStart, SubagentStop, SessionEnd]
+events: [SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop, SessionEnd]
 verdicts: [PASS, FAIL, BLOCKED]
 ```
 
@@ -106,6 +106,7 @@ silent no-op for callers that still invoke it directly.
 | `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
+| `PostToolUseFailure` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use-failure` | For a Bash command that exits non-zero, such as a bare failing `npm test`, moves the LIT card's lit-loop map from what the command wrote and from its failing test run, which never counts as VERIFY. Nothing else runs on a failed tool. |
 | `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate, and last of all, with automatic handoff on, blocks once per crossing of the chosen percent to have the handoff written. |
 | `SubagentStart` | `plugins/litclaude/bin/litclaude-hook.js subagent-start` | Registers child-lane and Claude-owned worktree identity. |
 | `SubagentStop` | `plugins/litclaude/bin/litclaude-hook.js subagent-stop` | Finalizes the lane without child continuation, and gives a background review-work reviewer's verdict to the LIT card's stage record. |

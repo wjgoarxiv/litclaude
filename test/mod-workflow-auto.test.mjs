@@ -216,6 +216,126 @@ test("a lit-loop criterion steps from PIN to RECORD on the tests it writes, pass
   }
 });
 
+// Models often write the test and the code with the shell (`cat > test/x.test.js <<'EOF'`), which
+// no Write or Edit reports. The map has to move on those writes too, read from the command's write
+// targets that exist as files afterwards, and on a failing test run while the criterion is pinned.
+test("a lit-loop criterion moves when its test and code are written through the shell", async () => {
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-shell-")));
+  const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud"), LITCLAUDE_DISABLE_UPDATE_CHECK: "1" };
+  try {
+    mkdirSync(join(project, ".git"));
+    mkdirSync(join(project, "test"));
+    const host = await diskHost(project);
+    await host.fire("session.start", {});
+    await host.fire("turn.start", {});
+    await host.tool(env, "Skill", { skill: "lit-loop" }, { skill: "litclaude:lit-loop" });
+    const top = async () => (await host.rows()).top;
+    assert.match(await top(), /PIN ● ─╮$/u);
+
+    // A heredoc body full of `=>` and `>` is data, not a write target.
+    await host.tool(env, "Bash", { command: "node -e \"console.log(1 > 0)\" > /dev/null; echo ok >&2" }, { response: { stdout: "ok" } });
+    assert.match(await top(), /PIN ● ─╮$/u, "writes to /dev/null and stderr move nothing");
+    await host.tool(env, "Bash", { command: "npm test" }, { response: { stdout: "ok 1 - greets\n# pass 1\n# fail 0" } });
+    assert.match(await top(), /PIN ● ─╮$/u, "a passing run before any test is written keeps PIN");
+
+    const testBody = "const run = (...args) => args;\ntest(\"x\", () => assert.ok(run() > 0));\n";
+    writeFileSync(join(project, "test", "greet.test.js"), testBody);
+    await host.tool(env, "Bash", { command: `cat > test/greet.test.js <<'EOF'\n${testBody}EOF\nnpm test 2>&1 | tail -5` }, { response: { stdout: "not ok 2 - shouts\n# pass 1\n# fail 1" } });
+    assert.match(await top(), /RED ● ─╮$/u, "a test written through a heredoc is RED");
+
+    writeFileSync(join(project, "run.log"), "# fail 1\n");
+    await host.tool(env, "Bash", { command: "npm test > run.log 2>&1" }, { response: { stdout: "" } });
+    assert.match(await top(), /RED ● ─╮$/u, "a log the run writes is not the fix");
+
+    writeFileSync(join(project, "greet.js"), "module.exports = 1;\n");
+    await host.tool(env, "Bash", { command: "sed -i '' 's/1/2/' greet.js" }, { response: { stdout: "" } });
+    assert.match(await top(), /GREEN ● ─╮$/u, "the code changed with sed -i is GREEN");
+    await host.tool(env, "Bash", { command: "npm test 2>&1 | grep -E '^# (pass|fail)'" }, { response: { stdout: "# pass 2\n# fail 0" } });
+    assert.match(await top(), /VERIFY ● ─╮$/u, "the next test run verifies");
+
+    // The next criterion: a test appended with tee, then code and run in one command.
+    await host.tool(env, "Bash", { command: "litclaude-ai litgoal record-evidence --criterion C1 --status pass" });
+    assert.match(await top(), /RECORD ● ─╮$/u);
+    await host.tool(env, "Bash", { command: "printf 'x' | tee -a test/greet.test.js" }, { response: { stdout: "x" } });
+    assert.match(await top(), /RED ● ─╮$/u, "a test appended with tee is RED");
+    await host.tool(env, "Bash", { command: "cat >> greet.js <<'EOF'\nmodule.exports.x = 2;\nEOF\nnpm test" }, { response: { stdout: "# pass 3\n# fail 0" } });
+    assert.match(await top(), /VERIFY ● ─╮$/u, "the code written and the passing run in one command land on VERIFY");
+
+    const record = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
+    assert.deepEqual(Object.keys(record).sort(), ["at", "family", "sessionId", "skill", "stage", "verdicts"], "the record keeps the stage, never a path or a command");
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test("a failing test run while the criterion is pinned turns the map RED", async () => {
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-fail-")));
+  const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud"), LITCLAUDE_DISABLE_UPDATE_CHECK: "1" };
+  try {
+    mkdirSync(join(project, ".git"));
+    const host = await diskHost(project);
+    await host.fire("session.start", {});
+    await host.fire("turn.start", {});
+    await host.tool(env, "Skill", { skill: "lit-loop" }, { skill: "litclaude:lit-loop" });
+    const top = async () => (await host.rows()).top;
+    await host.tool(env, "Bash", { command: "npx vitest run" }, { response: { stdout: " Tests  1 failed | 3 passed (4)" } });
+    assert.match(await top(), /RED ● ─╮$/u, "a failing run is RED");
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+// A command that exits non-zero, like a bare failing `npm test`, reaches the host's PostToolUseFailure
+// instead of PostToolUse; its writes and its failing run move the loop the same way.
+test("a failing shell command still moves the lit-loop map through PostToolUseFailure", async () => {
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-failure-")));
+  const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud"), LITCLAUDE_DISABLE_UPDATE_CHECK: "1" };
+  try {
+    mkdirSync(join(project, ".git"));
+    mkdirSync(join(project, "test"));
+    const hooks = JSON.parse(readFileSync(fileURLToPath(new URL("../plugins/litclaude/hooks/hooks.json", import.meta.url)), "utf8")).hooks;
+    assert.match(hooks.PostToolUseFailure?.[0]?.matcher ?? "", /Bash/u, "hooks.json enrolls PostToolUseFailure for Bash");
+    assert.match(hooks.PostToolUseFailure[0].hooks[0].command, /litclaude-hook\.js" post-tool-use-failure$/u);
+    const host = await diskHost(project);
+    await host.fire("session.start", {});
+    await host.fire("turn.start", {});
+    await host.tool(env, "Skill", { skill: "lit-loop" }, { skill: "litclaude:lit-loop" });
+    const top = async () => (await host.rows()).top;
+    const failed = (command, error) => runHook(project, "post-tool-use-failure", { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command }, tool_use_id: "t1", error }, env);
+
+    failed("npm test", "Exit code 1\nnot ok 1 - shouts\n# fail 1");
+    assert.match(await top(), /RED ● ─╮$/u, "a bare failing run while pinned is RED");
+
+    writeFileSync(join(project, "greet.js"), "module.exports = 1;\n");
+    await host.tool(env, "Bash", { command: "cat > greet.js <<'EOF'\nmodule.exports = 1;\nEOF" }, { response: { stdout: "" } });
+    assert.match(await top(), /GREEN ● ─╮$/u);
+    failed("npm test", "Exit code 1\nnot ok 2 - shouts\n# fail 1");
+    assert.match(await top(), /GREEN ● ─╮$/u, "a failing run does not verify");
+    failed("npm test", "interrupted");
+    assert.match(await top(), /GREEN ● ─╮$/u);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test("a failing command's own test write moves a pinned criterion to RED", async () => {
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-failure-write-")));
+  const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud"), LITCLAUDE_DISABLE_UPDATE_CHECK: "1" };
+  try {
+    mkdirSync(join(project, ".git"));
+    mkdirSync(join(project, "test"));
+    const host = await diskHost(project);
+    await host.fire("session.start", {});
+    await host.fire("turn.start", {});
+    await host.tool(env, "Skill", { skill: "lit-loop" }, { skill: "litclaude:lit-loop" });
+    writeFileSync(join(project, "test", "greet.test.js"), "x\n");
+    runHook(project, "post-tool-use-failure", { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "cat > test/greet.test.js <<'EOF'\nx\nEOF\nnode --test" }, tool_use_id: "t2", error: "Exit code 1" }, env);
+    assert.match((await host.rows()).top, /RED ● ─╮$/u);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test("the review lanes are the card's five, read from review-work's own lane titles and older names", () => {
   assert.deepEqual(REVIEW_LANES.map(({ id }) => id), ["goal", "quality", "security", "qa", "context"]);
   const titles = {

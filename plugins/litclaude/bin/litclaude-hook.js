@@ -124,6 +124,7 @@ const hookEventNames = {
   "user-prompt-submit": "UserPromptSubmit",
   "pre-tool-use": "PreToolUse",
   "post-tool-use": "PostToolUse",
+  "post-tool-use-failure": "PostToolUseFailure",
   "stop": "Stop",
   "subagent-start": "SubagentStart",
   "subagent-stop": "SubagentStop",
@@ -1546,6 +1547,17 @@ switch (eventName) {
   case "post-compact": {
     // Claude Code does not collect model context from PostCompact. Keep this legacy
     // dispatch silent; compact re-injection is delivered by SessionStart source=compact.
+    break;
+  }
+  case "post-tool-use-failure": {
+    // A Bash command that exits non-zero (a bare failing `npm test`) never reaches PostToolUse. Its
+    // writes and its failing run still move the LIT card's lit-loop map; nothing else runs here.
+    try {
+      const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+      observeWorkflowPostTool(cwd, input, { lifecycleRoot: lifecycleRootFor(cwd), failed: true });
+    } catch {
+      // The stage record only feeds the card.
+    }
     break;
   }
   case "subagent-start": {

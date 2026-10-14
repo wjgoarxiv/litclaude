@@ -235,6 +235,55 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  it("lets read-only git and the start-work CLI's own lifecycle subcommands through, and keeps node -e blocked", () => {
+    const root = fixtureRoot();
+    const outside = fixtureRoot();
+    try {
+      initialize(root);
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(join(root, "src", "a.mjs"), "x\n");
+      let n = 0;
+      const run = (command) => {
+        n += 1;
+        return preTool(root, "Bash", { command }, { prompt_id: `prompt-git-${n}`, tool_use_id: `tool-git-${n}` });
+      };
+      for (const command of [
+        "git status",
+        "git status --short",
+        "git status --porcelain=v1",
+        "git log --oneline -5",
+        "git diff --stat",
+        "git diff HEAD~1 -- src/a.mjs",
+        `git show HEAD -- ${join(root, "src", "a.mjs")}`,
+        "litclaude-ai start-work complete --work-id work-1 --session-id session-root --expected-revision 1 --idempotency-key done-1",
+        "litclaude-ai start-work progress --work-id work-1 --session-id session-root --expected-revision 1 --idempotency-key p-1 --json",
+        "litclaude-ai start-work cancel --work-id work-1 --session-id session-root --expected-revision 1 --idempotency-key c-1",
+      ]) {
+        const result = run(command);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(result.stdout, "", `a read-only git or lifecycle command must keep normal permissions: ${command}`);
+      }
+      for (const [command, reason] of [
+        ["git diff --output=report.txt", /unverified|unclassified/u],
+        ["git diff --ext-diff", /unverified|unclassified/u],
+        ["git log --textconv -p", /unverified|unclassified/u],
+        [`git log -- ${outside}`, /outside/u],
+        ["git status; rm -rf src", /unverified|unclassified/u],
+        ["git checkout -- src/a.mjs", /unclassified/u],
+        [`litclaude-ai start-work init --plan plans/approved.md --work-id w2 --session-id s --grant write:${outside} --idempotency-key i`, /unverified|unclassified/u],
+        [`litclaude-ai start-work complete --work-id work-1 --session-id session-root --expected-revision 1 --idempotency-key d --root ${outside}`, /unverified|unclassified/u],
+        [`node -e "console.log(require('fs').readFileSync('src/a.mjs', 'utf8'))"`, /unverified|unclassified/u],
+      ]) {
+        const output = parse(run(command));
+        assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+        assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("pauses an outside boundary, accepts only exact namespaced single-use resume, and persists semantic authorization", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();

@@ -23,6 +23,11 @@ const legacyVendorPathMap = [
 // Python writes bytecode next to the scripts it runs. That cache is generated, never user data, so ownership
 // checks skip it. A symlink or a plain file named __pycache__ is not a cache and is still reported.
 const isBytecodeCache = (name, value) => (value.isDirectory() && name === "__pycache__") || (value.isFile() && name.endsWith(".pyc"));
+// Claude Code and the desktop app mark a cache version they have loaded with `.in_use/`, empty or
+// holding one pid-named entry per process. That marker is the host's: ownership checks skip it and
+// never remove it. Any other name inside it, or a symlink, is still reported.
+const isHostUseMarker = (path, name, value) => name === hostUseMarker && value.isDirectory()
+  && readdirSync(path, { withFileTypes: true }).every((entry) => /^\d+$/u.test(entry.name) && (entry.isDirectory() || entry.isFile()));
 const conflict = (path, detail = "") => { throw new Error(`INSTALL_OWNERSHIP_CONFLICT: ${path}; use a compatible CLI or preserve this modified, foreign, or unsupported state before retrying${detail ? `. ${detail}` : ""}`); };
 const stat = (path) => {
   try { return lstatSync(path); } catch (error) { if (error.code === "ENOENT") return null; throw error; }
@@ -49,7 +54,7 @@ function treeHash(root) {
       if (!prefix && name === receiptName) continue;
       const next = join(path, name), rel = prefix ? `${prefix}/${name}` : name, value = lstatSync(next);
       if (isBytecodeCache(name, value)) continue;
-      if (!prefix && name === hostUseMarker && value.isDirectory() && readdirSync(next).length === 0) continue;
+      if (!prefix && isHostUseMarker(next, name, value)) continue;
       if (value.isDirectory()) { entries.push([rel, "directory"]); walk(next, rel); }
       else if (value.isFile() && value.nlink === 1) entries.push([rel, "file", createHash("sha256").update(readFileSync(next)).digest("hex")]);
       else conflict(next);
@@ -69,6 +74,7 @@ function detailedTree(root, { receipt = false } = {}) {
       rows.push([prefix, "directory", value.mode & 0o777]);
       for (const name of readdirSync(path).sort()) {
         if (!prefix && !receipt && name === receiptName) continue;
+        if (!prefix && isHostUseMarker(join(path, name), name, lstatSync(join(path, name)))) continue;
         walk(join(path, name), prefix ? `${prefix}/${name}` : name);
       }
       return;
@@ -268,6 +274,18 @@ export function assertCurrentPointer(home, current, target, version, { expectedV
   }
   if (expectedVersion && currentVersion !== expectedVersion) conflict(current, "The active plugin registration and compatibility pointer do not match");
   return currentVersion;
+}
+
+// Empties an owned tree before a fresh copy, leaving the host's `.in_use` marker in place.
+export function clearOwnedTree(path) {
+  const value = stat(path);
+  if (!value) return;
+  if (!value.isDirectory() || value.isSymbolicLink()) { rmSync(path, { recursive: true, force: true }); return; }
+  for (const name of readdirSync(path)) {
+    const next = join(path, name);
+    if (isHostUseMarker(next, name, lstatSync(next))) continue;
+    rmSync(next, { recursive: true, force: true });
+  }
 }
 
 export function removeEmptyDirectory(path) {

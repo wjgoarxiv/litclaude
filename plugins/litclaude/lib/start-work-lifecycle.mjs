@@ -936,6 +936,33 @@ const classifyNodeScriptWords = (args, cwd) => {
 };
 
 const LITCLAUDE_CLI_NAMES = new Set(["litclaude-ai", "litclaude"]);
+const START_WORK_SELF_MOVES = new Set(["progress", "complete", "cancel"]);
+
+// Read-only git: status, diff, log and show over plain words. A flag that writes a file or runs an
+// external program is refused. An operand after `--`, one holding a `/` or one naming an existing
+// file is a path, checked as a read under the grants; other operands (HEAD~1, a commit, main..topic)
+// are data. Anything else, including a quote, an operator or `node -e`, meets the strict checks.
+const GIT_READ_SUBCOMMANDS = new Set(["status", "diff", "log", "show"]);
+const GIT_WORD = /^[\w.\/@^:=+,-][\w.\/@^~:=+,-]*$/u;
+const classifyReadOnlyGit = (command, cwd) => {
+  const words = command.split(/[ \t]+/u);
+  if (words[0] !== "git" || !GIT_READ_SUBCOMMANDS.has(words[1])) return null;
+  const paths = [];
+  let operands = false;
+  for (const word of words.slice(2)) {
+    if (!GIT_WORD.test(word)) return pathArgumentDenied;
+    if (!operands && word === "--") {
+      operands = true;
+      continue;
+    }
+    if (!operands && word.startsWith("-")) {
+      if (/^--(?:output|ext-diff|textconv)(?:=|$)/u.test(word) || word.includes("/")) return pathArgumentDenied;
+      continue;
+    }
+    if (operands || word.includes("/") || existsSync(resolve(cwd, word))) paths.push(word);
+  }
+  return canonicalBashTargets(cwd, [cwd, ...paths], "read");
+};
 
 const classifyBashWords = (words, cwd) => {
   const [head, ...args] = words;
@@ -958,6 +985,11 @@ const classifyBashWords = (words, cwd) => {
     if (rest[0] === "workflow-stage" && rest.every((word) => !word.includes("/"))) {
       return canonicalBashTargets(cwd, [cwd, ...cli], "write");
     }
+    // The lifecycle's own moves for the active work write its state under the project's .litclaude
+    // directory. `init` declares grants and `--root` points at another lifecycle, so neither passes.
+    if (rest[0] === "start-work" && START_WORK_SELF_MOVES.has(rest[1]) && !rest.includes("--root") && rest.every((word) => !word.includes("/"))) {
+      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+    }
   }
   if (head.text === "node") return classifyNodeScriptWords(args, cwd);
   return null;
@@ -970,6 +1002,8 @@ const classifyBash = (command, cwd) => {
   if (forbiddenShellPattern.test(command)) return { denied: "forbidden authority action in Bash command" };
   const trimmed = command.trim();
   if (shellRelocationPattern.test(trimmed)) return { denied: "Bash relocation flags are not authorized" };
+  const git = classifyReadOnlyGit(trimmed, cwd);
+  if (git) return git;
   const words = shellWords(trimmed);
   const worded = words ? classifyBashWords(words, cwd) : null;
   if (worded) return worded;
