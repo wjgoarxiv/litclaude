@@ -41,7 +41,7 @@ features (`qa_docx.py a.docx --compare b.docx`, check `tonality.structure`).
 - **Numbering.** Decimal: h1 `1`, h2 `1.1`, in plain ink at heading size, so cross-references resolve.
   References or further reading close the piece as a numbered list; that back-matter heading is left
   unnumbered.
-- **Components and their purpose.** One kind only: `callout`, for a definition, a caveat or a method
+- **Components and their purpose.** One kind only: `callout`, for a definition, a data fact or a method
   note that sits outside the line of argument, at about one per four pages. It is drawn as a 1 pt ink
   rule down its left side with a bold title, no fill. A `::: sidebar`, `::: keyfigures` or `::: columns`
   written in the source keeps its content as ordinary text with its title as a bold lead line, and

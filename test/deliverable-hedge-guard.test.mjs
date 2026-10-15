@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -11,6 +12,7 @@ import {
   formatHumanizerBlockReason,
 } from "../plugins/litclaude/lib/deliverable-hedge-guard.mjs";
 import { canonicalSkillResourceManifest } from "../plugins/litclaude/lib/canonical-skill-resources.mjs";
+import { parseRules, scanText } from "../plugins/litclaude/skills/lit-humanizer/scripts/core.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const pluginRoot = join(root, "plugins/litclaude");
@@ -150,5 +152,133 @@ describe("deliverable hedge guard integration", () => {
       "skills/lit-humanizer/scripts/artifact-text.mjs",
       "skills/lit-humanizer/scripts/extract_office_text.py",
     ]) assert.ok(canonicalSkillResourceManifest.has(path), path);
+  });
+});
+
+describe("negative pledge sentences in deliverables", () => {
+  const pledgeRules = ["ko-negative-pledge", "ko-negative-pledge-repeat", "en-negative-pledge"];
+  const userPledge = "동일 조건의 독립 성능 비교로 쓰지 않음.";
+  const cases = JSON.parse(readFileSync(join(root, "test/fixtures/lit-humanizer/pledge-cases.json"), "utf8"));
+  const rules = parseRules(readFileSync(join(pluginRoot, "skills/lit-humanizer/rules.json"), "utf8"));
+  const severityRank = { warn: 1, block: 2 };
+
+  const guard = (cwd, toolName, toolInput) => evaluateDeliverableHedgeGuard({ input: makeInput(cwd, toolName, toolInput), pluginRoot });
+  const pledgeHits = (result) => result.findings.filter((finding) => pledgeRules.includes(finding.rule));
+
+  it("refuses the user's own sentence in a Write event and names the rule", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content: userPledge });
+    assert.equal(result.status, "block");
+    assert.ok(result.findings.some((finding) => finding.rule === "ko-negative-pledge" && finding.severity === "block"));
+    assert.match(formatHumanizerBlockReason(result), /ko-negative-pledge line 1/u);
+  });
+
+  it("refuses an English pledge in a Write event and names the rule", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-en-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content: "This report is not intended as a head-to-head benchmark." });
+    assert.equal(result.status, "block");
+    assert.ok(result.findings.some((finding) => finding.rule === "en-negative-pledge" && finding.severity === "block"));
+    assert.match(formatHumanizerBlockReason(result), /en-negative-pledge line 1/u);
+  });
+
+  // Whitespace padding must not push the scan past the detector timeout, where a timeout would let the pledge through.
+  for (const [label, padded] of [
+    ["4,096 spaces after a status word", `검증된${" ".repeat(4096)}x`],
+    ["65,536 spaces after a verb stem", `해석하지${" ".repeat(65536)}x`],
+  ]) {
+    it(`still refuses a pledge followed by a whitespace-padded line (${label}) inside the scan timeout`, (t) => {
+      const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-pad-"));
+      t.after(() => rmSync(cwd, { recursive: true, force: true }));
+      const started = process.hrtime.bigint();
+      const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content: `${userPledge}\n${padded}\n` });
+      const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+      assert.equal(result.status, "block");
+      assert.ok(result.findings.some((finding) => finding.rule === "ko-negative-pledge" && finding.severity === "block"));
+      assert.ok(elapsedMs < 1000, `guard took ${elapsedMs.toFixed(0)} ms`);
+    });
+  }
+
+  it("denies the same Write event through the real PreToolUse hook and lets a near-miss through", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-hook-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const run = (content) => {
+      const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" },
+        input: JSON.stringify({
+          hook_event_name: "PreToolUse",
+          cwd,
+          tool_name: "Write",
+          tool_input: { file_path: join(cwd, "report.md"), content },
+        }),
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : {};
+    };
+    const denied = run(userPledge);
+    assert.equal(denied.permissionDecision, "deny");
+    assert.match(denied.permissionDecisionReason, /ko-negative-pledge/u);
+    const allowed = run("냉각수로 쓰지 않음. 한 번에 0.1 이상 바꾸지 않음.");
+    assert.notEqual(allowed.permissionDecision, "deny");
+  });
+
+  it("matches every pledge to its expected rule and severity", () => {
+    assert.equal(cases.pledges.length, 15);
+    for (const pledge of cases.pledges) {
+      const hits = scanText(pledge.text, rules, "pledge.md");
+      if (pledge.severity === "none") {
+        assert.deepEqual(hits, [], `pledge ${pledge.n}`);
+        continue;
+      }
+      const top = Math.max(...hits.map((hit) => severityRank[hit.severity]));
+      assert.equal(top, severityRank[pledge.severity], `pledge ${pledge.n} top severity`);
+      assert.ok(hits.some((hit) => hit.rule === pledge.rule && hit.severity === pledge.severity), `pledge ${pledge.n} ${pledge.rule}`);
+    }
+  });
+
+  it("keeps every near-miss and review sentence clear of the pledge rules", () => {
+    assert.ok(cases.near_misses.length >= 27 && cases.near_misses_review.length >= 85);
+    for (const near of [...cases.near_misses, ...cases.near_misses_review]) {
+      const hits = scanText(near.text, rules, "near-miss.md").filter((hit) => pledgeRules.includes(hit.rule));
+      assert.deepEqual(hits, [], near.text);
+    }
+  });
+
+  it("decides whole-document cases per rule", () => {
+    assert.equal(cases.document_cases.length, 8);
+    for (const doc of cases.document_cases) {
+      const blocked = scanText(doc.text, rules, "document.md").some((hit) => hit.rule === doc.rule && hit.severity === "block");
+      assert.equal(blocked, doc.expect === "block", JSON.stringify(doc.text));
+    }
+  });
+
+  it("counts the repeat rule over the changed text only: a second pledge added to a file that holds one is not refused", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-edit-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const path = join(cwd, "report.md");
+    const first = "측정값은 인과관계를 주장하지 않음.";
+    const second = "두 공정의 차이는 최종 결론이 아님.";
+    writeFileSync(path, `# 보고서\n${first}\n`);
+    // The repeat rule needs two sentences in one scanned text. An Edit exposes only its added
+    // lines, so the pledge already on disk is invisible and the second one passes.
+    const edited = guard(cwd, "Edit", { file_path: path, old_string: `${first}\n`, new_string: `${first}\n${second}\n` });
+    assert.equal(edited.status, "clean");
+    // A whole-file Write over the same path is diffed against the file on disk, with the same result.
+    const rewritten = guard(cwd, "Write", { file_path: path, content: `# 보고서\n${first}\n${second}\n` });
+    assert.equal(rewritten.status, "clean");
+    // Both pledges arriving in one Edit, or in a new file, are one scanned text and are refused.
+    const both = guard(cwd, "Edit", { file_path: path, old_string: "# 보고서\n", new_string: `# 보고서\n${first}\n${second}\n` });
+    assert.equal(both.status, "block");
+    assert.ok(both.findings.some((finding) => finding.rule === "ko-negative-pledge-repeat"));
+    const created = guard(cwd, "Write", { file_path: join(cwd, "new.md"), content: `${first}\n${second}\n` });
+    assert.equal(created.status, "block");
+    // A pledge the sentence rule already refuses on its own is refused whatever the file holds.
+    const subject = guard(cwd, "Edit", { file_path: path, old_string: `${first}\n`, new_string: `${first}\n이 표는 순위를 매기기 위한 것이 아닙니다.\n` });
+    assert.equal(subject.status, "block");
+    assert.ok(subject.findings.some((finding) => finding.rule === "ko-negative-pledge"));
   });
 });

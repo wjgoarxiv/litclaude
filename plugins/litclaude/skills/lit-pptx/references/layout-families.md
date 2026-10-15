@@ -48,7 +48,7 @@ Each row says what the family is for, what the source gives it, and which packs 
 | `image-split` | a picture beside its explanation | an image, then bullets | signal, atlas, chalk, studio |
 | `photo-grid` | two or three pictures compared | two or three images on consecutive lines, then one line of text | atlas, studio |
 | `figure-pair` | before and after, or two conditions | two images, then one line of text | atlas, paper |
-| `figure-academic` | a numbered figure with its reading | an image with a numbered caption and source, then observation, limitation, implication bullets | paper |
+| `figure-academic` | a numbered figure with its reading | an image with a numbered caption and source, then observation, basis, implication bullets | paper |
 | `asymmetric-feature` | a feature told by one large element and a narrow text column | an image or a one-cell figure, then bullets | signal, atlas, studio |
 | `references-appendix` | sources and definitions, one per row | `- [1] …` lines; links as real Markdown links | ledger, paper, gazette |
 

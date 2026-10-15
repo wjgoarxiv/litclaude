@@ -151,7 +151,7 @@ python3 "$SKILL_ROOT/scripts/generate_docx_templates.py" --registry my-registry.
 
 - Lead with the conclusion; one idea per paragraph; paragraphs of three to five sentences.
 - Plain, specific wording. No AI-tell phrases, stock openers or closers, hedging pile-ups or promotional adjective stacks — the same list the lint enforces (`references/slop_rules.md`, `references/slop_phrase_list.yaml`).
-- Separate observation, inference, limitation and proposal; expand abbreviations on first use.
+- Separate observation, inference and proposal. State a genuine limit of the data or method one time, next to the figure it qualifies ("샘플은 한 공정 조건만 포함한다"); what the document is not for goes in the reply, never into the body. Expand abbreviations on first use.
 - Korean: consistent sentence endings (보고서 ~다 체 unless the user's material uses another register), no English words where a common Korean term exists, numbers with units and thousands separators.
 
 ## #contract.outputs

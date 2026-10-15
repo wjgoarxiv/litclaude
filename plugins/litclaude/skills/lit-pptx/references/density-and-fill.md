@@ -100,7 +100,7 @@ lower part of the body.
   four to six columns where the source has them, charts five to eight categories, comparisons three
   or four labelled criteria a side. Example values are labelled as examples.
 - **Close every data slide with its source.** A last line `출처: …` (`Source: …`) names where the
-  figures come from and when; a `주: …` (`Note: …`) line may follow with a definition or a caveat.
+  figures come from and when; a `주: …` (`Note: …`) line may follow with a definition or a data fact.
   The engine sets them as a strip at the foot of the body, at source size, so they cost the takeaways
   no room.
 - **Figures come in rows of four to six.** A `kpi-row` table holds up to six figures, its second row

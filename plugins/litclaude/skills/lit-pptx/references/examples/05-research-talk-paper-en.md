@@ -36,8 +36,7 @@ layout: figure-academic
 
 - **Observation** Conversion stalls after 30 minutes: 44% at 30 min, 50% at 60 min
 - **Observation** The baseline gains only 6 points after minute 30
-- **Basis** 1.0 L/min feed, 20 L reactor, three replicates (example data)
-- **Limitation** One temperature and one catalyst batch were tested
+- **Basis** 1.0 L/min feed, 20 L reactor, three replicates at one temperature and one catalyst batch (example data)
 - **Implication** The plateau, not the kinetics, limits throughput
 - Source: Example Process Lab baseline runs B1-B3, May 2026 (example data)
 ---

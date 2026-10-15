@@ -15,9 +15,9 @@ const cases = JSON.parse(readFileSync(join(fixtureRoot, "rule-cases.json"), "utf
 const negativeExamples = JSON.parse(readFileSync(join(fixtureRoot, "negative-examples.json"), "utf8"));
 
 describe("lit-humanizer canonical detector", () => {
-  it("keeps all 51 rule ids, tiers, and positive/negative decisions", () => {
-    assert.equal(rules.length, 51);
-    assert.equal(rules.filter((rule) => rule.severity === "block").length, 24);
+  it("keeps all 54 rule ids, tiers, and positive/negative decisions", () => {
+    assert.equal(rules.length, 54);
+    assert.equal(rules.filter((rule) => rule.severity === "block").length, 27);
     assert.equal(rules.filter((rule) => rule.severity === "warn").length, 27);
     for (const rule of rules) {
       assert.ok(rule.fixture_ids.includes(`${rule.id}:positive`));

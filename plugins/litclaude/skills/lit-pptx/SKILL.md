@@ -208,7 +208,7 @@ The full checklist is `references/anti-slop-checklist.md`; each tonality's token
 - **Colour.** Every colour comes from the pack's roles. Tinted neutrals carry most of the surface, one accent ≤ ~10% marks the single emphasised item. One colour, one meaning, across the deck. No per-slide one-off hex.
 - **Contrast floors.** Body and captions 4.5:1 on their actual fill, large text and structural lines 3:1. Push toward ink when close; no grey text on a coloured fill.
 - **Anti-slop bans.** No side-stripe accent bars, no border plus heavy shadow on one card, no card inside a card, no eyebrow or 01·02·03 ordinal on every slide, no identical icon-card grids as filler, no cream or beige reading ground, no hand-drawn decoration, no generic titles ("개요", "Overview"), no declarative titles or subtitles, no single exaggerated number as a slide, no padding bullets that restate the title, no placeholder or AI-tell wording.
-- **Evidence.** Separate observation, inference, limitation and proposal. Every sourced number traces to its source and every example value is labelled as one; every figure or table carries a caption with 출처/Source or "(예시)". Expand specialist abbreviations on first use. Unsupported absolutes are review findings.
+- **Evidence.** Separate observation, inference and proposal. State a genuine limit of the data or method one time, next to the figure it qualifies ("샘플은 한 공정 조건만 포함한다"); what the deck is not for goes in the reply, never onto a slide. Every sourced number traces to its source and every example value is labelled as one; every figure or table carries a caption with 출처/Source or "(예시)". Expand specialist abbreviations on first use. Unsupported absolutes are review findings.
 
 ## #contract.outputs
 

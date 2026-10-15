@@ -39,7 +39,7 @@ Place source text under the table/chart, smaller than body text:
 
 ## Evidence display patterns
 
-- **figure plus interpretation:** one figure, numbered caption, source locator, limitation, and a concise interpretation placed as one visual group.
+- **figure plus interpretation:** one figure, numbered caption, source locator, the data basis beside the number it bounds, and a concise interpretation placed as one visual group.
 - **table plus decision takeaway:** one bounded table, caption/source, and one decision sentence. Do not duplicate the table in prose.
 - **source capture:** crop to the relevant region while retaining enough interface/document context to verify the locator.
 - **two-record appendix evidence:** at most two records per slide. Each record includes summary, source/locator, and DOI/canonical link when available.

@@ -236,7 +236,7 @@ Enrolled templates may advertise these semantic compositions of existing blocks:
 
 - **figure plus interpretation:** `image` + `figure-caption` + body interpretation;
 - **table plus decision takeaway:** table/`kpi-table` + `table-caption` + body takeaway;
-- **source capture:** `image` + `figure-caption` containing locator/source + body limitation/relevance;
+- **source capture:** `image` + `figure-caption` containing locator/source + body relevance and data basis;
 - **two-record appendix evidence:** title/body or `summary-group`, with no more than two records and DOI/canonical links when available.
 
 For a Markdown image used as evidence, alt text is the visible figure caption and should contain a figure number plus `Source:`/`출처:`. A blockquote immediately after a table is its visible table caption/source. Appendix DOI/canonical/raw URL fields use `[label](https://...)` in table cells so the PPTX contains an external hyperlink relationship. These requirements reuse existing parser and renderer behavior.

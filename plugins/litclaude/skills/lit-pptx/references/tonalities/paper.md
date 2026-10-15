@@ -61,7 +61,7 @@ its `layout:` line, for example `title: top-rule`, as long as the family allows 
 
 ## Families and variants
 
-- `figure-academic`: one figure with its numbered caption and a short observation, limitation and
+- `figure-academic`: one figure with its numbered caption and a short observation, basis and
 implication.
 - `figure-pair`: two figures side by side, for before and after or two conditions.
 - `method`: a formula or process figure beside the definitions of its symbols.
@@ -88,8 +88,8 @@ closing's next step sits under a rule at the foot of the page, its rows keyed by
 
 Number every figure and table caption and give each a source. Title each slide with what it shows
 ("Conversion at 60 min by feed rate"), and put the finding in the first observation. Keep the crimson for the proposed
-method in every chart, so the audience learns its meaning on the first plot. Put the limitation on
-the same slide as the result it limits. End with the reference list, so the last page carries the
+method in every chart, so the audience learns its meaning on the first plot. Put the data fact that
+bounds a result on the same slide, beside the number it affects. End with the reference list, so the last page carries the
 deck's sources.
 
 ## Avoid

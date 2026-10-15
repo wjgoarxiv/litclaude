@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "description": "Negative pledge sentences (2026-10-14 plan). Each pledge's highest-severity hit must be the expected rule at the expected severity; extra warn hits are allowed. Each near-miss is scanned as its own document and must not hit any new pledge rule id.",
+  "new_rule_ids": [
+    "ko-negative-pledge",
+    "ko-negative-pledge-repeat",
+    "en-negative-pledge"
+  ],
+  "pledges": [
+    {
+      "n": 1,
+      "text": "동일 조건의 독립 성능 비교로 쓰지 않음.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 2,
+      "text": "이 수치는 투자 권유로 해석하지 말 것.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 3,
+      "text": "본 자료는 최종 결론이 아니다.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 4,
+      "text": "이 표는 순위를 매기기 위한 것이 아닙니다.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 5,
+      "text": "실제 운영 데이터로 검증하지 않았습니다.",
+      "rule": "ko-status-negation",
+      "severity": "warn"
+    },
+    {
+      "n": 6,
+      "text": "본 슬라이드는 개별 고객 사례를 대표하지 않는다.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 7,
+      "text": "이 그래프는 인과관계를 주장하지 않음.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 8,
+      "text": "외부 공개용 수치가 아님.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 9,
+      "text": "법률 자문을 대체하지 않습니다.",
+      "rule": null,
+      "severity": "none"
+    },
+    {
+      "n": 10,
+      "text": "This is not intended as a head-to-head benchmark.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 11,
+      "text": "These figures do not constitute an independent performance comparison.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 12,
+      "text": "Not to be read as a ranking.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 13,
+      "text": "The deck makes no claim about production readiness.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "n": 14,
+      "text": "(3) 실험 해리 온도에 맞추는 **fitting parameter 는 쓰지 않음**",
+      "rule": "ko-status-negation",
+      "severity": "warn"
+    },
+    {
+      "n": 15,
+      "text": "(2) 혼합계에서 직접 측정한 값이 **아님**",
+      "rule": "ko-status-negation",
+      "severity": "warn"
+    }
+  ],
+  "near_misses": [
+    {
+      "source": "litclaude lit-pptx examples/01-pitch-signal-ko.md:44",
+      "text": "- 동네 세탁소 다섯 곳 중 네 곳은 수거·배송을 하지 않는다"
+    },
+    {
+      "source": "litclaude lit-pptx examples/01-pitch-signal-ko.md:87",
+      "text": "- **4. 배송** 다음 날 저녁 9시 전에 돌려주고, 늦으면 다음 주문 배송비를 받지 않는다"
+    },
+    {
+      "source": "litclaude lit-pptx examples/06-lecture-chalk-ko.md:194",
+      "text": "- 구간은 평균에 대한 범위이며, 개인 값의 범위나 참값이 들어 있을 확률로 읽지 않는다"
+    },
+    {
+      "source": "lit-pptx examples/04-lecture-chalk-ko.md:58",
+      "text": "  (1) 수상 기준 값이며 기상으로 날아가는 양은 포함하지 않음"
+    },
+    {
+      "source": "lit-pptx examples/11-forecast-review-night-ko.md:118",
+      "text": "  (1) 가중치 합은 항상 1, 한 번에 0.1 이상 바꾸지 않음"
+    },
+    {
+      "source": "operating rules as sentences",
+      "text": "이 장비는 방폭 구역에서 사용하지 않습니다. 냉각수로 쓰지 않음. 한 번에 0.1 이상 바꾸지 않음."
+    },
+    {
+      "source": "operating rules as a bullet list",
+      "text": "- 이 장비는 방폭 구역에서 사용하지 않습니다\n- 냉각수로 쓰지 않음\n- 한 번에 0.1 이상 바꾸지 않음\n"
+    },
+    {
+      "source": "case (a) ordinary Korean",
+      "text": "일본 자료는 이번 분석에 사용하지 않았다."
+    },
+    {
+      "source": "case (a) ordinary Korean",
+      "text": "수율이 비교적 낮아 이 공정에는 사용하지 않는다."
+    },
+    {
+      "source": "case (a) ordinary Korean",
+      "text": "이 결과는 우연이 아니다."
+    },
+    {
+      "source": "legal notice",
+      "text": "This is not intended as a substitute for professional advice."
+    },
+    {
+      "source": "legal notice",
+      "text": "본 자료는 투자 권유가 아닙니다."
+    },
+    {
+      "source": "legal notice",
+      "text": "This report does not constitute investment advice."
+    },
+    {
+      "source": "data fact",
+      "text": "The comparison does not imply causation."
+    },
+    {
+      "source": "data fact",
+      "text": "The results do not represent the full population, because only one site was sampled."
+    },
+    {
+      "source": "fact or rule",
+      "text": "환자는 복용 중 음주하지 않는다"
+    },
+    {
+      "source": "fact or rule",
+      "text": "The treatment did not reduce mortality"
+    },
+    {
+      "source": "fact or rule",
+      "text": "첨가제 B는 수율을 개선하지 않았다"
+    },
+    {
+      "source": "fact or rule",
+      "text": "방폭 구역에서 사용하지 않습니다"
+    },
+    {
+      "source": "fact or rule",
+      "text": "임부는 복용하지 않는다"
+    },
+    {
+      "source": "fact or rule",
+      "text": "원금을 보장하지 않습니다"
+    },
+    {
+      "source": "fact or rule",
+      "text": "냉각수로 쓰지 않음"
+    },
+    {
+      "source": "fact or rule",
+      "text": "한 번에 0.1 이상 바꾸지 않음"
+    },
+    {
+      "source": "fact or rule",
+      "text": "Do not mix bleach with ammonia"
+    },
+    {
+      "source": "fact or rule",
+      "text": "Additive B did not improve yield"
+    },
+    {
+      "source": "legal notice (plan scope line)",
+      "text": "본 자료는 법률 자문을 대체하지 않습니다."
+    },
+    {
+      "source": "legal notice (plan scope line)",
+      "text": "원금을 보장하지 않습니다."
+    }
+  ],
+  "near_misses_review": [
+    {
+      "source": "task-1 adversarial review",
+      "text": "아래 표의 소모품은 재사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "아래 표의 장비는 방폭 구역에서 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 결과 파일은 덮어쓰지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 분석에는 2023년 이전 데이터를 사용하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 표에서 압력 단위는 MPa이며 bar는 사용하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "위 분석에서는 결측치를 0으로 간주하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 문서는 대외비이므로 외부에 인용하지 마세요."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 자료의 저작권은 당사에 있으며, 사전 허가 없이 사용하면 안 됩니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 자료는 투자 참고용이며, 특정 종목에 대한 매수 추천이 아닙니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "표의 0.5 ppm은 법정 허용 수치가 아닙니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "표의 단가는 2025년 적용 수치가 아닙니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "자가보고 설문은 진단 근거로 사용하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "중간고사 점수는 최종 평가로 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "위법하게 수집된 자료는 증거로 사용하면 안 됩니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 결과를 진단 근거로 사용하지 마세요."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "결측값은 0으로 간주하지 않음.\n중복 응답은 별도 응답으로 간주하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "1. 결측값은 0으로 간주하지 않습니다.\n2. 2010년 이전 문헌은 인용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "- 이 결과는 3월 측정값이다\n- 냉각수로 쓰지 않음"
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "- 이 표는 1분기 실적이다\n- 시제품은 판매용으로 사용하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "주: 이 표의 수치는 부가세를 포함하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "주: 본 표의 '완료'는 출하를 의미하지 않음. 출하는 별도 집계."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "여기서 '완료'는 출하를 의미하지 않습니다. 또한 '접수'는 결제를 의미하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 장비는 방폭 구역에서 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "해당 시약은 개봉 후 30일이 지나면 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "해당 결과 값은 소수점 둘째 자리에서 반올림했으며 원자료는 쓰지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 내용은 2024년 개정 전 기준이므로 신규 계약에는 활용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "첨가제 B는 수율을 개선하지 않았다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "따라서 본 조사분석자료는 어떠한 경우에도 고객의 증권투자 결과에 대한 법적 책임소재의 증빙자료로 사용될 수 없습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 문서는 내부 검토용 자료이며 외부 배포를 금합니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "샘플 A의 측정값은 표준 시료와의 비교가 아님. 동일 시료의 반복 측정임."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 예시는 실제 고객 데이터를 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "위 그래프의 점선은 추세선이며 회귀식을 사용하지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 보고서는 개인정보를 수집하거나 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 슬라이드의 이미지는 외부 저작물을 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "- 본 설문은 익명으로 진행되며 응답은 인사 평가로 사용하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "면접 점수는 순위로 쓰지 않으며 합격 여부만 판정한다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "측정 구간이 짧아 연간 추세는 의미하지 않음.\n두 공정의 차이는 통계적으로 근거가 아님."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This report is not intended as legal, tax, or investment advice."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This is not intended as financial advice."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This document is not intended as an offer to sell or a solicitation to buy any security."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This report does not constitute a recommendation or credit evaluation of any issuer."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "Not to be used as a flotation device."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "Not intended as a toy."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "- Not to be used as a step or ladder."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This is not intended as a diagnosis."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "These results are not meant to be exhaustive; three further sites are being surveyed."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "- 이 표는 2024년 3분기 기준\n- 시험 장비는 방폭 구역에서 사용하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 결과, 반응기 A는 냉각수로 쓰지 않음."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "해당 내용은 사내 규정 제12조를 따르며 개인 메일로 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 문서의 양식은 2025년부터 사용하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 그래프의 y축은 로그 눈금이므로 선형으로 읽으면 안 됨."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "해당 수치는 잠정치이므로 공시 자료로 인용하지 마세요."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "본 보고서의 결론이 아닌 부록의 내용이다."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "These results are not to be confused with the 2019 survey, which used a different sampling frame."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "The report makes no claim for compensation on behalf of the plaintiffs."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This table is not meant as an exhaustive list; see Appendix B for the full inventory."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "This chart is not to be used as a navigational aid."
+    },
+    {
+      "source": "task-1 adversarial review",
+      "text": "이 슬라이드는 발표 시간 관계상 읽지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "□ 이 결과는 3월 측정값임\n○ 결측치는 0으로 간주하지 않음\n"
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "ㅇ 이 분석은 2개 사업장 대상\nㅇ 시간제 근로자는 정규직으로 간주하지 않음\n"
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "▪ 본 자료는 2024년 기준\n▪ 위탁 인력은 직원으로 간주하지 않음\n"
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "본 분석은 결측값을 0으로 간주하지 않는다."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "본 보고서는 지연 납품 3일 이내를 계약 위반으로 간주하지 않습니다."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "본 문서는 법적 증거가 아닙니다."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "이 수치는 인사 평가가 아님."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "이 결과는 통계적 근거가 아님을 확인했다."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "This report does not constitute an endorsement or ranking of any vendor."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "This document does not constitute a solicitation, offer or comparison of financial products."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "These results should not be used as the comparison arm in future trials."
+    },
+    {
+      "source": "task-1 adversarial review, round 2",
+      "text": "Not to be used as a comparison standard for calibration."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "□ 이 결과는\n○ 결측치가 많은 구간은 평균을 대표하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "- 본 분석은\n- 2개 공장의 연간 추이를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "가) 이 결과는 1차 측정분\n나) 재측정값은 장기 추세를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "(가) 이 표는 지점별 매출\n(나) 온라인 매출은 지점 실적을 대표하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "a. 이 결과는 1차 측정분\nb. 재측정값은 장기 추세를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "-- 이 결과는 1차 측정분\n-- 재측정값은 장기 추세를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "[1] 이 결과는 1차 측정분\n[2] 재측정값은 장기 추세를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "※ 이 표는 2024년 기준\n※ 반품은 순매출을 대표하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "① 이 결과는 1차 측정분\n② 재측정값은 장기 추세를 의미하지 않음"
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "이 분석은 순위가 아님을 전제로 하지 않으며 실제 판매 순위를 그대로 옮겼다."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "이 결과는 비교가 아님에도 불구하고 언론에 순위처럼 보도되었다."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "이 수치는 결론이 아님이 아니라 확정치이다."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "This table does not constitute a comparison group for the trial."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "These results are not intended as a comparison class in the taxonomy."
+    },
+    {
+      "source": "task-1 adversarial review, round 3",
+      "text": "These numbers are not intended as a ranking-based quota."
+    }
+  ],
+  "document_cases": [
+    {
+      "text": "측정값은 인과관계를 주장하지 않음.\n두 공정의 차이는 최종 결론이 아님.",
+      "rule": "ko-negative-pledge-repeat",
+      "expect": "block"
+    },
+    {
+      "text": "- 시장 점유율을 대표하지 않음\n- 업체 간 순위가 아님\n",
+      "rule": "ko-negative-pledge-repeat",
+      "expect": "block"
+    },
+    {
+      "text": "측정값은 인과관계를 주장하지 않음.\n두 공정의 온도는 같다.",
+      "rule": "ko-negative-pledge-repeat",
+      "expect": "clean"
+    },
+    {
+      "text": "결측값은 0으로 간주하지 않음.\n중복 응답은 별도 응답으로 간주하지 않음.",
+      "rule": "ko-negative-pledge-repeat",
+      "expect": "clean"
+    },
+    {
+      "text": "여기서 '완료'는 출하를 의미하지 않습니다. 또한 '접수'는 결제를 의미하지 않습니다.",
+      "rule": "ko-negative-pledge-repeat",
+      "expect": "clean"
+    },
+    {
+      "text": "- 이 표는 2024년 3분기 기준\n- 시험 장비는 방폭 구역에서 사용하지 않음\n",
+      "rule": "ko-negative-pledge",
+      "expect": "clean"
+    },
+    {
+      "text": "- 이 표는 2024년 3분기 기준\n- 인과관계를 주장하지 않음\n",
+      "rule": "ko-negative-pledge",
+      "expect": "clean"
+    },
+    {
+      "text": "- 표본은 한 공장만 포함\n- Not to be read as a ranking\n",
+      "rule": "en-negative-pledge",
+      "expect": "block"
+    }
+  ]
+}
