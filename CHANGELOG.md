@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.29 - 2026-10-15
+
+- Reports and decks no longer fill up with lines that tell the reader what the document is not for, such as `동일 조건의 독립 성능 비교로 쓰지 않음.` When the model writes one into a file, the pre-write guard refuses the save and the model rewrites it. Three new rules cover Korean self-referencing pledges, repeated disclaimers and the English forms; legal and financial notices, safety warnings and real negative findings stay untouched. The rules finish in milliseconds even on very long runs of spaces.
+- The `lit-docx` and `lit-pptx` instructions that taught the habit now ask for a real limit once, as a fact beside the number it affects, with anything about what the document is not for kept in the reply.
+
 ## 1.0.28 - 2026-10-14
 
 - A new lit-loop no longer shows every stage of the card's workflow map as done when an older goal in the project had already finished. The finished goal now ends the map only when it finished after the current stage was recorded, so the map follows the work you are doing now; a goal that really finishes still shows done.
