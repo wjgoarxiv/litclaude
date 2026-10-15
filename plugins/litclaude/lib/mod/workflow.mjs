@@ -111,6 +111,10 @@ const entryOf = ({ snapshot, skills, now }) => {
   return candidates.sort((a, b) => b.at - a.at || (a.from === "record" ? -1 : 1))[0] ?? null;
 };
 
+// A finished goal ends the map unless a stage record, skill or ignition came after it: that is a
+// new request, and the old finish says nothing about it.
+const goalFinished = (goal, entry) => goal?.status === "complete" && !(Number.isFinite(goal.completedAt) && Number.isFinite(entry?.at) && entry.at > goal.completedAt);
+
 const goalIsOpen = (goal) => Boolean(goal && ["active", "blocked", "review_blocked", "needs_user_decision"].includes(goal.status));
 
 // Without a discipline or a record, the durable state that says work is under way.
@@ -173,7 +177,7 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
     const planSaved = stage === "plan" && record?.stage === "plan" && record.done;
     if (planSaved) stage = "work";
     const lanes = record?.stage === "review" ? laneVerdicts(record.verdicts) : null;
-    if (completion || goal?.status === "complete" || stage === "done") stage = "done";
+    if (completion || goalFinished(goal, entry) || stage === "done") stage = "done";
     else if (stage === "work" && !work && !goalIsOpen(goal) && snapshot.completedWorkIds.length > 0) stage = "review";
     else if (stage === "review" && lanes?.every(({ state }) => state === "pass")) stage = "done";
     if (planSaved && stage === "work" && !work) items.push("plan saved");
@@ -226,7 +230,7 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
   }
 
   const order = WORKFLOW_FAMILIES[family];
-  const finished = family === "main" ? stage === "done" : completion !== null || (family === "loop" && snapshot.goal?.status === "complete");
+  const finished = family === "main" ? stage === "done" : completion !== null || (family === "loop" && goalFinished(snapshot.goal, entry));
   const current = finished ? -1 : order.indexOf(stage);
   const wave = sources.research?.wave ?? 0;
   const stages = order.map((id, index) => {

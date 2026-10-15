@@ -233,6 +233,10 @@ export const parseGoals = (state, sessionId) => {
       .filter(Boolean),
     lastCheckpoint: str(Array.isArray(state.checkpoints) ? state.checkpoints.at(-1)?.status : null, 40),
     createdAt: time(state.createdAt),
+    // When the goal was finished: its last `complete` checkpoint, else its last update.
+    completedAt: state.status === "complete"
+      ? time((Array.isArray(state.checkpoints) ? state.checkpoints : []).findLast((entry) => entry?.status === "complete")?.createdAt) ?? time(state.updatedAt)
+      : null,
   };
 };
 

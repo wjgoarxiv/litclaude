@@ -284,6 +284,38 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  it("lets the lifecycle's own pause call through with an outside target, and the lifecycle still refuses a forbidden action", () => {
+    const root = fixtureRoot();
+    const outside = fixtureRoot();
+    try {
+      initialize(root);
+      const pause = (action, key) => `litclaude-ai start-work pause --work-id work-1 --session-id session-root --expected-revision 1 --action ${action} --target-root ${outside} --idempotency-key ${key} --json`;
+      const gate = preTool(root, "Bash", { command: pause("write", "pause-1") }, { prompt_id: "prompt-pause", tool_use_id: "tool-pause" });
+      assert.equal(gate.status, 0, gate.stderr);
+      assert.equal(gate.stdout, "", "the gate lets the pause call through: it only records a pending boundary");
+      assert.equal(parse(runCli(root, ["status"])).state.revision, 1, "the gate itself opens no boundary for it");
+      for (const [command, reason] of [
+        [`litclaude-ai start-work pause --work-id work-1 --session-id session-root --expected-revision 1 --action write --target-root ${outside} --idempotency-key p --root ${outside}`, /unverified|unclassified/u],
+        [`litclaude-ai start-work pause --work-id work-1 --session-id session-root --expected-revision 1 --action write --target-root ${outside} --idempotency-key ${join(outside, "x")}`, /unverified|unclassified/u],
+        [`node ${join(root, "litclaude-ai.js")} start-work pause --work-id work-1 --session-id session-root --expected-revision 1 --action write --target-root ${outside} --idempotency-key n`, /outside|unverified|unclassified/u],
+      ]) {
+        const output = parse(preTool(root, "Bash", { command }, { prompt_id: "prompt-pause-bad", tool_use_id: "tool-pause-bad" }));
+        assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+        assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
+      }
+      const forbidden = runCli(root, [
+        "pause", "--work-id", "work-1", "--session-id", "session-root", "--expected-revision", "1",
+        "--action", "host-config-write", "--target-root", outside, "--idempotency-key", "forbidden",
+      ]);
+      assert.notEqual(forbidden.status, 0);
+      assert.match(parse(forbidden).error.message, /forbidden authority action/iu);
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("pauses an outside boundary, accepts only exact namespaced single-use resume, and persists semantic authorization", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();

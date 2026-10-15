@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+// The `litclaude-ai` the skills and commands name, as the installed plugin serves it. Claude Code
+// puts this bin/ directory on the Bash tool's PATH; the npm CLI (bin/litclaude-ai.js in the
+// package) is usually not there. This entry runs the in-session subcommands from the plugin's own
+// lib/ and sends everything else (install, doctor, update…) to the user's terminal.
+//
+// No file extension, so the bare name resolves on PATH; the code avoids `import`, `require`,
+// `import.meta` and `module` so it runs whether Node loads it as CommonJS or as an ES module.
+
+const SUBCOMMANDS = {
+  litgoal: async (load, rest) => (await load("../lib/litgoal/cli.mjs")).runLitgoalCli(rest),
+  "start-work": async (load, rest) => (await load("../lib/start-work-cli.mjs")).runStartWorkCli(rest, undefined, process.cwd()),
+  "start-work-next": async (load, rest) => {
+    const { resolveProjectStateRoot } = await load("../lib/project-state-root.mjs");
+    return (await load("../lib/start-work-continuation.mjs")).runStartWorkContinuationCli(resolveProjectStateRoot(process.cwd()), rest);
+  },
+  "workflow-stage": async (load, rest) => (await load("../lib/workflow-stage.mjs")).runWorkflowStageCli(rest, process.cwd()),
+  wikify: async (load, rest) => (await load("../lib/wikify-knowledge-cli.mjs")).runWikifyKnowledgeCli(rest, undefined, process.cwd()),
+  "motion-runtime": async (load, rest) => (await load("../skills/lit-typographic-motion/scripts/motion-runtime.mjs")).main(rest),
+};
+
+const main = async () => {
+  const [command, ...rest] = process.argv.slice(2);
+  const run = Object.hasOwn(SUBCOMMANDS, command ?? "") ? SUBCOMMANDS[command] : null;
+  if (!run) {
+    process.stderr.write(
+      `litclaude-ai (plugin): ${command ? `"${command}" is not served from the plugin` : "no command given"}. `
+      + `In-session commands: ${Object.keys(SUBCOMMANDS).join(", ")}. `
+      + `For install, update, doctor and the rest, ask the user to run in their own terminal: npx @litfamily/litclaude ${command ?? "--help"}\n`,
+    );
+    return 64;
+  }
+  const { realpathSync } = await import("node:fs");
+  const { dirname, join } = await import("node:path");
+  const { pathToFileURL } = await import("node:url");
+  const here = dirname(realpathSync(process.argv[1]));
+  return run((relative) => import(pathToFileURL(join(here, relative)).href), rest);
+};
+
+main().then(
+  (code) => {
+    process.exitCode = Number.isInteger(code) ? code : 0;
+  },
+  (error) => {
+    process.stderr.write(`litclaude-ai (plugin): ${error?.message ?? error}\n`);
+    process.exitCode = 1;
+  },
+);

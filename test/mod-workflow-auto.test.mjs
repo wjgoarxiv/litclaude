@@ -398,3 +398,72 @@ test("a typed /litclaude:review-work starts a fresh review record, so a second r
     rmSync(project, { recursive: true, force: true });
   }
 });
+
+// A litgoal goal finished in an earlier request stays `complete` in goals.json. A skill started
+// after it writes a newer stage record, and the card follows the record, not the old finish.
+const finishedGoal = (completedAt) => ({
+  version: 1,
+  objective: "An earlier request",
+  status: "complete",
+  autoloop: false,
+  criteria: [{ id: "c1", description: "done", status: "pass", evidence: [] }],
+  blockers: [],
+  steering: [],
+  checkpoints: [{ status: "complete", note: "", createdAt: completedAt }],
+  createdAt: new Date(Date.parse(completedAt) - 60_000).toISOString(),
+  updatedAt: completedAt,
+});
+
+const stageAndGoal = async (record, goal) => {
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-goal-")));
+  mkdirSync(join(project, ".git"));
+  mkdirSync(join(project, ".litclaude", "litgoal"), { recursive: true });
+  writeFileSync(join(project, ".litclaude", "litgoal", "goals.json"), JSON.stringify(goal));
+  writeFileSync(workflowStagePath(project), JSON.stringify({ sessionId: SESSION, ...record }));
+  const host = await diskHost(project);
+  await host.fire("session.start", {});
+  return { project, rows: await host.rows() };
+};
+
+test("a goal finished before the current stage record does not draw the map as done", async () => {
+  const now = Date.now();
+  const { project, rows } = await stageAndGoal(
+    { skill: "lit-crucible", family: "main", stage: "plan", at: new Date(now).toISOString() },
+    finishedGoal(new Date(now - 60 * 60 * 1000).toISOString()),
+  );
+  try {
+    assert.match(rows.map, /^interview ✓ ━━ plan ━━ work · ── review · ── done ·$/u, "plan is the current stage");
+    assert.doesNotMatch(rows.detail, /complete/u);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test("an old finished goal shared by every session does not draw a new lit-loop as done", async () => {
+  const now = Date.now();
+  const { project, rows } = await stageAndGoal(
+    { skill: "lit-loop", family: "loop", stage: "VERIFY", at: new Date(now).toISOString() },
+    finishedGoal(new Date(now - 24 * 24 * 60 * 60 * 1000).toISOString()),
+  );
+  try {
+    assert.match(rows.map, /PIN ✓ ━━ RED ✓ ━━ GREEN ✓ ━━ +VERIFY +━━ REVIEW · ── RECORD ·/u, "VERIFY is the current stage");
+    assert.doesNotMatch(rows.map, /RECORD ✓/u);
+    assert.doesNotMatch(rows.detail, /complete/u);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test("a goal finished after the current stage record still draws the map as done", async () => {
+  const now = Date.now();
+  const { project, rows } = await stageAndGoal(
+    { skill: "litgoal", family: "main", stage: "work", at: new Date(now - 60 * 60 * 1000).toISOString() },
+    finishedGoal(new Date(now).toISOString()),
+  );
+  try {
+    assert.match(rows.map, /^interview ✓ ━━ plan ✓ ━━ work ✓ ━━ review ✓ ━━ done ✓$/u, "the finish shows done");
+    assert.match(rows.detail, /complete/u);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});

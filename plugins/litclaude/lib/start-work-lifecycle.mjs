@@ -990,6 +990,14 @@ const classifyBashWords = (words, cwd) => {
     if (rest[0] === "start-work" && START_WORK_SELF_MOVES.has(rest[1]) && !rest.includes("--root") && rest.every((word) => !word.includes("/"))) {
       return canonicalBashTargets(cwd, [cwd, ...cli], "write");
     }
+    // `pause` is how the work asks the user for a new boundary: it records the pending boundary
+    // and grants nothing, so the root it names may lie outside the grants, and the lifecycle
+    // refuses a forbidden action itself. Only that `--target-root` value may hold a `/`, and only
+    // the bare CLI name passes: a `node <path>/litclaude-ai.js` file is checked by name, not content.
+    if (cli.length === 0 && rest[0] === "start-work" && rest[1] === "pause" && !rest.includes("--root")
+      && rest.every((word, index) => !word.includes("/") || rest[index - 1] === "--target-root")) {
+      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+    }
   }
   if (head.text === "node") return classifyNodeScriptWords(args, cwd);
   return null;
