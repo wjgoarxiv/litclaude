@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.28 - 2026-10-14
+
+- A new lit-loop no longer shows every stage of the card's workflow map as done when an older goal in the project had already finished. The finished goal now ends the map only when it finished after the current stage was recorded, so the map follows the work you are doing now; a goal that really finishes still shows done.
+- `litclaude-ai` is now on the Bash PATH after a plugin install, so the documented `litclaude-ai litgoal`, `start-work`, `workflow-stage` and similar commands run without the npm package. Other subcommands point you at the npm package.
+- The start-work gate lets its own `start-work pause` through when it names an outside target root. The pause records a pending boundary and grants nothing; forbidden actions are still refused.
+
 ## 1.0.27 - 2026-10-13
 
 - The lit-loop map now moves when the work happens in the shell. Writing a test with a shell command (`cat > test/…`, `>>`, `tee` or `sed -i`) turns the map to RED, changing a source file the same way turns it to GREEN, and the next test run turns it to VERIFY. A failing test run while the criterion is still pinned also counts as RED, including a bare `npm test` that exits with an error. The card keeps only the stage, never the command or the file names.
