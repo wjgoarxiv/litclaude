@@ -462,22 +462,19 @@ step's spinner (`- \ | /`) and clock are ASCII, and a glyph swaps only together 
 
 The desktop app's Code tab, and the other surfaces that are not a terminal, draw a mod's `Text` in
 a proportional font and cut each span to the cells it was laid out for, so the card above comes
-apart there. In the desktop app the mod builds the same five rows from the app's own boxes and
-text instead (`lib/mod/native-card.mjs`): a dark card with a rounded border, the LIT pill, the
-stage pills, the running tool, the skill chips and the usage figures, each row laid out by the app
-in its monospaced face. The app updates that card in place when something changes, so a new stage,
-tool or skill no longer blanks it. It holds still: the app's boxes and text have no animation, and
-the card shows the settled state with no entrances or crossfades.
-
-On a phone the card is one `Svg` drawing (`lib/mod/svg-card.mjs`): monospace text placed by
-counted cells, real pills and a rounded border. While LitClaude works it moves with SMIL animation
-inside the drawing: the pill and the border breathe and the step's spinner turns, and on `full` a
-light crosses the current stage and the current chips, a head runs the rail leaving it, the count
-bar's head shimmers and a comet runs around the border. An idle card is a still image.
-
-Neither the desktop card nor the phone drawing has the step clock or the loop countdown: a new
-drawing restarts the phone's animation, and the desktop card would only show a frozen clock. Both
-name the running tool and show the loop round, and are redrawn only when something you would
+apart there. On those surfaces the mod draws the same five rows as one `Svg` element instead
+(`lib/mod/svg-card.mjs`): monospace text placed by counted cells, real pills and a rounded border.
+It shows the settled state, with no entrances or crossfades. While LitClaude works it moves with
+SMIL animation inside the drawing, which the surface runs in a script-less sandboxed frame: the
+pill and the border breathe and the step's spinner turns, and on `full` a light crosses the
+current stage and the current chips, a head runs the rail leaving it, the count bar's head
+shimmers and a comet runs around the border. An idle card is a still image. The app loads each new
+drawing from scratch and restarts its animation, so this card names the running tool without its
+clock and shows the loop round without its countdown. Each animation starts part way through its
+cycle, so a freshly loaded card already looks like the running one: the border and the pill are
+lit, the light sits on its pill and the comet is part way round, not parked at the top-left
+corner. The app still blanks the card for a moment while it loads a new drawing; the mod cannot
+prevent that. It is redrawn only when something you would
 notice changes, such as the stage, the tool, a skill, a usage figure or the goal. While the card
 shows in a terminal and the app at once, the terminal's loop countdown and lane times wait for such
 a change too; its step clock keeps counting on its own.

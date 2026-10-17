@@ -1,10 +1,10 @@
-// The LIT card as one SVG drawing, for the surfaces that are neither a terminal grid nor the desktop
-// app (which gets native-card.mjs). They draw a mod's Text in a proportional font and cut each span
-// to the cells it was given, so the terminal card's text border and its padded pills come apart
-// there. Those surfaces carry an `Svg` element instead, and this module draws the same card into
-// it: the brand pill, the discipline and the stage indicator on top, the workflow map (or the phase
-// track and progress when no family places the session), the detail line with the live step, the
-// skill chips (or the notice or the finish), and the live figures at the bottom.
+// The LIT card as one SVG drawing, for the surfaces that are not a terminal grid. The Claude desktop
+// app draws a mod's Text in a proportional font and cuts each span to the cells it was given, so the
+// terminal card's text border and its padded pills come apart there. Those surfaces carry an `Svg`
+// element instead, and this module draws the same card into it: the brand pill, the discipline and
+// the stage indicator on top, the workflow map (or the phase track and progress when no family
+// places the session), the detail line with the live step, the skill chips (or the notice or the
+// finish), and the live figures at the bottom.
 //
 // It draws the settled state of the model; the terminal's entrances and crossfades stay terminal
 // only. While LitClaude works and motion allows, SMIL animation in the drawing keeps it moving: the
@@ -13,7 +13,8 @@
 // head shimmers, the step spinner turns and a comet runs around the border (full only). Idle, it is
 // still. The drawing carries no step clock and no loop countdown: the surface loads each new
 // drawing afresh, restarting every animation, so a figure that moves with time alone would make the
-// card blink on every poll.
+// card blink on every poll. Each loop opens mid-cycle (see `loop`), so a fresh load starts on a
+// frame of the running card rather than on a dim border and a comet at the corner.
 //
 // Text is set in a monospace face and placed by counted cells (Hangul and emoji as two), so the
 // layout does not depend on measuring a font the drawing cannot see.
@@ -21,7 +22,7 @@
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { TIMINGS, barCells, gradientAt } from "./motion.mjs";
 
-export const C = Object.freeze({
+const C = Object.freeze({
   bg: "#0d1117",
   pink: "#ff2d95",
   orange: "#ff6337",
@@ -41,8 +42,8 @@ export const C = Object.freeze({
   hudYellow: "#d7af00",
   hudRed: "#d75f5f",
 });
-export const LABELS = Object.freeze({ plan: "PLAN", work: "WORK", review: "REVIEW" });
-export const PHASES = Object.freeze(["plan", "work", "review"]);
+const LABELS = Object.freeze({ plan: "PLAN", work: "WORK", review: "REVIEW" });
+const PHASES = Object.freeze(["plan", "work", "review"]);
 
 // Drawing units: CSS pixels at the card's natural size; the surface draws it at that width, up to its slot.
 export const SVG_CARD = Object.freeze({ width: 880, height: 160, font: 13, cell: 7.8, pad: 18 });
@@ -50,9 +51,17 @@ const ROW_Y = Object.freeze([28, 58, 86, 114, 142]);
 const PILL_H = 20;
 const FONT = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', Consolas, monospace";
 
+// Timing of one looping animation, started `phase` of the way into its cycle. The surface loads
+// each new drawing afresh, so every loop would otherwise open on its first frame: the breathing at
+// its dimmest, the light off the pill's left edge, the comet parked at the top-left corner. A
+// negative begin opens each loop mid-cycle, in a frame that looks like the card already running.
+const loop = (ms, phase) => `dur="${ms}ms" begin="-${Math.round(ms * phase)}ms" repeatCount="indefinite"`;
+// The breathing pieces share one phase so the pill, the border and the count bar's head stay in step.
+const BREATH_PHASE = 0.25;
+
 const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const widthOf = (text) => textWidth(text) * SVG_CARD.cell;
-export const levelColor = (percent) => (percent >= 90 ? C.hudRed : percent >= 70 ? C.hudYellow : C.hudGreen);
+const levelColor = (percent) => (percent >= 90 ? C.hudRed : percent >= 70 ? C.hudYellow : C.hudGreen);
 
 // Edge spaces become offsets: an SVG text element drops leading and trailing whitespace.
 const text = (x, y, body, { fill = C.white, bold = false, anchor = "start" } = {}) => {
@@ -79,13 +88,13 @@ const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = nul
   const w = widthOf(label) + 16;
   const top = y - PILL_H + 6;
   const parts = [`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${fill}"/>`];
-  if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" dur="${TIMINGS.breath}ms" repeatCount="indefinite"/></rect>`);
+  if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" ${loop(TIMINGS.breath, BREATH_PHASE)}/></rect>`);
   if (sweep) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="url(#lit-sweep)"/>`);
   parts.push(text(x + 8, y, label, { fill: ink, bold }));
   return { markup: parts.join(""), end: x + w };
 };
 
-export const indicatorOf = (model, accent) => {
+const indicatorOf = (model, accent) => {
   if (model.completion) return { label: "DONE ✓", fill: C.green };
   if (model.idle) return { label: "idle", fill: C.dim, plain: true };
   const flow = model.workflow;
@@ -109,7 +118,7 @@ const topRow = (model, accent, animate) => {
   return brand.markup + title.markup + right;
 };
 
-export const rightOfPhases = (model, withProgress = true) => {
+const rightOfPhases = (model, withProgress = true) => {
   const pieces = [];
   if (model.ctxWarning) pieces.push([[`ctx ${model.ctxWarning.percent}% → ${model.ctxWarning.threshold}%`, { fill: C.amber, bold: true }]]);
   if (model.lanes.count > 0) pieces.push([[`● ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fill: C.green }]]);
@@ -158,7 +167,7 @@ const phaseRow = (model, accent, animate) => {
   return out.join("");
 };
 
-export const mapColor = (accent, position) => gradientAt([C.orange, C.pink, accent], position);
+const mapColor = (accent, position) => gradientAt([C.orange, C.pink, accent], position);
 const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(0, 3));
 
 // Right-aligned groups after `x`, the leftmost dropped first when the row is short of room.
@@ -197,7 +206,7 @@ const mapRowSvg = (model, accent, animate) => {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="2.5" stroke-linecap="round"/>`);
         const filled = count && count.total > 0 ? Math.min(1, count.done / count.total) : 0;
         if (filled > 0) out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${(x1 + filled * layout.rail).toFixed(1)}" y2="${y - 4}" stroke="${mapColor(accent, mid)}" stroke-width="2.5" stroke-linecap="round"/>`);
-        if (animate.sweep) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" dur="${TIMINGS.flow}ms" repeatCount="indefinite"/></circle>`);
+        if (animate.sweep) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" ${loop(TIMINGS.flow, 0.5)}/></circle>`);
       } else {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.7"/>`);
       }
@@ -218,7 +227,7 @@ const mapRowSvg = (model, accent, animate) => {
   return out.join("");
 };
 
-export const VERDICT_FILL = Object.freeze({ pass: ["✓", C.green], fail: ["✗", C.red], pending: ["·", C.dim], running: ["●", C.amber] });
+const VERDICT_FILL = Object.freeze({ pass: ["✓", C.green], fail: ["✗", C.red], pending: ["·", C.dim], running: ["●", C.amber] });
 
 // └ task 3/7 ▮▮▮▯▯▯▯▯ · next ▸ <task> on the left, the spinner and the tool on the right.
 const detailRowSvg = (model, accent, animate) => {
@@ -232,7 +241,7 @@ const detailRowSvg = (model, accent, animate) => {
     out.push(text(nameEnd, y, model.step.name, { fill: C.white, anchor: "end" }));
     const cx = nameEnd - widthOf(model.step.name) - 10;
     out.push(`<circle cx="${cx.toFixed(1)}" cy="${y - 4}" r="4.5" fill="none" stroke="${accent}" stroke-width="1.8" stroke-dasharray="18 10.3">`
-      + (animate.breath ? `<animateTransform attributeName="transform" type="rotate" values="0 ${cx.toFixed(1)} ${y - 4};360 ${cx.toFixed(1)} ${y - 4}" dur="${TIMINGS.spin * 8}ms" repeatCount="indefinite"/>` : "")
+      + (animate.breath ? `<animateTransform attributeName="transform" type="rotate" values="0 ${cx.toFixed(1)} ${y - 4};360 ${cx.toFixed(1)} ${y - 4}" ${loop(TIMINGS.spin * 8, 0.5)}/>` : "")
       + "</circle>");
     right = width - cx + 10;
   }
@@ -252,7 +261,7 @@ const detailRowSvg = (model, accent, animate) => {
     const cells = barCells(total > 0 ? done / total : 0, 8);
     cells.forEach(({ glyph, color }, index) => out.push(`<rect x="${(x + index * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="${glyph === "█" ? color : C.empty}"/>`));
     const head = cells.findLastIndex(({ glyph }) => glyph === "█");
-    if (head >= 0 && animate.sweep) out.push(`<rect x="${(x + head * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" dur="${TIMINGS.breath}ms" repeatCount="indefinite"/></rect>`);
+    if (head >= 0 && animate.sweep) out.push(`<rect x="${(x + head * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" ${loop(TIMINGS.breath, BREATH_PHASE)}/></rect>`);
     x += 8 * 9 + 4;
   }
   const pieces = [];
@@ -276,7 +285,7 @@ const detailRowSvg = (model, accent, animate) => {
   return out.join("");
 };
 
-export const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
+const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
 
 // Skill chips, or the notice or the finish while one is up, or the hint while nothing has fired.
 const middleRow = (model, accent, animate) => {
@@ -351,7 +360,7 @@ const bottomRow = (model, accent) => {
   return out.join("");
 };
 
-export const borderColor = (model, accent) => {
+const borderColor = (model, accent) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return C.red;
   if (model.warnings.length) return C.amber;
   return model.idle ? C.faint : accent;
@@ -389,13 +398,13 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
   const edge = borderColor(model, accent);
   const perimeter = 1000;
   const defs = animate.sweep
-    ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" dur="${TIMINGS.sweep}ms" repeatCount="indefinite"/></linearGradient></defs>`
+    ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
     : "";
   const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="1.5"${model.idle ? ' stroke-opacity="0.8"' : ""}>`
-    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.45;1;0.45" dur="${TIMINGS.breath}ms" repeatCount="indefinite"/>` : "")
+    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.45;1;0.45" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
     + "</rect>";
   const comet = animate.comet
-    ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="url(#lit-comet)" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="70 ${perimeter - 70}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" dur="${TIMINGS.comet * 2}ms" repeatCount="indefinite"/></rect>`
+    ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="url(#lit-comet)" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="70 ${perimeter - 70}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" ${loop(TIMINGS.comet * 2, 0.5)}/></rect>`
       + `<defs><linearGradient id="lit-comet" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${C.orange}"/><stop offset="0.6" stop-color="${C.pink}"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>`
     : "";
   const body = [

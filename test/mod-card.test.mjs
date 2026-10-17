@@ -635,21 +635,14 @@ test("the SVG card moves only while LitClaude works, and as much as the motion s
   }
 });
 
-// Every node of a drawn tree, depth first, and the words its Text nodes carry.
-const nodesOf = (node) => (node && typeof node === "object" ? [node, ...(node.children ?? []).flatMap(nodesOf)] : []);
-const wordsOf = (node) => nodesOf(node).filter(({ kind }) => kind === "text").map(({ text }) => text).join("");
-
-test("the desktop gets the card in its own elements, a phone gets it as one Svg, and the terminal keeps the cell card", async () => {
+test("on the desktop surface the mod draws the card as one Svg, and keeps the cell card for the terminal", async () => {
   const host = await harness({ glyphs: "basic", motion: "full" });
   await host.fire("session.start", {});
   await host.flush();
   const idle = await host.drawOn("desktop");
-  assert.equal(idle.kind, "box");
-  assert.match(wordsOf(idle), /🔥 LIT .*idle/u);
-  const phone = await host.drawOn("mobile");
-  assert.equal(phone.kind, "svg");
-  assert.match(phone.alt, /^LIT idle/u);
-  assert.equal(phone.isInteractive, undefined, "an idle card is a still image");
+  assert.equal(idle.kind, "svg");
+  assert.match(idle.alt, /^LIT idle/u);
+  assert.equal(idle.isInteractive, undefined, "an idle card is a still image");
   assert.notEqual((await host.drawOn("terminal")).kind, "svg");
 
   host.tick(1000);
@@ -657,14 +650,57 @@ test("the desktop gets the card in its own elements, a phone gets it as one Svg,
   await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-plan" });
   await host.flush();
   const working = await host.drawOn("desktop");
-  assert.deepEqual(nodesOf(working).filter(({ kind }) => kind === "svg"), []);
-  assert.match(wordsOf(working), /lit-plan/u);
-  const moving = await host.drawOn("mobile");
-  assert.equal(moving.isInteractive, true, "a moving phone card is drawn in its web view so SMIL runs");
-  assert.match(moving.source, /lit-plan/u);
+  assert.equal(working.kind, "svg");
+  assert.equal(working.isInteractive, true, "a moving card is drawn in the sandboxed frame so SMIL runs");
+  assert.match(working.source, /lit-plan/u);
 });
 
-test("while only the clock moves, the desktop card is not redrawn: no invalidation, the same tree", async () => {
+// Each looping animation of a drawing: what it moves, its values, and how far into its cycle it opens.
+const loopsOf = (source) => [...source.matchAll(/<(animate|animateTransform|animateMotion)\b([^>]*)>/gu)].map(([, tag, attrs]) => {
+  const attr = (name) => attrs.match(new RegExp(`\\b${name}="([^"]*)"`, "u"))?.[1];
+  const dur = Number.parseFloat(attr("dur"));
+  const begin = attr("begin");
+  return { tag, name: attr("attributeName"), values: attr("values").split(";").map((v) => v.trim()), begin, phase: begin ? -Number.parseFloat(begin) / dur : 0 };
+});
+// The value a loop shows at `phase`, its values spread evenly over the cycle.
+const valueAt = (values, phase) => {
+  const at = phase * (values.length - 1);
+  const i = Math.min(values.length - 2, Math.floor(at));
+  const [a, b] = [Number.parseFloat(values[i]), Number.parseFloat(values[i + 1])];
+  return a + (b - a) * (at - i);
+};
+
+test("the desktop's moving card opens every loop mid-cycle, already visible, so a fresh load never starts dim or with the comet at the corner", async () => {
+  const host = await harness({ glyphs: "basic", motion: "full" });
+  await host.fire("session.start", {});
+  await host.flush();
+  host.tick(1000);
+  await host.fire("turn.start", {});
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-plan" });
+  await host.flush();
+  const desktop = await host.drawOn("desktop");
+  assert.equal(desktop.kind, "svg");
+  assert.equal(desktop.isInteractive, true);
+  const extra = composeSvgCard(svgModel({ step: { name: "WebSearch", elapsedMs: 0 } }), { motion: "full", accent: CYAN }).source;
+  const loops = [...loopsOf(desktop.source), ...loopsOf(extra)];
+  for (const name of ["opacity", "stroke-opacity", "stroke-dashoffset", "gradientTransform", "transform"]) {
+    assert.ok(loops.some((loop) => loop.name === name), `the card animates ${name}`);
+  }
+  for (const loop of loops) {
+    const label = `${loop.tag} ${loop.name} values=${loop.values.join(";")} begin=${loop.begin}`;
+    assert.match(loop.begin ?? "", /^-\d+ms$/u, `${label}: opens with a negative begin`);
+    assert.ok(loop.phase > 0 && loop.phase < 1, `${label}: opens mid-cycle, not on its first frame`);
+    if (/opacity$/u.test(loop.name)) assert.ok(valueAt(loop.values, loop.phase) > 0, `${label}: opens visible, never at opacity 0`);
+  }
+  const comet = loops.find((loop) => loop.name === "stroke-dashoffset");
+  assert.notEqual(valueAt(comet.values, comet.phase), 0, "the comet opens part way round the border, not parked at the top-left");
+  const sweep = loops.find((loop) => loop.name === "gradientTransform");
+  assert.ok(Math.abs(valueAt(sweep.values.map((v) => v.split(" ")[0]), sweep.phase)) < 1, "the light opens over its pill, not off its edge");
+  const frame = loops.find((loop) => loop.name === "stroke-opacity");
+  assert.ok(valueAt(frame.values, frame.phase) > 0.45, "the border opens brighter than its dimmest breath");
+});
+
+test("while only the clock moves, the desktop card is not redrawn: no invalidation, the same SVG source", async () => {
   const host = await harness({ glyphs: "basic", motion: "full" });
   await host.fire("session.start", {});
   await host.flush();
@@ -676,24 +712,25 @@ test("while only the clock moves, the desktop card is not redrawn: no invalidati
   const call = host.fire("tool.call", { tool: "WebSearch" }, {}, new Promise((resolve) => { release = resolve; }));
   await host.flush();
   const first = await host.drawOn("desktop");
-  assert.match(wordsOf(first), /WebSearch/u);
+  assert.match(first.source, />WebSearch</u);
+  assert.equal(first.isInteractive, true);
   host.invalidations.length = 0;
   for (let i = 0; i < 5; i += 1) {
     host.tick(2000);
     await host.poll();
-    assert.deepEqual(await host.drawOn("desktop"), first, `poll ${i + 1}: the tree is identical`);
+    assert.equal((await host.drawOn("desktop")).source, first.source, `poll ${i + 1}: the drawing is byte-identical`);
   }
-  assert.deepEqual(host.invalidations, [], "a poll that changes nothing but the clock leaves the desktop card alone");
-  assert.doesNotMatch(wordsOf(first), /\b\d+:\d\d\b/u, "the desktop card carries no running clock");
+  assert.deepEqual(host.invalidations, [], "a poll that changes nothing but the clock leaves the desktop frame alone");
+  assert.doesNotMatch(first.source, /\b\d+:\d\d\b/u, "the desktop card carries no running clock");
 
   release({});
   await call;
   await host.flush();
   assert.ok(host.invalidations.length > 0, "a new step is a real change and redraws");
   const after = await host.drawOn("desktop");
-  assert.notDeepEqual(after, first);
-  assert.match(wordsOf(after), /thinking/u);
-  assert.doesNotMatch(wordsOf(after), /WebSearch/u);
+  assert.notEqual(after.source, first.source);
+  assert.match(after.source, />thinking</u);
+  assert.doesNotMatch(after.source, />WebSearch</u);
 });
 
 test("the terminal card keeps its live clock: each poll still redraws it", async () => {
@@ -733,7 +770,7 @@ const clockOnlyPolls = async (host, surfaces, n = 5) => {
     await host.poll();
     for (const surface of surfaces) {
       const drawn = await host.drawOn(surface);
-      if (surface !== "terminal" && drawn) sources.add(JSON.stringify(drawn));
+      if (drawn?.kind === "svg") sources.add(drawn.source);
     }
   }
   return { invalidations: host.invalidations.length, sources: sources.size };
@@ -749,7 +786,7 @@ test("with the terminal's surface module and a desktop both attached, a clock-on
   await call;
   await host.flush();
   assert.ok(host.invalidations.length > 0, "a new step still redraws both");
-  assert.notDeepEqual(await host.drawOn("desktop"), first);
+  assert.notEqual((await host.drawOn("desktop")).source, first.source);
 });
 
 test("a terminal that drew once does not keep the desktop redrawing, and a desktop that detaches gives the terminal its clock back", async () => {
@@ -765,32 +802,6 @@ test("a terminal that drew once does not keep the desktop redrawing, and a deskt
   await host.poll();
   assert.ok(host.invalidations.length > 0, "the terminal alone gets its clock redrawn again");
   assert.match((await host.band()).lines[2], /WebSearch · 0:1\d │$/u);
-});
-
-test("on the desktop two real changes in a row redraw the card in the app's own elements, never a fresh Svg document", async () => {
-  const { host, release, call } = await heldWebSearch();
-  host.roster.push("desktop");
-  const first = await host.drawOn("desktop");
-  host.invalidations.length = 0;
-  release({});
-  await call;
-  await host.flush();
-  assert.ok(host.invalidations.length > 0, "the step moving on is a real change");
-  const second = await host.drawOn("desktop");
-  host.invalidations.length = 0;
-  let done;
-  const read = host.fire("tool.call", { tool: "Read" }, {}, new Promise((resolve) => { done = resolve; }));
-  await host.flush();
-  assert.ok(host.invalidations.length > 0, "a new tool is a real change");
-  const third = await host.drawOn("desktop");
-  for (const [label, drawn] of [["first", first], ["second", second], ["third", third]]) {
-    assert.deepEqual(nodesOf(drawn).filter(({ kind }) => kind === "svg"), [], `${label}: no Svg document is handed to the app`);
-  }
-  assert.match(wordsOf(first), /WebSearch/u);
-  assert.match(wordsOf(second), /thinking/u);
-  assert.match(wordsOf(third), /Read/u);
-  done({});
-  await read;
 });
 
 test("the SVG card leaves out the step clock and the loop countdown, so time alone never changes its source", () => {
@@ -972,9 +983,8 @@ test("the detail line names the running tool and how long it runs, never its arg
   await host.flush();
   const { lines } = await host.band();
   assert.match(lines[2], /- Bash · 1:05 │$/u);
-  const desktop = wordsOf(await host.drawOn("desktop"));
-  const phone = await host.drawOn("mobile");
-  for (const shown of [lines.join("\n"), desktop, phone.source, phone.alt]) {
+  const desktop = await host.drawOn("desktop");
+  for (const shown of [lines.join("\n"), desktop.source, desktop.alt]) {
     assert.match(shown, /Bash/u);
     assert.doesNotMatch(shown, /secret|rm -rf|notes|\/Users/u, "no argument of the call reaches the card");
   }
