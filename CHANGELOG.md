@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.32 - 2026-10-17
+
+- The desktop mod card has its look and motion back. 1.0.31 drew it with the app's plain boxes and text to stop it blinking, but that also took away its design and all of its animation. This release restores the animated card from 1.0.30. Its animations now start already visible, so when the app reloads the card after a real change, the card no longer fades in from blank or restarts its border light from the corner. The clock stays off the desktop card, so a running tool alone does not reload it. The terminal and phone cards are unchanged.
+
 ## 1.0.31 - 2026-10-17
 
 - In the Claude Code desktop app, the mod card used to blink: every real change, such as a new step, tool or skill, swapped in a whole new page, so the card went blank for a moment and its animations started over. The desktop card is now built from the app's own boxes and text, and a change updates only what moved. It looks the same but no longer animates. The terminal and phone cards are unchanged.
