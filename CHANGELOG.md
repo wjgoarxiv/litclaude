@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.31 - 2026-10-17
+
+- In the Claude Code desktop app, the mod card used to blink: every real change, such as a new step, tool or skill, swapped in a whole new page, so the card went blank for a moment and its animations started over. The desktop card is now built from the app's own boxes and text, and a change updates only what moved. It looks the same but no longer animates. The terminal and phone cards are unchanged.
+
 ## 1.0.30 - 2026-10-16
 
 - The pre-write guard now refuses more of the lines that tell a reader what a document is not for, such as `This table is not a ranking.` or `이 문서는 제품을 비교하려는 것이 아닙니다.` These forms came from real sessions. Bold-label callouts such as `> **주의:** ...` are now read too, while ordinary quoted text is still skipped. Lines from manuals and lab reports that only look similar stay allowed, and a large flood of matches can no longer push the scan past its limit into an allowed write.
