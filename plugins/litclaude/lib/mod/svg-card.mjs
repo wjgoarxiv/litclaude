@@ -1,10 +1,10 @@
-// The LIT card as one SVG drawing, for the surfaces that are not a terminal grid. The Claude desktop
-// app draws a mod's Text in a proportional font and cuts each span to the cells it was given, so the
-// terminal card's text border and its padded pills come apart there. Those surfaces carry an `Svg`
-// element instead, and this module draws the same card into it: the brand pill, the discipline and
-// the stage indicator on top, the workflow map (or the phase track and progress when no family
-// places the session), the detail line with the live step, the skill chips (or the notice or the
-// finish), and the live figures at the bottom.
+// The LIT card as one SVG drawing, for the surfaces that are neither a terminal grid nor the desktop
+// app (which gets native-card.mjs). They draw a mod's Text in a proportional font and cut each span
+// to the cells it was given, so the terminal card's text border and its padded pills come apart
+// there. Those surfaces carry an `Svg` element instead, and this module draws the same card into
+// it: the brand pill, the discipline and the stage indicator on top, the workflow map (or the phase
+// track and progress when no family places the session), the detail line with the live step, the
+// skill chips (or the notice or the finish), and the live figures at the bottom.
 //
 // It draws the settled state of the model; the terminal's entrances and crossfades stay terminal
 // only. While LitClaude works and motion allows, SMIL animation in the drawing keeps it moving: the
@@ -21,7 +21,7 @@
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { TIMINGS, barCells, gradientAt } from "./motion.mjs";
 
-const C = Object.freeze({
+export const C = Object.freeze({
   bg: "#0d1117",
   pink: "#ff2d95",
   orange: "#ff6337",
@@ -41,8 +41,8 @@ const C = Object.freeze({
   hudYellow: "#d7af00",
   hudRed: "#d75f5f",
 });
-const LABELS = Object.freeze({ plan: "PLAN", work: "WORK", review: "REVIEW" });
-const PHASES = Object.freeze(["plan", "work", "review"]);
+export const LABELS = Object.freeze({ plan: "PLAN", work: "WORK", review: "REVIEW" });
+export const PHASES = Object.freeze(["plan", "work", "review"]);
 
 // Drawing units: CSS pixels at the card's natural size; the surface draws it at that width, up to its slot.
 export const SVG_CARD = Object.freeze({ width: 880, height: 160, font: 13, cell: 7.8, pad: 18 });
@@ -52,7 +52,7 @@ const FONT = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', 
 
 const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const widthOf = (text) => textWidth(text) * SVG_CARD.cell;
-const levelColor = (percent) => (percent >= 90 ? C.hudRed : percent >= 70 ? C.hudYellow : C.hudGreen);
+export const levelColor = (percent) => (percent >= 90 ? C.hudRed : percent >= 70 ? C.hudYellow : C.hudGreen);
 
 // Edge spaces become offsets: an SVG text element drops leading and trailing whitespace.
 const text = (x, y, body, { fill = C.white, bold = false, anchor = "start" } = {}) => {
@@ -85,7 +85,7 @@ const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = nul
   return { markup: parts.join(""), end: x + w };
 };
 
-const indicatorOf = (model, accent) => {
+export const indicatorOf = (model, accent) => {
   if (model.completion) return { label: "DONE ✓", fill: C.green };
   if (model.idle) return { label: "idle", fill: C.dim, plain: true };
   const flow = model.workflow;
@@ -109,7 +109,7 @@ const topRow = (model, accent, animate) => {
   return brand.markup + title.markup + right;
 };
 
-const rightOfPhases = (model, withProgress = true) => {
+export const rightOfPhases = (model, withProgress = true) => {
   const pieces = [];
   if (model.ctxWarning) pieces.push([[`ctx ${model.ctxWarning.percent}% → ${model.ctxWarning.threshold}%`, { fill: C.amber, bold: true }]]);
   if (model.lanes.count > 0) pieces.push([[`● ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fill: C.green }]]);
@@ -158,7 +158,7 @@ const phaseRow = (model, accent, animate) => {
   return out.join("");
 };
 
-const mapColor = (accent, position) => gradientAt([C.orange, C.pink, accent], position);
+export const mapColor = (accent, position) => gradientAt([C.orange, C.pink, accent], position);
 const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(0, 3));
 
 // Right-aligned groups after `x`, the leftmost dropped first when the row is short of room.
@@ -218,7 +218,7 @@ const mapRowSvg = (model, accent, animate) => {
   return out.join("");
 };
 
-const VERDICT_FILL = Object.freeze({ pass: ["✓", C.green], fail: ["✗", C.red], pending: ["·", C.dim], running: ["●", C.amber] });
+export const VERDICT_FILL = Object.freeze({ pass: ["✓", C.green], fail: ["✗", C.red], pending: ["·", C.dim], running: ["●", C.amber] });
 
 // └ task 3/7 ▮▮▮▯▯▯▯▯ · next ▸ <task> on the left, the spinner and the tool on the right.
 const detailRowSvg = (model, accent, animate) => {
@@ -276,7 +276,7 @@ const detailRowSvg = (model, accent, animate) => {
   return out.join("");
 };
 
-const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
+export const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
 
 // Skill chips, or the notice or the finish while one is up, or the hint while nothing has fired.
 const middleRow = (model, accent, animate) => {
@@ -351,7 +351,7 @@ const bottomRow = (model, accent) => {
   return out.join("");
 };
 
-const borderColor = (model, accent) => {
+export const borderColor = (model, accent) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return C.red;
   if (model.warnings.length) return C.amber;
   return model.idle ? C.faint : accent;

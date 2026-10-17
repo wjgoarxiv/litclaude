@@ -14,6 +14,7 @@
 
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
+import { composeNativeCard } from "../lib/mod/native-card.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
 import { accentFromSettings, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
@@ -101,17 +102,18 @@ const stillModel = (model) => model && {
 };
 
 // What the card would show on each surface still attached. Invalidation redraws every surface at
-// once, and the desktop's Svg is loaded afresh with each new source, restarting its animations; so
-// while a drawing surface is attached, time alone never redraws: it is compared by its drawing and
-// the terminal by the still model (its surface module counts the step clock on by itself). A
-// terminal on its own is compared by the whole model, so its countdown and lane times move too.
+// once. A phone's Svg is loaded afresh with each new source, restarting its animations, and the
+// desktop's own-element card shows no clock; so while either is attached, time alone never
+// redraws: the Svg is compared by its drawing, the desktop and the terminal by the still model (the
+// terminal's surface module counts the step clock on by itself). A terminal on its own is compared
+// by the whole model, so its countdown and lane times move too.
 function drawnKey(live, model) {
   const kinds = new Set(Object.values(live.drawnOn));
   if (kinds.size === 0) return JSON.stringify(model);
-  const withSvg = kinds.has("svg");
+  const still = kinds.has("svg") || kinds.has("native");
   return [...kinds].map((kind) => (kind === "svg"
     ? (model?.visible ? composeSvgCard(model, { motion: live.motion, accent: live.accent }).source : "hidden")
-    : JSON.stringify(withSvg ? stillModel(model) : model))).join("\n");
+    : JSON.stringify(still ? stillModel(model) : model))).join("\n");
 }
 
 async function rebuild($, live) {
@@ -373,10 +375,14 @@ export const register = (on, options) => {
     const elements = $.ui.resolve(e);
     const columns = Math.max(20, e.props.bodyColumns ?? e.viewport?.columns ?? 80);
     let drawn = null;
-    live.drawnOn[e.surface] = e.surface !== "terminal" && elements.Svg ? "svg" : "cells";
-    if (e.surface !== "terminal" && elements.Svg) {
-      // A desktop or editor draws Text in a proportional font, so the cell-built card comes apart
-      // there; those surfaces get the card as one drawing instead.
+    const native = e.surface === "desktop";
+    live.drawnOn[e.surface] = native ? "native" : e.surface !== "terminal" && elements.Svg ? "svg" : "cells";
+    if (native) {
+      // The desktop draws Text in a proportional font, so the cell-built card comes apart there, and
+      // it loads each new Svg into a fresh frame, blanking it; it gets a card of flex rows instead.
+      if (model.visible) drawn = composeNativeCard(elements, model, { accent: live.accent });
+    } else if (e.surface !== "terminal" && elements.Svg) {
+      // A phone or editor draws Text in a proportional font too; it gets the card as one drawing.
       if (model.visible) {
         const { source, alt, animated } = composeSvgCard(model, { motion: settings.motion, accent: live.accent });
         drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
