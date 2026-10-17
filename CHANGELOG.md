@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.30 - 2026-10-16
+
+- The pre-write guard now refuses more of the lines that tell a reader what a document is not for, such as `This table is not a ranking.` or `이 문서는 제품을 비교하려는 것이 아닙니다.` These forms came from real sessions. Bold-label callouts such as `> **주의:** ...` are now read too, while ordinary quoted text is still skipped. Lines from manuals and lab reports that only look similar stay allowed, and a large flood of matches can no longer push the scan past its limit into an allowed write.
+- In the Claude Code desktop app, the mod card was sent again every two seconds while a tool ran, because its elapsed clock changed. The desktop card now leaves the clock out and redraws only when something it shows changes; the terminal card keeps its live clock.
+
 ## 1.0.29 - 2026-10-15
 
 - Reports and decks no longer fill up with lines that tell the reader what the document is not for, such as `동일 조건의 독립 성능 비교로 쓰지 않음.` When the model writes one into a file, the pre-write guard refuses the save and the model rewrites it. Three new rules cover Korean self-referencing pledges, repeated disclaimers and the English forms; legal and financial notices, safety warnings and real negative findings stay untouched. The rules finish in milliseconds even on very long runs of spaces.

@@ -9,7 +9,7 @@ import {
 } from "../lib/wikify-knowledge.mjs";
 
 const protocolVersion = "2024-11-05";
-const serverVersion = "1.0.29";
+const serverVersion = "1.0.30";
 
 const publicSourceReadTool = {
   name: "public_source_read",
