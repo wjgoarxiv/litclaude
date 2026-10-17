@@ -86,6 +86,7 @@ test("the mod is read-only: no writes, processes, network, model calls or prompt
     "fs.stat",
     "session.cwd",
     "session.id",
+    "session.surfaces",
     "session.usage",
     "settings.read",
     "ui.invalidate",

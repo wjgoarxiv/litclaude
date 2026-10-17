@@ -158,7 +158,7 @@ Review comments, README text, changelogs, commits, and pull-request prose as pro
 
 - **Block** means a high-confidence drafting label, stacked disclaimer, or model self-reference needs a deliberate rewrite before the hook allows a supported reader-facing write.
 - **Warn** means inspect tone, structure, or rhythm and decide from context. A warning never denies a write by itself.
-- Fenced and inline code, Markdown blockquotes, internal records/paths, and unchanged replacement context are excluded. Tool adapters pass only new Write content or Edit/MultiEdit replacement text.
+- Fenced and inline code, Markdown blockquotes, internal records/paths, and unchanged replacement context are excluded. One exception: a quote line that opens with a bold label (`> **주의:** ...`) is the author's own callout, and the three pledge rules read it as a single line; a plain quote stays excluded. Tool adapters pass only new Write content or Edit/MultiEdit replacement text.
 - DOCX/PPTX and PDFs are read only after creation through bounded local extractors. If an extractor is missing, a file is unreadable, or the check times out, the guard allows the operation and shows one short note that the check did not run.
 
 When a pattern would remove a correct fact, meaningful scope, required attribution, or the user's voice, keep the text and explain the decision only if the user needs it.

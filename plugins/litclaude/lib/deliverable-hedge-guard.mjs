@@ -181,13 +181,15 @@ const runScanner = (artifacts, pluginRoot, execute = spawnSync) => {
   try {
     const parsed = JSON.parse(run.stdout);
     if (!Array.isArray(parsed.findings)) return { failure: "returned an invalid result" };
-    return { findings: parsed.findings };
+    const total = Number.isInteger(parsed.total) && parsed.total >= parsed.findings.length ? parsed.total : parsed.findings.length;
+    return { findings: parsed.findings, total };
   } catch {
     return { failure: "returned an invalid result" };
   }
 };
 
-const resultFor = (findings, paths) => ({
+const resultFor = (findings, paths, total = findings.length) => ({
+  total,
   status: findings.some((finding) => finding.severity === "block")
     ? "block"
     : findings.some((finding) => finding.severity === "warn") ? "warn" : "clean",
@@ -231,7 +233,7 @@ const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, phase = "pre
     }
     const scanned = runScanner(artifacts, pluginRoot, execute);
     if (scanned.failure) return { status: "unavailable", reason: `detector ${scanned.failure}`, findings: [], paths: [] };
-    return { ...resultFor(scanned.findings, paths), phase };
+    return { ...resultFor(scanned.findings, paths, scanned.total), phase };
   }
 
   const { artifacts: candidates, skipped } = toolArtifacts(input);
@@ -272,7 +274,7 @@ const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, phase = "pre
   const artifacts = [...byPath].map(([path, text]) => ({ path, text }));
   const scanned = runScanner(artifacts, pluginRoot, execute);
   if (scanned.failure) return { status: "unavailable", reason: `detector ${scanned.failure}`, findings: [], paths: [] };
-  return resultFor(scanned.findings, artifacts.map(({ path }) => path));
+  return resultFor(scanned.findings, artifacts.map(({ path }) => path), scanned.total);
 };
 
 export const evaluateDeliverableHedgeGuard = (options) => {
@@ -286,7 +288,8 @@ export const evaluateDeliverableHedgeGuard = (options) => {
 const findingSummary = (result) => {
   const findings = Array.isArray(result?.findings) ? result.findings : [];
   const listed = findings.slice(0, 8).map((finding) => `${finding.rule} line ${finding.line}`).join(", ");
-  const omitted = findings.length > 8 ? `; ${findings.length - 8} more` : "";
+  const total = Number.isInteger(result?.total) ? Math.max(result.total, findings.length) : findings.length;
+  const omitted = total > 8 ? `; ${total - 8} more` : "";
   return listed ? `${listed}${omitted}` : "pattern review needed";
 };
 

@@ -50,6 +50,8 @@ const LONG_TURN_MS = 3 * 60 * 1000;
 
 const createLive = (options) => ({
   band: normalizeModSettings(options).band,
+  motion: normalizeModSettings(options).motion,
+  drawnOn: {},
   iconFont: { present: false, path: null, note: "basic: not checked yet" },
   env: {},
   snapshot: null,
@@ -90,6 +92,28 @@ const stateIo = ($) => ({
 
 const toastText = (raised) => `🔥 ${raised.title}${raised.detail ? ` · ${raised.detail}` : ""}`;
 
+// The model less what moves with time alone: the step clock, the loop countdown, the lanes' run times.
+const stillModel = (model) => model && {
+  ...model,
+  step: model.step && { name: model.step.name },
+  autoloop: model.autoloop && { n: model.autoloop.n, max: model.autoloop.max },
+  lanes: { ...model.lanes, list: model.lanes.list.map(({ elapsedMs, ...lane }) => lane) },
+};
+
+// What the card would show on each surface still attached. Invalidation redraws every surface at
+// once, and the desktop's Svg is loaded afresh with each new source, restarting its animations; so
+// while a drawing surface is attached, time alone never redraws: it is compared by its drawing and
+// the terminal by the still model (its surface module counts the step clock on by itself). A
+// terminal on its own is compared by the whole model, so its countdown and lane times move too.
+function drawnKey(live, model) {
+  const kinds = new Set(Object.values(live.drawnOn));
+  if (kinds.size === 0) return JSON.stringify(model);
+  const withSvg = kinds.has("svg");
+  return [...kinds].map((kind) => (kind === "svg"
+    ? (model?.visible ? composeSvgCard(model, { motion: live.motion, accent: live.accent }).source : "hidden")
+    : JSON.stringify(withSvg ? stillModel(model) : model))).join("\n");
+}
+
 async function rebuild($, live) {
   const now = await $.clock.now();
   const previous = live.model;
@@ -117,7 +141,7 @@ async function rebuild($, live) {
       $.ui.invalidate("ui.render");
     });
   }
-  if (JSON.stringify(previous) !== JSON.stringify(next)) $.ui.invalidate("ui.render");
+  if (drawnKey(live, previous) !== drawnKey(live, next)) $.ui.invalidate("ui.render");
   return next;
 }
 
@@ -328,6 +352,14 @@ export const register = (on, options) => {
     return next(e);
   }).catch(($, e, next) => next(e));
 
+  // A client left: once no client of its surface remains, that surface stops counting.
+  on("session.detach", async ($, e, next) => {
+    const result = await next(e);
+    const roster = await $.session.surfaces();
+    if (!roster.includes(e.surface)) delete live.drawnOn[e.surface];
+    return result;
+  }).catch(($, e, next) => next(e));
+
   on("ui.fault", async ($, e, next) => {
     if (e.component === "AbovePrompt") live.clientFailed = true;
     return next(e);
@@ -341,6 +373,7 @@ export const register = (on, options) => {
     const elements = $.ui.resolve(e);
     const columns = Math.max(20, e.props.bodyColumns ?? e.viewport?.columns ?? 80);
     let drawn = null;
+    live.drawnOn[e.surface] = e.surface !== "terminal" && elements.Svg ? "svg" : "cells";
     if (e.surface !== "terminal" && elements.Svg) {
       // A desktop or editor draws Text in a proportional font, so the cell-built card comes apart
       // there; those surfaces get the card as one drawing instead.

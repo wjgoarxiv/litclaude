@@ -468,8 +468,12 @@ It shows the settled state, with no entrances or crossfades. While LitClaude wor
 SMIL animation inside the drawing, which the surface runs in a script-less sandboxed frame: the
 pill and the border breathe and the step's spinner turns, and on `full` a light crosses the
 current stage and the current chips, a head runs the rail leaving it, the count bar's head
-shimmers and a comet runs around the border. An idle card is a still image. The step's clock
-moves with each new drawing, about every two seconds.
+shimmers and a comet runs around the border. An idle card is a still image. The app loads each new
+drawing from scratch and restarts its animation, so this card names the running tool without its
+clock and shows the loop round without its countdown. It is redrawn only when something you would
+notice changes, such as the stage, the tool, a skill, a usage figure or the goal. While the card
+shows in a terminal and the app at once, the terminal's loop countdown and lane times wait for such
+a change too; its step clock keeps counting on its own.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
 which the terminal and the desktop app's Code tab both read). The installer writes each default

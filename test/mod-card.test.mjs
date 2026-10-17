@@ -315,7 +315,7 @@ test("the git branch comes from HEAD, across a linked worktree, read-only", asyn
 
 // A stand-in for Claude Code's mods host: enough of `on` and `$` to drive the hooks module the way a
 // session does, and an element table that records the drawn text.
-const harness = async (options = {}, agents = [], files = new Map()) => {
+const harness = async (options = {}, agents = [], files = new Map(), { client = false } = {}) => {
   const hooks = [];
   const on = (event, matcher, hook) => {
     const entry = typeof matcher === "function" ? { event, matcher: {}, hook: matcher } : { event, matcher, hook };
@@ -327,6 +327,9 @@ const harness = async (options = {}, agents = [], files = new Map()) => {
   const timers = [];
   const notified = [];
   const played = [];
+  const invalidations = [];
+  const polls = [];
+  const roster = ["terminal"];
   const $ = {
     fs: {
       stat: async (path) => (files.has(path) ? { kind: "file", size: files.get(path).length, isLink: false } : null),
@@ -335,14 +338,14 @@ const harness = async (options = {}, agents = [], files = new Map()) => {
         return files.get(path);
       },
     },
-    session: { cwd: async () => "/nowhere/project", id: async () => "card-session", usage: async () => usage },
+    session: { cwd: async () => "/nowhere/project", id: async () => "card-session", usage: async () => usage, surfaces: async () => [...roster] },
     agent: { list: async () => agents },
-    clock: { now: async () => now, after: (ms, fn) => timers.push(fn), every: () => () => undefined },
+    clock: { now: async () => now, after: (ms, fn) => timers.push(fn), every: (ms, fn) => { polls.push(fn); return () => undefined; } },
     env: { get: async () => undefined },
     settings: { read: async () => ({ statusLine: { type: "command", command: "LITCLAUDE_HUD_ACCENT=rose node hud.js" } }) },
     command: { register: async () => undefined },
     ui: {
-      invalidate: () => undefined,
+      invalidate: (what) => { invalidations.push(what); },
       toast: () => undefined,
       open: async () => undefined,
       resolve: () => elements,
@@ -357,6 +360,7 @@ const harness = async (options = {}, agents = [], files = new Map()) => {
     Box: ({ children = [] }) => ({ kind: "box", children }),
     Text: ({ children, color, backgroundColor }) => ({ kind: "text", text: children, color, backgroundColor }),
     Svg: (props) => ({ kind: "svg", ...props }),
+    ...(client ? { Client: (props) => ({ kind: "client", ...props }) } : {}),
   };
   const fire = async (event, e, matcher = {}, core = undefined) => {
     const chain = hooks.filter((entry) => entry.event === event && Object.entries(matcher).every(([key, value]) => entry.matcher[key] === value));
@@ -377,7 +381,12 @@ const harness = async (options = {}, agents = [], files = new Map()) => {
   const drawOn = (surface) => fire("ui.render", { surface, props: { bodyColumns: 80 } }, { component: "AbovePrompt" });
   // A streaming event's hook is a generator over the stream beneath; `core` stands for that stream.
   const stream = (event, e, core) => hooks.find((entry) => entry.event === event).hook($, e, () => core);
-  return { fire, stream, flush, band, drawOn, notified, played, tick: (ms) => { now += ms; } };
+  // The session's every-two-seconds poll, as the host's clock fires it.
+  const poll = async () => {
+    for (const fn of polls) fn();
+    await flush();
+  };
+  return { fire, stream, flush, band, drawOn, poll, invalidations, roster, notified, played, tick: (ms) => { now += ms; } };
 };
 
 test("the mod lights a chip for a LitClaude Skill call or slash command and dims it when the turn completes", async () => {
@@ -644,6 +653,122 @@ test("on the desktop surface the mod draws the card as one Svg, and keeps the ce
   assert.equal(working.kind, "svg");
   assert.equal(working.isInteractive, true, "a moving card is drawn in the sandboxed frame so SMIL runs");
   assert.match(working.source, /lit-plan/u);
+});
+
+test("while only the clock moves, the desktop card is not redrawn: no invalidation, the same SVG source", async () => {
+  const host = await harness({ glyphs: "basic", motion: "full" });
+  await host.fire("session.start", {});
+  await host.flush();
+  host.tick(1000);
+  await host.fire("turn.start", {});
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-loop" }, {}, {});
+  await host.flush();
+  let release;
+  const call = host.fire("tool.call", { tool: "WebSearch" }, {}, new Promise((resolve) => { release = resolve; }));
+  await host.flush();
+  const first = await host.drawOn("desktop");
+  assert.match(first.source, />WebSearch</u);
+  assert.equal(first.isInteractive, true);
+  host.invalidations.length = 0;
+  for (let i = 0; i < 5; i += 1) {
+    host.tick(2000);
+    await host.poll();
+    assert.equal((await host.drawOn("desktop")).source, first.source, `poll ${i + 1}: the drawing is byte-identical`);
+  }
+  assert.deepEqual(host.invalidations, [], "a poll that changes nothing but the clock leaves the desktop frame alone");
+  assert.doesNotMatch(first.source, /\b\d+:\d\d\b/u, "the desktop card carries no running clock");
+
+  release({});
+  await call;
+  await host.flush();
+  assert.ok(host.invalidations.length > 0, "a new step is a real change and redraws");
+  const after = await host.drawOn("desktop");
+  assert.notEqual(after.source, first.source);
+  assert.match(after.source, />thinking</u);
+  assert.doesNotMatch(after.source, />WebSearch</u);
+});
+
+test("the terminal card keeps its live clock: each poll still redraws it", async () => {
+  const host = await harness({ glyphs: "basic", motion: "off" });
+  await host.fire("session.start", {});
+  await host.fire("turn.start", {});
+  const call = host.fire("tool.call", { tool: "WebSearch" }, {}, new Promise(() => undefined));
+  await host.flush();
+  assert.match((await host.band()).lines[2], /WebSearch · 0:00 │$/u);
+  host.invalidations.length = 0;
+  host.tick(2000);
+  await host.poll();
+  assert.ok(host.invalidations.length > 0, "the terminal card is redrawn as its clock moves");
+  assert.match((await host.band()).lines[2], /WebSearch · 0:02 │$/u);
+  void call;
+});
+
+// A session drawn on the terminal and on a remote desktop at once: one invalidation redraws both.
+const heldWebSearch = async (hostExtras) => {
+  const host = await harness({ glyphs: "basic", motion: "full" }, [], new Map(), hostExtras);
+  await host.fire("session.start", {});
+  await host.flush();
+  host.tick(1000);
+  await host.fire("turn.start", {});
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-loop" }, {}, {});
+  await host.flush();
+  let release;
+  const call = host.fire("tool.call", { tool: "WebSearch" }, {}, new Promise((resolve) => { release = resolve; }));
+  await host.flush();
+  return { host, release, call };
+};
+const clockOnlyPolls = async (host, surfaces, n = 5) => {
+  host.invalidations.length = 0;
+  const sources = new Set();
+  for (let i = 0; i < n; i += 1) {
+    host.tick(2000);
+    await host.poll();
+    for (const surface of surfaces) {
+      const drawn = await host.drawOn(surface);
+      if (drawn?.kind === "svg") sources.add(drawn.source);
+    }
+  }
+  return { invalidations: host.invalidations.length, sources: sources.size };
+};
+
+test("with the terminal's surface module and a desktop both attached, a clock-only poll redraws neither", async () => {
+  const { host, release, call } = await heldWebSearch({ client: true });
+  host.roster.push("desktop");
+  assert.equal((await host.drawOn("terminal")).kind, "client");
+  const first = await host.drawOn("desktop");
+  assert.deepEqual(await clockOnlyPolls(host, ["terminal", "desktop"]), { invalidations: 0, sources: 1 }, "the surface module counts the clock on by itself");
+  release({});
+  await call;
+  await host.flush();
+  assert.ok(host.invalidations.length > 0, "a new step still redraws both");
+  assert.notEqual((await host.drawOn("desktop")).source, first.source);
+});
+
+test("a terminal that drew once does not keep the desktop redrawing, and a desktop that detaches gives the terminal its clock back", async () => {
+  const { host } = await heldWebSearch();
+  host.roster.push("desktop");
+  await host.drawOn("terminal");
+  await host.drawOn("desktop");
+  assert.deepEqual(await clockOnlyPolls(host, ["desktop"]), { invalidations: 0, sources: 1 }, "while a desktop shows the card, time alone never re-delivers it");
+  host.roster.pop();
+  await host.fire("session.detach", { surface: "desktop", clientId: "desktop:default", reason: "detach" }, {}, { clientId: "desktop:default" });
+  host.invalidations.length = 0;
+  host.tick(2000);
+  await host.poll();
+  assert.ok(host.invalidations.length > 0, "the terminal alone gets its clock redrawn again");
+  assert.match((await host.band()).lines[2], /WebSearch · 0:1\d │$/u);
+});
+
+test("the SVG card leaves out the step clock and the loop countdown, so time alone never changes its source", () => {
+  const at = (elapsedMs, leftMs, n = 2) => composeSvgCard(svgModel({ step: { name: "WebSearch", elapsedMs }, autoloop: { n, max: 5, leftMs } }), { accent: CYAN });
+  const early = at(2000, 600_000);
+  const later = at(9000, 540_000);
+  assert.equal(later.source, early.source);
+  assert.equal(later.alt, early.alt);
+  assert.match(early.source, />WebSearch</u);
+  assert.match(early.source, />↻ 2\/5</u, "the loop count stays");
+  assert.doesNotMatch(early.source, /0:0\d|\b\d+m\b|\b\d+s\b/u, "no clock or countdown");
+  assert.notEqual(at(9000, 540_000, 3).source, early.source, "a new loop round still changes the drawing");
 });
 
 // The workflow map: one snapshot per family, as the state files and hooks leave them.

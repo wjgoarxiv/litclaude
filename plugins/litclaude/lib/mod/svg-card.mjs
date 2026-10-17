@@ -11,15 +11,15 @@
 // brand pill and the border breathe (full and subtle), a light crosses the current stage and this
 // request's chips, a bright head runs along the rail leaving the current stage, the count bar's
 // head shimmers, the step spinner turns and a comet runs around the border (full only). Idle, it is
-// still. The step's clock moves with each new drawing the mod hands the surface.
+// still. The drawing carries no step clock and no loop countdown: the surface loads each new
+// drawing afresh, restarting every animation, so a figure that moves with time alone would make the
+// card blink on every poll.
 //
 // Text is set in a monospace face and placed by counted cells (Hangul and emoji as two), so the
 // layout does not depend on measuring a font the drawing cannot see.
 
-import { formatClock } from "./frame.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { TIMINGS, barCells, gradientAt } from "./motion.mjs";
-import { formatDuration } from "./view.mjs";
 
 const C = Object.freeze({
   bg: "#0d1117",
@@ -113,7 +113,7 @@ const rightOfPhases = (model, withProgress = true) => {
   const pieces = [];
   if (model.ctxWarning) pieces.push([[`ctx ${model.ctxWarning.percent}% → ${model.ctxWarning.threshold}%`, { fill: C.amber, bold: true }]]);
   if (model.lanes.count > 0) pieces.push([[`● ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fill: C.green }]]);
-  if (model.autoloop) pieces.push([[`↻ ${model.autoloop.n}/${model.autoloop.max}`, { fill: C.violet }], [` · ${formatDuration(model.autoloop.leftMs)}`, { fill: C.dim }]]);
+  if (model.autoloop) pieces.push([[`↻ ${model.autoloop.n}/${model.autoloop.max}`, { fill: C.violet }]]);
   if (!withProgress) return pieces;
   if (model.progress) {
     pieces.push([[`${model.progress.unit === "tasks" ? "tasks" : "goal"} `, { fill: C.dim }], [`${model.progress.done}`, { fill: C.white, bold: true }], [`/${model.progress.total}`, { fill: C.dim }]]);
@@ -220,7 +220,7 @@ const mapRowSvg = (model, accent, animate) => {
 
 const VERDICT_FILL = Object.freeze({ pass: ["✓", C.green], fail: ["✗", C.red], pending: ["·", C.dim], running: ["●", C.amber] });
 
-// └ task 3/7 ▮▮▮▯▯▯▯▯ · next ▸ <task> on the left, the spinner, tool and clock on the right.
+// └ task 3/7 ▮▮▮▯▯▯▯▯ · next ▸ <task> on the left, the spinner and the tool on the right.
 const detailRowSvg = (model, accent, animate) => {
   const { width, pad, cell } = SVG_CARD;
   const y = ROW_Y[2];
@@ -228,10 +228,7 @@ const detailRowSvg = (model, accent, animate) => {
   const out = [];
   let right = pad;
   if (model.step) {
-    const clock = ` · ${formatClock(model.step.elapsedMs)}`;
-    const end = width - pad;
-    out.push(text(end, y, clock, { fill: C.dim, anchor: "end" }));
-    const nameEnd = end - widthOf(clock);
+    const nameEnd = width - pad;
     out.push(text(nameEnd, y, model.step.name, { fill: C.white, anchor: "end" }));
     const cx = nameEnd - widthOf(model.step.name) - 10;
     out.push(`<circle cx="${cx.toFixed(1)}" cy="${y - 4}" r="4.5" fill="none" stroke="${accent}" stroke-width="1.8" stroke-dasharray="18 10.3">`
@@ -373,7 +370,7 @@ export const svgCardAlt = (model) => {
   } else if (current && !model.idle) {
     parts.push(`phase ${LABELS[current]}`);
   }
-  if (model.step) parts.push(`running ${model.step.name} ${formatClock(model.step.elapsedMs)}`);
+  if (model.step) parts.push(`running ${model.step.name}`);
   if (model.skills.length) parts.push(`skills ${model.skills.map(({ id }) => id).join(", ")}`);
   const { context, rates } = model.figures;
   if (context !== null) parts.push(`context ${context}%`);

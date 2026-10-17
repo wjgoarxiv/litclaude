@@ -241,7 +241,7 @@ describe("negative pledge sentences in deliverables", () => {
   });
 
   it("keeps every near-miss and review sentence clear of the pledge rules", () => {
-    assert.ok(cases.near_misses.length >= 27 && cases.near_misses_review.length >= 85);
+    assert.ok(cases.near_misses.length >= 27 && cases.near_misses_review.length >= 215);
     for (const near of [...cases.near_misses, ...cases.near_misses_review]) {
       const hits = scanText(near.text, rules, "near-miss.md").filter((hit) => pledgeRules.includes(hit.rule));
       assert.deepEqual(hits, [], near.text);
@@ -249,11 +249,79 @@ describe("negative pledge sentences in deliverables", () => {
   });
 
   it("decides whole-document cases per rule", () => {
-    assert.equal(cases.document_cases.length, 8);
+    assert.equal(cases.document_cases.length, 13);
     for (const doc of cases.document_cases) {
       const blocked = scanText(doc.text, rules, "document.md").some((hit) => hit.rule === doc.rule && hit.severity === "block");
       assert.equal(blocked, doc.expect === "block", JSON.stringify(doc.text));
     }
+  });
+
+  it("blocks every pledge a model wrote in the host probe", () => {
+    assert.equal(cases.pledges_observed.length, 26);
+    for (const pledge of cases.pledges_observed) {
+      const hits = scanText(pledge.text, rules, "observed.md");
+      assert.ok(
+        hits.some((hit) => hit.rule === pledge.rule && hit.severity === "block"),
+        `${pledge.rule}: ${pledge.text}`,
+      );
+    }
+  });
+
+  for (const [label, content, rule] of [
+    ["a Korean intent clause", "이 문서는 제품을 비교하려는 것이 아닙니다.", "ko-negative-pledge"],
+    ["an English table sentence", "This table is not a ranking.", "en-negative-pledge"],
+    ["a bold-label Korean callout", "> **주의:** 이 표는 순위가 아닙니다.", "ko-negative-pledge"],
+    ["a bold-label English callout", "> **Note:** This table is not a ranking.", "en-negative-pledge"],
+  ]) {
+    it(`refuses ${label} in a Write event and names ${rule}`, (t) => {
+      const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-wide-"));
+      t.after(() => rmSync(cwd, { recursive: true, force: true }));
+      const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content: `${content}\n` });
+      assert.equal(result.status, "block");
+      assert.ok(result.findings.some((finding) => finding.rule === rule && finding.severity === "block"));
+      assert.match(formatHumanizerBlockReason(result), new RegExp(`${rule} line 1`, "u"));
+    });
+  }
+
+  for (const [label, content] of [
+    ["a plain quote line", "> 이 표는 순위가 아닙니다."],
+    ["a plain English quote line", "> This table is not a ranking."],
+    ["a statement that two kinds of value cannot be compared", "숫자와 문자열은 서로 비교할 수 없습니다."],
+    ["an instruction to convert before comparing", "Do not compare these values directly; convert to SI first."],
+  ]) {
+    it(`lets ${label} through a Write event`, (t) => {
+      const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-clean-"));
+      t.after(() => rmSync(cwd, { recursive: true, force: true }));
+      const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content: `${content}\n` });
+      assert.deepEqual(pledgeHits(result), []);
+      assert.notEqual(result.status, "block");
+    });
+  }
+
+  it("denies a bold-label callout pledge through the real PreToolUse hook", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-callout-hook-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const run = (content) => {
+      const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" },
+        input: JSON.stringify({
+          hook_event_name: "PreToolUse",
+          cwd,
+          tool_name: "Write",
+          tool_input: { file_path: join(cwd, "report.md"), content },
+        }),
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : {};
+    };
+    const denied = run("> **주의:** 이 표는 순위가 아닙니다.\n");
+    assert.equal(denied.permissionDecision, "deny");
+    assert.match(denied.permissionDecisionReason, /ko-negative-pledge/u);
+    assert.notEqual(run("> 이 표는 순위가 아닙니다.\n").permissionDecision, "deny");
+    assert.notEqual(run("숫자와 문자열은 서로 비교할 수 없습니다.\n").permissionDecision, "deny");
   });
 
   it("counts the repeat rule over the changed text only: a second pledge added to a file that holds one is not refused", (t) => {
@@ -280,5 +348,40 @@ describe("negative pledge sentences in deliverables", () => {
     const subject = guard(cwd, "Edit", { file_path: path, old_string: `${first}\n`, new_string: `${first}\n이 표는 순위를 매기기 위한 것이 아닙니다.\n` });
     assert.equal(subject.status, "block");
     assert.ok(subject.findings.some((finding) => finding.rule === "ko-negative-pledge"));
+  });
+
+  // A large file of repeated pledges makes the scanner report thousands of findings. The
+  // scanner output must stay bounded so the child buffer never overflows into an allowed write.
+  it("refuses a 500 KiB Write of repeated pledges inside the scan timeout instead of failing open", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-flood-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const line = `${userPledge}\n`;
+    const content = line.repeat(Math.floor((500 * 1024) / Buffer.byteLength(line, "utf8")));
+    assert.ok(Buffer.byteLength(content, "utf8") < 512 * 1024);
+    const started = process.hrtime.bigint();
+    const result = guard(cwd, "Write", { file_path: join(cwd, "report.md"), content });
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+    assert.equal(result.status, "block", `status ${result.status} ${result.reason ?? ""}`);
+    assert.ok(result.findings.some((finding) => finding.rule === "ko-negative-pledge" && finding.severity === "block"));
+    assert.match(formatHumanizerBlockReason(result), /ko-negative-pledge/u);
+    assert.ok(elapsedMs < 2000, `guard took ${elapsedMs.toFixed(0)} ms`);
+  });
+
+  it("denies the 500 KiB pledge flood through the real PreToolUse hook", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-flood-hook-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const line = `${userPledge}\n`;
+    const content = line.repeat(Math.floor((500 * 1024) / Buffer.byteLength(line, "utf8")));
+    const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+      cwd,
+      encoding: "utf8",
+      timeout: 10000,
+      env: { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" },
+      input: JSON.stringify({ hook_event_name: "PreToolUse", cwd, tool_name: "Write", tool_input: { file_path: join(cwd, "report.md"), content } }),
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const output = JSON.parse(result.stdout).hookSpecificOutput;
+    assert.equal(output.permissionDecision, "deny");
+    assert.match(output.permissionDecisionReason, /ko-negative-pledge/u);
   });
 });
