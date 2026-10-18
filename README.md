@@ -11,6 +11,18 @@
 <a href="https://github.com/wjgoarxiv/litclaude/stargazers"><img src="https://img.shields.io/github/stars/wjgoarxiv/litclaude?style=flat" alt="GitHub stars" /></a>
 </p>
 
+Add `lit` to a Claude Code prompt and Claude pins the goal, writes a failing test first, checks
+the real result and writes down what it found. Type `handoff` when you stop, and the next session
+starts from that note instead of from scratch. To try it, install once and give Claude a task:
+
+```bash
+npx @litfamily/litclaude@latest install   # then open a new Claude Code session
+```
+
+```text
+lit fix the date parsing bug in src/dates.js, with a test
+```
+
 <p align="center"><a href="#install">Install</a> &nbsp; <a href="#quick-start">Quick start</a> &nbsp; <a href="./docs/guide.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> Guide</a> &nbsp; <a href="./docs/skills.md">Skills</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> Film</a> &nbsp; <a href="./docs/guide.md#safety"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> Safety</a> &nbsp; <a href="./README_ko-KR.md">한국어</a></p>
 
 <!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="The film opens on a title card with the LIT mark, LitClaude and The lit workflow for Claude Code, then cuts to a Claude Code session in a small Node project with LitClaude installed, where a numbered two-line caption names each step. The prompt &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot; is sent, and the hook answers with the LIT mark and LIT IGNITED · lit-loop. The LIT card above the prompt switches from ready to lit-loop and draws its workflow map, PIN, RED, GREEN, VERIFY, REVIEW and RECORD, with PIN lit. Claude appends the new test through the shell and runs it; the test fails and the map turns RED. While Claude changes greet.js, the live step on the card names the running tool and how long it has run, Bash · 0:00. When the command finishes the tests pass, and the map checks GREEN and lights VERIFY. The live step clears, the card goes idle, and the film ends on the LitClaude mark and the install command npx @litfamily/litclaude@latest install." /></p>
@@ -26,8 +38,30 @@ LitClaude gives each session a routine to follow. Add `lit` to a request and Cla
 goal, writes a failing test first, checks the real thing it built, and records what it found.
 For a bigger change, `lit plan` writes a plan you approve before anything is edited. When you
 stop, a handoff file keeps the goal, the results and the next step in your project, where the
-next session can read them. Claude Code still runs the session and picks the model; LitClaude adds the way of
-working.
+next session can read them. Claude Code still runs the session and picks the model, and
+LitClaude adds the way of working on top.
+
+In one line, for a friend: *put `lit` in front of a Claude Code task and it writes the failing
+test first, checks the result, and leaves tomorrow's session a note.*
+
+### Who it's for
+
+LitClaude suits people who already use Claude Code on real projects and want two things from
+it: proof before "done", and a session that can pick up where the last one stopped. It helps
+most on work that runs longer than one sitting, such as a feature with tests, a refactor or a
+research question. It also builds slides and Word reports and cleans up stiff Korean or English
+prose, so it is useful outside code as well.
+
+### What a session looks like
+
+This is the demo above in three lines. You type the first one, LitClaude's prompt hook answers
+with the second, and the card above the prompt walks the third as the work happens:
+
+```text
+lit add a --shout flag that prints the greeting in capitals, with a test
+LIT IGNITED · lit-loop
+PIN → RED (the new test fails) → GREEN (the tests pass) → VERIFY
+```
 
 ## Install
 
@@ -37,15 +71,21 @@ You need Node.js with npm, and Claude Code. Run this in any terminal:
 npx @litfamily/litclaude@latest install
 ```
 
-The first time, npx asks whether to install the package; answer `y`. The installer then
-registers the plugin, adds the LitClaude status line, and asks two questions: the status-line
-colour and an optional output style. Add `--yes` after `install` to keep the defaults. To see
-every change without making it, put `--dry-run` before `install`:
-`npx @litfamily/litclaude@latest --dry-run install`. A new install uses the `safe`
-permission mode, which adds no permission rules, and the rest of your Claude settings stay as
-they are. It also downloads the rendering engine and fonts the video skill needs, so a first
-install takes a little longer.
-[Permission modes, version pins, global installs and every switch](./docs/guide.md#installation-reference).
+The first time, npx asks whether to install the package; answer `y`. The installer registers
+the plugin, adds the LitClaude status line, and asks you two things: the status-line colour and
+an optional output style. A new install starts in the `safe` permission mode, which adds no
+permission rules, and leaves the rest of your Claude settings as they are. It also downloads
+the rendering engine and fonts the video skill needs, so the first install takes a little
+longer. Quit Claude Code and start it again afterwards so the plugin loads.
+
+Two switches change how the install runs:
+
+- `--yes` after `install` keeps the default colour and style, for when you would rather not
+  answer questions.
+- `--dry-run` before `install` prints every change and makes none, for when you want to look
+  first: `npx @litfamily/litclaude@latest --dry-run install`.
+
+[Permission modes, version pins, global installs and every other switch](./docs/guide.md#installation-reference).
 
 If you only want the plugin, without the status line or the installer, Claude Code can add it
 from the LitFamily marketplace:
@@ -110,17 +150,22 @@ name the next step.
 
 While you work, LitClaude keeps a small card just above the prompt. It shows where you are in
 the LIT workflow, what Claude is doing at this moment and which skills it has used, so you can
-follow Claude without scrolling back through the conversation. The top edge names the workflow
-and its stage. The first row is a map of that workflow: a request runs from the interview through
-the plan, the work and the review to done, a research run goes wave by wave, and a lit-loop
-criterion steps from PIN through RED and GREEN to RECORD. Stages behind you carry a check and
-the one you are in is lit. The second row tells you more about that stage, such as the task
-count and the next task, the review lanes that have passed or the interview round, and on its
-right the tool Claude is running and for how long. It shows only the tool's name, never what
-the tool was given. The third row holds a chip for each LitFamily skill that fired, and the
-bottom edge repeats the context, the five-hour and weekly usage and the Git branch from the
-status line. A request that fits none of these workflows keeps the simpler PLAN, WORK and
-REVIEW track.
+follow Claude without scrolling back through the conversation.
+
+Read it from top to bottom:
+
+- The top edge names the workflow and its stage.
+- The first row is a map of that workflow. A request runs from the interview through the plan,
+  the work and the review to done, a research run goes wave by wave, and a lit-loop criterion
+  steps from PIN through RED and GREEN to RECORD. Stages behind you carry a check and the one
+  you are in is lit. A request that fits none of these keeps the simpler PLAN, WORK and REVIEW
+  track.
+- The second row says more about that stage: the task count and the next task, the review
+  lanes that have passed, or the interview round. On its right sits the tool Claude is running
+  and for how long. Only the tool's name appears there; what the tool was given stays out.
+- The third row holds a chip for each LitFamily skill that fired.
+- The bottom edge repeats the context, the five-hour and weekly usage and the Git branch from
+  the status line.
 
 Before anything runs, the card rests and tells you how to begin:
 
@@ -146,12 +191,19 @@ and the chip turns grey and stays as a recent skill, so you can still see what r
 The card needs Claude Code 2.1.287 or later, in the terminal or in the Code tab of the Claude
 desktop app. The installer sets up both, since the app reads the same settings; open a new
 session in the app after installing. The app draws the card as a picture with the same rows and
-motion, because it sets mod text in a proportional font. The card stays for the whole session; to see it only while
-work runs, set `band` to `auto` in `/config` under LitClaude, and `off` hides it. Set `motion`
-to `subtle` for a quieter card, or `off` to keep it still. If you step away during long work,
-set `notify` to `finish`: LitClaude then sends a notification through your terminal when the
-work completes or a LIT turn longer than three minutes ends. It is off until you turn it on.
-The desktop app has no editor for these options, so change them from a terminal instead:
+motion, because it sets mod text in a proportional font.
+
+By default the card stays for the whole session and moves while Claude works. Three options in
+`/config`, under LitClaude, change that:
+
+- `band` set to `auto` shows the card only while work runs, if you like a clean prompt between
+  tasks; `off` hides it.
+- `motion` set to `subtle` gives a quieter card, and `off` keeps it still.
+- `notify` set to `finish` is for when you step away during long work. LitClaude then sends a
+  notification through your terminal when the work completes or a LIT turn longer than three
+  minutes ends. It stays off until you turn it on.
+
+The desktop app has no editor for these options, so change them from a terminal there:
 
 ```bash
 npx @litfamily/litclaude@latest config             # show the options
@@ -279,18 +331,26 @@ skips it without any change to your own ignore files. Nothing runs between sessi
 
 ## Requirements, update and uninstall
 
-- **Needs:** Node.js with npm, and Claude Code. Slides and documents install their pinned
-  tools into `~/.cache/litclaude/office-runtime` the first time you use them.
-- **Check:** `npx @litfamily/litclaude@latest doctor` checks the installed plugin, the status
-  line and the permission mode, and ends in `DOCTOR_PASS`.
-- **Update:** `npx @litfamily/litclaude@latest update`.
-- **Uninstall:** `npx @litfamily/litclaude@latest uninstall` removes only the plugin, status
-  line, permission and local state entries LitClaude manages. If an install was changed by
-  hand, it refuses to touch it and points you to the
-  [ownership guidance](./docs/migration.md#ownership-conflicts).
-- **Marketplace install:** these commands manage the npm install only. If you added the plugin
-  through the marketplace, it has no LitClaude status line, and you update or remove it from
-  Claude Code's `/plugin` menu.
+You need Node.js with npm, and Claude Code. Slides and documents install their pinned tools
+into `~/.cache/litclaude/office-runtime` the first time you use them.
+
+Three commands look after an npm install:
+
+```bash
+npx @litfamily/litclaude@latest doctor      # check the plugin, status line and permission mode
+npx @litfamily/litclaude@latest update      # install the latest release now
+npx @litfamily/litclaude@latest uninstall   # remove what LitClaude installed
+```
+
+A healthy `doctor` run ends in `DOCTOR_PASS`. You rarely need `update` by hand: once a day at
+most, a new Claude Code session checks npm for a newer version in the background, and a later
+session installs it before it starts work. `uninstall` removes only the plugin, status
+line, permission and local state entries LitClaude manages. If an install was changed by hand,
+it leaves it alone and points you to the
+[ownership guidance](./docs/migration.md#ownership-conflicts).
+
+If you added the plugin through the marketplace, it has no LitClaude status line, and you
+update or remove it from Claude Code's `/plugin` menu.
 
 ## Learn more
 
@@ -309,9 +369,9 @@ skips it without any change to your own ignore files. Nothing runs between sessi
 ## LITFAMILY
 
 The five armored robots on the cover stand for the five LitFamily products. Each one runs on
-its own in its own host, so install just the one you use. The cover is brand motion, with no
-Claude session recorded in it, and the [Ignition film](./docs/assets/readme/ignition-film.mp4)
-is a short brand film in the same spirit.
+its own in its own host, so install just the one you use. The cover is brand motion, and the
+[Ignition film](./docs/assets/readme/ignition-film.mp4) is a short brand film in the same
+spirit. The demo near the top of this page is the one that shows a real Claude Code session.
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LitClaude ASCII logo" /></p>
 

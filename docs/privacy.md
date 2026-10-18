@@ -41,8 +41,7 @@ the features used, it contains session/rule receipts, plan and goal state, work
 ledgers, saved knowledge, and other feature-specific records. SessionStart
 context-pressure detection can inspect a supplied transcript path up to 256 KiB
 for a fixed set of pressure markers; it returns only a bounded advisory. No skill
-review reads transcript excerpts or sends them to a model. Files that the removed Jev skill
-hint left in `.litclaude/jev/` are no longer read or written and may be deleted. Existing
+review reads transcript excerpts or sends them to a model. Existing
 `pending-review.json` and `skill-loop-state.json` files are inert after the
 automatic review feature's removal and may be deleted. The opt-in automatic handoff keeps `settings.json` (on or off, and the percent you chose), one `context-<session>.json` per session (the context percent and window size the status line last saw) and one `session-<session>.json` per session (whether this session's crossing was spent, when, and the random id the handoff must carry) in `.litclaude/auto-handoff/`. It reads a handoff file named `HANDOFF.md` or `.handoff/HANDOFF.md` only after compaction, up to 256 KiB, and puts the path and its first 4,000 characters into the model context; nothing is sent anywhere else. With no status line and `LITCLAUDE_AUTO_HANDOFF_WINDOW` set, the Stop hook reads the last usage entry of the transcript to compute a percent and keeps only that number. No other state is affected.
 

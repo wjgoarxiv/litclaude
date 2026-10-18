@@ -11,6 +11,18 @@
 <a href="https://github.com/wjgoarxiv/litclaude/stargazers"><img src="https://img.shields.io/github/stars/wjgoarxiv/litclaude?style=flat" alt="GitHub 스타" /></a>
 </p>
 
+Claude Code 프롬프트에 `lit`을 붙이면 Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고,
+실제 결과를 확인하고 그 내용을 적어 둡니다. 작업을 멈출 때 `handoff`를 입력해 두면 다음
+세션은 처음부터가 아니라 그 기록에서 출발합니다. 써 보려면 한 번 설치하고 Claude에게 작업을 맡겨 보세요.
+
+```bash
+npx @litfamily/litclaude@latest install   # 그다음 Claude Code 세션을 새로 엽니다
+```
+
+```text
+lit src/dates.js의 날짜 파싱 버그를 테스트와 함께 고쳐줘
+```
+
 <p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
 <!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="영상은 LIT 마크, LitClaude, The lit workflow for Claude Code가 적힌 제목 화면으로 시작해 LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션으로 넘어가며, 단계마다 번호가 붙은 두 줄 자막이 나옵니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답합니다. 프롬프트 위 LIT 카드는 ready에서 lit-loop으로 바뀌고, PIN, RED, GREEN, VERIFY, REVIEW, RECORD로 이어지는 작업 지도를 그리며 PIN에 불을 켭니다. Claude가 셸로 새 테스트를 덧붙여 돌리자 테스트가 실패하고 지도가 RED로 넘어갑니다. greet.js를 고치는 동안 카드의 실시간 단계 줄에는 지금 도는 도구와 걸린 시간이 Bash · 0:00처럼 나옵니다. 명령이 끝나면 테스트가 통과하고, 지도는 GREEN에 체크를 하고 VERIFY에 불을 켭니다. 실시간 단계 줄이 비고 카드는 idle로 돌아가며, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
@@ -26,7 +38,28 @@ LitClaude는 세션마다 따라갈 순서를 줍니다. 요청에 `lit`을 붙�
 실패하는 테스트를 먼저 쓰고, 실제로 만든 것을 확인한 뒤 결과를 기록합니다. 큰 변경은 `lit plan`으로
 계획을 먼저 세우고, 승인한 뒤에 고칩니다. 작업을 멈출 때는 핸드오프 파일이 목표와
 결과, 다음 할 일을 프로젝트에 남기고, 다음 세션은 그 파일을 읽고 이어갑니다. 세션을 돌리고
-모델을 고르는 건 여전히 Claude Code이고, LitClaude는 일하는 방식을 더할 뿐입니다.
+모델을 고르는 건 여전히 Claude Code이고, LitClaude는 그 위에 일하는 방식을 더합니다.
+
+친구에게 한 줄로 소개한다면 이렇습니다. *Claude Code 작업 앞에 `lit`만 붙이면, 실패하는 테스트부터
+쓰고 결과를 확인한 뒤 내일 세션을 위한 메모까지 남겨 줘요.*
+
+### 누구에게 맞나요
+
+이미 Claude Code로 실제 프로젝트를 하면서, Claude가 "다 됐습니다"라고 말하기 전에 근거를 보고 싶고 지난 세션이 멈춘
+곳에서 바로 이어가고 싶은 분께 맞습니다. 테스트를 곁들인 기능 추가, 리팩터링, 조사처럼 한 번에
+끝나지 않는 일에서 특히 도움이 됩니다. 발표자료와 워드 보고서를 만들고 딱딱한 한국어나 영어
+문장을 다듬는 일도 맡으니 코드 밖에서도 쓸 수 있습니다.
+
+### 세션은 이렇게 흘러갑니다
+
+위 데모를 세 줄로 줄이면 이렇습니다. 첫 줄은 사용자가 입력하고, 둘째 줄은 LitClaude의 프롬프트 hook이
+답하고, 셋째 줄은 작업이 진행되는 동안 프롬프트 위 카드가 차례로 거쳐 갑니다.
+
+```text
+lit add a --shout flag that prints the greeting in capitals, with a test
+LIT IGNITED · lit-loop
+PIN → RED (새 테스트 실패) → GREEN (테스트 통과) → VERIFY
+```
 
 ## 설치
 
@@ -37,13 +70,17 @@ npx @litfamily/litclaude@latest install
 ```
 
 처음 실행하면 npx가 패키지를 설치할지 묻는데, `y`로 답하면 됩니다. 이어서 설치 프로그램이
-플러그인을 등록하고 LitClaude 상태 줄을 붙인 뒤 두 가지를 묻습니다. 상태 줄 색상과, 쓰고 싶다면
-출력 스타일입니다. 기본값으로 바로 가려면 `install` 뒤에 `--yes`를 붙이세요. 실제로 바꾸지 않고
-무엇이 바뀌는지만 보려면 `--dry-run install` 순서로 씁니다:
-`npx @litfamily/litclaude@latest --dry-run install`. 새로 설치하면 권한 규칙을 하나도 더하지 않는
-`safe` 권한 모드로 시작하고, 나머지 Claude 설정은 그대로 둡니다. 영상 스킬에 필요한 렌더링
-엔진과 글꼴도 함께 내려받기 때문에 처음 설치는 조금 더 걸립니다.
-[권한 모드, 버전 고정, 전역 설치와 모든 스위치](./docs/guide_ko-KR.md#설치-상세)
+플러그인을 등록하고 LitClaude 상태 줄을 붙인 뒤 두 가지를 묻습니다. 상태 줄 색상과, 원하면 쓸 출력 스타일입니다. 새로 설치하면 권한 규칙을 하나도 더하지 않는 `safe` 권한 모드로 시작하고,
+나머지 Claude 설정은 그대로 둡니다. 영상 스킬에 필요한 렌더링 엔진과 글꼴도 함께 내려받기 때문에
+처음 설치는 조금 더 걸립니다. 설치가 끝나면 플러그인이 로드되도록 Claude Code를 다시 시작하세요.
+
+설치 방식을 바꾸는 스위치는 두 가지입니다.
+
+- `install` 뒤에 `--yes`를 붙이면 질문 없이 기본 색상과 스타일로 진행합니다. 선택할 것 없이 바로 설치하고 싶을 때 쓰세요.
+- `install` 앞에 `--dry-run`을 두면 바뀔 내용을 모두 보여 주기만 하고 아무것도 바꾸지 않습니다.
+  먼저 살펴보고 싶을 때 쓰세요: `npx @litfamily/litclaude@latest --dry-run install`.
+
+[권한 모드, 버전 고정, 전역 설치와 나머지 스위치](./docs/guide_ko-KR.md#설치-상세)
 
 상태 줄이나 설치 프로그램 없이 플러그인만 쓰고 싶다면 Claude Code에서 LitFamily 마켓플레이스로
 추가할 수도 있습니다.
@@ -57,7 +94,7 @@ npx @litfamily/litclaude@latest install
 [npm 설치와 마켓플레이스 중 고르기](./docs/migration.md#scoped-npm-migration)
 
 설치를 코딩 에이전트에게 맡길 수도 있습니다. 아래 프롬프트를 붙여 넣으면 에이전트가 환경을
-확인하고, 무엇이 바뀌는지 보여 준 뒤, 내가 좋다고 답해야 설치를 시작합니다.
+확인하고, 무엇이 바뀌는지 보여 준 뒤, 사용자가 승인해야 설치를 시작합니다.
 
 ```text
 이 컴퓨터에 Claude Code 플러그인 LitClaude를 설치해 주세요.
@@ -107,16 +144,21 @@ Claude의 답은 **🔥 LIT IGNITED · lit-loop 🔥**로 시작해 목표와 �
 ## LIT 카드
 
 작업하는 동안 LitClaude는 프롬프트 바로 위에 작은 카드를 띄워 둡니다. LIT 작업 흐름에서 지금
-어디쯤 있는지, Claude가 이 순간 무엇을 하는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를
-거슬러 올라가지 않아도 Claude가 하는 일을 따라갈 수 있습니다. 위쪽 테두리에는 작업 흐름의 이름과
-단계가 놓입니다. 첫 줄은 그 흐름의 지도입니다. 요청은 인터뷰에서 계획, 작업, 리뷰를 거쳐 완료로
-가고, 조사는 웨이브를 하나씩 넘기며, lit-loop의 기준 하나는 PIN에서 RED와 GREEN을 지나 RECORD까지
-갑니다. 지나온 단계에는 체크 표시가 붙고 지금 단계에는 불이 켜집니다. 둘째 줄은 그 단계를 조금 더
-알려 줍니다. 작업 개수와 다음 작업, 통과한 리뷰 레인, 인터뷰 회차 같은 것이 나오고, 오른쪽에는
-Claude가 지금 돌리는 도구와 걸린 시간이 나옵니다. 도구의 이름만 보여 주고 도구에 넘긴 내용은
-보여 주지 않습니다. 셋째 줄에는 실행된 LitFamily 스킬마다 칩이 하나씩 놓이고, 아래쪽 테두리는
-상태 줄의 컨텍스트, 5시간과 1주 사용량, Git 브랜치를 다시 보여 줍니다. 어느 흐름에도 들어맞지
-않는 요청에서는 예전처럼 PLAN, WORK, REVIEW 세 단계만 보입니다.
+어디쯤 있는지, Claude가 지금 무엇을 하는지, 어떤 스킬을 썼는지를 보여 주기 때문에 대화를
+거슬러 올라가지 않아도 Claude가 하는 일을 따라갈 수 있습니다.
+
+위에서부터 이렇게 읽으면 됩니다.
+
+- 위쪽 테두리에는 작업 흐름의 이름과 단계가 놓입니다.
+- 첫 줄은 그 흐름의 지도입니다. 요청은 인터뷰에서 계획, 작업, 리뷰를 거쳐 완료로 갑니다. 조사는
+  웨이브를 하나씩 넘기고, lit-loop의 기준 하나는 PIN에서 RED와 GREEN을 지나 RECORD까지 갑니다.
+  지나온 단계에는 체크 표시가 붙고 지금 단계에는 불이 켜집니다. 어느 흐름에도 들어맞지 않는
+  요청에서는 예전처럼 PLAN, WORK, REVIEW 세 단계만 보입니다.
+- 둘째 줄은 그 단계를 조금 더 알려 줍니다. 작업 개수와 다음 작업, 통과한 리뷰 레인, 인터뷰 회차
+  같은 것이 나오고, 오른쪽에는 Claude가 지금 돌리는 도구와 걸린 시간이 나옵니다. 카드에는 도구
+  이름만 표시하고, 도구에 넘긴 내용은 표시하지 않습니다.
+- 셋째 줄에는 실행된 LitFamily 스킬마다 칩이 하나씩 놓입니다.
+- 아래쪽 테두리는 상태 줄의 컨텍스트, 5시간과 1주 사용량, Git 브랜치를 다시 보여 줍니다.
 
 아직 아무것도 돌지 않을 때는 카드가 쉬면서 시작하는 방법을 알려 줍니다.
 
@@ -130,7 +172,7 @@ Claude가 지금 돌리는 도구와 걸린 시간이 나옵니다. 도구의 �
 
 Claude가 일하는 동안 카드는 가만히 있지 않습니다. LIT 알약이 분홍에서 주황으로 천천히
 숨 쉬듯 빛나고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 밝은 점 하나가 지도 위에서 다음
-단계 쪽으로 흘러가고, 불꽃 하나가 위쪽 테두리를 따라 갔다가 아래쪽 테두리로 돌아옵니다. 한눈에 봐도 LitClaude가 아직 일하는 중인지 알 수 있습니다.
+단계 쪽으로 흘러가고, 불꽃 하나가 위쪽 테두리를 따라 갔다가 아래쪽 테두리로 돌아옵니다. LitClaude가 아직 일하는 중인지 한눈에 알 수 있습니다.
 
 턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 지도는 작업이 도달한 단계를 그대로 보여 주고,
 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에 무엇이 돌았는지 계속 알 수 있습니다.
@@ -139,12 +181,19 @@ Claude가 일하는 동안 카드는 가만히 있지 않습니다. LIT 알약�
 
 카드는 Claude Code 2.1.287 이상의 터미널과 Claude 데스크톱 앱의 Code 탭에서 나옵니다. 앱도
 같은 설정 파일을 읽기 때문에 설치 프로그램이 둘 다 준비해 둡니다. 설치한 뒤 앱에서 새 세션을
-열면 됩니다. 앱은 mod 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 카드를 같은 줄과 움직임을 담은
-그림 한 장으로 보여 줍니다. 카드는 세션 내내 떠 있고, 작업할 때만 보고 싶다면 `/config`의 LitClaude 항목에서
-`band`를 `auto`로, 숨기려면 `off`로 바꾸세요. 움직임을 줄이려면 `motion`을 `subtle`로, 멈추려면
-`off`로 두면 됩니다. 긴 작업 중에 자리를 비운다면 `notify`를 `finish`로 바꾸세요. 작업이
-끝나거나 3분 넘게 걸린 LIT 턴이 끝날 때 터미널을 통해 알림을 보냅니다. 직접 켜기 전까지는 꺼져
-있습니다. 데스크톱 앱에는 이 설정을 바꾸는 화면이 없으니 터미널에서 바꾸세요.
+열면 됩니다. 앱은 카드의 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 같은 줄과 움직임을 담은
+그림 한 장으로 보여 줍니다.
+
+기본으로 카드는 세션 내내 떠 있고, Claude가 일하는 동안 움직입니다. `/config`의 LitClaude 항목에
+있는 세 가지 설정으로 이를 바꿀 수 있습니다.
+
+- `band`를 `auto`로 두면 작업이 도는 동안에만 카드가 보입니다. 작업 사이에는 프롬프트를 깔끔하게
+  두고 싶을 때 쓰세요. `off`는 카드를 숨깁니다.
+- `motion`을 `subtle`로 두면 움직임이 잔잔해지고, `off`면 멈춥니다.
+- `notify`를 `finish`로 두면 긴 작업 중에 자리를 비워도 됩니다. 작업이 끝나거나, 3분 넘게 걸린 LIT
+  턴이 끝나면 터미널로 알림을 보냅니다. 직접 켜기 전까지는 꺼져 있습니다.
+
+데스크톱 앱에는 이 설정을 바꾸는 화면이 없으니 터미널에서 바꾸세요.
 
 ```bash
 npx @litfamily/litclaude@latest config             # 지금 설정 보기
@@ -271,16 +320,24 @@ flowchart LR
 
 ## 요구 사항, 업데이트, 제거
 
-- **필요한 것:** Node.js와 npm, Claude Code. 발표자료와 문서 스킬은 처음 쓸 때 버전을 고정한
-  도구를 `~/.cache/litclaude/office-runtime`에 설치합니다.
-- **확인:** `npx @litfamily/litclaude@latest doctor`가 설치된 플러그인, 상태 줄, 권한 모드를
-  점검하고 `DOCTOR_PASS`로 끝납니다.
-- **업데이트:** `npx @litfamily/litclaude@latest update`
-- **제거:** `npx @litfamily/litclaude@latest uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄,
-  권한, 로컬 상태 항목만 지웁니다. 누가 손댄 설치라면 건드리지 않고
-  [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를 알려 줍니다.
-- **마켓플레이스로 설치했다면:** 위 명령은 npm 설치만 관리합니다. 마켓플레이스로 추가한 플러그인에는
-  LitClaude 상태 줄이 없고, 업데이트와 제거는 Claude Code의 `/plugin` 메뉴에서 합니다.
+Node.js와 npm, Claude Code가 있으면 됩니다. 발표자료와 문서 스킬은 처음 쓸 때 버전을 고정한
+도구를 `~/.cache/litclaude/office-runtime`에 설치합니다.
+
+npm으로 설치했다면 관리는 명령 세 개로 합니다.
+
+```bash
+npx @litfamily/litclaude@latest doctor      # 플러그인, 상태 줄, 권한 모드 점검
+npx @litfamily/litclaude@latest update      # 최신 릴리스를 지금 설치
+npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
+```
+
+문제가 없으면 `doctor`는 `DOCTOR_PASS`로 끝납니다. `update`를 직접 입력할 일은 많지 않습니다. 새 Claude Code 세션은 하루 한 번까지 백그라운드에서 npm의 새 버전을 확인하고, 이후 세션이 작업을
+시작하기 전에 설치합니다. `uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄, 권한, 로컬 상태
+항목만 지웁니다. 직접 수정한 설치라면 그대로 두고 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를
+알려 줍니다.
+
+마켓플레이스로 추가한 플러그인에는 LitClaude 상태 줄이 없고, 업데이트와 제거는 Claude Code의
+`/plugin` 메뉴에서 합니다.
 
 ## 더 알아보기
 
@@ -298,9 +355,9 @@ flowchart LR
 ## LITFAMILY
 
 표지의 아머드 로봇 다섯 대는 LitFamily 제품 다섯 개를 뜻합니다. 각 제품은 자기 호스트에서 따로
-동작하니, 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이며 실제 Claude 세션을 녹화한 것은
-아닙니다. [Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드
-영상입니다.
+동작하니, 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이고,
+[Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드 영상입니다.
+실제 Claude Code 세션은 이 페이지 위쪽의 데모 영상에서 볼 수 있습니다.
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LitClaude ASCII logo" /></p>
 

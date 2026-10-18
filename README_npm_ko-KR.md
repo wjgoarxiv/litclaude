@@ -13,7 +13,8 @@
 
 Claude Code 프롬프트에 `lit`을 붙이면 Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고,
 실제 결과를 확인한 뒤 프로젝트에 기록을 남깁니다. 작업을 멈출 때 `handoff`를 입력하면 다음
-세션이 그 기록을 읽고 이어갑니다.
+세션이 그 기록을 읽고 이어갑니다. Claude Code로 실제 프로젝트를 하면서 Claude가 "다 됐습니다"라고
+말하기 전에 근거를 보고 싶은 분께 맞습니다.
 
 ## 설치
 
@@ -24,12 +25,14 @@ npx @litfamily/litclaude@latest install
 ```
 
 처음 실행하면 npx가 패키지를 설치할지 묻는데, `y`로 답하면 됩니다. 설치 프로그램은 플러그인을
-등록하고 LitClaude 상태 줄을 붙인 뒤, 상태 줄 색상과 쓰고 싶은 출력 스타일을 묻습니다.
-`install --yes`는 기본값으로 진행하고, `npx @litfamily/litclaude@latest --dry-run install`은 바뀔
-내용만 보여 줍니다. 새로
+등록하고 LitClaude 상태 줄을 붙인 뒤, 상태 줄 색상과 쓰고 싶은 출력 스타일을 묻습니다. 새로
 설치하면 권한 규칙을 더하지 않는 `safe` 권한 모드로 시작하고 나머지 Claude 설정은 그대로 둡니다.
-영상 스킬에 필요한 렌더링 엔진과 글꼴도 미리 받아 둡니다. 권한 모드, 버전 고정, 전역 설치와 모든
-스위치는 [안내서](https://github.com/wjgoarxiv/litclaude/blob/main/docs/guide_ko-KR.md#설치-상세)에 있습니다.
+영상 스킬에 필요한 렌더링 엔진과 글꼴도 미리 받아 둡니다. 설치가 끝나면 플러그인이 로드되도록
+Claude Code를 다시 시작하세요.
+
+질문 없이 기본값으로 가고 싶다면 `install` 뒤에 `--yes`를 붙이고, 바뀔 내용을 먼저 보고 싶다면
+`install` 앞에 `--dry-run`을 두세요(`npx @litfamily/litclaude@latest --dry-run install`). 권한 모드,
+버전 고정, 전역 설치와 나머지 스위치는 [안내서](https://github.com/wjgoarxiv/litclaude/blob/main/docs/guide_ko-KR.md#설치-상세)에 있습니다.
 
 ## 처음 해 볼 일
 
@@ -60,9 +63,10 @@ npx @litfamily/litclaude@latest update
 npx @litfamily/litclaude@latest uninstall
 ```
 
-LitClaude는 프로젝트 상태를 `.litclaude/`에 두고, 그 안의 `.gitignore`로 Git이 이 폴더를 건너뛰게
+새 Claude Code 세션이 하루 한 번까지 새 버전을 확인하고, 이후 세션이 설치하므로, `update`는
+지금 바로 올리고 싶을 때 쓰면 됩니다. LitClaude는 프로젝트 상태를 `.litclaude/`에 두고, 그 안의 `.gitignore`로 Git이 이 폴더를 건너뛰게
 합니다. 이 상태는 npm 패키지에 들어가지 않습니다. `uninstall`은 LitClaude가 관리하는 항목만 지우고,
-누가 손댄 설치는 건드리지 않습니다. Claude Code 마켓플레이스로 추가한 플러그인에는 상태 줄이 없고,
+직접 수정한 설치는 건드리지 않습니다. Claude Code 마켓플레이스로 추가한 플러그인에는 상태 줄이 없고,
 업데이트와 제거는 `/plugin` 메뉴에서 합니다.
 
 ## 더 보기

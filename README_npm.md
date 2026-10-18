@@ -13,7 +13,8 @@
 
 Add `lit` to a Claude Code prompt and Claude pins the goal, writes a failing test first,
 checks the real result and leaves a record in your project. Type `handoff` when you stop, and
-the next session reads that record and picks up where this one left off.
+the next session reads that record and picks up where this one left off. It suits people who
+use Claude Code on real projects and want proof before "done".
 
 ## Install
 
@@ -25,11 +26,13 @@ npx @litfamily/litclaude@latest install
 
 On the first run npx asks whether to install the package; answer `y`. The installer registers
 the plugin, adds the LitClaude status line and asks for its colour and an optional output style.
-`install --yes` keeps the defaults, and `npx @litfamily/litclaude@latest --dry-run install` only
-prints the changes. A
-new install uses the `safe` permission mode, which adds no permission rules, and leaves your
+A new install uses the `safe` permission mode, which adds no permission rules, and leaves your
 other Claude settings as they are. It also fetches the video skill's rendering engine and
-fonts up front. The [guide](https://github.com/wjgoarxiv/litclaude/blob/main/docs/guide.md#installation-reference)
+fonts up front. Start Claude Code again afterwards so the plugin loads.
+
+Add `--yes` after `install` when you want the defaults without questions, or put `--dry-run`
+before it (`npx @litfamily/litclaude@latest --dry-run install`) when you want to see the
+changes first. The [guide](https://github.com/wjgoarxiv/litclaude/blob/main/docs/guide.md#installation-reference)
 covers permission modes, version pins, global installs and every switch.
 
 ## First steps
@@ -61,7 +64,8 @@ npx @litfamily/litclaude@latest update
 npx @litfamily/litclaude@latest uninstall
 ```
 
-LitClaude keeps project state in `.litclaude/`, which carries its own `.gitignore` so Git skips
+A new Claude Code session checks for a newer version at most once a day, and a later session
+installs it, so `update` is there for when you want it now. LitClaude keeps project state in `.litclaude/`, which carries its own `.gitignore` so Git skips
 it, and that state never goes into the npm package. `uninstall` removes only the entries
 LitClaude manages and refuses to touch an install that was changed by hand. A plugin added
 through the Claude Code marketplace instead has no status line and is updated or removed from
