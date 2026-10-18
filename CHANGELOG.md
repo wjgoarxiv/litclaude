@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.34 - 2026-10-18
+
+- The README now says in two sentences what adding `lit` to a prompt does, then shows the install command and a first prompt before the demo. It adds who LitClaude is for, a short session sketch taken from the demo and a one-line summary to share. Install switches, card options and maintenance commands are explained first and then listed with when to use each, the stacked bold labels in the requirements section are gone, and the automatic update check is mentioned beside `update`. The npm and Korean pages follow, with the same images, version pins and anchors.
+- Leftover notes about the retired skill-hint feature are removed. The privacy page no longer points at its old state folder, and the guard test that keeps the feature gone is renamed with the same checks: no shipped source names it, the prompt hook makes no outbound request and adds no hint line when the old switches are set, and `litclaude doctor` prints nothing about it.
+
 ## 1.0.33 - 2026-10-18
 
 - Automatic updates no longer roll back on a slow link. The 18 MB package used to download inside the 30-second install limit, so on a slow connection the install timed out, rolled back and waited a day. The background refresh now downloads a newer version into the npm cache ahead of time, and the install only unpacks it. `litclaude doctor` prints `AUTO_UPDATE` lines that say whether an installed update is already running or takes effect in the next session, what the registry last answered, and one remedy per reason an update did not apply (offline, backoff, install timeout, ownership conflict, opted out, directory marketplace).
