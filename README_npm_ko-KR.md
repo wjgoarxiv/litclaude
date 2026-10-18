@@ -1,14 +1,14 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상" /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상" /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">Claude Code에서 세션마다 계획하고, 만들고, 확인한 뒤 다음 세션이 이어받을 기록을 남기게 돕는 플러그인입니다.</p>
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/assets/readme/badge-version.svg" alt="1.0.32" />
-  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
+  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/assets/readme/badge-version.svg" alt="1.0.33" />
+  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/README.md">English</a>
+  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/README.md">English</a>
 </p>
 
 Claude Code 프롬프트에 `lit`을 붙이면 Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고,
@@ -68,7 +68,7 @@ LitClaude는 프로젝트 상태를 `.litclaude/`에 두고, 그 안의 `.gitign
 ## 더 보기
 
 - [전체 안내와 스킬 갤러리 (GitHub)](https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md)
-- [개인정보와 네트워크 동작](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/privacy.md)
-- [이전과 소유권 충돌](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/docs/migration.md)
-- [변경 이력](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/CHANGELOG.md)
-- [MIT 라이선스](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.32/LICENSE)
+- [개인정보와 네트워크 동작](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/privacy.md)
+- [이전과 소유권 충돌](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/docs/migration.md)
+- [변경 이력](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/CHANGELOG.md)
+- [MIT 라이선스](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.33/LICENSE)

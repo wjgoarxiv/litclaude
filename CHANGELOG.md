@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.0.33 - 2026-10-18
 
+- Automatic updates no longer roll back on a slow link. The 18 MB package used to download inside the 30-second install limit, so on a slow connection the install timed out, rolled back and waited a day. The background refresh now downloads a newer version into the npm cache ahead of time, and the install only unpacks it. `litclaude doctor` prints `AUTO_UPDATE` lines that say whether an installed update is already running or takes effect in the next session, what the registry last answered, and one remedy per reason an update did not apply (offline, backoff, install timeout, ownership conflict, opted out, directory marketplace).
+- Each prompt route now fits inside what Claude Code shows inline. Claude Code shows a hook's context in full only below 10,000 characters, and a bare `lit` prompt carried about 26 KB, so Claude saw only the first line and a pointer to a saved file. Routes now name the installed `SKILL.md` instead of pasting it, and put the activation, reply language and mode first. A bare `lit` prompt is now about 3 KB, and `lit-plan` and `litresearch` are similar.
+- When a request matches no route, the hook now asks Claude to load the matching skill before reading the workspace. The descriptions of `review-work`, `litresearch`, `autoresearch`, `lit-humanizer`, `lit-init`, `lit-plan` and `visual-qa` now say when each one applies, so Claude picks the right one more often.
 - The optional Jev skill hint is gone. In a side-by-side test it did not improve results, and in real sessions the model followed none of the skills it suggested. The prompt hook no longer sends anything to TypeSafe, the status line no longer shows a `✦Jev` badge and `litclaude doctor` no longer prints a `Jev skill hint` line. `LITCLAUDE_JEV`, the other `LITCLAUDE_JEV_*` variables and `TYPESAFE_API_KEY` are now ignored, so you can delete them from your shell. Anything left in a project's `.litclaude/jev/` folder is no longer read and can be deleted too.
+- New tests cover guard paths that a deliberate break used to leave green: the humanizer guard, the LIT card chip history, the installer and doctor, the version guard and automatic update. Each one fails when its guard is broken on purpose.
 
 ## 1.0.32 - 2026-10-17
 
