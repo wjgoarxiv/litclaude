@@ -287,8 +287,6 @@ flowchart LR
 - [안내서](./docs/guide_ko-KR.md): 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동
   핸드오프, 발표자료와 문서, 상태 줄, 안전, Claude Code 연결 구조를 자세히 다룹니다.
 - [전체 스킬](./docs/skills_ko-KR.md): 스킬 35개와 자동 점검을 한 줄씩 그림과 함께 보여 줍니다.
-- [Jev 스킬 힌트](./docs/jev_ko-KR.md): 프롬프트에 맞는 스킬을 제안하는 선택 기능으로, 기본은
-  꺼져 있습니다. 켜면 프롬프트가 외부 서비스 TypeSafe로 전송되니 먼저 읽어 보세요.
 - [hook](./docs/hooks.md), [에이전트](./docs/agents.md), [개인정보와 네트워크](./docs/privacy.md),
   [이전과 소유권 충돌](./docs/migration.md),
   [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration), [Claude Code `/goal` 지원 범위](./docs/native-goal-surface.md),

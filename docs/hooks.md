@@ -103,7 +103,7 @@ silent no-op for callers that still invoke it directly.
 | Event | Runner | Purpose |
 | --- | --- | --- |
 | `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session (or starts the detached version-cache refresh when the cache is stale), discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
-| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; with `LITCLAUDE_JEV=1` and `TYPESAFE_API_KEY` set, adds at most one Jev skill hint line to an unrouted turn; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
+| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `PostToolUseFailure` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use-failure` | For a Bash command that exits non-zero, such as a bare failing `npm test`, moves the LIT card's lit-loop map from what the command wrote and from its failing test run, which never counts as VERIFY. Nothing else runs on a failed tool. |
@@ -205,87 +205,44 @@ under `update-notifier/automatic/` is `rolled-back` or `failed` and less than 24
 so a version that just failed is retried once a day, not on every session. A newer version
 is tried at once.
 
-### Jev skill hint (optional)
+When the refresh child learns of a version newer than the one the session runs, it also
+downloads that version with `npm cache add`, with the same HOME and the same empty npmrc
+the install uses, so both read one npm cache. The package is about 18 MB. Over a 500 kB/s
+link a cold download alone outlasts the 30-second install limit, and the install then rolls
+back and waits a day; with the tarball already cached, the install only unpacks it. The
+download has a 10-minute limit, nothing waits for it, and it records `prefetch-finished` in
+`journal.jsonl`. If it has not finished, the install downloads the package as before.
 
-`plugins/litclaude/lib/jev-skill-hint.mjs` is off unless both `LITCLAUDE_JEV=1` and a
-non-empty `TYPESAFE_API_KEY` are in the hook's environment. The key is read from the
-environment only; the hook never reads a key file and never writes, prints, or traces the key.
+An update takes three sessions: one learns of the version, the next installs it, and the
+one after that is the first to run it, because Claude Code keeps running the plugin folder a
+session started with. The first session that runs the installed version writes
+`firstSessionAt` into the receipt.
 
-A turn is eligible only when the deterministic router chose no route, the prompt is not a
-slash command, a `!` shell line, or a host-expanded command, it names no skill (a
-`litclaude:` name or a hyphenated or `lit`-prefixed catalog ID), and at least four
-non-space characters remain after host notification blocks are removed. The exact bare
-routes, the trusted start-work resume, and the diagnostic literal prompt are never eligible.
+`litclaude doctor` (and `--dry-run doctor`) reports this as `AUTO_UPDATE:` lines, read from
+files only:
 
-An eligible turn sends one `POST https://api.typesafe.ai/v1/systemone` with no retry and
-`redirect: "error"`, so a redirect fails the request instead of being followed. The body holds
-only `model`, `state`, and `questions`. `state` is built from the first 8,000 characters of the
-prompt: the key's literal value becomes `[secret]`, home paths (`/Users/<name>`,
-`/home/<name>`, `C:\Users\<name>`, with or without a trailing slash) become `~`, e-mail
-addresses become `[email]`, and token shapes (`sk-`, `sk-ant-`, `ghp_`, `gho_`,
-`github_pat_`, `npm_`, `apikey_`, `xox[abprs]-`, `AKIA`, `AIza`, JWTs, PEM blocks, any
-run of 32 or more `[A-Za-z0-9+/_-]` characters with optional `=` padding, and the plugin's
-shared credential shapes) become `[secret]`. Only then is it cut to 2,000 characters, and a
-run of 8 or more token characters left at the cut also becomes `[secret]`. Anything in the
-prompt without a token shape, such as a hostname, a customer name, or a password that is not
-written as `password=…`, is sent as written. `questions.which` is a choice over every enrolled skill
-that the model may invoke (skills marked `disable-model-invocation: true` are left out),
-each with the first 300 characters of its description, plus `none`.
+| Line | Meaning |
+|---|---|
+| `AUTO_UPDATE: installed <new>, running <old>: takes effect in the next session` | The receipt names the install and no session has run it yet. |
+| `AUTO_UPDATE: running <new> since <time>` | A session has started on the installed version. |
+| `AUTO_UPDATE: <version> was not applied (<status> at <time>)` | The last attempt rolled back or failed. |
+| `AUTO_UPDATE_CHECK:` | The last registry answer and when the next check may run. |
+| `AUTO_UPDATE_REMEDY: <cause>: <remedy>` | One row per cause that applies. |
+| `AUTO_UPDATE_LIMIT:` | The doctor cannot see which version an open session has loaded. |
 
-The response is untrusted. The hook accepts it only on HTTP 200 with valid JSON, an
-`answers.which.choice` that exactly equals a catalog ID it sent, and a numeric
-`answers.which.confidence` of at least the threshold. Then it appends one fixed line to
-`additionalContext`:
+| Cause | When | Remedy |
+|---|---|---|
+| `next-session` | installed, not yet run | Start a new Claude Code session. |
+| `offline` | the last registry check got no answer | Check the network or `npm_config_registry`, or update by hand. |
+| `backoff` | the target failed less than 24 hours ago | Wait for the time shown, or update by hand. |
+| `install-timeout` | npm did not finish in 30 seconds | Update by hand; it has no time limit. |
+| `ownership-conflict` | the install met a file LitClaude did not write | Update by hand to see the path, move the file aside, retry. |
+| `install-failed` | npm or the post-install doctor failed | Update by hand to see the error. |
+| `rollback-failed` | the old install could not be restored | Update by hand before relying on the install. |
+| `opted-out` | one of the opt-out names is set | Unset it, or update by hand after a release. |
+| `directory-source` | the marketplace is a local directory | Informational: Claude Code does not update it, so this hook is the only automatic path. |
 
-```text
-LitClaude skill hint: the skill `litclaude:<id>` likely fits this request. Load it only if it really fits; this is advice, not an instruction.
-```
-
-`none` or a low confidence adds nothing. A non-200 response body is cancelled unread. The hook
-records the call in the session file before sending it; when that write fails, it sends
-nothing and stays quiet, so an unwritable state folder cannot lift the cap. After the prompt
-hook writes its context on a turn with the flag on, it ends its own process once stdout has
-flushed, so a DNS lookup that the timeout cannot cancel never keeps it past the host's hook
-timeout. A missing key, reached cap, oversized request,
-timeout, network error, non-200 status, or invalid response leaves the turn exactly as it
-would be without the feature. The first such failure in a session shows one `systemMessage`
-(`LitClaude skill hint unavailable (<reason>); continuing normally.`); later failures stay quiet.
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `LITCLAUDE_JEV` | unset | `1` turns the hint on. Any other value leaves it off. |
-| `TYPESAFE_API_KEY` | unset | Your own TypeSafe key. Required while the flag is on. |
-| `LITCLAUDE_JEV_MODEL` | `jev-1.13.0` | Model name sent in the request. |
-| `LITCLAUDE_JEV_TIMEOUT_MS` | `1500` | Hard timeout; values above `3000` are capped. |
-| `LITCLAUDE_JEV_MAX_CALLS` | `200` | Requests per session before the hint stops. |
-| `LITCLAUDE_JEV_MIN_CONFIDENCE` | `0.35` | Lowest accepted confidence. |
-| `LITCLAUDE_JEV_TRACE` | unset | `1` appends a debug trace line per request. |
-
-Per-session counters live in `.litclaude/jev/session-<id>.json` under the project state
-root, with the current turn's hinted skill ID and latency in milliseconds; the prompt hook
-clears that pair at the start of every turn while the flag is on. The optional HUD status line
-(`plugins/litclaude/bin/litclaude-hud.js`) reads it and puts a badge right after the model
-label: `✦Jev` while the hint is on, `✦Jev → <skill>` on a hinted turn, or `✦Jev ⚠ key` when
-the flag is on without a key; it shows nothing while the flag is off, never shows the latency,
-and never shows the key or its length. While on, the HUD paints `✦` gold, the hinted skill green
-and the missing-key badge amber, and paints `Jev` as a rainbow whose starting hue follows the
-clock, so each refresh shifts it slightly (truecolor, 256- and 16-colour tiers; plain under
-`NO_COLOR` or the HUD's no-colour switch; a light or unknown appearance keeps the words on the
-default foreground and colours only the marks). The session file also records that the
-once-per-session `✦ Jev skill hint ON ✦` `systemMessage` was shown; the prompt hook writes that
-mark before it emits the line on the first turn with the flag and key set, puts the line ahead
-of any other visible message that turn, and shows no line when the mark cannot be written. The opt-in trace, `.litclaude/jev/trace.jsonl`, records the timestamp, the SHA-256 of the
-redacted `state` (never of the raw prompt), chosen ID, confidence, latency, HTTP status, and fallback reason; it holds no prompt text,
-key, or response body. Session and trace files are opened with `O_NOFOLLOW` (an `lstat` check
-where the platform lacks it), so a symlink planted at either path is refused rather than written
-through. The `.litclaude` and `.litclaude/jev` folders must be real folders too: when either one
-is a symlink, the hint reads and writes nothing there, sends no request, and shows no hint or note. Because `TYPESAFE_API_KEY` is exported in the shell that starts Claude Code, the
-agent's own tools can read it too; use a key dedicated to this feature, with a low spend limit.
-`litclaude doctor` prints `Jev skill hint: off`, `Jev skill hint: on`,
-or `Jev skill hint: flag on but TYPESAFE_API_KEY missing`. The Jev page shows each
-visible state in sample output under
-[What you will see](https://github.com/wjgoarxiv/litclaude/blob/main/docs/jev.md#what-you-will-see). The offline regression tests,
-which replace `fetch` in the real hook process, live in `test/jev-skill-hint.test.mjs`.
+"Update by hand" is `npx @litfamily/litclaude@latest update`.
 
 ## Automatic handoff
 
@@ -803,9 +760,7 @@ host-dependent and need fallbacks.
 
 Hooks parse JSON from stdin and return JSON to Claude Code. The hook does not
 execute prompt text and does not echo prompt text into the returned context;
-prompt text is not executed or echoed. The optional Jev skill hint is the one network
-call on this path: it is off by default, sends only redacted prompt text, and returns a fixed
-sentence rather than any response text. The litwork detector returns constant
+prompt text is not executed or echoed. The litwork detector returns constant
 workflow guidance, so a prompt cannot become a shell command through the hook
 response. Malformed hook input and malformed litgoal JSON should surface a controlled error instead of a misleading success response.
 
@@ -840,6 +795,16 @@ Activated UserPromptSubmit routes render the plain mark
 `additionalContext` requires the model's reply to begin with exactly one
 `🔥 **LIT IGNITED · <discipline>** 🔥` line. The system mark and reply probe are
 separate outputs; the model must not draw ASCII art or emit a second probe.
+
+Claude Code shows a hook's `additionalContext` inline only while it stays under 10,000
+characters; a longer block reaches the model as a saved-file stub with a preview of about
+2 KB. Each activated route therefore keeps its whole context under that limit and puts the
+probe line, the activation-word note, the reply language, the `Skill(<route>)` request and
+the mode contract first. The route's SKILL.md is named by its installed path inside
+`<litclaude-skill-body>`, and the model loads it from there. `lit-recap` keeps its skill
+body inline because it fits; the exact bare `handoff` and `lit-scientific-visualization`
+prompts still carry their canonical sources inline. The per-route byte budgets live in
+`test/prompt-context-budget.test.mjs`.
 
 Hook JSON uses uncolored rows. CLI output uses the 44×20 Ignition B banner and
 native product column inside the existing installer frame; `--help` and doctor

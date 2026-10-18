@@ -1,5 +1,5 @@
 ---
-description: Run LitClaude litresearch saturation orchestration with Dynamic workflow and subagent delegation bootstrap.
+description: "Research a question across sources: find prior work and how others solve it, follow each lead to primary sources, check disputed claims, and return a referenced synthesis or recommendation. Use for surveys, prior-art and landscape questions; a one-fact lookup needs no skill."
 argument-hint: '<research question>'
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: Verify an observable interface with material evidence, or return an exact blocked capability receipt; load detailed LitClaude guidance lazily.
+description: "Check an interface that is already built: exercise its states at several viewport sizes, capture screenshots, and report visible breakage with that evidence, or name exactly what blocked the check. Use after a page or screen exists; building or restyling it belongs to frontend-ui-ux."
 ---
 
 ## #contract.activation

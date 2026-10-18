@@ -1,6 +1,6 @@
 # LitClaude 안내서
 
-[README](../README_ko-KR.md) · [스킬](./skills_ko-KR.md) · [Jev 스킬 힌트](./jev_ko-KR.md) · [개발](./development_ko-KR.md) · [English](./guide.md)
+[README](../README_ko-KR.md) · [스킬](./skills_ko-KR.md) · [개발](./development_ko-KR.md) · [English](./guide.md)
 
 LitClaude는 Claude Code에 근거를 남기며 실행하고, 계획하고, 조사하고, 검토하는 흐름을 더합니다.
 README는 설치와 첫 작업까지만 안내합니다. 나머지는 이 안내서에 있습니다. 설치 옵션 전부,
@@ -47,8 +47,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 그림마다 LitClaude의 설치 프로그램, doctor 명령, 세션 시작 훅, 프롬프트 훅, 상태 줄이 실제로
 출력한 내용을 캡처했고, 빈 데모 프로젝트와 임시 홈 폴더에서 실행했습니다. 홈 폴더 경로만 `~`로
 줄였습니다. 창 테두리는 글자 둘레에 그려 넣은 것이라 실제 터미널에서는 글꼴과 색이 다르게
-보일 수 있습니다. 그림 속 버전 번호는 캡처한 릴리스의 번호입니다. 선택 기능인 Jev 스킬 힌트의
-화면은 [따로 모아 두었습니다](./jev_ko-KR.md).
+보일 수 있습니다. 그림 속 버전 번호는 캡처한 릴리스의 번호입니다.
 
 설치는 계획을 먼저 보여 줍니다. 플러그인을 복사하는 일부터 설치된 항목을 모두 확인하는 일까지
 다섯 단계입니다. 마지막 줄은 모델은 계속 Claude Code가 고르고 나머지 Claude 설정은 그대로라는

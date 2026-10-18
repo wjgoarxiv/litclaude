@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -329,6 +329,31 @@ test("install preserves a modified legacy lit-korean subtree across a patch upgr
   assert.equal(readFileSync(join(preservedRoot, preservedVersions[0], "skill/SKILL.md"), "utf8"), "user-customized Korean workflow\n");
 });
 
+test("install refuses to trust an earlier preserved copy that no longer matches the modified skill", (t) => {
+  const customize = (f) => {
+    pass(f.run("install"));
+    seedOwnedLegacyKoreanSkill(f);
+    writeFileSync(join(f.plugin, "skills/lit-korean/SKILL.md"), "user-customized Korean workflow\n");
+  };
+  const first = fixture(t);
+  customize(first);
+  pass(first.run("install"));
+  const firstBackups = join(first.lit, "preserved-skills/lit-korean", version);
+  const [name] = readdirSync(firstBackups);
+
+  const f = fixture(t);
+  customize(f);
+  const destination = join(f.lit, "preserved-skills/lit-korean", version, name);
+  mkdirSync(dirname(destination), { recursive: true });
+  cpSync(join(firstBackups, name), destination, { recursive: true });
+  writeFileSync(join(destination, "skill/SKILL.md"), "a different saved copy\n");
+
+  const result = f.run("install");
+  assert.notEqual(result.status, 0, "a stale preserved copy must not stand in for the user's skill");
+  assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT.*preservation copy does not match/u);
+  assert.equal(readFileSync(join(f.plugin, "skills/lit-korean/SKILL.md"), "utf8"), "user-customized Korean workflow\n");
+});
+
 test("install removes a pristine legacy lit-korean subtree from every managed copy", (t) => {
   const f = fixture(t);
   pass(f.run("install"));
@@ -520,6 +545,18 @@ test("a symlink named like a bytecode cache is still refused", (t) => {
   const result = f.run("install");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
+});
+
+test("a hard link into the installed plugin is refused even when its bytes match", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  const outside = join(f.path, "shared-copy.py");
+  linkSync(join(f.plugin, "vendor/scientific-visualization/scripts/style_presets.py"), outside);
+  const before = readFileSync(outside, "utf8");
+  const result = f.run("install");
+  assert.notEqual(result.status, 0, "a file shared with a path outside the plugin is not LitClaude's to replace");
+  assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
+  assert.equal(readFileSync(outside, "utf8"), before);
 });
 
 test("a file named .in_use is still foreign state", (t) => {

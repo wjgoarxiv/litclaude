@@ -143,6 +143,54 @@ describe("deliverable hedge guard integration", () => {
     assert.match(formatDeliverableHedgeContext(result), /check skipped/u);
   });
 
+  it("leaves a document alone when the tool call that names it failed", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-failed-office-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const documentPath = join(cwd, "report.docx");
+    copyFileSync(join(root, "test/fixtures/lit-humanizer/office/blocked.docx"), documentPath);
+    for (const failure of [{ isError: true }, { is_error: true }, { error: true }, { status: "error" }]) {
+      const result = evaluateDeliverableHedgeGuard({
+        input: {
+          ...makeInput(cwd, "Bash", { command: "python build_report.py" }),
+          tool_response: { stdout: `Wrote ${documentPath}\n`, stderr: "", ...failure },
+        },
+        pluginRoot,
+        phase: "post-create",
+      });
+      assert.equal(result.status, "clean", JSON.stringify(failure));
+      assert.deepEqual(result.paths, []);
+    }
+  });
+
+  it("checks only files inside the session's working directory", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-inside-"));
+    const outside = mkdtempSync(join(tmpdir(), "lit-humanizer-outside-"));
+    t.after(() => {
+      rmSync(cwd, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    });
+    const content = "**Evidence:** drafting residue\n";
+    for (const path of [join(outside, "report.md"), join(cwd, "..", "report.md")]) {
+      const result = evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: path, content }), pluginRoot });
+      assert.equal(result.status, "clean", path);
+    }
+    const inside = evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: join(cwd, "report.md"), content }), pluginRoot });
+    assert.equal(inside.status, "block");
+  });
+
+  it("passes a large write into a LitClaude state folder without a skipped-check note", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-state-folder-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    for (const path of [".litclaude/notes.md", ".lit-state/summary.md"]) {
+      const result = evaluateDeliverableHedgeGuard({
+        input: makeInput(cwd, "Write", { file_path: join(cwd, path), content: "x".repeat(600 * 1024) }),
+        pluginRoot,
+      });
+      assert.equal(result.status, "clean", path);
+      assert.equal(formatDeliverableHedgeContext(result), "", path);
+    }
+  });
+
   it("pins guard and detector runtime resources in the install integrity map", () => {
     for (const path of [
       "lib/deliverable-hedge-guard.mjs",

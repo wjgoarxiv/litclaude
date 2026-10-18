@@ -298,9 +298,6 @@ skips it without any change to your own ignore files. Nothing runs between sessi
   every route, automatic handoff, slides and documents, the status line, safety, and the
   Claude Code integration in depth.
 - [All skills](./docs/skills.md): the 35 skills and the automatic checks, one row each.
-- [Jev skill hint](./docs/jev.md): an optional, off-by-default helper that suggests a skill
-  for your prompt. Turning it on sends your prompts to a third party, TypeSafe, so read the
-  page first.
 - [Hooks](./docs/hooks.md), [agents](./docs/agents.md), [privacy and network behavior](./docs/privacy.md),
   [migration and ownership conflicts](./docs/migration.md),
   [package-name migration and marketplace choices](./docs/migration.md#scoped-npm-migration), [native `/goal` surface](./docs/native-goal-surface.md)

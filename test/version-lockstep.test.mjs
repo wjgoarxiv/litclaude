@@ -97,6 +97,22 @@ test("a drifted escaped-regex pin fails and names its file", () => {
   assert.equal(runGuard().status, 0, "guard must pass after the escaped pin is restored");
 });
 
+test("a changelog without a heading for the release fails and names the changelog", () => {
+  const target = join(PRODUCT_ROOT, "CHANGELOG.md");
+  const original = readFileSync(target, "utf8");
+  const heading = `## ${VERSION} `;
+  assert.ok(original.includes(heading), "fixture precondition: CHANGELOG.md has a heading for the release");
+  try {
+    writeFileSync(target, original.replace(heading, `Release ${VERSION} `), "utf8");
+    const result = runGuard();
+    assert.notEqual(result.status, 0, "guard must reject a release with no changelog heading");
+    assert.match(result.stdout + "\n" + result.stderr, /CHANGELOG\.md: no release heading/u);
+  } finally {
+    writeFileSync(target, original, "utf8");
+  }
+  assert.equal(runGuard().status, 0, "guard must pass after the heading is restored");
+});
+
 test("every tracked file carrying either version spelling is registered", () => {
   const registry = JSON.parse(readFileSync(REGISTRY_PATH, "utf8"));
   assert.ok(registry && Array.isArray(registry.manifests), "registry must contain a manifests array");

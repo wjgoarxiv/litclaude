@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { pointedSkillBody } from "./helpers/hook-context.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -26,7 +27,8 @@ describe("browser-drive route", () => {
   });
 
   it("injects the verified command identity and typed identity blocker", () => {
-    const context = contextFor("browser-drive");
+    const route = contextFor("browser-drive");
+    const context = `${route}\n${pointedSkillBody(route, "browser-drive")}`;
 
     assert.match(context, /vercel-labs\/agent-browser/u);
     assert.match(context, /agent-browser --version/u);

@@ -81,7 +81,6 @@ test("both guides show every capture with alt text that quotes what it shows", (
       }
     }
     assert.equal(section.split(label).length - 1, pictures.length, `${file}: every picture is labelled as a capture`);
-    assert.ok(section.includes("(./jev.md)") || section.includes("(./jev_ko-KR.md)"), `${file}: links to the Jev pictures instead of repeating them`);
     assert.ok(content.indexOf(heading) < content.indexOf(file === "docs/guide.md" ? "## Watch it in motion" : "## 움직이는 모습 보기"), `${file}: sits before the film`);
     for (const [, target] of section.matchAll(/(?:src|srcset)="(\.\/[^"]+)"/gu)) {
       assert.ok(lstatSync(new URL(target, new URL("docs/", root))).isFile(), `screen target must exist: ${target}`);

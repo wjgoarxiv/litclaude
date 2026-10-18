@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The optional Jev skill hint is gone. In a side-by-side test it did not improve results, and in real sessions the model followed none of the skills it suggested. The prompt hook no longer sends anything to TypeSafe, the status line no longer shows a `✦Jev` badge and `litclaude doctor` no longer prints a `Jev skill hint` line. `LITCLAUDE_JEV`, the other `LITCLAUDE_JEV_*` variables and `TYPESAFE_API_KEY` are now ignored, so you can delete them from your shell. Anything left in a project's `.litclaude/jev/` folder is no longer read and can be deleted too.
+
 ## 1.0.32 - 2026-10-17
 
 - The desktop mod card has its look and motion back. 1.0.31 drew it with the app's plain boxes and text to stop it blinking, but that also took away its design and all of its animation. This release restores the animated card from 1.0.30. Its animations now start already visible, so when the app reloads the card after a real change, the card no longer fades in from blank or restarts its border light from the corner. The clock stays off the desktop card, so a running tool alone does not reload it. The terminal and phone cards are unchanged.

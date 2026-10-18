@@ -53,9 +53,6 @@ Then open the file and try the three actions yourself. That is how you find out 
 | `handoff` | A continuation file for the next session |
 | `<make slides …> lit`, `<write a report …> lit` | Editable `.pptx` and `.docx` files |
 
-The optional Jev skill hint is off by default; turning it on sends your prompts to a third
-party, TypeSafe, so read [its page](https://github.com/wjgoarxiv/litclaude/blob/main/docs/jev.md) first.
-
 ## Check, update and remove
 
 ```bash

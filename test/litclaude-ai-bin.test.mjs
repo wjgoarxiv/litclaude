@@ -1126,6 +1126,31 @@ describe("litclaude-ai CLI", () => {
     }
   });
 
+  it("fails doctor when an isolated install is missing a hook file the host loads", () => {
+    const home = makeHome();
+    const claudeHome = makeClaudeHome();
+
+    try {
+      const installResult = runCli(["install"], home, claudeHome);
+      assert.equal(installResult.status, 0, installResult.stderr);
+
+      const installRoot = join(claudeHome, "plugins", "cache", "litclaude-ai", "litclaude", packageJson.version);
+      for (const file of ["hooks/lit-mod.mjs", "bin/litclaude-hook.js"]) {
+        const path = join(installRoot, file);
+        const bytes = readFileSync(path);
+        rmSync(path);
+        const doctorResult = runCli(["doctor"], home, claudeHome);
+        writeFileSync(path, bytes);
+        assert.notEqual(doctorResult.status, 0, file);
+        assert.match(doctorResult.stderr, new RegExp(`LitClaude install is missing ${file.replace(/[./]/gu, "\\$&")}`, "u"));
+        assert.doesNotMatch(doctorResult.stdout, /DOCTOR_PASS/u);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(claudeHome, { recursive: true, force: true });
+    }
+  });
+
   it("does not notify or mutate notifier state when doctor fails", () => {
     const home = makeHome();
     const claudeHome = makeClaudeHome();

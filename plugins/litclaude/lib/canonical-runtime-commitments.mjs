@@ -42,9 +42,9 @@ export const CANONICAL_RUNTIME_ADAPTER_COMMITMENTS = Object.freeze([
   }),
   Object.freeze({
     path: "commands/autoresearch.md",
-    size: 2399,
+    size: 2667,
     executable: false,
-    sha256: "e062cd04487bc5926ec0f1dd218c487d0d175f7a267b818632b419eae5bcb9cb",
+    sha256: "9ec677084179c7e64ffaf3bb8a0b00b67a454d4c73599cd0656e113fd5afc59a",
   }),
   Object.freeze({
     path: "commands/autoconference.md",

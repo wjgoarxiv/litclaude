@@ -26,6 +26,8 @@ export const AUTO_UPDATE_TIMEOUT_MS = AUTO_UPDATE_INSTALL_TIMEOUT_MS + AUTO_UPDA
 export const AUTO_UPDATE_LOCK_STALE_MS = 60_000;
 export const AUTO_UPDATE_MAX_OUTPUT_BYTES = 128 * 1_024;
 export const AUTO_UPDATE_SCHEMA = 1;
+// The download ahead of the install runs in the detached refresh child, which nothing waits on.
+export const AUTO_UPDATE_PREFETCH_TIMEOUT_MS = 10 * 60 * 1_000;
 const REGISTRY_REQUEST_TIMEOUT_MS = 3_000;
 const REGISTRY_MAX_RESPONSE_BYTES = 64 * 1_024;
 const DEFAULT_REGISTRY = "https://registry.npmjs.org/";
@@ -398,6 +400,7 @@ const childResult = (result) => {
     timedOut,
     signal: result?.signal ?? null,
     errorCode,
+    ownershipConflict: /INSTALL_OWNERSHIP_CONFLICT/u.test(`${result?.stdout ?? ""}${result?.stderr ?? ""}`),
     stdoutBytes: Buffer.byteLength(String(result?.stdout ?? ""), "utf8"),
     stderrBytes: Buffer.byteLength(String(result?.stderr ?? ""), "utf8"),
   };
@@ -437,6 +440,7 @@ const runNpm = ({ command, args, env, cwd, timeout, spawn }) => {
       timedOut: false,
       signal: null,
       errorCode: error?.code ?? "SPAWN_ERROR",
+      ownershipConflict: false,
       detail: safeDetail(error?.message),
       stdoutBytes: 0,
       stderrBytes: 0,
@@ -491,14 +495,55 @@ const readCappedBody = async (response) => {
   return Buffer.concat(chunks).toString("utf8");
 };
 
+// A cold npm cache can spend the whole 30-second install budget on the download over a slow
+// link. The refresh child has no budget to keep, so it puts the tarball into the same npm
+// cache the install uses (same HOME, same empty npmrc), and the install only unpacks it.
+const prefetchUpdateTarball = ({ cachePath, generation, targetVersion, env, spawn }) => {
+  const autoRoot = join(dirname(cachePath), "automatic");
+  const userConfigPath = join(autoRoot, `${generation}.prefetch.npmrc`);
+  try {
+    writeAtomic(userConfigPath, "# LitClaude automatic update: no credentials\n");
+    const result = runNpm({
+      command: commandForNpm(env),
+      args: ["cache", "add", `${PACKAGE_NAME}@${targetVersion}`],
+      env: { ...sanitizeNpmEnvironment(env), npm_config_userconfig: userConfigPath, NPM_CONFIG_USERCONFIG: userConfigPath },
+      cwd: dirname(cachePath),
+      timeout: AUTO_UPDATE_PREFETCH_TIMEOUT_MS,
+      spawn,
+    });
+    appendJournal(join(autoRoot, "journal.jsonl"), "prefetch-finished", {
+      generation,
+      targetVersion,
+      ok: result.ok,
+      timedOut: result.timedOut,
+      errorCode: result.errorCode,
+    }, Date.now());
+  } catch {
+    // The install downloads the package itself when this step could not.
+  } finally {
+    rmSync(userConfigPath, { force: true });
+  }
+};
+
+const isNewer = (candidate, current) => {
+  try {
+    return compareStableSemver(candidate, current) > 0;
+  } catch {
+    return false;
+  }
+};
+
 // Runs in the detached child. It writes only when the attempt it was started for still
 // owns the cache, so a newer attempt or the terminal notifier is never overwritten.
 export const refreshSessionUpdateCache = async ({
   cachePath,
   generation,
   registryUrl,
+  currentVersion,
+  env = process.env,
   fetch = globalThis.fetch,
   now = () => Date.now(),
+  spawn = nodeSpawnSync,
 } = {}) => {
   try {
     if (!safeUrl(registryUrl, { allowPath: true })) return false;
@@ -523,16 +568,19 @@ export const refreshSessionUpdateCache = async ({
       attemptedAt: previous.attemptedAt,
       generation,
     })}\n`);
+    if (isNewer(parsed.version, currentVersion)) {
+      prefetchUpdateTarball({ cachePath, generation, targetVersion: parsed.version, env, spawn });
+    }
     return true;
   } catch {
     return false;
   }
 };
 
-const spawnSessionCacheRefresh = (cachePath, generation, registryUrl, env = process.env, spawnProcess = nodeSpawn) => {
+const spawnSessionCacheRefresh = (cachePath, generation, registryUrl, env = process.env, currentVersion = "", spawnProcess = nodeSpawn) => {
   const child = spawnProcess(
     process.execPath,
-    [fileURLToPath(new URL("./automatic-update-refresh.mjs", import.meta.url)), cachePath, generation, registryUrl],
+    [fileURLToPath(new URL("./automatic-update-refresh.mjs", import.meta.url)), cachePath, generation, registryUrl, currentVersion],
     { detached: true, stdio: "ignore", windowsHide: true, env: sanitizeNpmEnvironment(env) },
   );
   child.once("error", () => {});
@@ -543,7 +591,7 @@ const spawnSessionCacheRefresh = (cachePath, generation, registryUrl, env = proc
 // SessionStart never waits on the network. It records the attempt (one per 24 hours),
 // hands the registry request to a detached child, and a later session reads the result.
 // A cache file it cannot read as its own record, such as another package's, is left as is.
-const scheduleSessionCacheRefresh = ({ cachePath, env, now, spawnRefresh }) => {
+const scheduleSessionCacheRefresh = ({ cachePath, env, now, spawnRefresh, currentVersion }) => {
   try {
     const previous = readCacheRecord(cachePath, now);
     if (!previous && existsSync(cachePath)) return "preserved";
@@ -557,7 +605,7 @@ const scheduleSessionCacheRefresh = ({ cachePath, env, now, spawnRefresh }) => {
       attemptedAt: new Date(now).toISOString(),
       generation,
     })}\n`);
-    return spawnRefresh(cachePath, generation, registryLatestUrl(env), env) === false ? "spawn-error" : "scheduled";
+    return spawnRefresh(cachePath, generation, registryLatestUrl(env), env, currentVersion) === false ? "spawn-error" : "scheduled";
   } catch {
     return "spawn-error";
   }
@@ -583,6 +631,98 @@ const recentlyFailed = (autoRoot, targetVersion, now) => {
   } catch {
     return false;
   }
+};
+
+const readJsonFile = (path) => {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+// The session that installs an update keeps running the version it started with. The first
+// session whose own version is the installed target records that moment in the receipt, once.
+const markFirstSession = (autoRoot, currentVersion, now) => {
+  try {
+    const receipt = readJsonFile(join(autoRoot, "receipt.json"));
+    if (receipt?.status !== "installed" || receipt.targetVersion !== currentVersion || receipt.firstSessionAt) return;
+    if (typeof receipt.generation !== "string" || !generationPattern.test(receipt.generation)) return;
+    writeReceipt(autoRoot, { ...receipt, firstSessionAt: new Date(now).toISOString() });
+  } catch {
+    // The record is advisory; the session goes on without it.
+  }
+};
+
+const UPDATE_NOW = "`npx @litfamily/litclaude@latest update`";
+
+// Doctor cause -> remedy. `{name}` and `{until}` are filled in by the doctor.
+export const AUTO_UPDATE_REMEDIES = Object.freeze({
+  "next-session": "Start a new Claude Code session. Sessions that are already open keep the version they started with.",
+  offline: `The last registry check got no answer. Check the network or npm_config_registry, or run ${UPDATE_NOW}.`,
+  backoff: `This version failed recently, so it is tried again after {until}. To update now, run ${UPDATE_NOW}.`,
+  "install-timeout": `npm did not finish within 30 seconds, usually on a slow link. Run ${UPDATE_NOW}, which has no time limit.`,
+  "ownership-conflict": `A file LitClaude did not write is in the install path. Run ${UPDATE_NOW} to see it, move it aside, and run it again.`,
+  "install-failed": `npm or the check after the install failed. Run ${UPDATE_NOW} to see the error.`,
+  "rollback-failed": `The previous install could not be restored. Run ${UPDATE_NOW} before relying on LitClaude.`,
+  "opted-out": `Automatic update is off because {name} is set. Unset it, or run ${UPDATE_NOW} after a release.`,
+  "directory-source": "Claude Code does not update this directory marketplace by itself; the LitClaude session-start check is the only automatic path.",
+});
+
+const OPT_OUT_NAMES = ["CI", "NO_UPDATE_NOTIFIER", "LITCLAUDE_NO_UPDATE_CHECK", "LITCLAUDE_NO_AUTO_UPDATE", "LITCLAUDE_AUTO_UPDATE_ACTIVE"];
+// The refresh child has a 3-second request limit; an attempt this old without an answer failed.
+const REFRESH_SETTLE_MS = 60_000;
+
+// Read-only. Every line comes from files on disk, so it says nothing certain about sessions
+// that are open right now.
+export const automaticUpdateDoctorLines = ({
+  env = process.env,
+  litHome = env.LITCLAUDE_HOME ?? resolveHome(),
+  claudeHome = env.CLAUDE_CONFIG_DIR ?? env.CLAUDE_HOME ?? resolveClaudeHome(),
+  now = Date.now(),
+} = {}) => {
+  const timestamp = canonicalNow(now);
+  const lines = [];
+  const causes = [];
+  const remedy = (cause, fields = {}) => causes.push(`AUTO_UPDATE_REMEDY: ${cause}: ${AUTO_UPDATE_REMEDIES[cause].replace(/\{(\w+)\}/gu, (_, key) => fields[key] ?? "")}`);
+  const installed = installedPluginVersion(claudeHome);
+  const receipt = readJsonFile(join(automaticUpdateRoot(litHome), "receipt.json"));
+  const cache = readCacheRecord(automaticUpdateCachePath(litHome), timestamp);
+  const optOut = OPT_OUT_NAMES.find((name) => hasOptOut(env, name));
+  const plus24h = (at) => new Date(Date.parse(at) + CACHE_TTL_MS).toISOString();
+
+  if (receipt?.status === "installed" && receipt.targetVersion === installed && !receipt.firstSessionAt) {
+    lines.push(`AUTO_UPDATE: installed ${installed}, running ${receipt.fromVersion}: takes effect in the next session`);
+    remedy("next-session");
+  } else if (receipt?.status === "installed" && receipt.targetVersion === installed) {
+    lines.push(`AUTO_UPDATE: running ${installed} since ${receipt.firstSessionAt}`);
+  } else if (["rolled-back", "failed", "rollback-failed"].includes(receipt?.status)
+    && (!installed || isNewer(receipt.targetVersion, installed))) {
+    lines.push(`AUTO_UPDATE: ${receipt.targetVersion} was not applied (${receipt.status} at ${receipt.finishedAt})`);
+    if (receipt.status === "rollback-failed") remedy("rollback-failed");
+    else if (receipt.install?.ownershipConflict) remedy("ownership-conflict");
+    else if (receipt.install?.timedOut) remedy("install-timeout");
+    else remedy("install-failed");
+    const age = timestamp - Date.parse(receipt.finishedAt);
+    if (receipt.status !== "rollback-failed" && age >= 0 && age < CACHE_TTL_MS) remedy("backoff", { until: plus24h(receipt.finishedAt) });
+  } else if (installed && cache?.latestVersion && isNewer(cache.latestVersion, installed)) {
+    lines.push(`AUTO_UPDATE: ${cache.latestVersion} is available; the next session installs it`);
+  } else {
+    lines.push(`AUTO_UPDATE: installed ${installed ?? "unknown"}; no newer version known`);
+  }
+
+  if (cache) {
+    const answered = cache.checkedAt ? `${cache.latestVersion} at ${cache.checkedAt}` : "none yet";
+    lines.push(`AUTO_UPDATE_CHECK: last registry answer ${answered}; next check after ${plus24h(cache.attemptedAt)}`);
+    const unanswered = !cache.checkedAt || Date.parse(cache.checkedAt) < Date.parse(cache.attemptedAt);
+    if (unanswered && timestamp - Date.parse(cache.attemptedAt) >= REFRESH_SETTLE_MS) remedy("offline");
+  }
+  if (optOut) remedy("opted-out", { name: optOut });
+  const source = readJsonFile(join(claudeHome, "plugins", "known_marketplaces.json"))?.[MARKETPLACE_NAME]?.source?.source;
+  if (source === "directory") remedy("directory-source");
+  lines.push(...causes);
+  lines.push("AUTO_UPDATE_LIMIT: read from files only; the doctor cannot see which version an open Claude Code session has loaded.");
+  return lines;
 };
 
 export const runAutomaticUpdate = ({
@@ -622,11 +762,12 @@ export const runAutomaticUpdate = ({
     return { status: "gated" };
   }
   const timestamp = canonicalNow(now);
+  if (surface === "session-start") markFirstSession(automaticUpdateRoot(resolvedLitHome), currentVersion, timestamp);
   const candidate = readCacheCandidate(resolvedCachePath, currentVersion, timestamp);
   if (surface === "session-start" && ["stale-cache", "no-candidate"].includes(candidate.status)) {
     return {
       ...candidate,
-      refresh: scheduleSessionCacheRefresh({ cachePath: resolvedCachePath, env, now: timestamp, spawnRefresh }),
+      refresh: scheduleSessionCacheRefresh({ cachePath: resolvedCachePath, env, now: timestamp, spawnRefresh, currentVersion }),
     };
   }
   if (candidate.status !== "candidate") return candidate;

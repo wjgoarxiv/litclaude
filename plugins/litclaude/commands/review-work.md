@@ -1,5 +1,5 @@
 ---
-description: Run LitClaude 5-lane review discipline.
+description: "Review a patch, diff, branch or open change set in five lanes (scope, tests and evidence, package, security, real-surface readiness) and report findings first with file:line references. Use when someone asks whether changes are correct, risky or safe to merge; fixes come after the findings."
 argument-hint: '<scope>'
 ---
 

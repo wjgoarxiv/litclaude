@@ -19,7 +19,6 @@ import { ensureStateDirIgnored, resolveProjectStateRoot } from "../plugins/litcl
 import { writeAutoloopState } from "../plugins/litclaude/lib/litgoal/autoloop.mjs";
 import { recordContextUsage } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { recordInterfaceProbeTurn } from "../plugins/litclaude/lib/interface-probe-gate.mjs";
-import { claimJevBanner } from "../plugins/litclaude/lib/jev-skill-hint.mjs";
 import { recordLitPlanTurn } from "../plugins/litclaude/lib/lit-plan-persistence.mjs";
 import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
 import { MOTION_DISCIPLINE, recordMotionTurn } from "../plugins/litclaude/lib/motion-render-gate.mjs";
@@ -120,7 +119,6 @@ describe("project state folder stays out of the user's commits", () => {
     "interface-probe turn": (root) => recordInterfaceProbeTurn(root, { sessionId: "s1", discipline: "lit-loop" }),
     "lit-plan turn": (root) => recordLitPlanTurn(root, { sessionId: "s1" }),
     "auto-handoff context": (root) => recordContextUsage({ stateRoot: root, sessionId: "s1", percent: 10, window: 200000 }),
-    "jev banner": (root) => claimJevBanner({ env: { LITCLAUDE_JEV: "1", TYPESAFE_API_KEY: "test-placeholder" }, stateRoot: root, sessionId: "s1" }),
     "wikify settings": (root) => writeCaptureSettings(root, true),
     "lit-team": (root) => runTeamCli(["init", "--name", "Ignore lane"], quiet, root),
     "scaffold-plan draft": (root) => scaffold(root, { slug: "ignore-check", intent: "clear", draftOnly: true }),

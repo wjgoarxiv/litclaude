@@ -1,5 +1,5 @@
 ---
-description: Korean prose polish and requested English rewrites that preserve meaning, voice, and protected details.
+description: "Rewrite a Korean or English draft so it reads in the writer's own voice instead of templated model prose, keeping its meaning, facts, numbers and uncertainty. Use when asked to polish, de-template or make a paragraph, report or message sound less generic."
 argument-hint: "<text, file, or bounded rewrite request>"
 ---
 

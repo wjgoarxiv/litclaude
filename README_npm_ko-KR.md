@@ -52,9 +52,6 @@ npx @litfamily/litclaude@latest install
 | `handoff` | 다음 세션을 위한 이어가기 파일 |
 | `<발표자료 만들어줘 …> lit`, `<보고서 써줘 …> lit` | 편집할 수 있는 `.pptx`, `.docx` 파일 |
 
-선택 기능인 Jev 스킬 힌트는 기본으로 꺼져 있습니다. 켜면 프롬프트가 외부 서비스 TypeSafe로
-전송되니 [설명 페이지](https://github.com/wjgoarxiv/litclaude/blob/main/docs/jev_ko-KR.md)를 먼저 읽어 주세요.
-
 ## 확인, 업데이트, 제거
 
 ```bash

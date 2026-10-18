@@ -378,7 +378,7 @@ version installable through `npm`, `npx`, and `bunx`.
 ### Two READMEs: GitHub page and npm page
 
 `README.md` and `README_ko-KR.md` are the GitHub landing pages, with every image loaded by a
-relative path; the detail lives in `docs/guide.md`, `docs/skills.md`, `docs/jev.md` and
+relative path; the detail lives in `docs/guide.md`, `docs/skills.md` and
 `docs/development.md` (and their `_ko-KR` twins). The npm package page is a shorter card kept in `README_npm.md`
 and `README_npm_ko-KR.md`, whose images are jsDelivr URLs pinned to the package version.
 `tools/readme-for-npm.mjs` swaps the card in: `apply` backs up the GitHub pages under the

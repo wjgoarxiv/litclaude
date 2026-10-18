@@ -1,5 +1,5 @@
 ---
-description: Route one approved, budgeted Claude Code autoresearch family mode.
+description: "Run a bounded experiment loop under an approved budget: one change per iteration, judged against a declared metric, benchmark or evaluator, then kept or reverted on that result. Use when a score must improve through repeated measured attempts; also routes debug, fix, learn, plan, predict, reason, scenario, security and ship modes."
 argument-hint: '[core|debug|fix|learn|plan|predict|reason|scenario|security|ship] [objective]'
 ---
 

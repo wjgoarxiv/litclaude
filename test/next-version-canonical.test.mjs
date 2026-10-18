@@ -967,8 +967,8 @@ describe("canonical source families", () => {
     assertImmutableExpectedMap(report.expectedPackageFiles, 76);
     assert.deepEqual(report.expectedPackageFiles.get("plugins/litclaude/commands/autoresearch.md"), {
       executable: false,
-      size: 2399,
-      sha256: "e062cd04487bc5926ec0f1dd218c487d0d175f7a267b818632b419eae5bcb9cb",
+      size: 2667,
+      sha256: "9ec677084179c7e64ffaf3bb8a0b00b67a454d4c73599cd0656e113fd5afc59a",
     });
     assert.deepEqual(findRuntimeClosureReferenceFailures(pluginRoot), []);
     assert.equal(

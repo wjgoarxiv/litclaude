@@ -41,8 +41,7 @@ import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
 import { runWorkflowCheckCli } from "../plugins/litclaude/lib/workflow-check.mjs";
 import { runWorkflowStageCli } from "../plugins/litclaude/lib/workflow-stage.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
-import { automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
-import { jevStatusLine } from "../plugins/litclaude/lib/jev-skill-hint.mjs";
+import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
@@ -1495,11 +1494,11 @@ const doctor = ({ dryRun }) => {
     process.stdout.write(`Would check Claude statusLine HUD: ${hudCommandForPlugin(pluginPath)}\n`);
     process.stdout.write("Would check global Claude settings permissions.allow/deny and LitClaude ownership-safe removal metadata\n");
     process.stdout.write(`Would inspect automatic-update receipt/journal under: ${join(automaticUpdateRoot(litHome()), "receipt.json")}\n`);
+    for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
     process.stdout.write(`Would run: node ${join(pluginPath, "bin", "litclaude-scientific-visualization-doctor.js")}\n`);
     process.stdout.write(`Would report: node ${join(pluginPath, "lib", "office-runtime.mjs")} status\n`);
     process.stdout.write(`Would report: node ${join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")} (Chrome, ffmpeg, WebGL2 renderer, software-GL warning, motion pre-warm)\n`);
     process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
-    process.stdout.write(`${jevStatusLine(process.env)}\n`);
     writeAutoHandoffDoctorLines();
     process.stdout.write(`${iconFontDoctorLine()}\n`);
     return;
@@ -1590,7 +1589,6 @@ const doctor = ({ dryRun }) => {
   for (const line of `${officeRuntime.stdout || officeRuntime.stderr || ""}`.trim().split("\n").filter(Boolean)) {
     process.stdout.write(`OFFICE_RUNTIME: ${line}\n`);
   }
-  process.stdout.write(`${jevStatusLine(process.env)}\n`);
   writeAutoHandoffDoctorLines();
   process.stdout.write(`${iconFontDoctorLine()}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
@@ -1629,6 +1627,7 @@ const doctor = ({ dryRun }) => {
   if (existsSync(automaticReceiptPath)) {
     process.stdout.write(`AUTOMATIC_UPDATE_RECEIPT: ${automaticReceiptPath}\n`);
   }
+  for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
   const settings = readClaudeSettings();
   const permissionFailures = permissionIntegrityFailures(settings);
   if (permissionFailures.length > 0) {

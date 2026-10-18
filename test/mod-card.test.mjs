@@ -236,6 +236,16 @@ test("chips: LitFamily skills only, newest first, a refire within the same momen
   assert.deepEqual(chipStates([{ id: "a", at: 3000 }], 3500).map(({ state }) => state), ["recent"], "a finished request dims its chips");
 });
 
+test("the chip history keeps the twelve newest skills, so a busy request still has older chips to fold into +N", () => {
+  let fired = [];
+  for (let i = 0; i < 14; i += 1) fired = noteSkill(fired, canonicalSkillIds[i], 10_000 + i * 5000);
+  assert.deepEqual(fired.map(({ id }) => id), canonicalSkillIds.slice(2, 14).reverse());
+});
+
+test("a chip that fired at the very moment the request settled is already recent", () => {
+  assert.deepEqual(chipStates([{ id: "a", at: 2000 }, { id: "b", at: 2001 }], 2000).map(({ id, state }) => `${id}:${state}`), ["b:current", "a:recent"]);
+});
+
 test("a chip shimmers on arrival in full motion, fades in under subtle, and dims when the turn completes", () => {
   const before = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, skills: chips(["litresearch"]) });
   const after = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, skills: [{ id: "lit-plan", at: NOW + 5, state: "current" }, ...chips(["litresearch"])] });

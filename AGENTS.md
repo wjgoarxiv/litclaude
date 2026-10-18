@@ -56,8 +56,8 @@ copies the assets, and every test still passes.
 tracked in git but never published. Verified with `npm pack --dry-run`.
 
 There are two READMEs. `README.md` / `README_ko-KR.md` are the GitHub landing pages and load every
-image by a relative path; the detail they link to lives in `docs/guide*.md`, `docs/skills*.md`,
-`docs/jev*.md` and `docs/development*.md`, which are not packed. The npm page is `README_npm.md` / `README_npm_ko-KR.md`, a shorter card with
+image by a relative path; the detail they link to lives in `docs/guide*.md`, `docs/skills*.md`
+and `docs/development*.md`, which are not packed. The npm page is `README_npm.md` / `README_npm_ko-KR.md`, a shorter card with
 jsDelivr URLs pinned to the package version; `tools/readme-for-npm.mjs` swaps it in at `prepack`
 and back at `postpack`, and a publish must wrap `npm publish` in an explicit `apply` / `restore`
 (see `RELEASE_CHECKLIST.md`). The names avoid a `README.` prefix on purpose: npm always packs

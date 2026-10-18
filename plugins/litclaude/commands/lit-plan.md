@@ -1,5 +1,5 @@
 ---
-description: Plan LitClaude work with explicit goal, Dynamic workflow, and QA criteria.
+description: "Turn a request or settled decisions into a decision-complete implementation plan before code: ordered steps, exact files, tests and acceptance checks. Use when asked to plan, scope or break down work, including plan-then-build requests."
 argument-hint: '<planning brief>'
 ---
 

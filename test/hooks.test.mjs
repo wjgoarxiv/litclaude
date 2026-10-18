@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_DYNAMIC_MAX_RESULT_CHARS } from "../plugins/litclaude/lib/rules/constants.mjs";
-import { assertNoWorkflowActivationContext } from "./helpers/hook-context.mjs";
+import { SKILL_FIRST_NOTICE, assertNoWorkflowActivationContext, pointedSkillBody } from "./helpers/hook-context.mjs";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -479,25 +479,26 @@ describe("Claude hook runner", () => {
     assert.doesNotMatch(systemMessage, /\*\*/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /🔥 \*\*LIT IGNITED · litwork\*\* 🔥/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /LITWORK MODE ENABLED/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /#contract\.activation/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /#contract\.inputs/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /#contract\.evidence/u);
+    const litworkSkill = pointedSkillBody(parsed.hookSpecificOutput.additionalContext, "litwork");
+    assert.match(litworkSkill, /#contract\.activation/u);
+    assert.match(litworkSkill, /#contract\.inputs/u);
+    assert.match(litworkSkill, /#contract\.evidence/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /Treat this prompt as an explicit request to use LitClaude litwork/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\/litclaude:lit-loop/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /Skill\(litwork\)/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /get_goal/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /create_goal/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /update_goal/u);
+    assert.match(litworkSkill, /get_goal/u);
+    assert.match(litworkSkill, /create_goal/u);
+    assert.match(litworkSkill, /update_goal/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\/goal/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /BLOCKED: native `\/goal` not programmatically bound/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /durable `litgoal` ledger/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /claude -p "\/goal/u);
+    assert.match(litworkSkill, /claude -p "\/goal/u);
     assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /native goal (is )?(active|bound|created|updated)/iu);
     assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /exposes \/goal or model-facing goal tools/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /Dynamic workflow/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /Dynamic worktree/u);
+    assert.match(litworkSkill, /claude --worktree/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /call the Workflow tool/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /EnterWorktree/u);
+    assert.match(litworkSkill, /EnterWorktree/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /Do not auto-type or inject the user's slash commands/u);
     assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /rm -rf/u);
   });
@@ -570,7 +571,9 @@ describe("Claude hook runner", () => {
       const parsed = JSON.parse(result.stdout);
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
-      assert.match(parsed.hookSpecificOutput.additionalContext, /#contract\.activation/u);
+      const routeContext = parsed.hookSpecificOutput.additionalContext;
+      const loaded = /Load this exact installed entrypoint/u.test(routeContext) ? pointedSkillBody(routeContext, prompt) : routeContext;
+      assert.match(loaded, /#contract\.activation/u);
     }
   });
 
@@ -603,7 +606,9 @@ describe("Claude hook runner", () => {
       const context = parsed.hookSpecificOutput.additionalContext;
       assert.match(context, new RegExp(`<litclaude-skill-body name="${skillName}">`, "u"));
       assert.match(context, new RegExp("</litclaude-skill-body>", "u"));
-      assert.equal(context.includes(skillBody(skillName)), true, `${prompt} should inject full ${skillName} SKILL.md`);
+      // lit-recap stays inline; every other route names the installed file that holds the same body.
+      const loaded = skillName === "lit-recap" ? context : pointedSkillBody(context, prompt);
+      assert.equal(loaded.includes(skillBody(skillName)), true, `${prompt} should make the full ${skillName} SKILL.md reachable`);
     }
   });
 
@@ -618,13 +623,14 @@ describe("Claude hook runner", () => {
     const parsed = JSON.parse(result.stdout);
     const context = parsed.hookSpecificOutput.additionalContext;
     assert.match(context, /<litclaude-skill-body name="litresearch">/u);
-    assert.match(context, /stable claim ID/iu);
-    assert.match(context, /DOI normalization/iu);
-    assert.match(context, /%PDF/u);
-    assert.match(context, /needs_review/u);
-    assert.match(context, /routeCoverageComplete/u);
-    assert.match(context, /Deliberate non-port contract/iu);
-    assert.match(context, /sequential fallback/iu);
+    const litresearchSkill = pointedSkillBody(context, "litresearch");
+    assert.match(litresearchSkill, /stable claim ID/iu);
+    assert.match(litresearchSkill, /DOI normalization/iu);
+    assert.match(litresearchSkill, /%PDF/u);
+    assert.match(litresearchSkill, /needs_review/u);
+    assert.match(litresearchSkill, /routeCoverageComplete/u);
+    assert.match(litresearchSkill, /Deliberate non-port contract/iu);
+    assert.match(litresearchSkill, /sequential fallback/iu);
   });
 
   it("routes natural-language lit modes with mode-specific prompt contracts", () => {
@@ -648,7 +654,8 @@ describe("Claude hook runner", () => {
       const parsed = JSON.parse(result.stdout);
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
-      assert.match(parsed.hookSpecificOutput.additionalContext, contract);
+      const context = parsed.hookSpecificOutput.additionalContext;
+      assert.match(`${context}\n${pointedSkillBody(context, prompt)}`, contract);
     }
   });
 
@@ -806,20 +813,21 @@ describe("Claude hook runner", () => {
       const parsed = JSON.parse(result.stdout);
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
-      assert.match(parsed.hookSpecificOutput.additionalContext, /get_goal/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /create_goal/u);
+      const loopSkill = pointedSkillBody(parsed.hookSpecificOutput.additionalContext, prompt);
+      assert.match(loopSkill, /get_goal/u);
+      assert.match(loopSkill, /create_goal/u);
       assert.match(parsed.hookSpecificOutput.additionalContext, /Workflow tool/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /ultracode/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /run a workflow/u);
+      assert.match(`${parsed.hookSpecificOutput.additionalContext}\n${loopSkill}`, /ultracode/u);
+      assert.match(`${parsed.hookSpecificOutput.additionalContext}\n${loopSkill}`, /run a workflow/u);
       assert.match(parsed.hookSpecificOutput.additionalContext, /subagent delegation/i);
       assert.match(parsed.hookSpecificOutput.additionalContext, /lit-planner/u);
       assert.match(parsed.hookSpecificOutput.additionalContext, /lit-executor/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /TASK:/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /DELIVERABLE/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /SCOPE/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /VERIFY/u);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /missing deliverable/i);
-      assert.match(parsed.hookSpecificOutput.additionalContext, /short wait/i);
+      assert.match(loopSkill, /TASK:/u);
+      assert.match(loopSkill, /DELIVERABLE/u);
+      assert.match(loopSkill, /SCOPE/u);
+      assert.match(loopSkill, /VERIFY/u);
+      assert.match(loopSkill, /missing deliverable/i);
+      assert.match(loopSkill, /short wait/i);
       assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /rm -rf/u);
     }
   });
@@ -1074,9 +1082,11 @@ describe("Claude hook runner", () => {
         cwd: root,
       });
       assert.equal(result.status, 0, result.stderr);
-      assert.match(
+      // The detector applies the fence rule before any text is written, so the context no longer
+      // restates it. Whatever fence guidance remains must not claim that every fence is ignored.
+      assert.doesNotMatch(
         JSON.parse(result.stdout).hookSpecificOutput.additionalContext,
-        /Closed backtick and tilde code fences are ignored; text outside them and intentionally unclosed fence content remains eligible\./u,
+        /fences? (?:are|is) ignored(?!; text outside them and intentionally unclosed fence content remains eligible)/u,
       );
     }
   });
@@ -1138,7 +1148,7 @@ describe("Claude hook runner", () => {
     const context = parsed.hookSpecificOutput.additionalContext;
     assertNoWorkflowActivationContext(context);
     const [routeContext, projectInstructions = ""] = context.split("\n\n## Project Instructions\n", 2);
-    assert.equal(routeContext, "LitClaude prompt hook checked: no workflow activation.");
+    assert.equal(routeContext, SKILL_FIRST_NOTICE);
     assert.match(projectInstructions, /bundled-rules\/lit-humanizer\.md/u);
     assert.match(projectInstructions, /Preserve the user's voice, facts, numbers/u);
   });
@@ -1517,7 +1527,7 @@ describe("design-production routes", () => {
       assert.match(context, /Skill\(readme-studio\)/u);
       assert.match(context, /IMAGE_GENERATION_UNAVAILABLE/u);
       assert.match(context, /review-only.*read-only/iu);
-      assert.match(context, /name: readme-studio/u);
+      assert.match(pointedSkillBody(context, prompt), /name: readme-studio/u);
     }
     for (const prompt of ["Explain the readme-studio identifier", "`readme-studio`", "readme-studioish create this", "Please quote readme-studio, do not run it"]) {
       const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", cwd: root, prompt });

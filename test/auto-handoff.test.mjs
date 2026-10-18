@@ -15,7 +15,7 @@ const cliPath = join(root, "bin/litclaude-ai.js");
 const scrubbedEnv = (extra = {}) => {
   const env = { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" };
   for (const name of Object.keys(env)) {
-    if (name.startsWith("LITCLAUDE_AUTO_HANDOFF") || name.startsWith("LITCLAUDE_JEV") || name === "TYPESAFE_API_KEY") delete env[name];
+    if (name.startsWith("LITCLAUDE_AUTO_HANDOFF")) delete env[name];
     if (name === "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE" || name === "CLAUDE_CODE_AUTO_COMPACT_WINDOW") delete env[name];
   }
   return { ...env, ...extra };

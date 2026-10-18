@@ -1,6 +1,6 @@
 # LitClaude guide
 
-[README](../README.md) · [Skills](./skills.md) · [Jev skill hint](./jev.md) · [Development](./development.md) · [한국어](./guide_ko-KR.md)
+[README](../README.md) · [Skills](./skills.md) · [Development](./development.md) · [한국어](./guide_ko-KR.md)
 
 LitClaude adds evidence-first execution, planning, research and review to Claude Code.
 The README gets you installed and through a first task. This guide holds the rest: every
@@ -51,8 +51,7 @@ install anything. Each one is output captured from LitClaude's own installer, do
 session hook, prompt hook and status line, run on an empty demo project with a temporary home
 folder. Only the path of that home folder is shortened to `~`. The window frame is drawn around
 the text, and your own terminal will use its own fonts and colors. The version number inside a
-picture belongs to the release it was captured from. The optional Jev skill hint has its own
-[pictures](./jev.md).
+picture belongs to the release it was captured from.
 
 The install opens with its plan: five stages, from copying the plugin to checking every surface
 it installed. The last line repeats that Claude Code keeps choosing the model and that your other

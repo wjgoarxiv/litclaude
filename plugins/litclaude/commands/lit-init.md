@@ -1,5 +1,5 @@
 ---
-description: Create or refresh sparse AGENTS.md guidance with the LitClaude lit-init discipline.
+description: "Map an unfamiliar or newly inherited repository and leave sparse AGENTS.md guidance so later sessions start oriented. Use when onboarding a codebase, getting oriented in a repo, or refreshing its agent guidance."
 argument-hint: '[--create-new] [--max-depth=N]'
 ---
 

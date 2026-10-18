@@ -611,7 +611,7 @@ function phaseCorrect(phase, run) {
       && /🔥 \*\*LIT IGNITED · lit-loop\*\* 🔥/u.test(context);
   }
   return run.parsed.systemMessage === undefined
-    && context === "LitClaude prompt hook checked: no workflow activation.";
+    && /^LitClaude prompt hook checked: no workflow activation\.(?: If this request asks for work that a listed litclaude skill covers, [^\n]+)?$/u.test(context);
 }
 
 const aggregatePhase = (samples) => {

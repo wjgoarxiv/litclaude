@@ -609,4 +609,339 @@ describe("foreground automatic update", () => {
       rmSync(home, { recursive: true, force: true });
     }
   });
+
+  const candidateFixture = (prefix, latestVersion, now) => {
+    const home = mkdtempSync(join(tmpdir(), prefix));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    mkdirSync(join(litHome, "update-notifier"), { recursive: true });
+    writeFileSync(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      latestVersion,
+      checkedAt: new Date(now - 1_000).toISOString(),
+      attemptedAt: new Date(now - 1_000).toISOString(),
+      generation: GENERATION,
+    })}\n`);
+    const run = (currentVersion, spawn) => runAutomaticUpdate({
+      surface: "session-start",
+      currentVersion,
+      cachePath,
+      litHome,
+      claudeHome,
+      env: { LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome },
+      input: { hook_event_name: "SessionStart", session_id: "session-test" },
+      now,
+      spawn,
+      verifyInstall: () => true,
+      spawnRefresh: () => assert.fail("a fresh cache must not schedule a refresh"),
+    });
+    return { home, litHome, run };
+  };
+
+  it("the version a session already runs is never installed again", () => {
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    const { home, litHome, run } = candidateFixture("litclaude-auto-same-", "0.3.41", now);
+    try {
+      const result = run("0.3.41", () => assert.fail("the running version is not an update"));
+      assert.equal(result.status, "current");
+      assert.equal(existsSync(join(litHome, "update-notifier", "automatic")), false);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("compares versions by number, so 1.0.10 is newer than 1.0.9", () => {
+    const now = Date.parse("2026-10-11T00:00:00.000Z");
+    const newer = candidateFixture("litclaude-auto-numeric-", "1.0.10", now);
+    const older = candidateFixture("litclaude-auto-numeric-older-", "1.0.9", now);
+    try {
+      const installs = [];
+      const result = newer.run("1.0.9", (command, args) => {
+        installs.push(args.find((arg) => arg.startsWith("@litfamily/litclaude@")));
+        return { status: 0, stdout: "", stderr: "" };
+      });
+      assert.equal(result.status, "installed");
+      assert.deepEqual(installs, ["@litfamily/litclaude@1.0.10", "@litfamily/litclaude@1.0.10"]);
+      assert.equal(older.run("1.0.10", () => assert.fail("an older release is not an update")).status, "current");
+    } finally {
+      rmSync(newer.home, { recursive: true, force: true });
+      rmSync(older.home, { recursive: true, force: true });
+    }
+  });
+
+  it("an old install lock whose owner is still running is left alone", () => {
+    const now = Date.now() + 5 * 60 * 1_000;
+    const { home, litHome, run } = candidateFixture("litclaude-auto-live-lock-", "0.3.41", now);
+    const lockPath = join(litHome, "update-notifier", "automatic", "install.lock");
+    const owner = `${JSON.stringify({
+      schema: 1,
+      generation: GENERATION,
+      pid: process.pid,
+      acquiredAt: new Date(Date.now() - 1_000).toISOString(),
+    })}\n`;
+    try {
+      mkdirSync(lockPath, { recursive: true });
+      writeFileSync(join(lockPath, "owner.json"), owner);
+      const result = run("0.3.40", () => assert.fail("a held lock must stop the install"));
+      assert.equal(result.status, "locked");
+      assert.equal(readFileSync(join(lockPath, "owner.json"), "utf8"), owner, "the live owner keeps its lock");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("automatic update reaches the user", () => {
+  const writeCache = (cachePath, fields) => {
+    mkdirSync(join(cachePath, ".."), { recursive: true });
+    writeFileSync(cachePath, `${JSON.stringify({
+      schema: 3,
+      packageName: "@litfamily/litclaude",
+      generation: GENERATION,
+      ...fields,
+    })}\n`);
+  };
+  const okRegistry = (version) => async () => new Response(JSON.stringify({ name: "@litfamily/litclaude", version }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  it("the refresh downloads a newer target into the npm cache before any session installs it", async () => {
+    const { refreshSessionUpdateCache } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-prefetch-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const journalPath = join(litHome, "update-notifier", "automatic", "journal.jsonl");
+    const now = Date.parse("2026-10-17T00:00:00.000Z");
+    const attempted = new Date(now - 1_000).toISOString();
+    const env = { PATH: "/safe/bin", HOME: join(home, "user"), NPM_TOKEN: "secret", npm_config_cache: "/elsewhere" };
+    try {
+      writeCache(cachePath, { latestVersion: null, checkedAt: null, attemptedAt: attempted });
+      const prefetches = [];
+      const refreshed = await refreshSessionUpdateCache({
+        cachePath,
+        generation: GENERATION,
+        registryUrl: "https://registry.npmjs.org/%40litfamily%2Flitclaude/latest",
+        currentVersion: "0.3.40",
+        env,
+        now: () => now,
+        fetch: okRegistry("0.3.41"),
+        spawn: (command, args, options) => {
+          prefetches.push({ command, args, options, userconfig: readFileSync(options.env.npm_config_userconfig, "utf8") });
+          return { status: 0, stdout: "", stderr: "" };
+        },
+      });
+      assert.equal(refreshed, true);
+      assert.equal(prefetches.length, 1, "a newer target is downloaded once");
+      assert.equal(prefetches[0].command, "npm");
+      assert.deepEqual(prefetches[0].args, ["cache", "add", "@litfamily/litclaude@0.3.41"]);
+      assert.equal(prefetches[0].options.timeout > 0, true);
+      assert.equal(prefetches[0].options.env.NPM_TOKEN, undefined);
+      assert.equal(prefetches[0].options.env.npm_config_cache, undefined);
+      assert.equal(prefetches[0].userconfig.includes("no credentials"), true);
+      assert.equal(existsSync(prefetches[0].options.env.npm_config_userconfig), false, "the empty npmrc is removed afterwards");
+      const row = readFileSync(journalPath, "utf8").trim().split("\n").map((line) => JSON.parse(line)).at(-1);
+      assert.equal(row.event, "prefetch-finished");
+      assert.equal(row.targetVersion, "0.3.41");
+      assert.equal(row.ok, true);
+
+      // The install that follows uses the same npm cache: same HOME, no cache override.
+      const installs = [];
+      runAutomaticUpdate({
+        surface: "session-start",
+        currentVersion: "0.3.40",
+        cachePath,
+        litHome,
+        claudeHome,
+        env,
+        input: { hook_event_name: "SessionStart", session_id: "session-test" },
+        now: now + 2_000,
+        spawn: (command, args, options) => {
+          installs.push(options.env);
+          return { status: 1, stdout: "", stderr: "" };
+        },
+      });
+      assert.equal(installs[0].HOME, prefetches[0].options.env.HOME);
+      assert.equal(installs[0].npm_config_cache, undefined);
+
+      for (const currentVersion of ["0.3.41", undefined]) {
+        writeCache(cachePath, { latestVersion: null, checkedAt: null, attemptedAt: attempted });
+        const again = await refreshSessionUpdateCache({
+          cachePath,
+          generation: GENERATION,
+          registryUrl: "https://registry.npmjs.org/%40litfamily%2Flitclaude/latest",
+          currentVersion,
+          env,
+          now: () => now,
+          fetch: okRegistry("0.3.41"),
+          spawn: () => assert.fail(`no download when the running version is ${currentVersion}`),
+        });
+        assert.equal(again, true);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("session start hands its own version to the refresh child", () => {
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-refresh-version-"));
+    const litHome = join(home, "lit");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const now = Date.parse("2026-10-17T00:00:00.000Z");
+    const scheduled = [];
+    try {
+      const result = runAutomaticUpdate({
+        surface: "session-start",
+        currentVersion: "0.3.40",
+        cachePath,
+        litHome,
+        claudeHome: join(home, "claude"),
+        env: { LITCLAUDE_HOME: litHome },
+        input: { hook_event_name: "SessionStart", session_id: "session-test" },
+        now,
+        spawn: () => assert.fail("no install without a candidate"),
+        spawnRefresh: (...args) => {
+          scheduled.push(args);
+          return true;
+        },
+      });
+      assert.equal(result.refresh, "scheduled");
+      assert.equal(scheduled[0][4], "0.3.40");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("the doctor says when an installed update starts running, and names the remedy for each cause", async () => {
+    const { AUTO_UPDATE_REMEDIES, automaticUpdateDoctorLines } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    for (const cause of ["next-session", "offline", "backoff", "install-timeout", "ownership-conflict", "opted-out", "directory-source"]) {
+      assert.equal(typeof AUTO_UPDATE_REMEDIES[cause], "string", cause);
+      assert.equal(AUTO_UPDATE_REMEDIES[cause].length > 20 && AUTO_UPDATE_REMEDIES[cause].length <= 200, true, cause);
+    }
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-doctor-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    const cachePath = join(litHome, "update-notifier", "latest.json");
+    const receiptPath = join(litHome, "update-notifier", "automatic", "receipt.json");
+    const now = Date.parse("2026-10-17T12:00:00.000Z");
+    const iso = (offset) => new Date(now + offset).toISOString();
+    const lines = (env = {}) => automaticUpdateDoctorLines({ env, litHome, claudeHome, now }).join("\n");
+    const session = (version, at) => runAutomaticUpdate({
+      surface: "session-start",
+      currentVersion: version,
+      cachePath,
+      litHome,
+      claudeHome,
+      env: { LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome },
+      input: { hook_event_name: "SessionStart", session_id: "session-test" },
+      now: at,
+      spawn: (command, args) => (args.includes("install")
+        ? { status: 1, stdout: "", stderr: "INSTALL_OWNERSHIP_CONFLICT: /x; use a compatible CLI\n" }
+        : assert.fail("only the install runs")),
+      spawnRefresh: () => true,
+    });
+    try {
+      mkdirSync(join(claudeHome, "plugins"), { recursive: true });
+      writeFileSync(join(claudeHome, "plugins", "installed_plugins.json"), `${JSON.stringify({
+        version: 2,
+        plugins: { "litclaude@litclaude-ai": [{ scope: "user", version: "0.3.41" }] },
+      })}\n`);
+      writeFileSync(join(claudeHome, "plugins", "known_marketplaces.json"), `${JSON.stringify({
+        "litclaude-ai": { source: { source: "directory", path: "/x" } },
+      })}\n`);
+      writeCache(cachePath, { latestVersion: "0.3.41", checkedAt: iso(-3_600_000), attemptedAt: iso(-3_600_000) });
+      mkdirSync(join(litHome, "update-notifier", "automatic"), { recursive: true });
+      writeFileSync(receiptPath, `${JSON.stringify({
+        schema: 1,
+        generation: GENERATION,
+        status: "installed",
+        packageName: "@litfamily/litclaude",
+        fromVersion: "0.3.40",
+        targetVersion: "0.3.41",
+        startedAt: iso(-1_800_000),
+        finishedAt: iso(-1_800_000),
+      })}\n`);
+
+      const pending = lines();
+      assert.match(pending, /^AUTO_UPDATE: installed 0\.3\.41, running 0\.3\.40: takes effect in the next session$/mu);
+      assert.match(pending, new RegExp(`^AUTO_UPDATE_REMEDY: next-session: ${AUTO_UPDATE_REMEDIES["next-session"].replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "mu"));
+      assert.match(pending, /^AUTO_UPDATE_REMEDY: directory-source: /mu);
+      assert.match(pending, /^AUTO_UPDATE_LIMIT: /mu);
+      assert.match(pending, /^AUTO_UPDATE_CHECK: .*0\.3\.41.*next check after 2026-10-18T11:00:00\.000Z/mu);
+
+      // The first session that runs the new version marks the receipt; the pending line goes away.
+      session("0.3.41", now);
+      const running = lines();
+      assert.match(running, /^AUTO_UPDATE: running 0\.3\.41 since 2026-10-17T12:00:00\.000Z$/mu);
+      assert.doesNotMatch(running, /next-session/u);
+      session("0.3.41", now + 60_000);
+      assert.match(lines(), /since 2026-10-17T12:00:00\.000Z/u, "only the first session is recorded");
+
+      assert.match(lines({ LITCLAUDE_NO_AUTO_UPDATE: "" }), /^AUTO_UPDATE_REMEDY: opted-out: .*LITCLAUDE_NO_AUTO_UPDATE/mu);
+
+      writeCache(cachePath, { latestVersion: "0.3.41", checkedAt: iso(-30 * 3_600_000), attemptedAt: iso(-2 * 3_600_000) });
+      assert.match(lines(), /^AUTO_UPDATE_REMEDY: offline: /mu);
+      writeCache(cachePath, { latestVersion: "0.3.41", checkedAt: iso(-2 * 3_600_000), attemptedAt: iso(-2 * 3_600_000) });
+      assert.doesNotMatch(lines(), /offline/u);
+
+      writeFileSync(receiptPath, `${JSON.stringify({
+        schema: 1,
+        generation: GENERATION,
+        status: "rolled-back",
+        packageName: "@litfamily/litclaude",
+        fromVersion: "0.3.41",
+        targetVersion: "0.3.42",
+        finishedAt: iso(-3_600_000),
+        install: { ok: false, timedOut: true, errorCode: "ETIMEDOUT" },
+      })}\n`);
+      const timedOut = lines();
+      assert.match(timedOut, /^AUTO_UPDATE: 0\.3\.42 was not applied \(rolled-back at /mu);
+      assert.match(timedOut, /^AUTO_UPDATE_REMEDY: install-timeout: /mu);
+      assert.match(timedOut, /^AUTO_UPDATE_REMEDY: backoff: .*2026-10-18T11:00:00\.000Z/mu);
+
+      writeCache(cachePath, { latestVersion: "0.3.43", checkedAt: iso(-60_000), attemptedAt: iso(-60_000) });
+      const conflict = session("0.3.41", now);
+      assert.equal(conflict.status, "rolled-back");
+      assert.equal(JSON.parse(readFileSync(receiptPath, "utf8")).install.ownershipConflict, true);
+      assert.match(lines(), /^AUTO_UPDATE_REMEDY: ownership-conflict: /mu);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("the doctor command prints the update state, also as a dry run", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const home = mkdtempSync(join(tmpdir(), "litclaude-auto-doctor-cli-"));
+    const litHome = join(home, "lit");
+    const claudeHome = join(home, "claude");
+    try {
+      mkdirSync(join(claudeHome, "plugins"), { recursive: true });
+      writeFileSync(join(claudeHome, "plugins", "installed_plugins.json"), `${JSON.stringify({
+        version: 2,
+        plugins: { "litclaude@litclaude-ai": [{ scope: "user", version: "0.3.41" }] },
+      })}\n`);
+      mkdirSync(join(litHome, "update-notifier", "automatic"), { recursive: true });
+      writeFileSync(join(litHome, "update-notifier", "automatic", "receipt.json"), `${JSON.stringify({
+        schema: 1,
+        generation: GENERATION,
+        status: "installed",
+        packageName: "@litfamily/litclaude",
+        fromVersion: "0.3.40",
+        targetVersion: "0.3.41",
+        finishedAt: new Date(Date.now() - 60_000).toISOString(),
+      })}\n`);
+      const result = spawnSync(process.execPath, [join(import.meta.dirname, "..", "bin", "litclaude-ai.js"), "--dry-run", "doctor"], {
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: home, LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome, NO_COLOR: "1" },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /^AUTO_UPDATE: installed 0\.3\.41, running 0\.3\.40: takes effect in the next session$/mu);
+      assert.match(result.stdout, /^AUTO_UPDATE_REMEDY: next-session: /mu);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
 });
