@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.35 - 2026-10-19
+
+- The lit-humanizer check now catches a block that keeps saying what something is not. It counts plain negations such as `아님` or `is not` and reworded ones such as `~로 볼 수 없음`, `~와는 다르다`, `~로 읽으면 안 된다` or `does not mean`, per paragraph, list block or table column. Two Korean ones in one block, or three in any language, make the pre-write guard refuse the write and ask for wording that says what the thing is first and gives the caveat once; two in mixed languages stay a warning. Short table cells such as a `해당 아님` status, code, inline code and quotations are left out. The skill and its always-on rule explain positive-first wording with an example.
+- An Edit or MultiEdit is now checked against the whole edited file, and only findings on edited lines count. Code fences, quotes and the paragraph break between two edited paragraphs stay visible to the check, so an edit inside a fence or across two paragraphs passes. When the file cannot be read, each replacement is checked on its own. An English negation glued to a Hangul word is ignored.
+- A phrase repeated across a document is now tied to the lines it sits on, so an edit that adds a repeat is refused and an edit placed between two existing ones passes.
+- A file written outside the folder Claude Code reports as current, for example after a `cd` into a subfolder, is now checked when it belongs to the session's project (from `CLAUDE_PROJECT_DIR`, else the git root, else the current folder). Plans, ledgers and handoffs stay exempt there, and files elsewhere on disk, such as host settings, memory and temporary notes, are left alone.
+
 ## 1.0.34 - 2026-10-18
 
 - The README now says in two sentences what adding `lit` to a prompt does, then shows the install command and a first prompt before the demo. It adds who LitClaude is for, a short session sketch taken from the demo and a one-line summary to share. Install switches, card options and maintenance commands are explained first and then listed with when to use each, the stacked bold labels in the requirements section are gone, and the automatic update check is mentioned beside `update`. The npm and Korean pages follow, with the same images, version pins and anchors.
