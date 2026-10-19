@@ -188,6 +188,24 @@ function ruleSegments(rows, rule, cache) {
   return segments;
 }
 
+// A document-scope match runs from its first occurrence to its last, across unrelated text. The lines a
+// match actually occupies are its first and last line; overlapping re-matches from each later start add
+// the lines of further occurrences. Returns null past the bound, so callers fall back to the whole span.
+const MAX_OCCURRENCE_MATCHES = 64;
+function occurrenceLines(regex, segment, first) {
+  const lines = new Set();
+  const again = new RegExp(regex.source, `${regex.flags.replace(/[gy]/g, '')}g`);
+  let match = first;
+  for (let count = 0; match; count += 1) {
+    if (count >= MAX_OCCURRENCE_MATCHES) return null;
+    lines.add(lineAtOffset(segment, match.index));
+    lines.add(lineAtOffset(segment, match.index + Math.max(match[0].length - 1, 0)));
+    again.lastIndex = match.index + 1;
+    match = again.exec(segment.text);
+  }
+  return [...lines].sort((a, b) => a - b);
+}
+
 export function scanText(text, rules, file = '<stdin>') {
   if (isInternalPath(file)) return [];
   const findings = [];
@@ -199,15 +217,90 @@ export function scanText(text, rules, file = '<stdin>') {
       rule.regex.lastIndex = 0;
       const match = rule.regex.exec(segment.text);
       if (!match) continue;
-      findings.push({
+      const finding = {
         file,
         rule: rule.id,
         severity: rule.severity,
         line: lineAtOffset(segment, match.index),
+        endLine: lineAtOffset(segment, match.index + Math.max(match[0].length - 1, 0)),
         excerpt: segment.text.trim().replace(/\s+/g, ' ').slice(0, 180),
-      });
+      };
+      if (rule.scope === 'document') {
+        const lines = occurrenceLines(rule.regex, segment, match);
+        if (lines) finding.lines = lines;
+      }
+      findings.push(finding);
     }
   }
+  return findings;
+}
+
+// negation-cluster counts definitional negations per paragraph, list block, or table column, plain and
+// reworded. A count cannot be expressed as a single-match rule, so it runs beside the rule engine.
+// Two Korean negations or three in any language block; exactly two otherwise warn.
+const KO_NEGATIONS = [/아닙니다|아님|아니다|아니며|아니라|아닌/g, /(?:로|으로) (?:읽을|볼|해석할|간주할) 수 없|(?:로|으로) 보지 않|(?:을|를) (?:뜻하지|의미하지|나타내지|가리키지) 않|(?:와|과)는 다(?:릅니다|르다|름|르며|르고|르므로)|(?:로|으로) (?:읽으면|보면|해석하면) 안 /g];
+// Word edges are Unicode-aware: an ASCII \b would count "is not" glued to a preceding Hangul word.
+const EN_NEGATIONS = [
+  /(?<![\p{L}\p{N}_])(?:is not|are not|isn't|aren't|not a|rather than)(?![\p{L}\p{N}_])/giu,
+  /(?<![\p{L}\p{N}_])(?:(?:should not|cannot|can't|must not) be (?:read|taken|interpreted|treated) as|(?:does|do) not (?:mean|represent|indicate))(?![\p{L}\p{N}_])/giu,
+];
+const BLOCK_KO = 2;
+const BLOCK_TOTAL = 3;
+const WARN_TOTAL = 2;
+const TABLE_CELL_MIN_CHARS = 13;
+export const NEGATION_CLUSTER_MESSAGE = 'Several negations sit in one place. Say what the thing is first, then add the caveat once. Example: write "18,420 visits in total, including repeat visits" instead of "18,420 is not the number of residents".';
+
+const countAll = (text, patterns) => patterns.reduce((sum, pattern) => sum + (text.match(pattern)?.length ?? 0), 0);
+
+function negationSeverity(text) {
+  const ko = countAll(text, KO_NEGATIONS);
+  const total = ko + countAll(text, EN_NEGATIONS);
+  if (ko >= BLOCK_KO || total >= BLOCK_TOTAL) return 'block';
+  return total >= WARN_TOTAL ? 'warn' : null;
+}
+
+function negationUnits(block) {
+  const lines = block.filter((row) => row.candidate.trim());
+  if (!lines.every((row) => /^\s*\|/.test(row.candidate))) {
+    return [{ text: lines.map((row) => row.candidate).join('\n'), line: lines[0].number, endLine: lines.at(-1).number }];
+  }
+  const rows = lines.filter((row) => !/^[\s|:-]+$/.test(row.candidate)).map((row) => ({
+    line: row.number,
+    cells: row.candidate.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()),
+  }));
+  const width = Math.max(0, ...rows.map((row) => row.cells.length));
+  return Array.from({ length: width }, (_, column) => {
+    const cells = rows.filter((row) => [...(row.cells[column] ?? '')].length >= TABLE_CELL_MIN_CHARS);
+    return { text: cells.map((row) => row.cells[column]).join('\n'), line: cells[0]?.line ?? rows[0].line, endLine: cells.at(-1)?.line ?? rows[0].line };
+  });
+}
+
+export function scanNegationClusters(text, file = '<stdin>') {
+  if (isInternalPath(file)) return [];
+  const findings = [];
+  let block = [];
+  const flush = () => {
+    if (!block.length) return;
+    for (const unit of negationUnits(block)) {
+      const severity = negationSeverity(unit.text);
+      if (!severity) continue;
+      findings.push({
+        file,
+        rule: 'negation-cluster',
+        severity,
+        line: unit.line,
+        endLine: unit.endLine,
+        excerpt: unit.text.trim().replace(/\s+/g, ' ').slice(0, 180),
+        message: NEGATION_CLUSTER_MESSAGE,
+      });
+    }
+    block = [];
+  };
+  for (const row of sourceRows(text)) {
+    if (row.skipped || !row.candidate.trim()) flush();
+    else block.push(row);
+  }
+  flush();
   return findings;
 }
 

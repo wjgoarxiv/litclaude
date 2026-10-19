@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -127,6 +127,34 @@ describe("deliverable hedge guard integration", () => {
     assert.equal(result.status, "block");
   });
 
+  it("rechecks a created document in the parent of a subfolder cwd", (t) => {
+    const project = mkdtempSync(join(tmpdir(), "lit-humanizer-subcwd-office-"));
+    t.after(() => rmSync(project, { recursive: true, force: true }));
+    const cwd = join(project, "sources");
+    mkdirSync(cwd);
+    const documentPath = join(project, "report.docx");
+    copyFileSync(join(root, "test/fixtures/lit-humanizer/office/blocked.docx"), documentPath);
+    const result = evaluateDeliverableHedgeGuard({
+      input: { ...makeInput(cwd, "Write", { file_path: documentPath }), tool_response: { filePath: documentPath, success: true } },
+      pluginRoot,
+      projectDir: project,
+      phase: "post-create",
+    });
+    assert.deepEqual(result.paths, [documentPath]);
+    assert.equal(result.status, "block");
+
+    const internalPath = join(project, "plans", "report.docx");
+    mkdirSync(join(project, "plans"));
+    copyFileSync(documentPath, internalPath);
+    const internal = evaluateDeliverableHedgeGuard({
+      input: { ...makeInput(cwd, "Write", { file_path: internalPath }), tool_response: { filePath: internalPath, success: true } },
+      pluginRoot,
+      projectDir: project,
+      phase: "post-create",
+    });
+    assert.equal(internal.status, "clean");
+  });
+
   it("rechecks supported documents from a stable, bounded file read", (t) => {
     const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-guard-office-"));
     t.after(() => rmSync(cwd, { recursive: true, force: true }));
@@ -162,7 +190,7 @@ describe("deliverable hedge guard integration", () => {
     }
   });
 
-  it("checks only files inside the session's working directory", (t) => {
+  it("judges a file outside the working directory only when it lies inside the project", (t) => {
     const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-inside-"));
     const outside = mkdtempSync(join(tmpdir(), "lit-humanizer-outside-"));
     t.after(() => {
@@ -171,9 +199,15 @@ describe("deliverable hedge guard integration", () => {
     });
     const content = "**Evidence:** drafting residue\n";
     for (const path of [join(outside, "report.md"), join(cwd, "..", "report.md")]) {
-      const result = evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: path, content }), pluginRoot });
-      assert.equal(result.status, "clean", path);
+      const skipped = evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: path, content }), pluginRoot });
+      assert.equal(skipped.status, "clean", path);
     }
+    const judged = evaluateDeliverableHedgeGuard({
+      input: makeInput(cwd, "Write", { file_path: join(outside, "report.md"), content }),
+      pluginRoot,
+      projectDir: outside,
+    });
+    assert.equal(judged.status, "block");
     const inside = evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: join(cwd, "report.md"), content }), pluginRoot });
     assert.equal(inside.status, "block");
   });
@@ -372,20 +406,21 @@ describe("negative pledge sentences in deliverables", () => {
     assert.notEqual(run("숫자와 문자열은 서로 비교할 수 없습니다.\n").permissionDecision, "deny");
   });
 
-  it("counts the repeat rule over the changed text only: a second pledge added to a file that holds one is not refused", (t) => {
+  it("refuses a second pledge added to a file that holds one, judged by the lines its occurrences sit on", (t) => {
     const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-pledge-edit-"));
     t.after(() => rmSync(cwd, { recursive: true, force: true }));
     const path = join(cwd, "report.md");
     const first = "측정값은 인과관계를 주장하지 않음.";
     const second = "두 공정의 차이는 최종 결론이 아님.";
     writeFileSync(path, `# 보고서\n${first}\n`);
-    // The repeat rule needs two sentences in one scanned text. An Edit exposes only its added
-    // lines, so the pledge already on disk is invisible and the second one passes.
+    // The edit is applied to the file on disk, so the old pledge and the new one form one repeat, and
+    // the new one sits on a changed line.
     const edited = guard(cwd, "Edit", { file_path: path, old_string: `${first}\n`, new_string: `${first}\n${second}\n` });
-    assert.equal(edited.status, "clean");
+    assert.equal(edited.status, "block");
+    assert.ok(edited.findings.some((finding) => finding.rule === "ko-negative-pledge-repeat"));
     // A whole-file Write over the same path is diffed against the file on disk, with the same result.
     const rewritten = guard(cwd, "Write", { file_path: path, content: `# 보고서\n${first}\n${second}\n` });
-    assert.equal(rewritten.status, "clean");
+    assert.equal(rewritten.status, "block");
     // Both pledges arriving in one Edit, or in a new file, are one scanned text and are refused.
     const both = guard(cwd, "Edit", { file_path: path, old_string: "# 보고서\n", new_string: `# 보고서\n${first}\n${second}\n` });
     assert.equal(both.status, "block");
@@ -431,5 +466,220 @@ describe("negative pledge sentences in deliverables", () => {
     const output = JSON.parse(result.stdout).hookSpecificOutput;
     assert.equal(output.permissionDecision, "deny");
     assert.match(output.permissionDecisionReason, /ko-negative-pledge/u);
+  });
+});
+
+describe("negation-cluster tiers in deliverables", () => {
+  const cases = JSON.parse(readFileSync(join(root, "test/fixtures/lit-humanizer/negation-cluster-cases.json"), "utf8"));
+  const clusterHits = (result) => result.findings.filter((finding) => finding.rule === "negation-cluster");
+  const tierOf = (result) => {
+    const hits = clusterHits(result);
+    return hits.some((hit) => hit.severity === "block") ? "block" : hits.some((hit) => hit.severity === "warn") ? "warn" : null;
+  };
+  const guardWrite = (t, content, name = "report.md") => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-negation-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    return evaluateDeliverableHedgeGuard({ input: makeInput(cwd, "Write", { file_path: join(cwd, name), content }), pluginRoot });
+  };
+  const fixture = (prefix) => [...cases.positive, ...cases.negative].find((entry) => entry.id.startsWith(prefix)).text;
+
+  it("gives every positive fixture its expected tier", (t) => {
+    assert.equal(cases.positive.length, 16);
+    for (const entry of cases.positive) assert.equal(tierOf(guardWrite(t, entry.text)), entry.expect, entry.id);
+  });
+
+  it("stays silent on every negative fixture, including code, quotes, status tables and limitation lines", (t) => {
+    assert.equal(cases.negative.length, 18);
+    for (const entry of cases.negative) assert.deepEqual(clusterHits(guardWrite(t, entry.text)), [], entry.id);
+  });
+
+  it("refuses a stacked-negation write with the rewrite advice and its example", (t) => {
+    const result = guardWrite(t, `# 이용 현황\n\n${fixture("p01")}\n\n탑승 건수 436건은 승차 기준 집계입니다.\n`);
+    assert.equal(result.status, "block");
+    assert.deepEqual(result.findings.map((finding) => [finding.rule, finding.severity]), [["negation-cluster", "block"]]);
+    const reason = formatHumanizerBlockReason(result);
+    assert.match(reason, /negation-cluster line 3/u);
+    assert.match(reason, /Say what the thing is first, then add the caveat once/u);
+    assert.match(reason, /18,420 visits in total, including repeat visits/u);
+  });
+
+  it("lets a two-negation English or mixed write through with a warning", (t) => {
+    const result = guardWrite(t, fixture("p09"));
+    assert.equal(result.status, "warn");
+    const context = formatDeliverableHedgeContext(result);
+    assert.match(context, /warnings do not block/u);
+    assert.match(context, /Say what the thing is first/u);
+  });
+
+  it("skips internal paths the guard already exempts", (t) => {
+    assert.deepEqual(clusterHits(guardWrite(t, fixture("p01"), "plans/brief.md")), []);
+  });
+
+  it("reports the block from the skill's own detector CLI", () => {
+    const run = spawnSync(process.execPath, [join(pluginRoot, "skills/lit-humanizer/scripts/detect.mjs"), "--json"], {
+      input: fixture("p01"),
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    assert.equal(run.status, 2, run.stderr);
+    const report = JSON.parse(run.stdout);
+    assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.severity]), [["negation-cluster", "block"]]);
+  });
+
+  it("denies a reworded cluster and allows a limitation line through the real PreToolUse hook", (t) => {
+    const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-negation-hook-"));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const run = (content) => {
+      const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" },
+        input: JSON.stringify({ hook_event_name: "PreToolUse", cwd, tool_name: "Write", tool_input: { file_path: join(cwd, "report.md"), content } }),
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : {};
+    };
+    const denied = run(fixture("p11"));
+    assert.equal(denied.permissionDecision, "deny");
+    assert.match(denied.permissionDecisionReason, /negation-cluster line 1/u);
+    assert.match(denied.permissionDecisionReason, /Several negations sit in one place/u);
+    assert.match(denied.permissionDecisionReason, /18,420 visits in total/u);
+    const allowed = run(fixture("n11"));
+    assert.equal(allowed.permissionDecision, undefined);
+    assert.doesNotMatch(JSON.stringify(allowed), /negation-cluster/u);
+  });
+
+  it("does not count an English negation glued to a Korean word", (t) => {
+    assert.deepEqual(clusterHits(guardWrite(t, "값은is not final, 수치는is not a count, 비율은isn't fixed.")), []);
+  });
+
+  describe("Edit events read the edited file in context", () => {
+    const runEdit = (t, existing, oldString, newString) => {
+      const cwd = mkdtempSync(join(tmpdir(), "lit-humanizer-negation-edit-"));
+      t.after(() => rmSync(cwd, { recursive: true, force: true }));
+      const path = join(cwd, "README.md");
+      writeFileSync(path, existing);
+      const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" },
+        input: JSON.stringify({
+          hook_event_name: "PreToolUse",
+          cwd,
+          tool_name: "Edit",
+          tool_input: { file_path: path, old_string: oldString, new_string: newString },
+        }),
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : {};
+    };
+
+    it("allows an edit that replaces a whole code fence", (t) => {
+      const output = runEdit(t, "# Notes\n\n```\nold\n```\n", "```\nold\n```", "```\nassert x is not None  # 아님 아닙니다\n```");
+      assert.notEqual(output.permissionDecision, "deny");
+      assert.doesNotMatch(JSON.stringify(output), /negation-cluster/u);
+    });
+
+    it("allows an edit to code lines whose fence stays unchanged", (t) => {
+      const output = runEdit(t, "# Notes\n\n```\nassert x\nif y: pass\n```\n", "assert x\nif y: pass", "assert x is not None  # 아님 아닙니다\nif y is not a: pass");
+      assert.notEqual(output.permissionDecision, "deny");
+      assert.doesNotMatch(JSON.stringify(output), /negation-cluster/u);
+    });
+
+    it("keeps two edited paragraphs apart (n03)", (t) => {
+      const output = runEdit(t, "방문 횟수입니다.\n\n탑승 건수입니다.\n", "방문 횟수입니다.\n\n탑승 건수입니다.", fixture("n03"));
+      assert.notEqual(output.permissionDecision, "deny");
+      assert.doesNotMatch(JSON.stringify(output), /negation-cluster/u);
+    });
+
+    it("still refuses an edit that turns a plain paragraph into a stacked-negation block (p01)", (t) => {
+      const output = runEdit(t, "# 이용 현황\n\n방문 횟수 18,420회입니다.\n", "방문 횟수 18,420회입니다.", fixture("p01"));
+      assert.equal(output.permissionDecision, "deny");
+      assert.match(output.permissionDecisionReason, /negation-cluster line 3/u);
+    });
+
+    it("refuses an edit that adds two pledges after one old pledge (M-2 a)", (t) => {
+      const output = runEdit(t, "이 표는 일반화가 아닙니다.\n\n본문.\n", "본문.", "결론이 아닙니다.\n\n순위가 아닙니다.");
+      assert.equal(output.permissionDecision, "deny");
+      assert.match(output.permissionDecisionReason, /ko-negative-pledge-repeat/u);
+    });
+
+    it("allows an edit to the paragraph between two old pledges (M-2 b)", (t) => {
+      const output = runEdit(t, "결론이 아닙니다.\n\n중간 문단입니다.\n\n순위가 아닙니다.\n", "중간 문단입니다.", "고친 중간 문단입니다.");
+      assert.notEqual(output.permissionDecision, "deny");
+      assert.doesNotMatch(JSON.stringify(output), /ko-negative-pledge-repeat/u);
+    });
+  });
+
+  describe("a host cwd in a subfolder does not exempt the parent folder", () => {
+    // The project root is the CLAUDE_PROJECT_DIR the host sets on the hook process; without it, the
+    // git toplevel above cwd; without that, cwd itself.
+    const runFrom = (t, toolInput, { projectDir = "project", git = false } = {}) => {
+      const project = mkdtempSync(join(tmpdir(), "lit-humanizer-subcwd-"));
+      t.after(() => rmSync(project, { recursive: true, force: true }));
+      const cwd = join(project, "sources");
+      mkdirSync(cwd);
+      if (git) mkdirSync(join(project, ".git"));
+      const env = { ...process.env, LITCLAUDE_NO_AUTO_UPDATE: "1" };
+      delete env.CLAUDE_PROJECT_DIR;
+      if (projectDir === "project") env.CLAUDE_PROJECT_DIR = project;
+      const result = spawnSync(process.execPath, [join(pluginRoot, "bin/litclaude-hook.js"), "pre-tool-use"], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10000,
+        env,
+        input: JSON.stringify({ hook_event_name: "PreToolUse", cwd, tool_name: "Write", tool_input: toolInput(project) }),
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : {};
+    };
+
+    it("refuses p01 written to the parent folder by absolute path", (t) => {
+      const output = runFrom(t, (project) => ({ file_path: join(project, "report.md"), content: fixture("p01") }));
+      assert.equal(output.permissionDecision, "deny");
+      assert.match(output.permissionDecisionReason, /negation-cluster/u);
+    });
+
+    it("refuses p01 written to the parent folder by parent-relative path", (t) => {
+      const output = runFrom(t, () => ({ file_path: "../report.md", content: fixture("p01") }));
+      assert.equal(output.permissionDecision, "deny");
+      assert.match(output.permissionDecisionReason, /negation-cluster/u);
+    });
+
+    it("refuses p01 in the parent folder when the git toplevel is the only project signal", (t) => {
+      const output = runFrom(t, (project) => ({ file_path: join(project, "report.md"), content: fixture("p01") }), { projectDir: null, git: true });
+      assert.equal(output.permissionDecision, "deny");
+      assert.match(output.permissionDecisionReason, /negation-cluster/u);
+    });
+
+    it("skips the parent folder when no project signal reaches above cwd", (t) => {
+      const output = runFrom(t, (project) => ({ file_path: join(project, "report.md"), content: fixture("p01") }), { projectDir: null });
+      assert.notEqual(output.permissionDecision, "deny");
+    });
+
+    it("allows p01 written to host-config and temp-shaped paths outside the project", (t) => {
+      const elsewhere = mkdtempSync(join(tmpdir(), "lit-humanizer-elsewhere-"));
+      t.after(() => rmSync(elsewhere, { recursive: true, force: true }));
+      const targets = [
+        join(elsewhere, "home", ".claude", "projects", "x", "memory", "m.md"),
+        join(elsewhere, "home", ".claude", "CLAUDE.md"),
+        join(elsewhere, "home", ".codex", "AGENTS.md"),
+        join(elsewhere, "tmp", "review-nonexistent.md"),
+        join(elsewhere, "tmp", "scratchpad", "notes.md"),
+      ];
+      for (const target of targets) {
+        const output = runFrom(t, () => ({ file_path: target, content: fixture("p01") }));
+        assert.notEqual(output.permissionDecision, "deny", target);
+      }
+    });
+
+    it("keeps internal paths in the parent folder exempt", (t) => {
+      for (const path of ["plans/brief.md", "HANDOFF.md", ".litclaude/notes.md"]) {
+        const output = runFrom(t, (project) => ({ file_path: join(project, path), content: fixture("p01") }));
+        assert.notEqual(output.permissionDecision, "deny", path);
+      }
+    });
   });
 });

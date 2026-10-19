@@ -1,10 +1,11 @@
-import { lstatSync } from "node:fs";
+import { existsSync, lstatSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { extname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { extractCreatedDocumentPaths, extractMutatedFilePaths } from "./mutated-file-paths.mjs";
 import { readRegularStable } from "./secure-path-read.mjs";
 import { extractArtifactText } from "../skills/lit-humanizer/scripts/artifact-text.mjs";
+import { NEGATION_CLUSTER_MESSAGE } from "../skills/lit-humanizer/scripts/core.mjs";
 
 const MAX_ARTIFACT_BYTES = 512 * 1024;
 const MAX_AGGREGATE_BYTES = 2 * 1024 * 1024;
@@ -39,12 +40,33 @@ const internalPath = (cwd, path) => {
     || /\.jsonl$/iu.test(basename);
 };
 
-const pathWithin = (cwd, path) => {
+const outside = (root, path) => {
+  const rel = relative(root, path);
+  return isAbsolute(rel) || rel.split(/[\\/]/u)[0] === "..";
+};
+
+// The session's project: the project directory the host gives the hook (Claude Code sets
+// CLAUDE_PROJECT_DIR), else the git toplevel above cwd, else cwd itself.
+const projectRootFor = (cwd, projectDir) => {
+  if (typeof projectDir === "string" && projectDir.length > 0
+    && statSync(resolve(projectDir), { throwIfNoEntry: false })?.isDirectory() === true) return resolve(projectDir);
+  for (let current = cwd; ; current = dirname(current)) {
+    if (existsSync(join(current, ".git"))) return current;
+    if (dirname(current) === current) return cwd;
+  }
+};
+
+// The absolute path and the root it is judged and read against. A path under the reported cwd keeps
+// cwd as its root. The host reports a subfolder as cwd after a shell `cd`, so a path outside cwd but
+// inside the project is judged against the project root. Anything else, such as host config, memory
+// or temp notes, is not a project deliverable and is skipped.
+const locate = (cwd, path, projectDir) => {
   if (typeof cwd !== "string" || typeof path !== "string" || cwd.length === 0 || path.length === 0) return null;
-  const root = resolve(cwd);
-  const absolutePath = isAbsolute(path) ? resolve(path) : resolve(root, path);
-  const rel = relative(root, absolutePath);
-  return isAbsolute(rel) || rel.split(/[\\/]/u)[0] === ".." ? null : absolutePath;
+  const base = resolve(cwd);
+  const absolutePath = isAbsolute(path) ? resolve(path) : resolve(base, path);
+  if (!outside(base, absolutePath)) return { path: absolutePath, root: base };
+  const project = projectRootFor(base, projectDir);
+  return outside(project, absolutePath) ? null : { path: absolutePath, root: project };
 };
 
 const toolArtifacts = (input) => {
@@ -60,7 +82,8 @@ const toolArtifacts = (input) => {
     const text = typeof toolInput.new_string === "string" ? toolInput.new_string : toolInput.newString;
     const before = typeof toolInput.old_string === "string" ? toolInput.old_string : toolInput.oldString;
     if (!path || typeof text !== "string") return { artifacts: [], skipped: true };
-    return { artifacts: [{ path, text, ...(typeof before === "string" ? { before } : {}) }], skipped: false };
+    const all = toolInput.replace_all === true || toolInput.replaceAll === true;
+    return { artifacts: [{ path, text, ...(typeof before === "string" ? { before, all } : {}) }], skipped: false };
   }
   if (toolName !== "multiedit" && toolName !== "multi_edit") return { artifacts: [], skipped: false };
   if (path && Array.isArray(toolInput.edits)) {
@@ -70,7 +93,8 @@ const toolArtifacts = (input) => {
       const text = typeof edit.new_string === "string" ? edit.new_string : edit.newString;
       const before = typeof edit.old_string === "string" ? edit.old_string : edit.oldString;
       if (typeof text !== "string") return { artifacts: [], skipped: true };
-      artifacts.push({ path, text, ...(typeof before === "string" ? { before } : {}) });
+      const all = edit.replace_all === true || edit.replaceAll === true;
+      artifacts.push({ path, text, ...(typeof before === "string" ? { before, all } : {}) });
     }
     return { artifacts, skipped: false };
   }
@@ -87,8 +111,11 @@ const toolArtifacts = (input) => {
   return { artifacts, skipped: false };
 };
 
-const changedLines = (before, after) => {
-  if (before === after) return "";
+const splitLines = (text) => text.split(/\r?\n/u);
+
+// Line diff of `before` against `after`: `added` holds the indexes of new lines, `from` maps each kept
+// line of `after` to its line in `before`. Returns null when the diff exceeds its bounds.
+const diffLines = (before, after) => {
   const oldLines = before.split(/\r?\n/u);
   const newLines = after.split(/\r?\n/u);
   if (oldLines.length > MAX_DIFF_LINES || newLines.length > MAX_DIFF_LINES) return null;
@@ -99,8 +126,15 @@ const changedLines = (before, after) => {
     && oldLines[oldLines.length - suffix - 1] === newLines[newLines.length - suffix - 1]) suffix += 1;
   const oldMiddle = oldLines.slice(prefix, oldLines.length - suffix);
   const newMiddle = newLines.slice(prefix, newLines.length - suffix);
-  if (oldMiddle.length === 0) return newMiddle.join("\n");
-  if (newMiddle.length === 0) return "";
+  const added = new Set();
+  const from = new Map();
+  for (let index = 0; index < prefix; index += 1) from.set(index, index);
+  for (let index = 1; index <= suffix; index += 1) from.set(newLines.length - index, oldLines.length - index);
+  if (oldMiddle.length === 0) {
+    newMiddle.forEach((_, index) => added.add(prefix + index));
+    return { added, from };
+  }
+  if (newMiddle.length === 0) return { added, from };
 
   const n = oldMiddle.length;
   const m = newMiddle.length;
@@ -130,7 +164,6 @@ const changedLines = (before, after) => {
       if (work > MAX_DIFF_WORK) return null;
       if (nextX < n || nextY < m) continue;
 
-      const added = [];
       let backX = n;
       let backY = m;
       for (let backDistance = distance; backDistance >= 0; backDistance -= 1) {
@@ -146,19 +179,113 @@ const changedLines = (before, after) => {
         while (backX > previousX && backY > previousY) {
           backX -= 1;
           backY -= 1;
+          from.set(prefix + backY, prefix + backX);
         }
         if (backDistance === 0) break;
         if (backX === previousX) {
-          added.push(newMiddle[backY - 1]);
+          added.add(prefix + backY - 1);
           backY -= 1;
         } else {
           backX -= 1;
         }
       }
-      return added.reverse().join("\n");
+      return { added, from };
     }
   }
   return null;
+};
+
+// Applies one Edit to the proposed text and carries a per-line "changed" mark through it. Returns false
+// when old_string is not in the text (the host refuses that edit too) and null when the diff is too large.
+const applyEdit = (state, before, after, all) => {
+  const index = state.text.indexOf(before);
+  if (index === -1) return false;
+  if (all) {
+    const text = state.text.split(before).join(after);
+    const diff = diffLines(state.text, text);
+    if (diff === null) return null;
+    state.marks = splitLines(text).map((_, line) => diff.added.has(line)
+      || (diff.from.has(line) && state.marks[diff.from.get(line)] === true));
+    state.text = text;
+    return true;
+  }
+  const diff = diffLines(before, after);
+  if (diff === null) return null;
+  const startLine = state.text.slice(0, index).split("\n").length - 1;
+  const region = splitLines(after).map((_, line) => diff.added.has(line)
+    || (diff.from.has(line) && state.marks[startLine + diff.from.get(line)] === true));
+  state.marks = [...state.marks.slice(0, startLine), ...region, ...state.marks.slice(startLine + splitLines(before).length)];
+  state.text = `${state.text.slice(0, index)}${after}${state.text.slice(index + before.length)}`;
+  return true;
+};
+
+const changedRanges = (marks) => {
+  const ranges = [];
+  marks.forEach((marked, index) => {
+    if (!marked) return;
+    const last = ranges.at(-1);
+    if (last && last[1] === index) last[1] = index + 1;
+    else ranges.push([index + 1, index + 1]);
+  });
+  return ranges;
+};
+
+// The text each edited path is scanned as. Edits are applied to the file on disk so the detector sees
+// fences, quotes and blank lines around the change; when the file cannot be read, or an old_string is not
+// in it, each replacement text is scanned on its own, separated by a blank line.
+const proposedChange = (root, path, candidates) => {
+  let state = null;
+  const edits = [];
+  for (const candidate of candidates) {
+    if (typeof candidate.before === "string") {
+      edits.push(candidate);
+      continue;
+    }
+    edits.length = 0;
+    state = { text: candidate.text, marks: splitLines(candidate.text).map(() => true) };
+    if (!candidate.readBefore) continue;
+    let exists;
+    try { exists = lstatSync(path, { throwIfNoEntry: false }); } catch {
+      return { failure: "existing text could not be checked safely" };
+    }
+    if (!exists) continue;
+    const read = readRegularStable(root, path, undefined, { maxBytes: MAX_ARTIFACT_BYTES });
+    if (read.failure) return { failure: "existing text could not be read safely" };
+    const diff = diffLines(read.bytes.toString("utf8"), candidate.text);
+    if (diff === null) return { failure: "changed-text diff exceeded the check limit" };
+    state.marks = state.marks.map((_, index) => diff.added.has(index));
+  }
+  if (edits.length === 0) return state;
+  if (state === null) {
+    const read = readRegularStable(root, path, undefined, { maxBytes: MAX_ARTIFACT_BYTES });
+    if (!read.failure) {
+      const text = read.bytes.toString("utf8");
+      state = { text, marks: splitLines(text).map(() => false) };
+    }
+  }
+  for (const edit of edits) {
+    if (state === null) break;
+    if (edit.before.length === 0) {
+      state = state.text.length === 0 ? { text: edit.text, marks: splitLines(edit.text).map(() => true) } : null;
+      continue;
+    }
+    const applied = applyEdit(state, edit.before, edit.text, edit.all);
+    if (applied === null) return { failure: "changed-text diff exceeded the check limit" };
+    if (!applied) state = null;
+  }
+  if (state !== null && Buffer.byteLength(state.text, "utf8") <= MAX_ARTIFACT_BYTES) return state;
+  const fallback = { text: "", marks: [] };
+  for (const edit of edits) {
+    const diff = diffLines(edit.before, edit.text);
+    if (diff === null) return { failure: "changed-text diff exceeded the check limit" };
+    if (fallback.marks.length > 0) {
+      fallback.text += "\n\n";
+      fallback.marks.push(false);
+    }
+    fallback.text += edit.text;
+    fallback.marks.push(...splitLines(edit.text).map((_, index) => diff.added.has(index)));
+  }
+  return fallback;
 };
 
 const runScanner = (artifacts, pluginRoot, execute = spawnSync) => {
@@ -203,7 +330,7 @@ export const scanHumanizerText = async (text, file = "<stdin>", pluginRoot) => {
   return scanned.findings;
 };
 
-const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, phase = "pre-write", execute = spawnSync }) => {
+const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, projectDir, phase = "pre-write", execute = spawnSync }) => {
   if (!isRecord(input) || typeof pluginRoot !== "string") return cleanResult;
   const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
 
@@ -212,15 +339,17 @@ const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, phase = "pre
       && (input.tool_response.isError === true || input.tool_response.is_error === true
         || input.tool_response.error === true || input.tool_response.status === "error");
     if (failed) return cleanResult;
-    const paths = [...new Set([...extractMutatedFilePaths(input), ...extractCreatedDocumentPaths(input)])]
-      .map((path) => pathWithin(cwd, path))
-      .filter((path) => path !== null && !internalPath(cwd, path) && DOCUMENT_EXTENSIONS.has(extensionOf(path)));
+    const located = [...new Set([...extractMutatedFilePaths(input), ...extractCreatedDocumentPaths(input)])]
+      .map((path) => locate(cwd, path, projectDir))
+      .filter((entry) => entry !== null && !internalPath(entry.root, entry.path) && DOCUMENT_EXTENSIONS.has(extensionOf(entry.path)));
+    const roots = new Map(located.map(({ path, root }) => [path, root]));
+    const paths = [...roots.keys()];
     if (paths.length === 0) return cleanResult;
     if (paths.length > 2) return { status: "unavailable", reason: "document count exceeded the check limit", findings: [], paths: [] };
     const artifacts = [];
     let aggregateBytes = 0;
     for (const path of paths) {
-      const read = readRegularStable(cwd, path, undefined, { maxBytes: MAX_POST_CREATE_BYTES });
+      const read = readRegularStable(roots.get(path), path, undefined, { maxBytes: MAX_POST_CREATE_BYTES });
       if (read.failure) return { status: "unavailable", reason: "document could not be read safely", findings: [], paths: [] };
       aggregateBytes += read.bytes.length;
       if (aggregateBytes > MAX_POST_CREATE_BYTES) return { status: "unavailable", reason: "document size exceeded the check limit", findings: [], paths: [] };
@@ -242,36 +371,30 @@ const evaluateDeliverableHedgeGuardInternal = ({ input, pluginRoot, phase = "pre
     : cleanResult;
   if (candidates.length > MAX_ARTIFACT_PATHS) return { status: "unavailable", reason: "file count exceeded the check limit", findings: [], paths: [] };
   const byPath = new Map();
-  let aggregateBytes = 0;
+  const roots = new Map();
   for (const candidate of candidates) {
-    const path = pathWithin(cwd, candidate.path);
-    if (path === null || internalPath(cwd, path) || !readerFacing(path) || DOCUMENT_EXTENSIONS.has(extensionOf(path))) continue;
-    let text = candidate.text;
-    if (typeof candidate.before === "string") {
-      text = changedLines(candidate.before, text);
-      if (text === null) return { status: "unavailable", reason: "changed-text diff exceeded the check limit", findings: [], paths: [] };
-    } else if (candidate.readBefore) {
-      let exists;
-      try { exists = lstatSync(path, { throwIfNoEntry: false }); } catch {
-        return { status: "unavailable", reason: "existing text could not be checked safely", findings: [], paths: [] };
-      }
-      if (exists) {
-        const read = readRegularStable(cwd, path, undefined, { maxBytes: MAX_ARTIFACT_BYTES });
-        if (read.failure) return { status: "unavailable", reason: "existing text could not be read safely", findings: [], paths: [] };
-        text = changedLines(read.bytes.toString("utf8"), text);
-        if (text === null) return { status: "unavailable", reason: "changed-text diff exceeded the check limit", findings: [], paths: [] };
-      }
-    }
-    if (!text) continue;
-    const bytes = Buffer.byteLength(text, "utf8");
+    const located = locate(cwd, candidate.path, projectDir);
+    if (located === null) continue;
+    const { path, root } = located;
+    if (internalPath(root, path) || !readerFacing(path) || DOCUMENT_EXTENSIONS.has(extensionOf(path))) continue;
+    byPath.set(path, [...(byPath.get(path) ?? []), candidate]);
+    roots.set(path, root);
+  }
+  const artifacts = [];
+  let aggregateBytes = 0;
+  for (const [path, group] of byPath) {
+    const change = proposedChange(roots.get(path), path, group);
+    if (change.failure) return { status: "unavailable", reason: change.failure, findings: [], paths: [] };
+    const changed = changedRanges(change.marks);
+    if (changed.length === 0 || !change.text) continue;
+    const bytes = Buffer.byteLength(change.text, "utf8");
     aggregateBytes += bytes;
     if (bytes > MAX_ARTIFACT_BYTES || aggregateBytes > MAX_AGGREGATE_BYTES) {
       return { status: "unavailable", reason: "changed text exceeded the check limit", findings: [], paths: [] };
     }
-    byPath.set(path, byPath.has(path) ? `${byPath.get(path)}\n${text}` : text);
+    artifacts.push({ path, text: change.text, changed });
   }
-  if (byPath.size === 0) return cleanResult;
-  const artifacts = [...byPath].map(([path, text]) => ({ path, text }));
+  if (artifacts.length === 0) return cleanResult;
   const scanned = runScanner(artifacts, pluginRoot, execute);
   if (scanned.failure) return { status: "unavailable", reason: `detector ${scanned.failure}`, findings: [], paths: [] };
   return resultFor(scanned.findings, artifacts.map(({ path }) => path), scanned.total);
@@ -293,12 +416,14 @@ const findingSummary = (result) => {
   return listed ? `${listed}${omitted}` : "pattern review needed";
 };
 
+const negationHint = (result) => result?.findings?.some((finding) => finding.rule === "negation-cluster") ? ` ${NEGATION_CLUSTER_MESSAGE}` : "";
+
 export const formatDeliverableHedgeContext = (result) => {
   if (result?.status === "unavailable") return `lit-humanizer check skipped; the write was allowed (${String(result.reason ?? "guard unavailable").slice(0, 120)}).`;
-  if (result?.status === "warn") return `lit-humanizer warning: review the changed prose in context; warnings do not block a write (${findingSummary(result)}).`;
-  if (result?.phase === "post-create" && result?.status === "block") return `lit-humanizer post-create block finding: the document was created; revise the flagged drafting label or disclaimer (${findingSummary(result)}).`;
+  if (result?.status === "warn") return `lit-humanizer warning: review the changed prose in context; warnings do not block a write (${findingSummary(result)}).${negationHint(result)}`;
+  if (result?.phase === "post-create" && result?.status === "block") return `lit-humanizer post-create block finding: the document was created; revise the flagged drafting label, disclaimer or stacked negation (${findingSummary(result)}).${negationHint(result)}`;
   return "";
 };
 
 export const formatHumanizerBlockReason = (result) =>
-  `lit-humanizer blocked this write because changed prose matches a high-confidence drafting-residue rule (${findingSummary(result)}). Rewrite the new text or use the requested citation format.`;
+  `lit-humanizer blocked this write because changed prose matches a high-confidence drafting-residue rule (${findingSummary(result)}). Rewrite the new text or use the requested citation format.${negationHint(result)}`;

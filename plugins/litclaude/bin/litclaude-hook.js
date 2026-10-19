@@ -1395,7 +1395,7 @@ switch (eventName) {
         }
         let humanizerContext = "";
         try {
-          const result = evaluateDeliverableHedgeGuard({ input: guardInput, pluginRoot });
+          const result = evaluateDeliverableHedgeGuard({ input: guardInput, pluginRoot, projectDir: process.env.CLAUDE_PROJECT_DIR });
           if (result.status === "block") {
             console.log(JSON.stringify({
               hookSpecificOutput: {
@@ -1469,7 +1469,7 @@ switch (eventName) {
       ? `LitClaude post-edit routes for ${toolName} on untrusted inert path data ${serializeUntrustedData(filePaths)}: ${skillEntries.map((entry) => entry.text).join(" ")}`
       : "";
     const hedgeContext = formatDeliverableHedgeContext(
-      evaluateDeliverableHedgeGuard({ input, pluginRoot, phase: "post-create" }),
+      evaluateDeliverableHedgeGuard({ input, pluginRoot, projectDir: process.env.CLAUDE_PROJECT_DIR, phase: "post-create" }),
     );
     const readerContractContext = skillEntries.length > 0 || hedgeContext.length > 0
       ? llmContractReference

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseRules, scanText } from "./core.mjs";
+import { parseRules, scanNegationClusters, scanText } from "./core.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MAX_INPUT_BYTES = 2 * 1024 * 1024;
@@ -20,6 +20,15 @@ const boundFindings = (findings) => {
   return [...blocks, ...others].slice(0, MAX_FINDINGS).sort((a, b) => a.index - b.index).map(({ finding }) => finding);
 };
 
+// An edit is scanned as the whole proposed file so fences, quotes and paragraph breaks keep their
+// meaning; `changed` lists the edited 1-based line ranges, and only findings that touch one are kept.
+// A document-scope finding lists the lines its occurrences sit on, so an edit between two old
+// occurrences does not revive it. Filtering happens before the bound so findings on unchanged lines can
+// never crowd out a new one.
+const touchesChange = (finding, changed) => changed.some(([start, end]) => (Array.isArray(finding.lines)
+  ? finding.lines.some((line) => line >= start && line <= end)
+  : finding.line <= end && (finding.endLine ?? finding.line) >= start));
+
 try {
   const raw = readFileSync(0);
   if (raw.length > MAX_INPUT_BYTES) throw new Error("input exceeds the bounded scan size");
@@ -32,7 +41,11 @@ try {
     if (typeof artifact?.text !== "string" || typeof artifact?.path !== "string") throw new Error("invalid artifact record");
     totalBytes += Buffer.byteLength(artifact.text, "utf8");
     if (totalBytes > MAX_INPUT_BYTES) throw new Error("aggregate content exceeds the bounded scan size");
-    findings.push(...scanText(artifact.text, rules, artifact.path));
+    const changed = artifact.changed;
+    if (changed !== undefined && (!Array.isArray(changed) || !changed.every((range) => Array.isArray(range)
+      && range.length === 2 && range.every(Number.isInteger)))) throw new Error("invalid changed ranges");
+    const hits = [...scanText(artifact.text, rules, artifact.path), ...scanNegationClusters(artifact.text, artifact.path)];
+    findings.push(...(changed ? hits.filter((finding) => touchesChange(finding, changed)) : hits));
   }
   process.stdout.write(`${JSON.stringify({ findings: boundFindings(findings), total: findings.length })}\n`);
 } catch {

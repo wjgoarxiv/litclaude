@@ -1,0 +1,165 @@
+{
+  "schema_version": 2,
+  "description": "negation-cluster tier cases: per paragraph, list block or table column, two Korean definitional negations (plain or reworded) or three in any language block the write; exactly two otherwise warn. Negatives must produce no negation-cluster finding.",
+  "threshold": {
+    "block_ko": 2,
+    "block_total": 3,
+    "warn_total": 2
+  },
+  "positive": [
+    {
+      "id": "p01-hermes-visits",
+      "expect": "block",
+      "text": "방문 횟수입니다. 18,420명이 이용했다는 뜻이 아닙니다. 이용자 수가 아닙니다."
+    },
+    {
+      "id": "p02-resident-count",
+      "expect": "block",
+      "text": "18,420회는 주민 수가 아님. 같은 사람의 반복 방문이 포함되며 고유 방문자 수가 아님."
+    },
+    {
+      "id": "p03-list",
+      "expect": "block",
+      "text": "- 방문 횟수이며 서로 다른 주민 수가 아님\n- 탑승할 때마다 집계. 실승객 수 아님\n- 나머지 4곳은 원래 공사 대상이 아님"
+    },
+    {
+      "id": "p04-budget",
+      "expect": "block",
+      "text": "한도의 68%입니다. 최종 비용이나 전망치가 아닙니다. 누적 지출이며 확정액이 아니다."
+    },
+    {
+      "id": "p05-survey",
+      "expect": "block",
+      "text": "설문은 자발적 응답이므로 대표 표본이 아니며, 만족도 조사도 아닙니다."
+    },
+    {
+      "id": "p06-contrast",
+      "expect": "block",
+      "text": "이 수치는 성과가 아니라 투입량이며, 목표치가 아닌 관측값입니다."
+    },
+    {
+      "id": "p07-table-column",
+      "expect": "block",
+      "text": "| 지표 | 해석 |\n|---|---|\n| 방문 | 같은 사람의 반복 방문이 포함되며, 이용한 주민 수가 아님 |\n| 탑승 | 귀가 탑승도 따로 셈. 이용한 승객 수가 아님 |"
+    },
+    {
+      "id": "p08-en-paragraph",
+      "expect": "block",
+      "text": "The 18,420 figure is not a resident count. It is not a forecast either, and the 68% share is not a final cost."
+    },
+    {
+      "id": "p09-en-rather",
+      "expect": "warn",
+      "text": "These are visits rather than visitors, and the survey results are not representative."
+    },
+    {
+      "id": "p10-mixed",
+      "expect": "warn",
+      "text": "참고: 18,420은 visits이며 unique visitors가 아닙니다. The ridership figure is not a passenger count."
+    },
+    {
+      "id": "p11-reword-read-as",
+      "expect": "block",
+      "text": "방문 횟수임. 같은 사람의 재방문이 섞여 있어 이용자 수로 읽을 수 없음. 고유 방문자 수도 아님."
+    },
+    {
+      "id": "p12-reword-mean",
+      "expect": "block",
+      "text": "탑승 횟수입니다. 승객 수로 볼 수 없고, 436명을 뜻하지 않습니다."
+    },
+    {
+      "id": "p13-reword-see-as",
+      "expect": "block",
+      "text": "2025년 8월 31일까지의 집행액. 최종 비용으로 보지 않으며 전망치도 아님."
+    },
+    {
+      "id": "p14-en-reword",
+      "expect": "block",
+      "text": "The 18,420 figure should not be read as a resident count; it does not mean 18,420 people, and it is not a forecast."
+    },
+    {
+      "id": "p15-reword-differs",
+      "expect": "block",
+      "text": "집행 누계입니다. 최종 비용과는 다르고, 승인 한도 24억 원과는 다릅니다."
+    },
+    {
+      "id": "p16-reword-must-not-read",
+      "expect": "block",
+      "text": "방문 횟수다. 고유 방문자 수로 읽으면 안 된다. 주민 수가 아니다."
+    }
+  ],
+  "negative": [
+    {
+      "id": "n01-one-caveat",
+      "text": "18,420회는 같은 사람의 반복 방문을 포함한 방문 횟수 합계입니다. 고유 방문자 수는 자료에 없습니다."
+    },
+    {
+      "id": "n02-single-negation",
+      "text": "방문 횟수 합계입니다. 주민 수가 아닙니다. 탑승은 승차할 때마다 1회로 셉니다."
+    },
+    {
+      "id": "n03-split-paragraphs",
+      "text": "방문 횟수는 주민 수가 아닙니다.\n\n탑승 건수는 승객 수가 아닙니다."
+    },
+    {
+      "id": "n04-fence",
+      "text": "```\nassert x is not None  # 아님 아님 아닙니다\nif y is not a: pass\n```"
+    },
+    {
+      "id": "n05-inline-code",
+      "text": "`is not` 와 `아닙니다` 는 예시 문자열입니다. 이 문단은 그 표현을 설명합니다."
+    },
+    {
+      "id": "n06-blockquote",
+      "text": "> 이것은 주민 수가 아닙니다. 최종 비용이 아닙니다. 전망치가 아닙니다."
+    },
+    {
+      "id": "n07-status-table",
+      "text": "| 항목 | 상태 |\n|---|---|\n| A | 해당 아님 |\n| B | 해당 아님 |\n| C | 아님 |"
+    },
+    {
+      "id": "n08-en-one",
+      "text": "The 18,420 figure counts every visit, including repeat visits by the same person. It is not a resident count."
+    },
+    {
+      "id": "n09-plain-no",
+      "text": "입장은 무료이며 신분증이 필요 없습니다. 모든 구민이 이용할 수 있습니다."
+    },
+    {
+      "id": "n10-positive-first",
+      "text": "탑승 건수 436건은 승차 기준 집계입니다. 귀가 탑승도 따로 셉니다."
+    },
+    {
+      "id": "n11-limitation",
+      "text": "건강 효과: 진료 자료와 연계하지 않았고 비교 지역도 없음. 여름철 날씨 변동도 보정하지 않음."
+    },
+    {
+      "id": "n12-no-data",
+      "text": "고유 이용자 지표는 자료에 없음. 승객 수 추정치도 없습니다."
+    },
+    {
+      "id": "n13-one-reword",
+      "text": "18,420회는 방문 횟수 합계이며, 18,420명으로 읽을 수 없습니다."
+    },
+    {
+      "id": "n14-own-example-inline",
+      "text": "수치가 무엇인지 먼저 말하세요. `18,420회는 주민 수가 아님` 대신 방문 횟수 합계라고 씁니다. `고유 방문자 수도 아님` 같은 꼬리도 뺍니다."
+    },
+    {
+      "id": "n15-one-difference",
+      "text": "방문과 탑승은 단위가 서로 다릅니다. 두 수치는 따로 보고합니다."
+    },
+    {
+      "id": "n16-compare-plain",
+      "text": "A안과 B안은 비용 구조가 다르며, 표 2에 차이를 정리했습니다."
+    },
+    {
+      "id": "n17-plain-comparisons",
+      "text": "새 방식은 기존 방식과 다르고, 비용 구조도 작년과 다릅니다."
+    },
+    {
+      "id": "n18-attributive-different",
+      "text": "이번 조사는 지난해와 다른 표본을 썼고, 질문 순서도 이전 판과 다른 방식으로 바꿨습니다."
+    }
+  ]
+}

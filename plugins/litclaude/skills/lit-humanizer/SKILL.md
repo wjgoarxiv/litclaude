@@ -135,6 +135,10 @@ When citations are requested, use the requested footnote or bibliography style. 
 
 `references/ko-metrics.md` explains the optional genre-sensitive metrics. Use `scripts/ko-metrics.mjs` only as a review aid. The metrics are not an authorship detector, acceptance score, or rewrite target. In particular, Korean `~하지 않음`/negation patterns remain warnings: factual absence and scope statements must not be rewritten into positive claims.
 
+## Positive-first wording
+
+Say what a figure or thing is first, and give the needed caveat once. `18,420회는 주민 수가 아님` leaves the reader to guess what was counted; "18,420회는 같은 사람의 반복 방문을 포함한 방문 횟수 합계입니다" names the count and carries the caveat inside it. The detector reports `negation-cluster` per paragraph, list block, or table column. It counts the plain definitional negations (`아닙니다`, `아님`, `아니다`, `아니며`, `아니라`, `아닌`; English `is not`, `are not`, `isn't`, `aren't`, `not a`, `rather than`) and the reworded ones that say the same thing (`~로 읽을 수 없음`, `~로 볼 수 없음`, `~로 보지 않음`, `~을 뜻하지 않음`, `~와는 다르다`, `~로 읽으면 안 된다`; English `should not be read as`, `does not mean`). Two Korean negations in one block, or three in any language, make it a block finding, and the pre-write guard refuses the write with this advice. Exactly two that are not both Korean stay a warning. Trading `아님` for `~로 읽을 수 없음` changes nothing: rewrite the block so it says what the thing is. Table cells of 12 characters or fewer, such as a `해당 아님` status, do not count, and code, inline code, and quotations are skipped as for every other signal. A real absence or scope limit stays, once, as one plain sentence ("고유 이용자 지표는 자료에 없습니다"). When this skill's own text shows a bad example, it goes in inline code or a blockquote so the guard ignores it.
+
 ## Code and developer prose
 
 Review comments, README text, changelogs, commits, and pull-request prose as prose. Remove narration that merely repeats the next line. Keep code behavior and useful names intact. Do not remove input validation, error handling, authorization checks, data-integrity safeguards, or accessibility support to make a diff shorter.

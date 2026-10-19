@@ -4,7 +4,7 @@ import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { extractArtifactText } from "./artifact-text.mjs";
-import { exitCode, parseRules, scanText } from "./core.mjs";
+import { exitCode, parseRules, scanNegationClusters, scanText } from "./core.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const usage = "Usage: node scripts/detect.mjs [--json] [--rules FILE] [FILE ...] (use - or omit FILE to read stdin)";
@@ -39,7 +39,8 @@ const main = () => {
   const scanned = [];
   for (const file of files) {
     try {
-      findings.push(...scanText(contentFor(file), rules, file));
+      const text = contentFor(file);
+      findings.push(...scanText(text, rules, file), ...scanNegationClusters(text, file));
       scanned.push(file);
     } catch (error) {
       errors.push({ file, message: error instanceof Error ? error.message : String(error) });
