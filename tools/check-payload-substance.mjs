@@ -15,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { npmInvocation } from '../plugins/litclaude/lib/npm-invocation.mjs';
 
 const PRODUCT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SKILL_ROOT_RELATIVE = join('plugins', 'litclaude', 'skills');
@@ -294,14 +295,14 @@ function npmPack(root, { runScripts = false } = {}) {
   try {
     if (runScripts) isolated = isolatePublishedPackage(root);
     const packRoot = isolated?.packageRoot ?? root;
-    const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     const args = ['pack', '--dry-run', '--json'];
     if (!runScripts) args.push('--ignore-scripts');
-    const result = spawnSync(command, args, {
+    const npm = npmInvocation(args);
+    const result = spawnSync(npm.command, npm.args, {
       cwd: packRoot,
       encoding: 'utf8',
       env,
-      shell: false,
+      shell: npm.shell,
       timeout: 180000,
     });
     if (result.error || result.status !== 0) {

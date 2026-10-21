@@ -289,5 +289,6 @@ test("postinstall can force isolated LitClaude plugin and HUD setup", () => {
 
 test("plugin validator delegates to the real Claude validator when available", async () => {
   const script = await readFile(new URL("scripts/validate-plugin.mjs", root), "utf8");
-  assert.ok(script.includes('"claude", ["plugin", "validate"'));
+  assert.ok(script.includes('shellFreeCommand("claude", args)'));
+  assert.ok(script.includes('spawnClaude(["plugin", "validate"'));
 });

@@ -91,7 +91,7 @@ export function shippedExamples(file = TREATMENT_MD) {
 }
 
 /** Longest common substring length of two normalized strings (small inputs only). */
-function sharesRun(a, b, length) {
+export function sharesRun(a, b, length) {
   if (length <= 0 || a.length < length || b.length < length) return null;
   for (let i = 0; i + length <= a.length; i++) {
     const piece = a.slice(i, i + length);
@@ -133,6 +133,7 @@ function checkCopiedExample(t, examples) {
  */
 export function validateTreatment(t, { examples = shippedExamples() } = {}) {
   if (!t || typeof t !== "object" || Array.isArray(t)) fail("treatment.json", "must be a JSON object");
+  if (t.mode === "cover") fail("mode", "this is a cover treatment: render it with motion.mjs cover --out <dir> (references/cover.md)");
   checkText(t, "request");
   if (!("genre" in t)) fail("genre", "missing");
   if (!GENRES.includes(t.genre)) fail("genre", `must be one of ${GENRES.join(", ")}`);

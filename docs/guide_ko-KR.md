@@ -53,7 +53,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 다섯 단계입니다. 마지막 줄은 모델은 계속 Claude Code가 고르고 나머지 Claude 설정은 그대로라는
 뜻입니다. 이 그림은 어두운 터미널입니다.
 
-<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="zsh라는 제목의 터미널 창. 주황색·크림색·초록색 블록 글자로 그린 LitClaude 마크 옆에 claude vX.Y.Z와 hermes, codex, opencode, grok이라는 이름이 있고, 그 아래에 Claude Code-native workflow distribution. 줄이 있습니다. 이어서 INSTALL PLAN 아래에 다섯 단계가 나옵니다. 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. 마지막 줄은 Model selection: host-owned · unrelated Claude settings preserved입니다." /></p>
+<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="zsh라는 제목의 터미널 창. 주황색·크림색·초록색 블록 글자로 그린 LitClaude 마크 옆에 claude vX.Y.Z와 hermes, codex, opencode, grok, muse, gravity라는 이름이 있고, 그 아래에 Claude Code-native workflow distribution. 줄이 있습니다. 이어서 INSTALL PLAN 아래에 다섯 단계가 나옵니다. 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. 마지막 줄은 Model selection: host-owned · unrelated Claude settings preserved입니다." /></p>
 
 *설치 프로그램에서 캡처*
 
@@ -158,11 +158,12 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | --- | --- |
 | `lit`, `litwork` | 근거를 남기며 테스트부터 쓰는 실행 루프입니다. `$lit-loop`, `/lit-loop`, `/litclaude:lit-loop`도 됩니다. |
 | `lit plan <what>` | 계획만 씁니다. `$lit-plan`, `/lit-plan`도 됩니다. |
-| `lit review <scope>` | 계획이나 끝낸 작업을 검토합니다. `$review-work`, `/review-work`도 됩니다. |
+| `lit review <scope>` | 계획(계획 검토)이나 끝낸 작업(작업 검토)을 있는 것에 맞춰 골라 검토합니다. `lit review plan`, `lit review work`로 직접 고를 수 있고, `$review-work`, `/review-work`도 됩니다. |
 | `lit research <question>` | 출처를 밝히는 공개 자료 조사입니다. `$litresearch`, `/litclaude:litresearch`도 됩니다. |
 | `lit search <question>` | 공개 자료를 찾아 옵니다. |
 | `lit query <question>` | 프로젝트에 남긴 기록에서 근거를 찾습니다. |
-| `lit goal <outcome>` | 목표 하나와 확인할 수 있는 기준을 묶어 둡니다. `$litgoal`, `/litgoal`도 됩니다. |
+| `lit goal <outcome>` | 끝낼 선을 정하고 지킵니다. 목표 하나와 확인할 수 있는 기준을 묶어 두면 `lit`과 `start-work`가 그 선을 향해 일합니다. `$litgoal`, `/litgoal`도 됩니다. |
+| `lit brainstorm <topic>`, `lit ideation`, `lit idea` | 열린 질문에 아이디어를 많이 내고 점수를 매겨 짧은 목록으로 줄인 뒤, `deep-interview`나 `lit plan`으로 넘깁니다. `$lit-brainstorm`, `/litclaude:lit-brainstorm`도 됩니다. |
 | `lit workflow <objective>` | 여러 에이전트에게 나눠 맡길 큰 작업에 Dynamic workflow를 제안합니다. |
 | `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`을 켜 두었고 사용자가 승인할 때만 Claude Code의 에이전트 팀을 제안합니다. |
 | `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
@@ -269,11 +270,11 @@ Claude Code 설정이 허락하는 만큼입니다. 실제로 무엇이 끝났�
 <p align="center"><img src="./assets/litclaude-ignition-1600.webp" width="49%" alt="LitClaude 시작 편집 이미지" /> <img src="./assets/litclaude-continuity-1600.webp" width="49%" alt="LitClaude 이어가기 편집 이미지" /></p>
 
 <details>
-<summary>LITFAMILY · 다섯 아머드 머신</summary>
+<summary>LITFAMILY · 일곱 아머드 머신</summary>
 
-![다섯 LIT 제품을 아머드 머신으로 표현한 콘셉트 아트](./assets/litfamily-machines.png)
+![일곱 LIT 제품을 아머드 머신으로 표현한 콘셉트 아트](./assets/litfamily-machines.png)
 
-LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok을 아머드 머신으로 그린 콘셉트 아트입니다.
+LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아머드 머신으로 그린 콘셉트 아트입니다.
 각 제품은 자신의 호스트에서 따로 동작합니다.
 
 </details>
@@ -515,7 +516,7 @@ HUD는 배경색을 강제로 바꾸지 않습니다. Claude가 사용 한도 �
 Claude Code는 세션이 시작될 때, 프롬프트를 보낼 때, 도구가 돌 때, 서브에이전트가 시작하고 끝날
 때, 세션이 끝날 때마다 플러그인에 알립니다. 이 알림은 플러그인 안의 네 부분에 전달됩니다. 프로젝트
 규칙을 읽어 들이는 부분, 작업 흐름을 고르는 부분, 권한을 확인하는 부분, 기록을 남기는 부분입니다.
-이렇게 해서 35개 skill·16개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
+이렇게 해서 36개 skill·17개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
 동작하고, Claude Code가 허용하거나 막는 것은 그대로 적용됩니다.
 
 ```mermaid
@@ -537,7 +538,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["35 skills · 16 commands · 11 agents"]
+    LC --> S["36 skills · 17 commands · 11 agents"]
 ```
 
 새로 설치한 컴퓨터에서도 모든 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기

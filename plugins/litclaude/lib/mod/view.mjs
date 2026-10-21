@@ -6,8 +6,9 @@ import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
 import { buildWorkflow } from "./workflow.mjs";
 
 export const STALL_MS = 10 * 60 * 1000;
-// An agent quiet for this long no longer counts as running: a crashed loop or a lost report must not
-// hold the card at work for the rest of the session.
+// An agent the host does not list, quiet this long with no call in flight, no longer counts as
+// running: a crashed loop or a lost report must not hold the card at work for the rest of the
+// session. One the host lists as live stays, however quiet; it is marked stalled instead.
 export const AGENT_STALE_MS = 30 * 60 * 1000;
 // The context warning starts this many points before the auto-handoff percent.
 export const CONTEXT_LEAD = 5;
@@ -49,25 +50,29 @@ export const trackAgents = (activity, agents, previousStatus, now) => {
 export const noteAgentActivity = (activity, agentId, now) =>
   activity.first[agentId] === undefined ? activity : { ...activity, last: { ...activity.last, [agentId]: now } };
 
-// `spawned` maps an agent id to what `agent.spawn` said of it and when it was last seen working. It
-// covers the agents `$.agent.list()` never shows (a workflow script's) and the moment before the
-// list catches up; the agent's own `turn.complete` ends it.
-export const noteSpawn = (spawned, { id, description, type, at }) => ({ ...spawned, [id]: { id, description, type, last: at } });
+// `spawned` maps an agent id to what `agent.spawn` said of it, when it was last seen working and
+// how many of its tool calls are in flight. It covers the agents `$.agent.list()` never shows (a
+// workflow script's) and the moment before the list catches up; the agent's own `turn.complete`
+// ends it.
+export const noteSpawn = (spawned, { id, description, type, at }) => ({ ...spawned, [id]: { id, description, type, last: at, calls: 0 } });
 
-export const noteSpawnActivity = (spawned, id, at) => (spawned[id] ? { ...spawned, [id]: { ...spawned[id], last: at } } : spawned);
+// `calls` is +1 as one of the agent's tool calls starts, -1 as it returns, 0 for other activity.
+export const noteSpawnActivity = (spawned, id, at, calls = 0) => (spawned[id]
+  ? { ...spawned, [id]: { ...spawned[id], last: at, calls: Math.max(0, (spawned[id].calls ?? 0) + calls) } }
+  : spawned);
 
 export const noteSpawnEnded = (spawned, id) => Object.fromEntries(Object.entries(spawned).filter(([key]) => key !== id));
 
 // Folds the spawn records into one `$.agent.list()` reading. The list speaks for the agents it shows:
 // a record whose agent it lists as ended is dropped. A record it does not show runs until its
-// `turn.complete`, or until it has been quiet for AGENT_STALE_MS.
+// `turn.complete`, or until it has been quiet for AGENT_STALE_MS with no call in flight.
 export const mergeSpawned = (listed, spawned, now) => {
   const byId = new Map(listed.map((agent) => [agent.id, agent]));
   const kept = {};
   const unlisted = [];
   for (const record of Object.values(spawned)) {
     const row = byId.get(record.id);
-    if (row ? ENDED_AGENT.has(row.status) : now - record.last > AGENT_STALE_MS) continue;
+    if (row ? ENDED_AGENT.has(row.status) : now - record.last > AGENT_STALE_MS && !(record.calls > 0)) continue;
     kept[record.id] = record;
     if (!row) unlisted.push({ id: record.id, description: record.description, type: record.type, status: "running" });
   }
@@ -170,12 +175,13 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const progress = progressOf(snapshot);
   const completing = completion !== null;
   const phases = phasesOf({ snapshot, discipline, progress, completing });
-  const liveAgents = agents.filter((agent) => LIVE_AGENT.has(agent.status) && !(now - activity.last[agent.id] > AGENT_STALE_MS));
+  const liveAgents = agents.filter((agent) => LIVE_AGENT.has(agent.status));
   const boulderLanes = (snapshot.work?.lanes ?? []).filter(({ status }) => status === "active");
   const stalls = stalledLanes(agents, activity, now);
   const stalledIds = new Set(stalls.map(({ id }) => id));
   const lanes = liveAgents.length > 0
     ? liveAgents.slice(0, 6).map((agent) => ({
+      id: agent.id,
       name: laneName(agent),
       status: stalledIds.has(agent.id) ? "stalled" : agent.status,
       elapsedMs: Number.isFinite(activity.first[agent.id]) ? now - activity.first[agent.id] : null,

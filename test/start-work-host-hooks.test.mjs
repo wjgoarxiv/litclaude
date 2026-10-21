@@ -678,4 +678,129 @@ describe("Claude-native bounded-authority host hooks", () => {
     const doctor = readFileSync(join(repoRoot, "scripts", "doctor.mjs"), "utf8");
     assert.match(doctor, /START_WORK_HOST_HOOKS_PASS.*PreToolUse.*SubagentStart/isu);
   });
+  describe("read-only commands on granted roots and the guard's own controls", () => {
+    // The lifecycle root is read-granted only; the work runs in `tree`, the one write-granted root.
+    const initializeInTree = (root, tree) => {
+      writePlan(root);
+      const result = runCli(root, [
+        "init", "--plan", "plans/approved.md", "--work-id", "work-1", "--session-id", "session-root", "--worktree", tree,
+        "--grant", `read:${root}`, "--grant", `write:${tree}`, "--grant", `execute:${tree}`, "--grant", `test:${tree}`,
+        "--idempotency-key", "init-1",
+      ]);
+      assert.equal(result.status, 0, result.stderr);
+    };
+
+    const runner = (root) => {
+      let n = 0;
+      return (command) => {
+        n += 1;
+        return preTool(root, "Bash", { command }, { prompt_id: `prompt-ro-${n}`, tool_use_id: `tool-ro-${n}` });
+      };
+    };
+
+    it("lets read-only git -C, cd and grep context flags through on granted roots, and keeps every write blocked", () => {
+      const root = fixtureRoot();
+      const tree = join(root, "tree");
+      const outside = fixtureRoot();
+      try {
+        mkdirSync(join(tree, "src"), { recursive: true });
+        writeFileSync(join(tree, "src", "a.mjs"), "needle\n");
+        writeFileSync(join(outside, "secret.txt"), "needle\n");
+        initializeInTree(root, tree);
+        const run = runner(root);
+        const file = join(tree, "src", "a.mjs");
+        for (const command of [
+          `git -C ${tree} status --short`,
+          `git -C ${tree} log --oneline -5`,
+          `git -C ${tree} diff --stat`,
+          `git -C ${tree} show HEAD`,
+          `cd ${tree}`,
+          `cd ${tree} && git status`,
+          `cd ${tree} && git log --oneline -5`,
+          `cd ${tree} && grep -rn needle src`,
+          `cd ${tree} && npm test`,
+          `grep -n -C 3 needle ${file}`,
+          `rg -C 2 needle ${file}`,
+          `grep -rn -B 1 -A 1 needle ${join(tree, "src")}`,
+          `grep -n "needle\\|other" ${file}`,
+          `grep -rn 'needle|other' ${join(tree, "src")}`,
+        ]) {
+          const result = run(command);
+          assert.equal(result.status, 0, result.stderr);
+          assert.equal(result.stdout, "", `a read-only command on a granted root must keep normal permissions: ${command}`);
+        }
+        for (const [command, reason] of [
+          [`git -C ${outside} status`, /outside/u],
+          [`git -C ${tree} commit -m x`, /forbidden/u],
+          [`git -C ${tree} checkout -- src/a.mjs`, /unverified|unclassified|relocation/u],
+          [`git -C ${tree} log --output=${join(outside, "x")}`, /unverified/u],
+          [`git -C ${tree} -C ${outside} status`, /unverified|unclassified|relocation/u],
+          ["git -C $HOME status", /unverified|unclassified|relocation/u],
+          [`cd ${outside}`, /outside/u],
+          [`cd ${outside} && git status`, /outside/u],
+          [`cd ${tree} && rm -rf src`, /unclassified|unverified/u],
+          [`cd ${tree} && cat ${join(outside, "secret.txt")}`, /outside/u],
+          [`cd ${tree}; rm -rf src`, /unverified|unclassified/u],
+          [`cd ${tree} || true`, /unverified|unclassified/u],
+          [`cd ${tree} && echo x > src/a.mjs`, /unverified|unclassified/u],
+          [`grep -C 3 needle ${join(outside, "secret.txt")}`, /outside/u],
+          [`grep -n "$(whoami)" ${file}`, /unverified|unclassified/u],
+          [`grep -n "needle" ${file} | tee ${join(tree, "out.txt")}`, /unverified|unclassified/u],
+          [`npm test --prefix ${outside}`, /relocation|outside/u],
+          [`node --test --cwd ${outside}`, /relocation|unverified|outside/u],
+        ]) {
+          const output = parse(run(command));
+          assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+          assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
+        }
+        assert.equal(parse(runCli(root, ["status"])).state.revision, 1, "read-only classification never manufactures a boundary");
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true });
+      }
+    });
+
+    it("keeps the lifecycle's own controls reachable from a directory the grants do not cover", () => {
+      const root = fixtureRoot();
+      const tree = join(root, "tree");
+      const outside = fixtureRoot();
+      try {
+        mkdirSync(tree, { recursive: true });
+        initializeInTree(root, tree);
+        const run = runner(root);
+        const common = "--work-id work-1 --session-id session-root --expected-revision 1";
+        for (const command of [
+          `litclaude-ai start-work status --json`,
+          `litclaude-ai start-work progress ${common} --idempotency-key p-1 --json`,
+          `litclaude-ai start-work cancel ${common} --idempotency-key c-1`,
+          `litclaude-ai start-work complete ${common} --idempotency-key d-1`,
+          `litclaude-ai start-work pause ${common} --action write --target-root ${outside} --idempotency-key z-1 --json`,
+          `node ${binPath} start-work status --json`,
+          `node ${binPath} start-work cancel ${common} --idempotency-key c-2`,
+          `node ${binPath} start-work pause ${common} --action write --target-root ${outside} --idempotency-key z-2 --json`,
+          "litclaude-ai workflow-stage main review --verdict scope=pass",
+        ]) {
+          const result = run(command);
+          assert.equal(result.status, 0, result.stderr);
+          assert.equal(result.stdout, "", `a lifecycle control must stay reachable: ${command}`);
+        }
+        for (const [command, reason] of [
+          [`node ${join(outside, "litclaude-ai.js")} start-work cancel ${common} --idempotency-key e`, /outside|unverified|unclassified/u],
+          [`node ${binPath} start-work cancel ${common} --idempotency-key e --root ${outside}`, /outside|unverified|unclassified/u],
+          [`node ${binPath} start-work init --plan plans/approved.md --work-id w2 --session-id s --grant write:${outside} --idempotency-key i`, /unverified|unclassified|outside/u],
+          [`litclaude-ai start-work cancel ${common} --idempotency-key e; rm -rf ${tree}`, /unverified|unclassified/u],
+          [`cat ${join(root, "plans", "approved.md")} > ${join(root, "plans", "copy.md")}`, /unverified|unclassified/u],
+        ]) {
+          const output = parse(run(command));
+          assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+          assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
+        }
+        const write = parse(preTool(root, "Write", { file_path: join(root, "elsewhere.txt"), content: "x" }, { prompt_id: "prompt-w", tool_use_id: "tool-w" }));
+        assert.equal(write.hookSpecificOutput.permissionDecision, "deny", "a write outside the grants is still refused");
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true });
+      }
+    });
+  });
 });

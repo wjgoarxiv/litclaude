@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { shellFreeCommand } from "../lib/npm-invocation.mjs";
 
-const result = spawnSync("typescript-language-server", ["--version"], {
-  encoding: "utf8",
-});
+const run = (name, args) => {
+  try {
+    const invocation = shellFreeCommand(name, args);
+    return spawnSync(invocation.command, invocation.args, { encoding: "utf8" });
+  } catch (error) {
+    return { error };
+  }
+};
+const result = run("typescript-language-server", ["--version"]);
 
 if (result.error) {
   console.log("typescript-language-server is not available.");

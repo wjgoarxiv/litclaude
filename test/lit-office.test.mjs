@@ -375,6 +375,24 @@ describe("lit-pptx and lit-docx — bare lit routing", () => {
     }
   });
 
+  it("does not read 'each document' in an engineering request as a Word deliverable", () => {
+    const prompt = "Extensive port is required for litmuse. Do NOT just write brief description in each document. Utilize right /herdr pane and start the extensive port procedure with sonnet-grade subagent swarm. Let's gooooo. I like M8 option. (recommendation) ultrathink lit";
+    assert.deepEqual(officeSkillsFor(prompt), []);
+    assert.match(hookContext(prompt), /Skill\(lit-loop\)/u, "an ordinary lit-loop route");
+    for (const quantified of [
+      "write the summary in every document lit",
+      "fix the typos in all documents lit",
+      "draft notes for each doc lit",
+      "write a short description in these documents lit",
+    ]) {
+      assert.deepEqual(officeSkillsFor(quantified), [], `must not route: ${quantified}`);
+    }
+    assert.deepEqual(officeSkillsFor("lit make a docx report"), ["lit-docx"]);
+    assert.deepEqual(officeSkillsFor("lit write a Word document"), ["lit-docx"]);
+    assert.deepEqual(officeSkillsFor("write a document about the office move lit"), ["lit-docx"]);
+    assert.deepEqual(officeSkillsFor("write a project plan document lit"), ["lit-docx"]);
+  });
+
   it("routes an office request whose source is a Markdown file, and keeps project docs out", () => {
     assert.deepEqual(officeSkillsFor("lit notes.md 메모 파일로 월요일 팀 회의용 슬라이드 10장 만들어줘"), ["lit-pptx"]);
     assert.deepEqual(officeSkillsFor("lit turn notes.md into a 10-slide deck for Monday"), ["lit-pptx"]);

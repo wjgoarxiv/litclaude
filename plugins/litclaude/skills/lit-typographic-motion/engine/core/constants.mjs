@@ -34,6 +34,9 @@ export const EXIT = Object.freeze({
   STAGE_NONDETERMINISTIC: 18,
   STAGE_NETWORK_REQUEST: 19,
   SOUND_INVALID: 20,
+  // Cover mode.
+  BLOCKED_NO_COVER_ENCODER: 21,
+  BLOCKED_ASSET_MISSING: 22,
   USAGE: 2,
 });
 export const EXIT_NAME = Object.freeze(Object.fromEntries(Object.entries(EXIT).map(([name, code]) => [code, name])));
@@ -209,3 +212,35 @@ export const FONT_BUDGET = Object.freeze({ perFileBytes: 1_000_000, totalBytes: 
 
 // ---- craft loop (MO-C-15/16) ----
 export const MAX_ROUNDS = 3;
+
+// ---- cover mode: the decoded-file gate (calibrated 2026-10-20 on 8 painted covers, 4 slide-like
+// negatives and 3 pilot loops; change a number only with a new calibration table) ----
+// FLOOR fails a cover: every calibration cover passes it, every slide-like negative fails it.
+// TARGET is the cover-mode goal and `--strict` fails on it too; the calibration covers miss it on
+// purpose, because they hold for about 2 s and flash at the seam.
+export const COVER = Object.freeze({
+  maxBytes: 3 * 1024 * 1024,
+  targetBytes: 2 * 1024 * 1024,
+  minSec: 6,
+  maxSec: 12,
+  stepMs: 50, // metrics run on a fixed grid of max(stepMs, shortest source frame)
+  stillEps: 0.0005, // a grid step whose mean |dY| (luma 0..1, ~300 px wide) is below this is still
+  floor: Object.freeze({ medianD: 0.0004, movingFrac: 0.45, stillSec: 2.0, seamLocal: 8.0 }),
+  target: Object.freeze({ medianD: 0.0015, movingFrac: 0.95, stillSec: 0.5, spike: 6, seamLocal: 2.0, seamLo: 0.25 }),
+  minContrast: 4.5,
+  // G6: the title's cap height at the README display width (a full-width README image is about 830
+  // CSS px wide); a smaller title is not a title, whatever its contrast.
+  minGlyphPx: 24,
+  displayWidth: 830,
+  // Frame 0 shows the base art: SSIM of its check box against the source scaled into it.
+  artSsim: 0.9,
+  artMinShare: 0.1,
+  seekSamples: 16, // frames re-rendered in a fresh page in a seeded shuffled order
+  windowPadSec: 0.5, // a window re-render covers each defect's span plus this on each side
+  maxDefects: 3,
+  captureScale: 2,
+  fps: Object.freeze([16, 20, 25]),
+  // The page is laid out at `page` CSS px, captured at captureScale and downsampled to `out`.
+  aspects: Object.freeze({ "2:1": Object.freeze({ page: [1200, 600], out: [1000, 500] }), "3:2": Object.freeze({ page: [1200, 800], out: [960, 640] }) }),
+  encode: Object.freeze({ q: 86, edgeQ: 97, edgeFrames: 15, method: 4 }),
+});

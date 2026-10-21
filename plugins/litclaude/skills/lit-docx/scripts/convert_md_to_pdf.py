@@ -192,6 +192,23 @@ def kpsewhich_has(target: str) -> bool:
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
+# Fonts a document class sets by itself, before the template sets its own. oblivoir (the
+# korean-generic profile) loads UnBatang as its Hangul face, and a missing font stops XeLaTeX
+# halfway with an error that names neither the profile nor the fix.
+CLASS_FONTS: dict[str, list[tuple[str, str]]] = {
+    "oblivoir": [("UnBatang", "install the TeX Live package unfonts-core (tlmgr install unfonts-core) or the Un fonts system-wide")],
+}
+
+
+def font_available(family: str) -> bool:
+    if kpsewhich_has(f"{family}.ttf"):
+        return True
+    if not command_path("fc-list"):
+        return False
+    result = run_checked(["fc-list", f":family={family}", "family"])
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
 def preflight_pdf_compile(publisher_name: str, publisher: dict, detected_locale: str) -> None:
     ensure_pandoc()
     if not command_path("xelatex"):
@@ -209,6 +226,12 @@ def preflight_pdf_compile(publisher_name: str, publisher: dict, detected_locale:
         raise SystemExit(
             f"Error: required LaTeX class not found: {class_file}. Install the matching TeX Live package for publisher '{publisher_name}'."
         )
+    for family, hint in CLASS_FONTS.get(documentclass, []):
+        if not font_available(family):
+            raise SystemExit(
+                f"BLOCKED: the {documentclass} class of publisher '{publisher_name}' needs the {family} font, "
+                f"and XeLaTeX cannot find it. Fix: {hint}."
+            )
     if detected_locale in {"ko", "mixed"} and not kpsewhich_has("xeCJK.sty"):
         raise SystemExit(
             "Error: xeCJK.sty not found. Korean/CJK PDF output requires xeCJK from TeX Live."

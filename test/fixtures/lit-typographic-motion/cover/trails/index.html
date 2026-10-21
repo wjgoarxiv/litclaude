@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html, body { margin: 0; width: 1200px; height: 600px; overflow: hidden; background: #000; } canvas { position: absolute; inset: 0; width: 1200px; height: 600px; }</style>
+<body>
+<canvas id="c" width="2400" height="1200"></canvas>
+<script>
+// Keeps state between frames: the canvas is never cleared, so each frame carries the trail of every
+// frame drawn before it. A sequential capture repeats exactly; a frame sought out of order does not.
+const ctx = document.getElementById("c").getContext("2d");
+ctx.scale(2, 2);
+window.renderFrame = (t) => {
+  ctx.fillStyle = "#ff6337";
+  ctx.beginPath();
+  ctx.arc(100 + 1000 * t, 300, 30, 0, Math.PI * 2);
+  ctx.fill();
+};
+window.ready = true;
+</script>
+</body>

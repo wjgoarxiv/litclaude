@@ -2,7 +2,7 @@
 // for the whole session (the `band` setting can limit it to active work or turn it off): where the
 // session stands in the LIT workflow, the tool the main loop is running and for how long, a chip
 // for each LitFamily skill that fires. It adds the discipline and progress to the spinner, raises
-// gate notices, serves /lit-evidence and, when the `notify` option asks, raises a notification
+// a toast when the LIT status changes (at most one each three seconds) and gate notices, serves /lit-evidence and, when the `notify` option asks, raises a notification
 // when LIT work completes or a long LIT turn ends. It is read-only: it reads LitClaude's own state
 // files and the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and
 // the host's live figures, and never writes, spawns, fetches or calls a model. Of a tool call it
@@ -18,6 +18,7 @@ import { renderBand, renderRows } from "../lib/mod/render.mjs";
 import { accentFromSettings, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
+import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
 import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
 import {
@@ -64,6 +65,9 @@ const createLive = (options) => ({
   isWorking: false,
   notice: null,
   completion: null,
+  status: null,
+  toast: { lastAt: Number.NEGATIVE_INFINITY, pending: [] },
+  toastWaiting: false,
   exiting: false,
   clientFailed: false,
   refreshing: false,
@@ -90,7 +94,20 @@ const stateIo = ($) => ({
   list: (path) => $.fs.list(path),
 });
 
-const toastText = (raised) => `🔥 ${raised.title}${raised.detail ? ` · ${raised.detail}` : ""}`;
+const noticeEntry = (raised) => ({ kind: "notice", text: `${raised.title}${raised.detail ? ` · ${raised.detail}` : ""}` });
+
+// Every toast passes the gate (toasts.mjs): one now, or the lot as one line once the gap is over.
+function raiseToasts($, live, entries, now) {
+  const { gate, show, waitMs } = gateToast(live.toast, entries, now);
+  live.toast = gate;
+  if (show) $.ui.toast(show);
+  if (waitMs === null || live.toastWaiting) return;
+  live.toastWaiting = true;
+  $.clock.after(waitMs, async () => {
+    live.toastWaiting = false;
+    raiseToasts($, live, [], Math.max(await $.clock.now(), live.toast.lastAt + TOAST_GAP_MS));
+  });
+}
 
 // The model less what moves with time alone: the step clock, the loop countdown, the lanes' run times.
 const stillModel = (model) => model && {
@@ -133,6 +150,13 @@ async function rebuild($, live) {
     step: live.step,
   });
   live.model = next;
+  // The status is compared from the first snapshot on, so what was already there is not announced.
+  if (live.snapshot) {
+    const status = statusOf({ discipline: live.lastDiscipline, model: next, snapshot: live.snapshot }, live.status);
+    const changes = statusChanges(live.status, status);
+    live.status = status;
+    if (changes.length > 0) raiseToasts($, live, changes, now);
+  }
   if (previous?.visible && !next.visible && !live.exiting) {
     // Keep the band mounted while its surface module plays the exit, then let it go.
     live.exiting = true;
@@ -147,7 +171,6 @@ async function rebuild($, live) {
 
 function showNotice($, live, raised) {
   live.notice = raised;
-  $.ui.toast(toastText(raised));
   $.clock.after(TIMINGS.noticeHold, () => {
     if (live.notice?.id !== raised.id) return;
     live.notice = null;
@@ -215,7 +238,7 @@ async function refresh($, live, options) {
     const next = await rebuild($, live);
     const raised = diffNotices(before, fresh, previousModel, next);
     if (raised.length > 0) {
-      for (const extra of raised.slice(0, -1)) $.ui.toast(toastText(extra));
+      raiseToasts($, live, raised.map(noticeEntry), now);
       showNotice($, live, raised.at(-1));
       await rebuild($, live);
     }
@@ -303,7 +326,8 @@ export const register = (on, options) => {
     // The card follows the main loop: a skill a subagent loads (a reviewer reading `rules`) neither
     // lights a chip nor retitles the card.
     if (e.tool === "Skill" && typeof e.agentId !== "string") await noteFiring($, live, e.skill);
-    if (typeof e.agentId === "string") live.spawned = noteSpawnActivity(live.spawned, e.agentId, await $.clock.now());
+    // A call in flight keeps its agent alive however long it runs (view.mjs mergeSpawned).
+    if (typeof e.agentId === "string") live.spawned = noteSpawnActivity(live.spawned, e.agentId, await $.clock.now(), 1);
     // The live step: the main loop's tool by name and since when, nothing else of the call.
     const step = typeof e.agentId === "string" ? null : { name: e.tool, at: await $.clock.now() };
     if (step) live.mainToolCalls += 1;
@@ -316,11 +340,11 @@ export const register = (on, options) => {
       result = await next(e);
     } finally {
       if (step && live.step === step) live.step = live.isWorking ? { name: "thinking", at: await $.clock.now() } : null;
-    }
-    if (typeof e.agentId === "string") {
-      const now = await $.clock.now();
-      live.activity = noteAgentActivity(live.activity, e.agentId, now);
-      live.spawned = noteSpawnActivity(live.spawned, e.agentId, now);
+      if (typeof e.agentId === "string") {
+        const now = await $.clock.now();
+        live.activity = noteAgentActivity(live.activity, e.agentId, now);
+        live.spawned = noteSpawnActivity(live.spawned, e.agentId, now, -1);
+      }
     }
     refreshSoon($, live, options);
     return result;
@@ -329,6 +353,7 @@ export const register = (on, options) => {
   // A model request on the main loop: the step reads "thinking" until a tool call names itself.
   on("turn.step", async function* ($, e, next) {
     if (typeof e.agentId !== "string" && live.isWorking && live.step?.name !== "thinking") live.step = { name: "thinking", at: await $.clock.now() };
+    if (typeof e.agentId === "string") live.spawned = noteSpawnActivity(live.spawned, e.agentId, await $.clock.now());
     return yield* next(e);
   });
 

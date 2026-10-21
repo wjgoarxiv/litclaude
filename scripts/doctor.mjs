@@ -36,8 +36,8 @@ run("LSP doctor", process.execPath, ["plugins/litclaude/bin/litclaude-lsp-doctor
 run("Scientific visualization capability", process.execPath, ["plugins/litclaude/bin/litclaude-scientific-visualization-doctor.js"]);
 // Readiness only: the lit-pptx/lit-docx runtime installs on first use, so "not installed" is not a failure.
 run("Office runtime (lit-pptx, lit-docx)", process.execPath, ["plugins/litclaude/lib/office-runtime.mjs", "status"]);
-// Readiness only, never fatal: the five lit-typographic-motion probes (Chrome, ffmpeg, WebGL2
-// renderer, software-GL warning, pre-warm state with its fix command).
+// Readiness only, never fatal: the six lit-typographic-motion probes (Chrome, ffmpeg, WebGL2
+// renderer, software-GL warning, pre-warm state with its fix command, cover encoder).
 run("Motion runtime (lit-typographic-motion)", process.execPath, ["plugins/litclaude/skills/lit-typographic-motion/scripts/motion-doctor.mjs"]);
 
 for (const file of [

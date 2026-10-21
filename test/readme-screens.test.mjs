@@ -14,7 +14,7 @@ const screens = {
   "doctor-light.webp": "074d23929df9cc8bbf40d0681946fc85dfe63a6dfc299750ed9fac3427b2eb1f",
   "install-done-dark.webp": "0443cc6577102cbad1867c3e55d8c1624314ff688f6ec1a57e8413a5905eae79",
   "install-done-light.webp": "90a533c78577a8908b96c87dfa9954241c79bae474318dc83f9c5a6ef0d34c5a",
-  "install-plan.webp": "3f16e070509966453553be0ddebffe461ef9b9ba04254c566108f4fe60088156",
+  "install-plan.webp": "6917e8d2d27c5d1efb4231a77e387d03b1ffb9854da88cf13f5f0a5e050bb924",
   "session-start-dark.webp": "90a2a7fc14b008148a5bb5560710b05ff54bab318ee6ffadce928d1bb1957756",
   "session-start-light.webp": "7b93d6721f9fbbf155b218872ca9506e901a08941d50aed5ad5e09394ed40bf8",
 };

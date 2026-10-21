@@ -12,6 +12,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, 
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { npmInvocation } from "./host.mjs";
 
 export const SKILL_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 export const ENGINE_ROOT = path.join(SKILL_ROOT, "engine");
@@ -88,16 +89,44 @@ export function nodeStatus(env) {
 const AUDIO_LOCK = path.join(ENGINE_ROOT, "audio", "requirements.lock");
 const venvPython = (dir) => (process.platform === "win32" ? path.join(dir, "Scripts", "python.exe") : path.join(dir, "bin", "python"));
 
-export function pythonCommand(env = process.env) {
-  return env.LITCLAUDE_MOTION_PYTHON || "python3";
+// The audio lock is compiled for CPython 3.10 and up, but every pinned wheel (--only-binary) exists
+// only up to MAX_PYTHON; a newer host Python, such as a python3 that is 3.15, fails pip on the first
+// package without one. The skill ships its own picker so it stays independent of the plugin's lib/.
+const MIN_PYTHON = [3, 10];
+const MAX_PYTHON = [3, 14];
+
+export function probePythonCommand(command, env = process.env) {
+  const probe = spawnSync(command, ["-c", "import sys; print('%d.%d.%d' % sys.version_info[:3])"], { encoding: "utf8", env });
+  if (probe.error || probe.status !== 0) return { ok: false, command, detail: probe.error?.code === "ENOENT" ? "not found" : (probe.stderr || probe.error?.message || "not found").trim() };
+  const version = probe.stdout.trim();
+  const [major, minor] = version.split(".").map(Number);
+  if (major < MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor < MIN_PYTHON[1])) return { ok: false, command, version, detail: `${version} is older than ${MIN_PYTHON.join(".")}` };
+  if (major > MAX_PYTHON[0] || (major === MAX_PYTHON[0] && minor > MAX_PYTHON[1])) return { ok: false, command, version, detail: `${version} is newer than ${MAX_PYTHON.join(".")}` };
+  return { ok: true, command, version, detail: version };
 }
 
-function probePython(env) {
-  const probe = spawnSync(pythonCommand(env), ["-c", "import sys; print('%d.%d' % sys.version_info[:2])"], { encoding: "utf8" });
-  return probe.status === 0 ? probe.stdout.trim() : null;
+/**
+ * The host Python the audio venv is built from: $LITCLAUDE_MOTION_PYTHON when set (and nothing else),
+ * otherwise the newest python3.X on PATH within MIN_PYTHON..MAX_PYTHON, then python3 and python.
+ */
+export function pickPython(env = process.env, probe = probePythonCommand) {
+  if (env.LITCLAUDE_MOTION_PYTHON) return probe(env.LITCLAUDE_MOTION_PYTHON, env);
+  const candidates = [];
+  for (let minor = MAX_PYTHON[1]; minor >= MIN_PYTHON[1]; minor -= 1) candidates.push(`python3.${minor}`);
+  candidates.push("python3", "python");
+  const tried = [];
+  for (const command of candidates) {
+    const found = probe(command, env);
+    if (found.ok) return found;
+    if (found.detail !== "not found") tried.push(`${command}: ${found.detail}`);
+  }
+  const range = `${MIN_PYTHON.join(".")} to ${MAX_PYTHON.join(".")}`;
+  return { ok: false, command: "python3", detail: `no supported Python (${range}) on PATH${tried.length ? `; tried ${tried.join(", ")}` : ""}` };
 }
 
-export function audioDir(env, version = probePython(env)) {
+const minorOf = (picked) => (picked.ok ? picked.version.split(".").slice(0, 2).join(".") : null);
+
+export function audioDir(env, version = minorOf(pickPython(env))) {
   const key = createHash("sha256").update(readFileSync(AUDIO_LOCK)).update(`${process.platform}-${process.arch}-py${version ?? "none"}`).digest("hex").slice(0, 12);
   return path.join(runtimeRoot(env), `audio-${key}`);
 }
@@ -251,8 +280,8 @@ const npmChildEnv = (env) => Object.fromEntries(Object.entries(env).filter(([key
 }));
 
 function npm(args, { env, ...options }) {
-  const bin = process.platform === "win32" ? "npm.cmd" : "npm";
-  return spawnSync(bin, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options, env: npmChildEnv(env) });
+  const invocation = npmInvocation(args, { env });
+  return spawnSync(invocation.command, invocation.args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: invocation.shell, ...options, env: npmChildEnv(env) });
 }
 
 export async function installNode({ env = process.env, log = () => {} } = {}) {
@@ -278,7 +307,7 @@ export async function installNode({ env = process.env, log = () => {} } = {}) {
       const tarball = path.join(cache, path.basename(new URL(pkg.resolved).pathname));
       writeAtomic(tarball, bytes);
       const add = npm(["cache", "add", tarball, "--cache", cache], { env });
-      if (add.status !== 0) throw new Error(`npm cache add failed: ${add.stderr.trim().slice(-400)}`);
+      if (add.error || add.status !== 0) throw new Error(`npm cache add exited ${add.status}: ${(add.stderr || add.error?.message || "").trim().slice(-400)}`);
     }
     args.push("--offline", "--cache", cache);
   }
@@ -293,14 +322,15 @@ export async function installNode({ env = process.env, log = () => {} } = {}) {
 }
 
 export async function installAudio({ env = process.env, log = () => {} } = {}) {
-  const version = probePython(env);
-  if (!version) throw new Error(`${pythonCommand(env)} was not found; install Python 3.10+ or set LITCLAUDE_MOTION_PYTHON`);
+  const python = pickPython(env);
+  if (!python.ok) throw new Error(`${python.detail}; install Python ${MIN_PYTHON.join(".")} to ${MAX_PYTHON.join(".")} or set LITCLAUDE_MOTION_PYTHON`);
+  const version = minorOf(python);
   const dir = audioDir(env, version);
   const current = audioStatus(env);
   if (current.state === "ready") return current;
   rmSync(dir, { recursive: true, force: true });
   log(`creating the audio venv (Python ${version}, librosa and its hash-pinned wheels) in ${dir}`);
-  const venv = spawnSync(pythonCommand(env), ["-m", "venv", dir], { encoding: "utf8" });
+  const venv = spawnSync(python.command, ["-m", "venv", dir], { encoding: "utf8", env });
   if (venv.status !== 0) throw new Error(`python -m venv failed: ${(venv.stderr || "").trim().slice(-400)}`);
   const pip = spawnSync(venvPython(dir), ["-m", "pip", "install", "--require-hashes", "--only-binary=:all:", "--no-input", "--disable-pip-version-check", "--quiet", "-r", AUDIO_LOCK], { encoding: "utf8", env: { ...env } });
   if (pip.status !== 0) {

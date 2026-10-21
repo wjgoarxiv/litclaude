@@ -33,12 +33,13 @@ export const TIMINGS = Object.freeze({
   flow: 1400,
   spin: 120,
   ambientFrame: 66,
+  clock: 1000,
 });
 
 // full: the approved motion, and while LitClaude works the brand breathes, a light sweeps the active
 // phase and a comet runs around the card's rules. subtle: no overshoot, no shimmer or embers, three
 // quarters the time, and only the breathing while working. off: every duration is zero, so the band
-// draws its final frame and never starts a frame timer.
+// draws its final frame and starts no frame timer; a clock on the card still ticks each second.
 export const motionProfile = (mode) => {
   if (mode === "off") {
     return { mode, duration: () => 0, enterEase: EASE.linear, noticeEase: EASE.linear, shimmer: false, embers: false, ambient: null };

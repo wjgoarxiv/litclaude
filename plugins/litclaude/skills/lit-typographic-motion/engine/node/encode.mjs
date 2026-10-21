@@ -6,11 +6,9 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { ENCODE_ARGS, PREVIEW } from "../core/constants.mjs";
+import { which } from "./host.mjs";
 
-function which(name, env = process.env) {
-  const probe = spawnSync(process.platform === "win32" ? "where" : "which", [name], { encoding: "utf8", env });
-  return probe.status === 0 ? probe.stdout.trim().split("\n")[0] : null;
-}
+export { which };
 
 export const findFfmpeg = (env = process.env) => (env.FFMPEG_PATH && existsSync(env.FFMPEG_PATH) ? env.FFMPEG_PATH : which("ffmpeg", env));
 export const findFfprobe = (env = process.env) => (env.FFPROBE_PATH && existsSync(env.FFPROBE_PATH) ? env.FFPROBE_PATH : which("ffprobe", env));
@@ -18,7 +16,7 @@ export const findImg2webp = (env = process.env) => which("img2webp", env);
 
 export function ffmpegVersion(ffmpeg) {
   const probe = spawnSync(ffmpeg, ["-version"], { encoding: "utf8" });
-  return probe.status === 0 ? probe.stdout.split("\n")[0].trim() : null;
+  return probe.status === 0 ? probe.stdout.split(/\r?\n/u)[0].trim() : null;
 }
 
 /** The preview-encoder rungs available on this host, in ladder order. */

@@ -16,6 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { ensureStateDirIgnored } from "./project-state-root.mjs";
@@ -788,6 +789,17 @@ const activeWorkForSession = (state, sessionId) => {
   return work;
 };
 
+// Which work this session is running, for the prompt hook's resume note: id, status and plan only.
+export const activeStartWorkSummary = (root, sessionId) => {
+  try {
+    const stored = readState(canonicalDirectory(root, "cwd root"), { optional: true });
+    const work = activeWorkForSession(stored ? publicState(stored) : null, sessionId);
+    return work ? { workId: work.work_id, status: work.status, plan: work.active_plan } : null;
+  } catch {
+    return null;
+  }
+};
+
 export const startWorkStructuredContext = (root, sessionId, response = null) => {
   let state;
   try {
@@ -825,6 +837,9 @@ export const startWorkStructuredContext = (root, sessionId, response = null) => 
 
 const forbiddenShellPattern = /(?:\bgit\b[^\n;&|]*\b(?:commit|push|tag|reset|clean|config)\b|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\b(?:publish|version)\b|\bgh\b[^\n;&|]*\brelease\s+create\b|\bdefaults\s+write\b)/iu;
 const shellRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?:=|\s|$)|(?:^|\s)-C(?:\s|$)/u;
+// For grep and rg, `-C <n>` is the context-lines flag, not a change of directory.
+const searchRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?:=|\s|$)/u;
+const relocationPatternFor = (segment) => (/^(?:grep|rg)[ \t]/u.test(segment) ? searchRelocationPattern : shellRelocationPattern);
 
 const canonicalBashTargets = (cwd, targets, action) => {
   if (targets.some((target) => /[~$*?\[\]{}]/u.test(target))) {
@@ -848,12 +863,19 @@ const shellWords = (command) => {
   const words = [];
   let word = null;
   let quote = null;
-  for (const ch of command) {
+  const chars = [...command];
+  for (const [index, ch] of chars.entries()) {
     if (ch === "\n") return null;
     if (quote === "'" || quote === '"') {
       if (ch === quote) quote = null;
-      else if (quote === '"' && /[$`\\]/u.test(ch)) return null;
-      else word.text += ch;
+      else if (quote === '"' && /[$`]/u.test(ch)) return null;
+      else if (quote === '"' && ch === "\\") {
+        // Inside double quotes a backslash only escapes $ ` " \ and newline; before any other
+        // character it is a literal, so a pattern like "a\|b" stays data.
+        const next = chars[index + 1];
+        if (next === undefined || /[$`"\\\n]/u.test(next)) return null;
+        word.text += ch;
+      } else word.text += ch;
       continue;
     }
     if (/\s/u.test(ch)) {
@@ -938,6 +960,33 @@ const classifyNodeScriptWords = (args, cwd) => {
 const LITCLAUDE_CLI_NAMES = new Set(["litclaude-ai", "litclaude"]);
 const START_WORK_SELF_MOVES = new Set(["progress", "complete", "cancel"]);
 
+// This install's own CLI entry points: the plugin's bin/litclaude-ai that Claude Code puts on PATH,
+// and the package's bin/litclaude-ai.js. A command naming either by path runs code the guard
+// ships, so its lifecycle controls need no grant over the directory the file sits in.
+const TRUSTED_CLI_PATHS = (() => {
+  const lib = fileURLToPath(new URL(".", import.meta.url));
+  const trusted = new Set();
+  for (const candidate of [resolve(lib, "..", "bin", "litclaude-ai"), resolve(lib, "..", "..", "..", "bin", "litclaude-ai.js")]) {
+    try {
+      trusted.add(realpathSync(candidate));
+    } catch {
+      // Not part of this layout.
+    }
+  }
+  return trusted;
+})();
+const isTrustedCliPath = (text, cwd) => {
+  if (!text.includes("/")) return false;
+  try {
+    return TRUSTED_CLI_PATHS.has(realpathSync(resolve(cwd, text)));
+  } catch {
+    return false;
+  }
+};
+// The lifecycle's own controls record start-work state or the LIT card's stage. They grant nothing
+// and write no project file, so a trusted CLI running one is not held to the grants.
+const lifecycleControl = { control: true };
+
 // Read-only git: status, diff, log and show over plain words. A flag that writes a file or runs an
 // external program is refused. An operand after `--`, one holding a `/` or one naming an existing
 // file is a path, checked as a read under the grants; other operands (HEAD~1, a commit, main..topic)
@@ -969,26 +1018,33 @@ const classifyBashWords = (words, cwd) => {
   if (head.text === "grep" || head.text === "rg") return classifySearchWords(head.text, args, cwd);
   let cli = null;
   let rest = [];
-  if (LITCLAUDE_CLI_NAMES.has(head.text)) {
+  let trusted = false;
+  if (LITCLAUDE_CLI_NAMES.has(head.text) || isTrustedCliPath(head.text, cwd)) {
     cli = [];
+    trusted = true;
     rest = args.map(({ text }) => text);
+  } else if (head.text === "node" && args[0] && isTrustedCliPath(args[0].text, cwd)) {
+    cli = [];
+    trusted = true;
+    rest = args.slice(1).map(({ text }) => text);
   } else if (head.text === "node" && args[0] && basename(args[0].text) === "litclaude-ai.js") {
     cli = [args[0].text];
     rest = args.slice(1).map(({ text }) => text);
   }
+  const movesLifecycle = (targets, action) => (trusted ? lifecycleControl : canonicalBashTargets(cwd, targets, action));
   if (cli) {
     // `start-work status` only reads the lifecycle state; `workflow-stage` writes the LIT card's
     // small stage record under the project's .litclaude directory.
     if (rest[0] === "start-work" && rest[1] === "status" && rest.slice(2).every((word) => word === "--json")) {
-      return canonicalBashTargets(cwd, cli, "read");
+      return movesLifecycle(cli, "read");
     }
     if (rest[0] === "workflow-stage" && rest.every((word) => !word.includes("/"))) {
-      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+      return movesLifecycle([cwd, ...cli], "write");
     }
     // The lifecycle's own moves for the active work write its state under the project's .litclaude
     // directory. `init` declares grants and `--root` points at another lifecycle, so neither passes.
     if (rest[0] === "start-work" && START_WORK_SELF_MOVES.has(rest[1]) && !rest.includes("--root") && rest.every((word) => !word.includes("/"))) {
-      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+      return movesLifecycle([cwd, ...cli], "write");
     }
     // `pause` is how the work asks the user for a new boundary: it records the pending boundary
     // and grants nothing, so the root it names may lie outside the grants, and the lifecycle
@@ -996,20 +1052,74 @@ const classifyBashWords = (words, cwd) => {
     // the bare CLI name passes: a `node <path>/litclaude-ai.js` file is checked by name, not content.
     if (cli.length === 0 && rest[0] === "start-work" && rest[1] === "pause" && !rest.includes("--root")
       && rest.every((word, index) => !word.includes("/") || rest[index - 1] === "--target-root")) {
-      return canonicalBashTargets(cwd, [cwd, ...cli], "write");
+      return movesLifecycle([cwd, ...cli], "write");
     }
   }
   if (head.text === "node") return classifyNodeScriptWords(args, cwd);
   return null;
 };
 
+// A plain path word: no quote, expansion, glob, operator or leading dash.
+const PLAIN_PATH_WORD = /^[\p{L}\p{N}_.\/@+,:=][\p{L}\p{N}_.\/@+,:=-]*$/u;
+
+// `git -C <dir> status|diff|log|show ...`: the same read-only git, run in another directory. The
+// directory is a read target and every operand is checked against it. A second -C, a variable or
+// any other subcommand meets the relocation refusal below.
+const classifyRelocatedGit = (command, cwd) => {
+  const match = /^git[ \t]+-C[ \t]+(\S+)[ \t]+((?:status|diff|log|show)(?:[ \t].*)?)$/u.exec(command);
+  if (!match) return null;
+  if (!PLAIN_PATH_WORD.test(match[1])) return pathArgumentDenied;
+  const directory = canonicalBashTargets(cwd, [match[1]], "read");
+  if (directory.denied) return directory;
+  return classifyReadOnlyGit(`git ${match[2]}`, directory.targetRoots[0]) ?? pathArgumentDenied;
+};
+
+// `cd <dir>`: a read of the directory. It moves the working directory for the commands chained after it.
+const classifyCd = (command, cwd) => {
+  const match = /^cd[ \t]+(\S+)$/u.exec(command);
+  if (!match) return null;
+  if (!PLAIN_PATH_WORD.test(match[1])) return pathArgumentDenied;
+  const directory = canonicalBashTargets(cwd, [match[1]], "read");
+  if (directory.denied) return directory;
+  try {
+    if (!lstatSync(directory.targetRoots[0]).isDirectory()) return pathArgumentDenied;
+  } catch {
+    return pathArgumentDenied;
+  }
+  return { ...directory, cd: directory.targetRoots[0] };
+};
+
+const MAX_CHAIN_SEGMENTS = 4;
+
+// Commands joined by ` && ` are classified one by one, each in the directory the `cd` before it
+// left. Every other joiner (`;`, `||`, a pipe, a redirect) stays unverified inside its segment.
 const classifyBash = (command, cwd) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) {
     return { denied: "unclassified mutating Bash command" };
   }
   if (forbiddenShellPattern.test(command)) return { denied: "forbidden authority action in Bash command" };
   const trimmed = command.trim();
-  if (shellRelocationPattern.test(trimmed)) return { denied: "Bash relocation flags are not authorized" };
+  const segments = trimmed.split(/[ \t]+&&[ \t]+/u);
+  if (segments.length === 1) return classifyBashSegment(trimmed, cwd);
+  if (segments.length > MAX_CHAIN_SEGMENTS) return pathArgumentDenied;
+  const chain = [];
+  let here = cwd;
+  for (const segment of segments) {
+    if (segment.length === 0) return pathArgumentDenied;
+    const classified = classifyBashSegment(segment, here);
+    if (classified.denied) return classified;
+    chain.push(classified);
+    if (classified.cd) here = classified.cd;
+  }
+  return { chain };
+};
+
+const classifyBashSegment = (trimmed, cwd) => {
+  const relocated = classifyRelocatedGit(trimmed, cwd);
+  if (relocated) return relocated;
+  if (relocationPatternFor(trimmed).test(trimmed)) return { denied: "Bash relocation flags are not authorized" };
+  const cd = classifyCd(trimmed, cwd);
+  if (cd) return cd;
   const git = classifyReadOnlyGit(trimmed, cwd);
   if (git) return git;
   const words = shellWords(trimmed);
@@ -1126,6 +1236,12 @@ export const handleStartWorkPreToolUse = (root, input) => {
     const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
     const classified = classifyToolAuthority(executionRoot, input);
     if (classified.denied) return denial(classified.denied);
+    if (classified.control) return { decision: "allow-normal", action: "control", root: executionRoot, roots: [executionRoot] };
+    if (classified.chain) {
+      const covered = classified.chain.every((link) => link.control
+        || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
+      return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : denial("Bash target is outside the effective authority grant");
+    }
     const targetRoots = classified.targetRoots ?? [classified.targetRoot];
     const authorized = targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, classified.action, targetRoot)));
     if (authorized) {

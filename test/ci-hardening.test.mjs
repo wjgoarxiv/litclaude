@@ -135,6 +135,7 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/lib/immutable-expected-file-map.mjs', 'export const immutable = () => true;\n');
     write('plugins/litclaude/lib/secure-path-read.mjs', 'export const read = () => true;\n');
     write('plugins/litclaude/lib/office-runtime.mjs', 'export const status = {};\n');
+    write('plugins/litclaude/lib/npm-invocation.mjs', 'export const npmInvocation = () => ({});\n');
     write('plugins/litclaude/lib/office-runtime-lock/package.json', '{}\n');
     write('plugins/litclaude/lib/office-runtime-lock/package-lock.json', '{}\n');
     write('plugins/litclaude/lib/office-runtime-lock/requirements.lock', '# fixture\n');
@@ -157,6 +158,7 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/skills/autoconference/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/autoresearch/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/browser-drive/scripts/capability-probe.mjs', 'export const probe = {};\n');
+    write('plugins/litclaude/skills/lit-brainstorm/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-comprehend/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-diagram-drawer/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-docx/SKILL.md', '# fixture\n');

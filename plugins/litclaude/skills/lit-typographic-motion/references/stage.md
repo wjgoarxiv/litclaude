@@ -97,6 +97,7 @@ no frame is captured with a fallback face. Use these family names exactly:
 | `"Silkscreen"` | 400, 700 | Latin pixel voice |
 | `"Galmuri9"` | 400 | Hangul and Latin pixel voice |
 | `"MesloLGS NF"` | 400 | Latin monospace |
+| `"JetBrains Mono"` | 100–800 (variable `wght`) | Latin monospace with a fixed advance; weight motion never reflows |
 
 Any other family falls back to a system face. The QA replay reports that, and fails it for copy
 text. Set Korean copy in Pretendard. Never ask for a weight the family does not have (the browser

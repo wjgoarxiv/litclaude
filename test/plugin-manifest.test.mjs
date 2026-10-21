@@ -96,6 +96,7 @@ describe("Claude plugin manifest", () => {
       "deep-interview.md",
       "init-deep.md",
       "korean-ai-slop-remover.md",
+      "lit-brainstorm.md",
       "lit-comprehend.md",
       "lit-handoff.md",
       "lit-humanizer.md",
@@ -111,7 +112,7 @@ describe("Claude plugin manifest", () => {
       "start-work.md",
       "wikify.md",
     ]);
-    for (const command of ["autoconference.md", "autoresearch.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-scientific-visualization.md", "wikify.md"]) {
+    for (const command of ["autoconference.md", "autoresearch.md", "lit-brainstorm.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-scientific-visualization.md", "wikify.md"]) {
       const commandText = readFileSync(join(commandsPath, command), "utf8");
       assert.match(commandText, /^---\n[\s\S]*description:/u, `${command} should have command frontmatter`);
       assertLlmCommandContract(commandText, command);

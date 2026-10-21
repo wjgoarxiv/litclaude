@@ -1,15 +1,33 @@
 #!/usr/bin/env node
-// The five MO-A-44 doctor probes for lit-typographic-motion, printed on every doctor run:
-// Chrome, ffmpeg with the preview rung, the WebGL2 renderer string from a real headless probe, the
-// software-GL / unknown-renderer warning, and the pre-warm state naming what is missing and the
-// command that fixes it. Read-only: it never installs, and the probe's Chrome profile is a unique
-// temporary directory removed on exit.
+// The MO-A-44 doctor probes for lit-typographic-motion, printed on every doctor run: Chrome,
+// ffmpeg with the preview rung, the WebGL2 renderer string from a real headless probe, the
+// software-GL / unknown-renderer warning, the pre-warm state naming what is missing and the command
+// that fixes it, and the cover encoder (img2webp and dwebp, or the gifski fallback) that cover mode
+// needs. Read-only: it never installs, and the probe's Chrome profile is a unique temporary
+// directory removed on exit.
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { which } from "../engine/node/host.mjs";
 
-export const USAGE = "usage: motion-doctor.mjs [--json]\nlit-typographic-motion doctor (LitClaude): five readiness probes, read-only\n";
+export const USAGE = "usage: motion-doctor.mjs [--json]\nlit-typographic-motion doctor (LitClaude): six readiness probes, read-only\n";
+
+const versionOf = (tool, env) => {
+  const probe = spawnSync(tool, ["-version"], { encoding: "utf8", env });
+  return probe.status === 0 ? (/\d+\.\d+(?:\.\d+)?/u.exec(probe.stdout || probe.stderr)?.[0] ?? "unknown") : "unknown";
+};
+
+/** Cover mode's encoder: img2webp and dwebp (encode, then decode for the gate), else gifski. */
+export function coverProbe(env = process.env) {
+  const img2webp = which("img2webp", env);
+  const dwebp = which("dwebp", env);
+  if (img2webp && dwebp) return { ok: true, line: `img2webp ${versionOf(img2webp, env)} and dwebp ${versionOf(dwebp, env)}: README cover loops encode as animated WebP and gate the decoded file` };
+  const gifski = which("gifski", env);
+  if (gifski) return { ok: true, line: `gifski at ${gifski}: covers fall back to GIF (img2webp${img2webp ? "" : " missing"}, dwebp${dwebp ? "" : " missing"})` };
+  return { ok: false, line: "BLOCKED_NO_COVER_ENCODER: install libwebp (img2webp, dwebp) or gifski; cover renders stop with exit 21" };
+}
 
 export async function probes({ env = process.env } = {}) {
   const { findChrome, chromeVersion, launchWithLadder } = await import("../engine/node/chrome.mjs");
@@ -43,6 +61,7 @@ export async function probes({ env = process.env } = {}) {
         : { ok: true, line: "none (real GPU)" };
   const status = runtimeStatus({ env });
   out.prewarm = { ok: status.ready, line: status.ready ? `ready — ${formatStatus(status).slice(1, 3).join("; ")}` : `NOT READY — missing: ${status.missing.join("; ")}; run ${INSTALL_COMMAND}`, detail: formatStatus(status) };
+  out.cover = coverProbe(env);
   return out;
 }
 
@@ -53,6 +72,7 @@ export function formatProbes(p) {
     `MOTION_WEBGL2: ${p.webgl2.line}`,
     `MOTION_SOFTWARE_GL: ${p.software.line}`,
     `MOTION_PREWARM: ${p.prewarm.line}`,
+    `MOTION_COVER: ${p.cover.line}`,
   ];
 }
 

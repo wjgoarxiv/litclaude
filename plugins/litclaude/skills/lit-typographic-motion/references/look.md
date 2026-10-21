@@ -2,7 +2,8 @@
 
 A gate PASS says the film is safe and legible. It does not say the film is good. The look rounds are
 where you judge the pixels against the treatment, and the done-check will not accept a film nobody
-looked at.
+looked at. A cover loop has its own eight questions, its own stills (the decoded contact sheet with
+its frame-difference plot, the poster and the seam pair) and its own done; see `cover.md`.
 
 ## Viewing pixels
 

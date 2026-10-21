@@ -13,7 +13,7 @@
 
 import { createHash } from "node:crypto";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   DEFAULT_DYNAMIC_MAX_RESULT_CHARS,
@@ -27,6 +27,7 @@ import { parseRuleFile } from "./frontmatter.mjs";
 import { isStaticRule, matchRule } from "./matcher.mjs";
 import { sortCandidates } from "./ordering.mjs";
 import { claimInjectedKeys, ruleKey } from "./session-state.mjs";
+import { resolveProjectStateRoot } from "../project-state-root.mjs";
 import { pathIdentity, samePathIdentity } from "../secure-path-read.mjs";
 
 const MAX_RULE_FILE_BYTES = 256 * 1024;
@@ -98,15 +99,28 @@ const resolveProjectRoot = (cwd) => {
   }
 };
 
-const claimFormattedBlock = ({ rules, format, projectRoot, sessionId }) => {
-  if (projectRoot === null || sessionId === undefined) return format(rules).text;
+const hasRulesStateDirectory = (root) => {
+  try {
+    return lstatSync(join(resolveProjectStateRoot(root), ".litclaude", "rules")).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+// Without a project marker the working directory holds the session record, so a rule still reaches
+// the model once per session. SessionStart creates that record; a later lane only joins it, so a
+// prompt in a bare directory writes nothing new. If the record cannot be persisted, the rule is sent rather than lost.
+const claimFormattedBlock = ({ rules, format, projectRoot, fallbackRoot, createFallbackState, sessionId }) => {
+  if (sessionId === undefined || (projectRoot === null && fallbackRoot === undefined)) return format(rules).text;
+  if (projectRoot === null && !createFallbackState && !hasRulesStateDirectory(fallbackRoot)) return format(rules).text;
+  const stateRoot = projectRoot ?? fallbackRoot;
   let remaining = rules;
   while (remaining.length > 0) {
     const formatted = format(remaining);
     if (formatted.text.length === 0 || formatted.emittedRules.length === 0) return "";
     const attempted = new Set(formatted.emittedRules.map(ruleKey));
-    const claim = claimInjectedKeys(projectRoot, sessionId, [...attempted]);
-    if (!claim.persisted) return "";
+    const claim = claimInjectedKeys(stateRoot, sessionId, [...attempted]);
+    if (!claim.persisted) return projectRoot === null ? formatted.text : "";
     if (claim.claimed.length > 0) {
       const claimed = new Set(claim.claimed);
       return format(formatted.emittedRules.filter((rule) => claimed.has(ruleKey(rule)))).text;
@@ -130,6 +144,7 @@ export const staticRulesBlock = ({
   maxResultBytes,
   sessionId,
   platform,
+  createFallbackState = true,
 } = {}) => {
   try {
     const projectRoot = resolveProjectRoot(cwd ?? process.cwd());
@@ -142,6 +157,8 @@ export const staticRulesBlock = ({
       rules: unique,
       format: (selected) => formatStaticBlock(selected, { maxRuleChars, maxResultChars, maxResultBytes }),
       projectRoot,
+      fallbackRoot: resolve(cwd ?? process.cwd()),
+      createFallbackState,
       sessionId,
     });
   } catch {
@@ -206,6 +223,7 @@ export const dynamicRulesBlock = ({
       rules: unique,
       format: (selected) => formatDynamicBlock(selected, describedTarget, { maxRuleChars, maxResultChars }),
       projectRoot,
+      fallbackRoot: workingDirectory,
       sessionId,
     });
   } catch {

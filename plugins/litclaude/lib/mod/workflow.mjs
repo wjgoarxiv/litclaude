@@ -47,6 +47,7 @@ export const WORKFLOW_FRESH_MS = 6 * 60 * 60 * 1000;
 // Where each discipline enters the map.
 export const DISCIPLINE_ENTRY = Object.freeze({
   "deep-interview": { family: "main", stage: "interview" },
+  "lit-brainstorm": { family: "main", stage: "interview" },
   "lit-crucible": { family: "main", stage: "plan" },
   "lit-plan": { family: "main", stage: "plan" },
   "start-work": { family: "main", stage: "work" },

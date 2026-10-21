@@ -238,6 +238,23 @@ const topEdge = (model, sample, { width, glyphs, accent, edge }) => {
 const barSpans = (fraction, sample, cells) => barCells(fraction, cells, sample.fillGlow ?? 0)
   .map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
 
+// ●● 2 lanes 1:07: a dot per running lane (amber once stalled), the count and the longest lane's
+// clock. While LitClaude works a light walks across the dots (full motion) or they breathe (subtle),
+// so running lanes move while the main turn waits; a dot changes only by colour, which repaints.
+const laneSegment = (model, sample, glyphs) => {
+  const list = model.lanes.list.slice(0, 4);
+  const ambient = model.idle ? null : sample.ambient;
+  const dots = list.map((lane, index) => {
+    const base = lane.status === "stalled" ? PALETTE.amber : PALETTE.green;
+    let light = 0;
+    if (ambient?.flow !== null && ambient?.flow !== undefined) light = 0.8 * Math.max(0, 1 - Math.abs(ambient.flow * (list.length + 1) - 0.5 - index));
+    else if (ambient) light = 0.5 * ambient.breath;
+    return span(glyphs.lane, { fg: lerpColor(base, "#ffffff", light) });
+  });
+  const clock = sample.lanes ? ` ${formatClock(sample.lanes.elapsedMs)}` : "";
+  return segment("lanes", 3, [...dots, span(` ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}${clock}`, { fg: PALETTE.dim })]);
+};
+
 // The right half of the phase row: a context warning, the lanes, the autoloop budget and the
 // progress of the plan or goal, dropped in that priority order when the row is narrow.
 const progressSegment = (model, sample, glyphs, cells) => {
@@ -294,8 +311,7 @@ const phaseRow = (model, sample, { inner, glyphs, accent }) => {
       : null;
     right.push(segment("ctx", 1, warning));
     if (model.lanes.count > 0) {
-      const dots = model.lanes.list.slice(0, 4).map((lane) => span(glyphs.lane, { fg: lane.status === "stalled" ? PALETTE.amber : PALETTE.green }));
-      right.push(segment("lanes", 3, [...dots, span(` ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fg: PALETTE.dim })]));
+      right.push(laneSegment(model, sample, glyphs));
     }
     if (model.autoloop) {
       right.push(segment("loop", 4, [span(`${glyphs.loop} ${model.autoloop.n}/${model.autoloop.max}`, { fg: PALETTE.violet }), span(` · ${formatDuration(model.autoloop.leftMs)}`, { fg: PALETTE.dim })]));
@@ -389,8 +405,7 @@ const mapRow = (model, sample, { inner, glyphs, accent }) => {
       right.push(segment("ctx", 1, [span(`ctx ${model.ctxWarning.percent}% → ${model.ctxWarning.threshold}%`, { fg: lerpColor(PALETTE.dim, PALETTE.amber, sample.warn), bold: sample.warn > 0.5 })]));
     }
     if (model.lanes.count > 0) {
-      const dots = model.lanes.list.slice(0, 4).map((lane) => span(glyphs.lane, { fg: lane.status === "stalled" ? PALETTE.amber : PALETTE.green }));
-      right.push(segment("lanes", 3, [...dots, span(` ${model.lanes.count} ${model.lanes.count === 1 ? "lane" : "lanes"}`, { fg: PALETTE.dim })]));
+      right.push(laneSegment(model, sample, glyphs));
     }
     if (model.autoloop) {
       right.push(segment("loop", 4, [span(`${glyphs.loop} ${model.autoloop.n}/${model.autoloop.max}`, { fg: PALETTE.violet }), span(` · ${formatDuration(model.autoloop.leftMs)}`, { fg: PALETTE.dim })]));
@@ -590,12 +605,14 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge }) => {
   return edgeRow("╰─ ", joinSegments(kept, edge), [], "─╯", width, edge, cometOn(sample, "bottom", width));
 };
 
-// The border: red or amber under a warning, otherwise the accent, dimmer while idle and breathing
-// toward full accent with the brand pill while LitClaude works.
+// The border: red or amber under a warning, otherwise the accent. Idle it is a calm, dim accent;
+// while LitClaude works it sits a step above the accent and breathes brighter toward white with the
+// brand pill.
 const edgeColor = (model, sample, accent) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return PALETTE.red;
   if (model.warnings.length) return PALETTE.amber;
-  return lerpColor(PALETTE.faint, accent, model.idle ? 0.35 : 0.6 + 0.4 * (sample.ambient?.breath ?? 0));
+  if (model.idle) return lerpColor(PALETTE.faint, accent, 0.35);
+  return lerpColor(accent, "#ffffff", 0.15 + 0.3 * (sample.ambient?.breath ?? 0));
 };
 
 /**

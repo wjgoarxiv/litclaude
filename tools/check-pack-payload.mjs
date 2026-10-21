@@ -12,6 +12,7 @@ import { gunzipSync } from 'node:zlib';
 import { verifyCanonicalFrontendCorpus } from '../plugins/litclaude/lib/canonical-frontend-corpus.mjs';
 import { verifyCanonicalRuntimeClosures } from '../plugins/litclaude/lib/canonical-runtime-closures.mjs';
 import { canonicalSkillIds } from '../plugins/litclaude/lib/canonical-skill-catalog.mjs';
+import { npmInvocation } from '../plugins/litclaude/lib/npm-invocation.mjs';
 import {
   MAX_BOUNDED_AGGREGATE_BYTES,
   MAX_BOUNDED_FILE_BYTES,
@@ -23,7 +24,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // The README skill table shows one snapshot per row. Each id maps to one exact path.
 export const README_SKILL_IMAGE_PATHS = Object.freeze([
   'lit-loop', 'litwork', 'lit-plan', 'start-work', 'review-work', 'litgoal', 'lit-recap',
-  'lit-handoff', 'deep-interview', 'litresearch', 'lit-crucible', 'lit-init', 'lit-comprehend',
+  'lit-handoff', 'lit-brainstorm', 'deep-interview', 'litresearch', 'lit-crucible', 'lit-init', 'lit-comprehend',
   'lit-humanizer', 'lit-diagram-drawer', 'lit-pptx', 'lit-docx', 'frontend-ui-ux', 'readme-studio',
   'lit-typographic-motion', 'lit-scientific-visualization', 'visual-qa', 'browser-drive',
   'structural-search', 'lit-team', 'autoresearch', 'autoconference', 'wikify', 'debugging',
@@ -73,7 +74,7 @@ const APPROVED_PAYLOAD_PATHS = new Set([
 export const MOD_PAYLOAD_PATHS = Object.freeze([
   'plugins/litclaude/hooks/lit-mod.mjs',
   'plugins/litclaude/hooks/lit-band-client.mjs',
-  ...['frame', 'layout', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'view', 'workflow']
+  ...['frame', 'layout', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
 ]);
 
@@ -304,10 +305,11 @@ let packFailure;
 const packDirectory = mkdtempSync(join(tmpdir(), 'litclaude-pack-guard-'));
 try {
   canonicalPrepackSnapshot = captureCanonicalFiles(expectedCanonicalFiles);
-  const result = spawnSync('npm', ['pack', '--json', '--pack-destination', packDirectory], {
+  const npm = npmInvocation(['pack', '--json', '--pack-destination', packDirectory]);
+  const result = spawnSync(npm.command, npm.args, {
     cwd: ROOT,
     encoding: 'utf8',
-    shell: false,
+    shell: npm.shell,
   });
   if (result.status !== 0) {
     throw new Error(`npm pack failed (exit ${result.status})\n${result.stderr}`);

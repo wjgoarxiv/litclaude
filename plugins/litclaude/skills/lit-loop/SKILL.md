@@ -92,6 +92,16 @@ When the request is still underspecified, pause execution and route to
 before planning or editing. Lit-loop execution should not invent non-goals, decision
 boundaries, or acceptance criteria.
 
+## Repeating `lit` in one session
+
+The prompt hook sends the full activation once per discipline and session. A later
+`lit ...` for the same discipline arrives as a short "already active" note: carry on
+under this contract, do not reload this file, and open no new run, plan or goal line.
+`lit plan ...` or another discipline switches and brings its own full activation. A bare
+`lit` or `lit continue` carries on whatever is active in this session (a start-work run,
+the discipline last activated, or an open plan) and writes no new plan. `lit new ...` and `lit restart ...` start fresh. The
+hook keeps this record per session; when it is missing the full activation comes again.
+
 ## Role
 
 Deliver the user's objective end-to-end. Convert the objective into explicit
@@ -174,6 +184,7 @@ like this:
   text or claim native activation without observed evidence.
 - Forward-compat only: if a future Claude Code build exposes model-facing goal tools, prefer
   them according to the no-clobber rule above.
+- litgoal sets and keeps the finish line; lit-loop and start-work run toward it.
 - While model-facing goal tools are not exposed, the local litgoal ledger is the
   durable record; surface the degraded-mode note once for long-running goals and
   don't spam fallback status.

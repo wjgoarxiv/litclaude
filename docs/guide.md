@@ -57,7 +57,7 @@ The install opens with its plan: five stages, from copying the plugin to checkin
 it installed. The last line repeats that Claude Code keeps choosing the model and that your other
 Claude settings stay as they are. This picture shows a dark terminal.
 
-<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="Terminal window titled zsh. The LitClaude block-letter mark in orange, cream and green, with claude vX.Y.Z and the names hermes, codex, opencode and grok beside it, then the line Claude Code-native workflow distribution. Below it, INSTALL PLAN with five stages: 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. The last line reads Model selection: host-owned · unrelated Claude settings preserved." /></p>
+<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="Terminal window titled zsh. The LitClaude block-letter mark in orange, cream and green, with claude vX.Y.Z and the names hermes, codex, opencode, grok, muse and gravity beside it, then the line Claude Code-native workflow distribution. Below it, INSTALL PLAN with five stages: 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. The last line reads Model selection: host-owned · unrelated Claude settings preserved." /></p>
 
 *Captured from the installer.*
 
@@ -166,11 +166,12 @@ compare it with the files as they are now, and then carry on.
 | --- | --- |
 | `lit`, `litwork` | Evidence-first, test-first execution loop; also `$lit-loop`, `/lit-loop`, and `/litclaude:lit-loop` |
 | `lit plan <what>` | Planning only; also `$lit-plan` and `/lit-plan` |
-| `lit review <scope>` | Review a plan or completed work; also `$review-work` and `/review-work` |
+| `lit review <scope>` | Review a plan (plan review) or completed work (work review), picked from what exists; `lit review plan` or `lit review work` forces one; also `$review-work` and `/review-work` |
 | `lit research <question>` | Cited public-source research; also `$litresearch` and `/litclaude:litresearch` |
 | `lit search <question>` | Public-source retrieval |
 | `lit query <question>` | Evidence lookup against durable local state |
-| `lit goal <outcome>` | Bind one objective and checkable criteria; also `$litgoal` and `/litgoal` |
+| `lit goal <outcome>` | Set and keep the finish line: one objective and checkable criteria that `lit` and `start-work` run toward; also `$litgoal` and `/litgoal` |
+| `lit brainstorm <topic>`, `lit ideation`, `lit idea` | Open-ended ideas scored and cut to a short list, then handed to `deep-interview` or `lit plan`; also `$lit-brainstorm` and `/litclaude:lit-brainstorm` |
 | `lit workflow <objective>` | Propose a Dynamic workflow for broad delegated work |
 | `lit team`, `lit teammates` | Propose native agent teams when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled and the user approves |
 | `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
@@ -282,11 +283,11 @@ what the idea looks like.
 <p align="center"><img src="./assets/litclaude-ignition-1600.webp" width="49%" alt="LitClaude ignition editorial cue" /> <img src="./assets/litclaude-continuity-1600.webp" width="49%" alt="LitClaude continuity editorial cue" /></p>
 
 <details>
-<summary>LITFAMILY · five armored machines</summary>
+<summary>LITFAMILY · seven armored machines</summary>
 
-![Concept art showing the five LIT products as armored machines](./assets/litfamily-machines.png)
+![Concept art showing the seven LIT products as armored machines](./assets/litfamily-machines.png)
 
-Five armored machines: LitClaude, LitHermes, LitCodex, LitOpenCode, and LitGrok.
+Seven armored machines: LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, and LitGravity.
 Concept art; each product runs in its own host.
 
 </details>
@@ -553,7 +554,7 @@ HUD shows it as is and invents no value.
 Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
 tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
 guidance, the routing that picks a workflow, the authority checks, and the ledger that
-keeps the record. Through them, the package's 35 skills, 16 current commands, three hidden
+keeps the record. Through them, the package's 36 skills, 17 current commands, three hidden
 compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
 Code allows or blocks still applies.
 
@@ -576,7 +577,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["35 skills · 16 commands · 11 agents"]
+    LC --> S["36 skills · 17 commands · 11 agents"]
 ```
 
 Every skill works on a fresh install because the package carries what each skill needs.

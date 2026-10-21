@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { CHROME_ALWAYS, CHROME_RUNGS, EXIT, UNKNOWN_RENDERER } from "../core/constants.mjs";
+import { which } from "./host.mjs";
 
 export class BlockedError extends Error {
   constructor(code, message) {
@@ -30,11 +31,6 @@ const CANDIDATES = {
   ],
 };
 
-function onPath(name) {
-  const probe = spawnSync(process.platform === "win32" ? "where" : "which", [name], { encoding: "utf8" });
-  return probe.status === 0 ? probe.stdout.trim().split("\n")[0] : null;
-}
-
 /** Resolve Chrome: $CHROME_PATH, then the platform's usual locations. Returns null when absent. */
 export function findChrome(env = process.env) {
   if (env.CHROME_PATH) return existsSync(env.CHROME_PATH) ? env.CHROME_PATH : null;
@@ -42,7 +38,7 @@ export function findChrome(env = process.env) {
     if (path.isAbsolute(candidate)) {
       if (existsSync(candidate)) return candidate;
     } else {
-      const found = onPath(candidate);
+      const found = which(candidate);
       if (found) return found;
     }
   }
@@ -51,7 +47,7 @@ export function findChrome(env = process.env) {
 
 export function chromeVersion(chrome) {
   const probe = spawnSync(chrome, ["--version"], { encoding: "utf8", timeout: 15000 });
-  return probe.status === 0 ? probe.stdout.trim() : `unknown (${(probe.stderr || probe.error?.message || "").trim().split("\n")[0]})`;
+  return probe.status === 0 ? probe.stdout.trim() : `unknown (${(probe.stderr || probe.error?.message || "").trim().split(/\r?\n/u)[0]})`;
 }
 
 /**

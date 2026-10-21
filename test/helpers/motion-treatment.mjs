@@ -129,3 +129,21 @@ export function stageTestTreatment(timbre, { format = "16:9", fps, durationSec =
   if (fps) t.fps = fps;
   return t;
 }
+
+/** A cover treatment (mode: cover) for the cover-mode tests; the fixture page draws LOOPTEST. */
+export const coverTreatment = (over = {}) => ({
+  mode: "cover",
+  request: "An animated cover for the top of the LOOPTEST readme.",
+  idea: "Bars drift one period per loop while a dot laps a ring beside a still word.",
+  recipe: "own",
+  recipeReason: "A test pattern with all three speed layers and nothing else.",
+  brandWord: "LOOPTEST",
+  aspect: "2:1",
+  loopSec: 6,
+  fps: 16,
+  layers: { slow: "Bars drift one period per loop.", mid: "A dot laps its ring twice per loop.", beat: "The dot pulses once per lap." },
+  system: { rule: "One bar rule.", copies: "Fourteen bars.", offset: "Each bar's x position." },
+  title: { box: [0.06, 0.37, 0.56, 0.27], kind: "live" },
+  ambition: "Every frame moves and the seam disappears in the decoded file.",
+  ...over,
+});

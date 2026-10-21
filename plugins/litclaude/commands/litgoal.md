@@ -75,7 +75,7 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Do not report success from tests alone when the changed surface requires a real command, hook, package, or Manual-QA probe.
 
 Use the `litgoal` skill for the user's current goal operation or command
-arguments.
+arguments. litgoal sets and keeps the finish line; lit-loop and start-work run toward it.
 
 Shape the goal as one outcome-focused objective plus checkable criteria. Each
 criterion needs a scenario, a real surface, and observable evidence before it is

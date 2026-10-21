@@ -3,6 +3,7 @@ import * as nodeFs from "node:fs";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, it } from "node:test";
 
 import { parseRuleFile } from "../plugins/litclaude/lib/rules/frontmatter.mjs";
@@ -358,6 +359,15 @@ describe("rules engine — dynamic lane", () => {
     assert.equal(second, "", "a rule already injected this session must not repeat");
   });
 
+  it("sends a bundled rule once per session even when the directory has no project marker", () => {
+    const bare = makeTemp();
+    const pluginRoot = fileURLToPath(new URL("../plugins/litclaude/", import.meta.url));
+    const options = { cwd: bare, skipUserHome: true, pluginRoot, sessionId: "bare-1" };
+    assert.match(staticRulesBlock(options), /\S/u, "the first call carries the bundled rule");
+    assert.equal(staticRulesBlock(options), "", "the second call in the same session repeats nothing");
+    assert.match(staticRulesBlock({ ...options, sessionId: "bare-2" }), /\S/u, "another session gets it again");
+  });
+
   it("a different session is not deduplicated against the first", () => {
     const root = projectWithScopedRule();
     const target = join(root, "src", "a.ts");
@@ -601,6 +611,7 @@ describe("release integrity — parity and canonical runtime assets", () => {
       "lib/immutable-expected-file-map.mjs",
       "lib/secure-path-read.mjs",
       "lib/office-runtime.mjs",
+      "lib/npm-invocation.mjs",
       "lib/office-runtime-lock/package.json",
       "lib/office-runtime-lock/package-lock.json",
       "lib/office-runtime-lock/requirements.lock",
@@ -629,6 +640,7 @@ describe("release integrity — parity and canonical runtime assets", () => {
       "skills/readme-studio/",
       "skills/autoconference/",
       "skills/autoresearch/",
+      "skills/lit-brainstorm/",
       "skills/lit-comprehend/",
       "skills/lit-diagram-drawer/",
       "skills/lit-docx/",

@@ -14,6 +14,10 @@ export const USAGE = `lit-typographic-motion render CLI (LitClaude)
 
 usage:
   motion.mjs stage --out <dir> [--round N] [--stills-only]      stage path: renders the page in <dir>/stage/
+  motion.mjs cover --out <dir> [--round N] [--window t0,t1]   cover mode: the seamless README loop in <dir>/cover/;
+                                                                  --window re-renders only t0-0.5 s .. t1+0.5 s and sheets it
+  motion.mjs cover-gate <cover.webp> [--frames d --frames2 d --masks d --title x,y,w,h] [--strict] [--json]
+                                                                  the cover gate on a decoded cover file
   motion.mjs make  <brief.json> --out <dir> [--round N] [--stills-only] [--word-timing]
                                                                   type path: the typographic engine
   motion.mjs sound --out <dir>                                    builds <dir>/sound/bed.wav from the treatment
@@ -22,14 +26,17 @@ usage:
   motion.mjs gate  <dir>                                          reruns the full type-path gate on a render
   motion.mjs stills|sheet|video|perf <brief.json> --out <dir>     one type-path stage alone
 
-Both paths read <dir>/treatment.json first (exit 16 names the field). A render with --stills-only
+Every render reads <dir>/treatment.json first (exit 16 names the field). A render with --stills-only
 writes the beat stills, the transition strips and the contact sheet, then stops; the full render adds
 the master, preview, poster, reduced-motion still, determinism re-check, sound and the gate. A
-flash-audit FAIL withholds every export in <dir>/withheld/.
+flash-audit FAIL withholds every export in <dir>/withheld/. A cover render (treatment mode: cover)
+captures at 2x, encodes cover.webp and gates the decoded file; it exits 13 until every gate reaches
+its cover TARGET.
 
 exit codes: 0 OK · 10 BLOCKED_NO_CHROME · 11 BLOCKED_NO_WEBGL2 · 12 BLOCKED_NO_FFMPEG_FOR_VIDEO ·
 13 GATE_FAIL_QA · 14 BLOCKED_DEPS_NOT_PREWARMED · 15 BLOCKED_FONT_FETCH · 16 BLOCKED_TREATMENT_INVALID ·
-17 STAGE_CONTRACT_ERROR · 18 STAGE_NONDETERMINISTIC · 19 STAGE_NETWORK_REQUEST · 20 SOUND_INVALID · 2 usage
+17 STAGE_CONTRACT_ERROR · 18 STAGE_NONDETERMINISTIC · 19 STAGE_NETWORK_REQUEST · 20 SOUND_INVALID ·
+21 BLOCKED_NO_COVER_ENCODER · 22 BLOCKED_ASSET_MISSING · 2 usage
 ${CREDIT_LINE}
 `;
 
@@ -37,7 +44,7 @@ function parse(argv) {
   const args = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (["--stills-only", "--word-timing", "--help", "-h", "--foreground", "--worker"].includes(a)) args[a.replace(/^-+/u, "")] = true;
+    if (["--stills-only", "--word-timing", "--help", "-h", "--foreground", "--worker", "--strict", "--json"].includes(a)) args[a.replace(/^-+/u, "")] = true;
     else if (a.startsWith("--")) {
       args[a.slice(2)] = argv[i + 1];
       i += 1;
@@ -58,14 +65,29 @@ export async function main(argv, { env = process.env, stdout = process.stdout, s
   const pipeline = await import("../engine/node/pipeline.mjs");
   try {
     let result;
-    if (["stage", "sound", "look"].includes(mode)) {
+    if (["stage", "cover", "sound", "look"].includes(mode)) {
       if (!args.out) throw new BlockedError(EXIT.USAGE, `${mode} needs --out <dir>`);
       const out = path.resolve(args.out);
-      if (mode === "stage") {
+      if (mode === "cover") {
+        const cover = await import("../engine/node/cover.mjs");
+        const round = Number(args.round ?? 1);
+        const run = () => cover.renderCover({ out, round, env, log });
+        if (args.worker) return await detachedWorker({ run, out, BlockedError });
+        if (args.window) {
+          const span = String(args.window).split(",").map(Number);
+          if (span.length !== 2) throw new BlockedError(EXIT.USAGE, "--window takes t0,t1 in seconds");
+          result = await cover.renderCoverWindow({ out, round, window: span, env, log });
+        } else if (args.foreground || env.LITCLAUDE_MOTION_FOREGROUND === "1") result = await run();
+        else {
+          const { renderStageDetached } = await import("../engine/node/stage.mjs");
+          result = await renderStageDetached({ out, round, cli: fileURLToPath(import.meta.url), mode: "cover", env, log });
+          if (result.blocked) throw new BlockedError(result.code, result.message);
+        }
+      } else if (mode === "stage") {
         const stage = await import("../engine/node/stage.mjs");
         const round = Number(args.round ?? 1);
         const stillsOnly = Boolean(args["stills-only"]);
-        if (args.worker) return await stageWorker({ stage, out, round, env, log, BlockedError });
+        if (args.worker) return await detachedWorker({ run: () => stage.renderStage({ out, round, stillsOnly: false, env, log }), out, BlockedError });
         // A full render runs detached with a progress file, so a tool timeout never kills it.
         if (stillsOnly || args.foreground || env.LITCLAUDE_MOTION_FOREGROUND === "1") result = await stage.renderStage({ out, round, stillsOnly, env, log });
         else {
@@ -80,6 +102,17 @@ export async function main(argv, { env = process.env, stdout = process.stdout, s
         if (!args.answers && !args.blocked) throw new BlockedError(EXIT.USAGE, "look needs --round N and --answers <file> (or --blocked no-vision-tool)");
         result = look.lookCommand({ out, round: Number(args.round), answersFile: args.answers ? path.resolve(args.answers) : null, blocked: args.blocked ?? null });
       }
+    } else if (mode === "cover-gate") {
+      if (!target) throw new BlockedError(EXIT.USAGE, "cover-gate needs the cover file (cover.webp, cover.gif) or a PNG frame directory");
+      const { coverGate, formatCoverReport } = await import("../engine/node/cover-gate.mjs");
+      const strict = Boolean(args.strict);
+      const r = coverGate(path.resolve(target), {
+        frames: args.frames ? path.resolve(args.frames) : null, frames2: args.frames2 ? path.resolve(args.frames2) : null, masks: args.masks ? path.resolve(args.masks) : null,
+        title: args.title ? String(args.title).split(",").map(Number) : null, fps: Number(args.fps ?? 16), env,
+      });
+      const { diffs, kept, durations, ...rest } = r;
+      const ok = r.pass && (!strict || r.target);
+      result = { code: ok ? EXIT.OK : EXIT.GATE_FAIL_QA, message: args.json ? JSON.stringify(rest, null, 1) : formatCoverReport(r, { strict }).trimEnd() };
     } else if (mode === "gate") {
       if (!target) throw new BlockedError(EXIT.USAGE, "gate needs the output directory");
       result = await pipeline.gateOnly({ out: path.resolve(target), viewed: Number(args.viewed ?? 0), env, log });
@@ -105,12 +138,12 @@ export async function main(argv, { env = process.env, stdout = process.stdout, s
   }
 }
 
-/** The detached side of a full stage render: run it and leave the result for the waiting caller. */
-async function stageWorker({ stage, out, round, env, log, BlockedError }) {
+/** The detached side of a full stage or cover render: run it and leave the result for the waiting caller. */
+async function detachedWorker({ run, out, BlockedError }) {
   const { writeFileSync } = await import("node:fs");
   let result;
   try {
-    const r = await stage.renderStage({ out, round, stillsOnly: false, env, log });
+    const r = await run();
     result = { code: r.code, message: r.message };
   } catch (error) {
     result = error instanceof BlockedError ? { code: error.code, message: error.message, blocked: true } : { code: 1, message: `lit-motion: ${error.stack ?? error.message}`, blocked: true };

@@ -95,7 +95,7 @@ Deep Interview is an intent-first Socratic clarification loop that runs before p
 <Do_Not_Use_When>
 - The request already has concrete file/symbol targets and clear acceptance criteria
 - The user explicitly asks to skip planning/interview and execute immediately
-- The user asks for lightweight, open-ended brainstorming only
+- The user wants open-ended brainstorming (many options, a name, "what could we do"): send it to `lit-brainstorm` (`lit brainstorm <topic>`), and return here only when the pick is still vague
 - A complete spec/plan already exists and execution should start
 </Do_Not_Use_When>
 

@@ -8,7 +8,7 @@
 // A missing, unparsable or outdated treatment.json or look.json is a block with a named reason.
 // Only this hook's own state file fails open. After MOTION_MAX_BLOCKS reminders the hook blocks
 // once more to tell the model to say, in the reply, that the film is not done and why; a blocked
-// environment (exit 10-12, 14, 15) goes straight to that notice. A done film with a downgrade, open
+// environment (exit 10-12, 14, 15, 21, 22) goes straight to that notice. A done film with a downgrade, open
 // look items or no image tool blocks once so the reply says so.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
@@ -17,8 +17,8 @@ import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-
 
 export const MOTION_MAX_BLOCKS = 2;
 export const MOTION_DISCIPLINE = "lit-typographic-motion";
-const COMMAND = /\bmotion\.mjs["']?\s+(stage|make|gate|sound|look|stills|sheet|video|perf)\b([^\n;&|]*)/u;
-const BLOCKED_EXITS = new Set([10, 11, 12, 14, 15]);
+const COMMAND = /\bmotion\.mjs["']?\s+(stage|make|cover-gate|cover|gate|sound|look|stills|sheet|video|perf)\b([^\n;&|]*)/u;
+const BLOCKED_EXITS = new Set([10, 11, 12, 14, 15, 21, 22]);
 const DONE_MODULE = new URL("../skills/lit-typographic-motion/engine/node/done.mjs", import.meta.url);
 
 export const motionTurnPath = (cwd = resolveProjectStateRoot()) => join(resolveProjectStateRoot(cwd), ".litclaude", "motion", "turn.json");
@@ -72,6 +72,8 @@ export function parseMotionCommand(command, workdir) {
   const abs = (p) => (p ? (isAbsolute(p) ? p : join(workdir, p)) : null);
   const mode = match[1];
   if (mode === "gate") return { mode, out: abs(positional[0]), brief: null, round: null, stillsOnly: false };
+  // cover-gate checks a file; it is not a render, so it never becomes the output the Stop hook judges.
+  if (mode === "cover-gate") return { mode, out: null, brief: null, round: null, stillsOnly: false };
   const round = values["--round"] === undefined ? null : Number(values["--round"]);
   return { mode, brief: ["make", "stills", "sheet", "video", "perf"].includes(mode) ? abs(positional[0]) : null, out: abs(values["--out"]), round, stillsOnly };
 }
@@ -145,6 +147,7 @@ export const evaluateMotionStop = async ({ cwd, sessionId, transcriptPath = null
   if (verdict.status === "DONE" || verdict.status === "DONE_UNVIEWED") {
     const say = [
       ...(verdict.status === "DONE_UNVIEWED" ? ["nobody viewed the frames (no image tool could be reached)"] : []),
+      ...(verdict.labels ?? []),
       ...verdict.downgraded.map((d) => `downgraded: ${d}`),
       ...verdict.openItems.map((o) => `open item: ${o}`),
     ];
@@ -160,6 +163,8 @@ export const evaluateMotionStop = async ({ cwd, sessionId, transcriptPath = null
   return {
     action: "block",
     why: "not-done",
-    reason: `lit-typographic-motion is not done: ${verdict.reasons.join("; ")}. Finish the loop in references/look.md: render, open every listed still with Read, record the look round, and render again when the gate or a look answer asks for it.`,
+    reason: verdict.mode === "cover"
+      ? `lit-typographic-motion (cover mode) is not done: ${verdict.reasons.join("; ")}. Finish the loop in references/cover.md: render the cover, open the sheet, the poster and the seam pair with Read, record the look round, and render again when a gate misses TARGET or a look answer asks for it.`
+      : `lit-typographic-motion is not done: ${verdict.reasons.join("; ")}. Finish the loop in references/look.md: render, open every listed still with Read, record the look round, and render again when the gate or a look answer asks for it.`,
   };
 };

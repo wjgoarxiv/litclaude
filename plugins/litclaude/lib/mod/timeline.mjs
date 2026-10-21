@@ -17,6 +17,12 @@ const fractionOf = (model) => {
 // surface counts on between models.
 const stepOf = (model, now) => (model.step ? { name: model.step.name, base: model.step.elapsedMs, at: now } : null);
 
+// The lanes' clock, kept the same way: the longest-running lane's time as the model carried it.
+const lanesOf = (model, now) => {
+  const times = (model.lanes?.list ?? []).map(({ elapsedMs }) => elapsedMs).filter(Number.isFinite);
+  return times.length ? { base: Math.max(...times), at: now } : null;
+};
+
 const entryEnd = (profile) => 3 * profile.duration(TIMINGS.stagger) + profile.duration(TIMINGS.entry);
 
 // One entry per chip: `at` is the firing the model reported, `arrivedAt` when this timeline saw
@@ -48,6 +54,7 @@ export const createTimeline = (model, now, profile) => {
     done: countOf(model)?.done ?? null,
     flashAt: null,
     step: stepOf(model, now),
+    lanes: lanesOf(model, now),
     warn: still(model.ctxWarning ? 1 : 0),
     phases: Object.fromEntries(PHASES.map((id) => [id, { from: model.phases[id], to: model.phases[id], at: now }])),
     notice: model.notice ? { data: model.notice, at: restAt } : null,
@@ -83,8 +90,12 @@ export const advanceTimeline = (timeline, model, now, profile) => {
   next.chips = chipsOf(model, now, timeline.chips);
   next.ambient = ambientOf(model, now, profile, timeline.ambient);
   next.step = stepOf(model, now);
+  next.lanes = lanesOf(model, now);
   return next;
 };
+
+/** True while the card shows a running clock (the live step or the lanes'); it ticks each second. */
+export const clockShown = (timeline) => timeline.exitAt === null && Boolean(timeline.step || timeline.lanes);
 
 /** True while the ambient loop runs; the surface module then keeps a slower frame timer going. */
 export const ambientActive = (timeline, profile) => Boolean(profile.ambient) && timeline.exitAt === null && timeline.ambient.on;
@@ -184,6 +195,7 @@ export const sampleTimeline = (timeline, now, profile) => {
     chips,
     ambient: ambientSample(timeline, now, profile),
     step: timeline.step ? { name: timeline.step.name, elapsedMs: timeline.step.base + Math.max(0, now - timeline.step.at) } : null,
+    lanes: timeline.lanes ? { elapsedMs: timeline.lanes.base + Math.max(0, now - timeline.lanes.at) } : null,
     spin: Math.floor(Math.max(0, now) / TIMINGS.spin) % 4,
   };
 };

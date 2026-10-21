@@ -63,6 +63,16 @@ it("native lockups preserve arbitrary plain labels and cell colors after CLI tri
   assert.throws(() => mark.lockup("claude\nspoof"), /plain product label/u);
 });
 
+it("native lockups name all seven family members, the last row holding muse and gravity", () => {
+  for (const [name, , height] of shapes.filter(([, , rows]) => rows >= 10)) {
+    const lockup = mark.lockup("claude", mark[name]).map((row) => row.trimEnd());
+    const first = Math.floor(height / 2);
+    const labels = lockup.slice(first, first + 5).map((row) => row.slice(row.search(/\S+(?: · \S+)?$/u)));
+    assert.deepEqual(labels.map((label) => label.trim()), ["claude", "──────────────", "hermes · codex", "opencode · grok", "muse · gravity"], name);
+    assert.equal(lockup.length, height, `${name} keeps the mark's height`);
+  }
+});
+
 it("none mode preserves every byte and generic block rows use flat ivory", () => {
   for (const rows of [mark.standard, mark.banner, mark.micro, mark.lockup("claude"), ["█▓ custom"]]) {
     assert.deepEqual(mark.colorize(rows, { mode: "none", shadow: false }), rows);

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { inspectClaudeNativeSurface } from "../tools/check-model-routing.mjs";
+import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const pluginRoot = join(root, "plugins", "litclaude");
@@ -104,10 +105,19 @@ async function main() {
   assert.equal(modelRouting.status, "PASS", `MODEL_ROUTING_GUARD_FAIL ${modelRouting.failures.join(", ")}`);
   process.stdout.write(`MODEL_ROUTING_UNSUPPORTED: ${modelRouting.reason}\n`);
 
-  const claude = spawnSync("claude", ["--version"], { encoding: "utf8" });
+  // claude is an npm .cmd shim on Windows; it runs unwrapped, never through cmd.exe.
+  const spawnClaude = (args, options) => {
+    try {
+      const invocation = shellFreeCommand("claude", args);
+      return spawnSync(invocation.command, invocation.args, options);
+    } catch (error) {
+      return { status: null, stdout: "", stderr: error.message, error };
+    }
+  };
+  const claude = spawnClaude(["--version"], { encoding: "utf8" });
   if (claude.status === 0) {
     process.stdout.write(`CLAUDE_VERSION: ${claude.stdout.trim() || claude.stderr.trim()}\n`);
-    const validation = spawnSync("claude", ["plugin", "validate", "./plugins/litclaude"], {
+    const validation = spawnClaude(["plugin", "validate", "./plugins/litclaude"], {
       cwd: root,
       encoding: "utf8",
     });

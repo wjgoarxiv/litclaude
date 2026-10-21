@@ -1,6 +1,6 @@
 ---
 name: review-work
-description: Claude-native 5-lane LitClaude review orchestrator with findings-first output, evidence artifacts, manual QA, security/provenance review, real-surface readiness, aggregation rules, and cleanup receipts.
+description: Claude-native LitClaude review in two named modes. Plan review checks a plan before start-work (complete, ordered, verifiable); work review runs five lanes over a diff, branch or PR after lit-loop or start-work. It auto-picks from what exists, takes lit review plan or lit review work, and reports findings first with evidence artifacts and cleanup receipts.
 ---
 
 ## #contract.activation
@@ -103,6 +103,42 @@ security/provenance, and real-surface/docs. A PASS verdict requires concrete
 evidence for every applicable lane; missing evidence is BLOCKED, not approval.
 Treat every DoneClaim skeptically until the diff, commands, artifacts, and
 cleanup receipts prove it.
+
+## Two Modes
+
+review-work has two named modes. Say which one ran on the **first line of the report**,
+before any finding, in the form `Review mode: plan review (auto-picked: <signal>)` or
+`Review mode: work review (forced: lit review work)`.
+
+- **Plan review** runs after `lit-plan` and before `start-work`. It asks whether the
+  plan is complete, ordered and verifiable. It is planning-only and returns
+  `PASS | ITERATE | NEEDS-CONTEXT`; see Plan-Review Mode below.
+- **Work review** runs after `lit-loop` or `start-work`. It reads the diff, the tests
+  and the evidence through the five lanes below and returns the lane verdicts and the
+  aggregate; see Five-Lane Orchestration below.
+
+### Auto-pick
+
+Pick the mode from what exists, not from the wording of the request. The prompt hook
+may add a `Review-mode signals:` line with the tick state of the latest plan; read the
+diff yourself.
+
+| What exists | Mode |
+| --- | --- |
+| A named PR, branch, commit range or diff | Work review |
+| A plan with ticked rows (`- [x]`), a start-work run or ledger, or other work signals such as a changed tree or evidence artifacts | Work review |
+| A plan with no ticked rows and no diff, or a draft plan pasted into the prompt | Plan review |
+| A plan with open rows and also a diff | Work review: the diff is the artifact under review; name the plan as context |
+| Neither a plan nor a diff | Ask which one to review, offering what you looked for; never guess |
+
+### Forcing a mode
+
+The user can force the mode: `lit review plan`, `lit review work`, `$review-work plan`,
+`$review-work work`, or the same words after `/litclaude:review-work`. The hook then
+adds `Review mode forced by the user: plan review.` (or `work review.`). A forced mode
+wins over auto-pick. When the forced mode has nothing to review (work review with no
+diff, plan review with no plan), say so and ask for the artifact; do not review an
+empty target.
 
 ## Plan-Review Mode
 

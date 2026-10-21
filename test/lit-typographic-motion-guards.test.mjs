@@ -175,7 +175,7 @@ describe("lit-typographic-motion fonts (MO-A-46..48, MO-FT-01..08)", () => {
       total += bytes.length;
     }
     assert.ok(total <= 4_000_000, `bundled total ${total} B`);
-    const onDisk = walk(join(skillRoot, "fonts")).filter((f) => /\.(ttf|otf|svg)$/u.test(f)).map((f) => relative(join(skillRoot, "fonts"), f)).sort();
+    const onDisk = walk(join(skillRoot, "fonts")).filter((f) => /\.(ttf|otf|svg|woff2?)$/u.test(f)).map((f) => relative(join(skillRoot, "fonts"), f)).sort();
     const listed = Object.values(manifest.fonts).filter((f) => f.source === "bundled").map((f) => f.path).sort();
     assert.deepEqual(onDisk, listed, "no unlisted font file ships");
   });
@@ -205,7 +205,7 @@ describe("lit-typographic-motion fonts (MO-A-46..48, MO-FT-01..08)", () => {
   });
 });
 
-const REFERENCES = ["style-bibles.md", "engine-contract.md", "type-craft.md", "craft-loop.md", "runtime.md", "brief-schema.md"];
+const REFERENCES = ["style-bibles.md", "engine-contract.md", "type-craft.md", "craft-loop.md", "runtime.md", "brief-schema.md", "cover.md"];
 
 describe("lit-typographic-motion enrollment and corpus (organic, not just present)", () => {
   const skill = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
@@ -255,6 +255,7 @@ describe("lit-typographic-motion enrollment and corpus (organic, not just presen
       "craft-loop.md": ["## One round", "## Stop conditions", "## Gate table", "## Report"],
       "runtime.md": ["## Pre-warm, never first use", "## Exit codes", "## Chrome flags", "## Audio tiers"],
       "brief-schema.md": ["## Two shapes", "## Fields", "## Shots"],
+      "cover.md": ["## What is different from a film", "## Page contract", "## The cover treatment", "## Assets (`assets.json`)", "## Craft rules, ranked", "## Recipes", "## Loop kit", "## Encode", "## Gate (decoded file)", "## Review", "## Defects and window re-renders", "## Rounds and done", "## Recipe rows and negatives"],
     };
     for (const ref of REFERENCES) {
       const text = readFileSync(join(skillRoot, "references", ref), "utf8");

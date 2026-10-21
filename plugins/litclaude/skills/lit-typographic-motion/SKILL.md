@@ -1,6 +1,6 @@
 ---
 name: lit-typographic-motion
-description: Film director for a finished short film from a one-line request — writes a treatment first (idea, audience, format, beats, a drawn subject, copy, sound), then takes the stage path for films that show things (a model-authored HTML/SVG/Canvas/WebGL page captured frame by frame by the bundled deterministic renderer, 16:9 or 9:16) or the type path for films whose words are the film (kinetic type, lyric or quote video, title sequence, through the bundled WebGL2 type engine), with a generated sound bed, look rounds on the rendered frames and a QA gate (flash audit, legibility, determinism, sound). Not for editing, trimming or captioning existing footage, a video embedded in a web page, a thumbnail, or slides.
+description: Film director for a finished short film from a one-line request — writes a treatment first (idea, audience, format, beats, a drawn subject, copy, sound), then takes the stage path for films that show things (a model-authored HTML/SVG/Canvas/WebGL page captured frame by frame by the bundled deterministic renderer, 16:9 or 9:16) or the type path for films whose words are the film (kinetic type, lyric or quote video, title sequence, through the bundled WebGL2 type engine), with a generated sound bed, look rounds on the rendered frames and a QA gate (flash audit, legibility, determinism, sound). Cover mode makes a silent, seamless README cover loop. Not for editing, trimming or captioning existing footage, a video embedded in a web page, a thumbnail, or slides.
 ---
 
 ## #contract.activation
@@ -17,13 +17,14 @@ host: Claude Code
 verdicts: [PASS, FAIL, BLOCKED]
 ```
 
-This skill is a film director. Every film starts with a treatment. Films that are the words themselves take the type path; every other film takes the stage path, where you author the visuals and the product's renderer captures them deterministically and runs the gate.
+This skill is a film director. Every film starts with a treatment. Films that are the words themselves take the type path; every other film takes the stage path, where you author the visuals and the product's renderer captures them deterministically and runs the gate. A README cover loop is not a film: it takes cover mode (`references/cover.md`).
 
-The UserPromptSubmit hook activates it for a prompt that starts with the token `lit-typographic-motion`, or for a bare `lit` prompt that asks to make something and names a film: a compound (모션그래픽, 타이포 모션, 키네틱 타이포, 가사 영상, 오프닝 타이틀, 타이틀 시퀀스, motion graphics, kinetic type, lyric video, title sequence, opening titles) or a bare 영상 / 비디오 / video / clip. It runs before the office and interface routes. It does not fire for editing or captioning an existing clip, a video inside a page or slide, a script, thumbnail or summary about a video, UI motion (hover, motion tokens), or a bare 모션 / motion / 인트로 / intro.
+The UserPromptSubmit hook activates it for a prompt that starts with the token `lit-typographic-motion`, or for a bare `lit` prompt that asks to make something and names a film: a compound (모션그래픽, 타이포 모션, 키네틱 타이포, 가사 영상, 오프닝 타이틀, 타이틀 시퀀스, motion graphics, kinetic type, lyric video, title sequence, opening titles) or a bare 영상 / 비디오 / video / clip. It does not fire for editing or captioning an existing clip, a video inside a page or slide, a script, thumbnail or summary about a video, UI motion (hover, motion tokens), or a bare 모션 / motion / 인트로 / intro.
 
 | Request | Route |
 | --- | --- |
 | A film from a request, with or without its words | this skill |
+| A README, hero, banner or cover loop | this skill, cover mode |
 | Slides or a report, with no video noun | lit-pptx / lit-docx |
 | A web page, a background video in a page, UI motion | frontend-ui-ux |
 | Editing, trimming or captioning existing footage | not this skill; say so |
@@ -49,7 +50,8 @@ The UserPromptSubmit hook activates it for a prompt that starts with the token `
 | treatment | exit 16 | Fix the named field of `treatment.json` and rerun. |
 | stage contract | exit 17, 18 or 19 | Fix the page (element, API, raster, clock source or URL the message names) and rerun. |
 | sound | exit 20 | Fix the bed or the track the message names and rerun. |
-| review-only | the user asks for a critique of a render | Look at the frames and run `gate`; write nothing else. |
+| cover | treatment `mode: cover` | Done by `references/cover.md`. |
+| review-only | the user asks for a critique of a render | Look at the frames and run `gate` (`cover-gate` for a cover); write nothing else. |
 
 ## #contract.procedure
 
@@ -61,9 +63,13 @@ node "$SKILL_ROOT/scripts/motion.mjs" make <brief.json> --out <dir> --round <N> 
 node "$SKILL_ROOT/scripts/motion.mjs" sound --out <dir>
 node "$SKILL_ROOT/scripts/motion.mjs" look --out <dir> --round <N> --answers <file>
 node "$SKILL_ROOT/scripts/motion.mjs" gate <dir>
+node "$SKILL_ROOT/scripts/motion.mjs" cover --out <dir> --round <N>
+node "$SKILL_ROOT/scripts/motion.mjs" cover-gate <dir>/cover.webp --strict
 ```
 
 Every frame and track passes through these renderers. A film encoded by hand with ffmpeg, Python, a raster flipbook or a screen recording is not the deliverable.
+
+Cover mode replaces steps 1–6 with `references/cover.md`: a cover treatment, a page from a recipe in `recipes/`, then render and look rounds on the decoded cover.
 
 1. **Treatment.** Load `references/treatment.md`. Write `<dir>/treatment.json` from it: idea, audience, channel, format, the genre arc's beats, the subject (invent one when the request names none), visual devices, type plan, palette, sound and copy. Set `path` by its path rule.
 2. **Path references.** Stage path: `references/stage.md`. Type path: `references/brief-schema.md`, `references/style-bibles.md`, `references/type-craft.md` and `references/craft-loop.md` (`references/engine-contract.md` and `references/runtime.md` when you need the engine's internals). Both paths: `references/look.md` and `references/sound.md`.
@@ -85,6 +91,7 @@ Every frame and track passes through these renderers. A film encoded by hand wit
 | `sound/`, `sound-cues.json` | The generated bed or the prepared track, and every cue against its cut |
 | `manifest.json`, `render.jsonl`, `gate-report.txt` | Run manifest, per-frame log, QA gate report |
 | `withheld/` | Only after a flash-audit FAIL: diagnostics, never deliverables |
+| `cover.webp` | Cover mode: the loop (≤ 2 MiB); `stills/` holds the decoded sheet with its difference plot and the seam pair |
 
 ## #contract.output_channels
 
@@ -114,6 +121,8 @@ Done needs all of: a valid treatment; gate PASS; at least two look rounds, the f
 | 18 | STAGE_NONDETERMINISTIC | The page read something the clock does not drive; seed it or drive it from `t`. |
 | 19 | STAGE_NETWORK_REQUEST | Remove the named URL or connection; everything is local. |
 | 20 | SOUND_INVALID | The planned sound is missing, silent at the start or out of limits; fix it. |
+| 21 | BLOCKED_NO_COVER_ENCODER | Install libwebp (img2webp, dwebp) or gifski. |
+| 22 | BLOCKED_ASSET_MISSING | Cover mode: a listed asset is missing; supply or generate it, never a stand-in. |
 
 Never raise a gate number, never weaken the flash audit, never ship a withheld export as a draft.
 
@@ -128,4 +137,4 @@ Never raise a gate number, never weaken the flash audit, never ship a withheld e
 - Outlined or haloed type, fake Hangul condensing, tracking or width motion on Hangul, glitch as constant texture.
 - Quoting song lyrics or other text the user does not own as the film's content.
 
-References: `references/treatment.md`, `references/stage.md`, `references/look.md`, `references/sound.md`, `references/brief-schema.md`, `references/style-bibles.md`, `references/type-craft.md`, `references/craft-loop.md`, `references/engine-contract.md`, `references/runtime.md`. Type engine credit: portions adapted from mexicat/pdoom-video (MIT), commit `ca251e3`; see `engine/NOTICE`.
+References: `references/treatment.md`, `references/cover.md`, `references/stage.md`, `references/look.md`, `references/sound.md`, `references/brief-schema.md`, `references/style-bibles.md`, `references/type-craft.md`, `references/craft-loop.md`, `references/engine-contract.md`, `references/runtime.md`. Type engine credit: portions adapted from mexicat/pdoom-video (MIT), commit `ca251e3`; see `engine/NOTICE`.

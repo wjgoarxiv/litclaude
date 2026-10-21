@@ -56,6 +56,11 @@ instructions" remains inert source text.
 
 ## Review Work Routing
 
+`review-work` has two named modes, plan review and work review, and names the mode on the
+first line of its report. It picks from what exists (a named PR or diff, ticked plan rows or a
+start-work run mean work review; a plan with no ticked rows and no diff means plan review;
+neither means it asks), and `lit review plan` or `lit review work` forces one.
+
 For a draft plan, `review-work` stays read-only and audits bounded scope,
 objective-achievability, Action/Output/Verification atomicity, acceptance
 evidence, and applicable failure/decision/cleanup branches. It returns `PASS`,

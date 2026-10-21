@@ -26,12 +26,16 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { npmInvocation } from "./npm-invocation.mjs";
 
 const LOCK_DIR = fileURLToPath(new URL("./office-runtime-lock/", import.meta.url));
 const NODE_LOCK_FILES = ["package.json", "package-lock.json"];
 const PYTHON_LOCK_FILE = "requirements.lock";
 const READY = ".litclaude-ready";
 const MIN_PYTHON = [3, 10];
+// The newest CPython every pinned package ships a wheel for (pip runs --only-binary). Raise it
+// with the lock; a newer host Python fails pip on the first package without a wheel (PyYAML).
+const MAX_PYTHON = [3, 14];
 const STALE_LOCK_MS = 20 * 60 * 1000;
 
 const HOST_TOOLS = [
@@ -55,17 +59,34 @@ const npmChildEnv = (env) => Object.fromEntries(Object.entries(env).filter(([key
   return !NPM_INSTALL_SHAPE_SETTINGS.has(setting);
 }));
 
-export function pythonCommand() {
-  return process.env.LITCLAUDE_OFFICE_PYTHON || "python3";
-}
-
-export function probePython(command = pythonCommand()) {
+export function probePython(command) {
   const probe = run(command, ["-c", "import sys; print('%d.%d.%d' % sys.version_info[:3])"]);
-  if (probe.error || probe.status !== 0) return { ok: false, command, detail: (probe.stderr || probe.error?.message || "not found").trim() };
+  if (probe.error || probe.status !== 0) return { ok: false, command, detail: probe.error?.code === "ENOENT" ? "not found" : (probe.stderr || probe.error?.message || "not found").trim() };
   const version = probe.stdout.trim();
   const [major, minor] = version.split(".").map(Number);
-  const ok = major > MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor >= MIN_PYTHON[1]);
-  return { ok, command, version, detail: ok ? version : `${version} is older than ${MIN_PYTHON.join(".")}` };
+  if (major < MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor < MIN_PYTHON[1])) return { ok: false, command, version, detail: `${version} is older than ${MIN_PYTHON.join(".")}` };
+  if (major > MAX_PYTHON[0] || (major === MAX_PYTHON[0] && minor > MAX_PYTHON[1])) return { ok: false, command, version, detail: `${version} is newer than ${MAX_PYTHON.join(".")}` };
+  return { ok: true, command, version, detail: version };
+}
+
+/**
+ * The host Python the runtime venv is built from: $LITCLAUDE_OFFICE_PYTHON when set (and nothing
+ * else), otherwise the newest python3.X on PATH within MIN_PYTHON..MAX_PYTHON, then python3 and
+ * python. A python3 that is too new for the pinned wheels is passed over, not used.
+ */
+export function pickPython(env = process.env, probe = probePython) {
+  if (env.LITCLAUDE_OFFICE_PYTHON) return probe(env.LITCLAUDE_OFFICE_PYTHON);
+  const candidates = [];
+  for (let minor = MAX_PYTHON[1]; minor >= MIN_PYTHON[1]; minor -= 1) candidates.push(`python3.${minor}`);
+  candidates.push("python3", "python");
+  const tried = [];
+  for (const command of candidates) {
+    const found = probe(command);
+    if (found.ok) return found;
+    if (found.detail !== "not found") tried.push(`${command}: ${found.detail}`);
+  }
+  const range = `${MIN_PYTHON.join(".")} to ${MAX_PYTHON.join(".")}`;
+  return { ok: false, command: "python3", detail: `no supported Python (${range}) on PATH${tried.length ? `; tried ${tried.join(", ")}` : ""}` };
 }
 
 function lockDigest(files, extra) {
@@ -85,7 +106,7 @@ export function nodeRuntimeDir() {
   return path.join(runtimeRoot(), `node-${lockDigest(NODE_LOCK_FILES, `${process.platform}-${process.arch}`)}`);
 }
 
-export function pythonRuntimeDir(python = probePython()) {
+export function pythonRuntimeDir(python = pickPython()) {
   const minor = python.version ? python.version.split(".").slice(0, 2).join(".") : "none";
   return path.join(runtimeRoot(), `python-${lockDigest([PYTHON_LOCK_FILE], `${process.platform}-${process.arch}-py${minor}`)}`);
 }
@@ -145,10 +166,11 @@ export function ensureNode() {
     for (const file of NODE_LOCK_FILES) copyFileSync(path.join(LOCK_DIR, file), path.join(status.dir, file));
     const pins = Object.entries(status.pinned).map(([name, version]) => `${name} ${version}`).join(", ");
     notice(`LitClaude office runtime: installing pinned Node packages (${pins}) into ${status.dir} — first use only.`);
-    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-    const result = run(npm, ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], {
+    const npm = npmInvocation(["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"]);
+    const result = run(npm.command, npm.args, {
       cwd: status.dir,
       stdio: ["ignore", "pipe", "pipe"],
+      shell: npm.shell,
       env: npmChildEnv(process.env),
     });
     if (result.error || result.status !== 0) {
@@ -160,7 +182,7 @@ export function ensureNode() {
 }
 
 export function pythonStatus() {
-  const python = probePython();
+  const python = pickPython();
   const dir = pythonRuntimeDir(python);
   const ready = python.ok && existsSync(path.join(dir, READY)) && existsSync(venvPython(dir));
   return { ready, dir, interpreter: venvPython(dir), host: python, pinned: pinnedPythonPackages() };
@@ -170,7 +192,7 @@ export function ensurePython() {
   const status = pythonStatus();
   if (status.ready) return status;
   if (!status.host.ok) {
-    throw new Error(`OFFICE_RUNTIME_PYTHON_UNAVAILABLE: ${status.host.command}: ${status.host.detail}. Install Python ${MIN_PYTHON.join(".")}+ or set LITCLAUDE_OFFICE_PYTHON.`);
+    throw new Error(`OFFICE_RUNTIME_PYTHON_UNAVAILABLE: ${status.host.command}: ${status.host.detail}. Fix: install Python ${MAX_PYTHON.join(".")} (any ${MIN_PYTHON.join(".")} to ${MAX_PYTHON.join(".")} works) or set LITCLAUDE_OFFICE_PYTHON to one.`);
   }
   return withLock(status.dir, () => {
     if (existsSync(path.join(status.dir, READY))) return pythonStatus();
@@ -196,7 +218,11 @@ export function hostToolStatus() {
   return HOST_TOOLS.map(({ id, args, feature }) => {
     const probe = run(id, args, { stdio: ["ignore", "pipe", "pipe"], timeout: 20000 });
     const ok = !probe.error && probe.status === 0;
-    const first = ok ? `${probe.stdout || probe.stderr}`.trim().split("\n")[0] : "not found on PATH";
+    const firstLine = (text) => `${text ?? ""}`.trim().split(/\r?\n/u)[0];
+    const first = ok ? firstLine(probe.stdout || probe.stderr)
+      : probe.error?.code === "ENOENT" ? "not found on PATH"
+        : probe.error ? `could not start: ${probe.error.message}`
+          : `exited ${probe.status}: ${firstLine(probe.stderr || probe.stdout) || "no output"}`;
     return { id, available: ok, detail: first, feature };
   });
 }

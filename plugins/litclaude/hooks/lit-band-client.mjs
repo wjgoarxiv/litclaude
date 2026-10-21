@@ -1,13 +1,15 @@
 // The LIT band's surface module: the `Client` element lit-mod.mjs draws above the prompt. It runs on
 // the drawing thread with no mods API, keeps the band's timeline in its local state, and animates on
 // the surface's own frame clock: fast while a transition plays, slower while the ambient loop says
-// LitClaude is at work, and not at all once the card is idle and settled, when it stays still until
-// the hooks module hands it a new model.
+// LitClaude is at work, once a second while only a clock (the live step's or the lanes') moves, and
+// not at all once the card is idle and settled, when it stays still until the hooks module hands it
+// a new model. The clocks count on here, so they move even when the hooks module holds the model
+// still for a desktop drawing attached to the same session.
 
 import { composeBand } from "../lib/mod/frame.mjs";
 import { TIMINGS, motionProfile } from "../lib/mod/motion.mjs";
 import { renderBand } from "../lib/mod/render.mjs";
-import { advanceTimeline, ambientActive, createTimeline, sampleTimeline, timelineBusy } from "../lib/mod/timeline.mjs";
+import { advanceTimeline, ambientActive, clockShown, createTimeline, sampleTimeline, timelineBusy } from "../lib/mod/timeline.mjs";
 
 // The timeline lives in one holder object that the frame timer and every draw share. The timer
 // never reads `surface.state` back, so a draw that folded in a new model is never overwritten by a
@@ -28,7 +30,8 @@ export default function LitBand(props, surface) {
   }
 
   const interval = () => (timelineBusy(holder.timeline, holder.now, profile) ? TIMINGS.frame
-    : ambientActive(holder.timeline, profile) ? TIMINGS.ambientFrame : null);
+    : ambientActive(holder.timeline, profile) ? TIMINGS.ambientFrame
+      : clockShown(holder.timeline) ? TIMINGS.clock : null);
   const schedule = () => {
     const wanted = interval();
     if (wanted === holder.interval) return;

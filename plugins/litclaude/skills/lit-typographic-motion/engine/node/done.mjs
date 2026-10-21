@@ -3,10 +3,15 @@
 // round with a change, the last stamped with the final render's stills manifest), and the last
 // round's viewed list covering the poster, the sheet, every beat still and every strip, each opened
 // with the host's image tool when the host exposes its tool events. It also compares the final
-// treatment with the first valid one and records any downgrade.
+// treatment with the first valid one and records any downgrade. A cover (treatment mode: cover) is
+// done on its own terms: the decoded cover reached every TARGET gate, and the last look round viewed
+// the contact sheet, the poster and the seam pair of that render. A generated asset in assets.json
+// becomes a label the reply has to carry.
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { generatedLabels } from "./cover-assets.mjs";
+import { validateCoverTreatment } from "./cover-treatment.mjs";
 import { readLook } from "./look.mjs";
 import { readStills } from "./stills.mjs";
 import { validateTreatment } from "./treatment.mjs";
@@ -42,7 +47,9 @@ export function evaluateDone({ out, viewedFiles = null }) {
   if (!existsSync(tFile)) return notDone(`treatment.json is missing in ${out}`);
   let treatment;
   try {
-    treatment = validateTreatment(JSON.parse(readFileSync(tFile, "utf8")));
+    const raw = JSON.parse(readFileSync(tFile, "utf8"));
+    if (raw?.mode === "cover") return evaluateCoverDone({ out, raw, viewedFiles });
+    treatment = validateTreatment(raw);
   } catch (error) {
     return notDone(`treatment.json is not valid: ${error.message}`);
   }
@@ -101,4 +108,63 @@ export function evaluateDone({ out, viewedFiles = null }) {
   const downgraded = downgrades(first, treatment);
   if (reasons.length) return { status: "NOT_DONE", reasons, downgraded, openItems };
   return { status: unviewed ? "DONE_UNVIEWED" : "DONE", reasons: [], downgraded, openItems };
+}
+
+/** The cover branch of the done-check (references/cover.md, Done). */
+export function evaluateCoverDone({ out, raw, viewedFiles = null }) {
+  const notDone = (reason) => ({ status: "NOT_DONE", reasons: [reason], downgraded: [], openItems: [], mode: "cover" });
+  try {
+    validateCoverTreatment(raw);
+  } catch (error) {
+    return notDone(`treatment.json is not valid: ${error.message}`);
+  }
+  const manifestFile = path.join(out, "manifest.json");
+  const reportFile = path.join(out, "gate-report.txt");
+  if (!existsSync(manifestFile) || !existsSync(reportFile)) return notDone("no cover render has finished (manifest.json or gate-report.txt is missing)");
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+  } catch {
+    return notDone("manifest.json is unreadable");
+  }
+  const reasons = [];
+  if (manifest.mode !== "cover") reasons.push("the last render was not a cover render; run motion.mjs cover");
+  if (manifest.treatmentSha256 !== treatmentSha(out)) reasons.push("treatment.json changed after the last cover render; render again");
+  if (!/^COVER gate --strict: PASS\+TARGET$/mu.test(readFileSync(reportFile, "utf8"))) reasons.push("the decoded cover did not reach every TARGET gate on the last render (gate-report.txt)");
+  const stills = readStills(out);
+  if (!stills || stills.index.mode !== "cover") reasons.push("the cover stills set is missing");
+  let look;
+  try {
+    look = readLook(out);
+  } catch {
+    return notDone("look.json is unreadable");
+  }
+  const rounds = look.rounds;
+  const openItems = [];
+  let unviewed = false;
+  if (!rounds.length) reasons.push("look.json has no round: open the sheet, the poster and the seam pair with Read and record a look round");
+  else {
+    const first = rounds[0];
+    const last = rounds[rounds.length - 1];
+    if (rounds.length < 2) reasons.push("only one look round is recorded; make the change it named, render again, look again");
+    if (!first.blocked && !first.change) reasons.push("round 1 must name the change made after it");
+    if (stills && last.stillsSha256 !== stills.sha256) reasons.push("the last look round was recorded before the final cover render; look again and record it");
+    if (last.blocked === "no-vision-tool") unviewed = true;
+    else if (stills) {
+      const required = stills.index.files.filter((f) => ["sheet", "poster", "seam"].includes(f.kind)).map((f) => f.file);
+      const missing = required.filter((f) => !last.viewed?.includes(f));
+      if (missing.length) reasons.push(`the last look round did not view ${missing.join(", ")}`);
+      if (viewedFiles) {
+        const unopened = (last.viewed ?? []).filter((f) => !viewedFiles.has(path.resolve(out, f)));
+        if (unopened.length) reasons.push(`these files are listed as viewed but were never opened with the image tool: ${unopened.slice(0, 4).join(", ")}${unopened.length > 4 ? ` (+${unopened.length - 4})` : ""}`);
+      }
+      if (last.revise?.length) {
+        if (last.round >= 3) openItems.push(...last.revise.map((q) => `cover look question ${q}`));
+        else reasons.push(`cover look questions ${last.revise.join(", ")} ask for another round`);
+      }
+    }
+  }
+  const labels = generatedLabels(out);
+  if (reasons.length) return { status: "NOT_DONE", reasons, downgraded: [], openItems, labels, mode: "cover" };
+  return { status: unviewed ? "DONE_UNVIEWED" : "DONE", reasons: [], downgraded: [], openItems, labels, mode: "cover" };
 }

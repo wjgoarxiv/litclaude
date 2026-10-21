@@ -382,14 +382,28 @@ requests are muted grey pills.
   shows for about a second.
 - Amber or red when something needs attention: a lane quiet for more than 10 minutes turns the
   border amber and puts `⚠ <lane> quiet for 12m` on the bottom edge; a failed interface probe
-  turns it red.
+  turns it red. Otherwise the border is a calm, dim accent while idle and the full accent while
+  LIT is active, a step above the accent and breathing brighter toward white every 2.4 s.
+- Running lanes show on the map row's right as a dot each, the count and the longest lane's clock
+  (`●● 2 lanes 1:07`). While they run a light walks across the dots (they breathe under
+  `subtle`), so the card moves while the main turn waits for them.
+
+A toast in the top-right corner says when the LIT status really changes: a discipline starts or
+switches (`lit-plan started`, `lit-plan → start-work`), the workflow stage moves (`stage ·
+GREEN`), a goal is set or met, a lane starts or finishes (`lane started · review`, `2 lanes
+finished`). The gate notices above use the same toasts. The mod compares each refresh with the
+last status it saw, so a refresh that changes nothing raises nothing, and what was already there
+when the session opened is not announced. At most one toast shows every three seconds; changes in
+between wait and arrive together as one line, and a chain of switches shows only its two ends.
 
 Subagents and teammates come from Claude Code's agent list. A workflow script's agents never
 appear there, so the mod also records every agent at `agent.spawn` and counts it until that
 agent's own `turn.complete` arrives. A subagent's turn ending does not end the main turn: the
 chips of the current request stay bright until the main turn completes. An agent the list shows
-as ended stops counting at once, and one quiet for 30 minutes (no tool call, no status change)
-stops counting too, so a crashed or lost agent cannot hold the card at work.
+as ended stops counting at once. One the list shows as running stays on the card however quiet it
+is (it turns amber as above). A workflow agent the list never shows stops counting once it has
+been quiet for 30 minutes with no tool call in flight, so a crashed or lost agent cannot hold the
+card at work while one inside a long build still counts.
 
 The card is the terminal's width up to 120 columns and every row is fitted to it, with Hangul and
 emoji counted as two cells. Nothing wraps: on a narrow terminal the Git branch goes first, then
@@ -410,8 +424,9 @@ across the current stage and this request's skill chips every 1.8 s, a bright he
 leaving the current stage every 1.4 s, the count bar's head shimmers, and a comet runs along the
 top rule and back along the bottom one every 2.6 s. Under `subtle` only the breathing stays; under `off` nothing moves. An
 idle card holds still. The band's `Client` element animates on Claude Code's frame clock, every
-33 ms while a transition plays and every 66 ms during work, and stops its timer once the card is
-idle and settled. In Claude
+33 ms while a transition plays and every 66 ms during work, once a second while only a clock (the
+step's or the lanes') moves, including under `off`, and stops its timer once the card is idle and
+settled. In Claude
 Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
 moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
 a chip's light moves over its ASCII name, the map's `━` and `─` cells move by colour alone, the
@@ -433,8 +448,8 @@ lit, the light sits on its pill and the comet is part way round, not parked at t
 corner. The app still blanks the card for a moment while it loads a new drawing; the mod cannot
 prevent that. It is redrawn only when something you would
 notice changes, such as the stage, the tool, a skill, a usage figure or the goal. While the card
-shows in a terminal and the app at once, the terminal's loop countdown and lane times wait for such
-a change too; its step clock keeps counting on its own.
+shows in a terminal and the app at once, the terminal's loop countdown waits for such
+a change too; its step and lane clocks keep counting on their own.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
 which the terminal and the desktop app's Code tab both read). The installer writes each default
@@ -520,6 +535,27 @@ Instead, `SubagentStart.cwd` observes each Claude-owned worktree and binds it to
 the root session and lane; `SubagentStop` marks host removal as expected without
 pretending LitClaude owns creation or deletion.
 
+## Repeating `lit` in one session
+
+The first `lit` of a discipline in a session sends its full activation. After that the
+hook keeps a small per-session record (beside the HUD record in the temp directory, never
+in the repository) and answers a repeat as follows:
+
+| Prompt | What the hook sends |
+| --- | --- |
+| `lit ...` for the discipline already active | A note of about 400 bytes: already active, continue under the earlier contract. No skill re-read line, no `/goal` line, no new run or plan, and the LIT card keeps its stage. |
+| `lit plan ...` or another discipline | The full activation for that discipline, once. |
+| Bare `lit` or `lit continue` with a start-work run for this session | One resume line naming the work. No new plan. |
+| Bare `lit` or `lit continue` while a discipline is active in this session | The continue note for that discipline (for `lit-plan`, plus its planning-only line and the plan path; the plan gate stays armed). |
+| Bare `lit` or `lit continue` with an open plan and nothing active | One resume line naming the plan. No new plan. |
+| `lit new ...` or `lit restart ...` | The full activation again. |
+| Bare `lit` with no task, nothing active and nothing to resume | The full activation with a confirmation question. |
+
+A different session id starts fresh. A compaction or clear removes the record, and a
+missing or unreadable record falls back to the full activation, so a lost record costs
+bytes and never a safety line. Static rules are claimed once per session also in a
+directory with no project marker.
+
 ## Workflow Trigger Phrases
 
 The `UserPromptSubmit` hook activates on these natural-language phrases and
@@ -530,10 +566,15 @@ lit
 litwork
 lit plan
 lit review
+lit review plan
+lit review work
 lit research
 lit search
 lit query
 lit goal
+lit brainstorm <topic>
+lit ideation <topic>
+lit idea <topic>
 lit workflow
 lit dynamic workflow
 lit ultracode
@@ -553,6 +594,7 @@ $lit-plan
 $lit-recap
 $lit-loop
 $deep-interview
+$lit-brainstorm
 $lit-loop
 $review-work
 $litgoal
@@ -698,12 +740,30 @@ These are real Claude Code command files in `plugins/litclaude/commands/`.
 before `/lit-plan` when a request lacks non-goals, decision boundaries, or
 acceptance criteria.
 
+`lit brainstorm <topic>`, `lit brainstorming`, `lit ideation`, `lit ideate`, `lit idea` and
+`lit ideas`, `$lit-brainstorm` and `/litclaude:lit-brainstorm` load
+`Skill(lit-brainstorm)`: open-ended ideation that diverges into many options, scores them
+against stated criteria, converges on a short list, and hands the pick to
+`deep-interview` (still vague) or `lit-plan` (concrete). It never implements. The route word
+must sit directly after `lit`; `brainstorm`, `brainstorming`, `ideation` and `ideate` may also
+lead a prompt that carries `lit`. `lit review the brainstorm notes` and `lit fix the idea
+generator` keep their own routes, and the prompt hook adds no `/goal` line for an ideation turn.
+
 `/review-work` and `$review-work` load `/litclaude:review-work` /
-`Skill(review-work)`. For a draft plan, that route performs a read-only
-objective-achievability audit and returns `PASS`, `ITERATE`, or `NEEDS-CONTEXT`
-without implementing. For completed work it runs the 5-lane review: scope/diff
-verification, tests/evidence execution, package/payload and code quality,
-security/provenance, and real-surface/docs readiness. `/litgoal` and `$litgoal` load
+`Skill(review-work)` and have two named modes, announced on the first line of the report.
+Plan review (after `lit-plan`, before `start-work`) is a read-only audit of whether the plan
+is complete, ordered and verifiable; it returns `PASS`, `ITERATE`, or `NEEDS-CONTEXT`
+without implementing. Work review (after `lit-loop` or `start-work`) runs the 5-lane review of
+the diff, tests and evidence: scope/diff verification, tests/evidence execution,
+package/payload and code quality, security/provenance, and real-surface/docs readiness. The
+mode is auto-picked from what exists (a named PR or diff, ticked plan rows or a start-work
+run mean work review; a plan with no ticked rows and no diff means plan review; neither means
+the skill asks). `lit review plan` or `lit review work` forces the mode, and the hook then
+adds `Review mode forced by the user: plan review.` (or `work review.`). Without a forced
+mode and with a plan on disk, it adds `Review-mode signals:` with that plan's ticked and open
+row counts.
+
+litgoal sets and keeps the finish line; lit-loop and start-work run toward it. `/litgoal` and `$litgoal` load
 `/litclaude:litgoal` / `Skill(litgoal)` for durable local goal state and
 the litgoal CLI.
 
@@ -899,11 +959,14 @@ motion / 인트로 / intro. There is no token-free motion route, and the token-f
 no longer claims a video prompt. The hook adds a neutral film context (a film request, the
 treatment first, the path rule between the type and stage renderers, never which path applies),
 the exact installed `SKILL.md` path and the installed `motion.mjs` named once with its `stage`,
-`make`, `sound`, `look` and `gate` subcommands, within 4,096 bytes. A type-led cue (a type
+`cover`, `make`, `sound`, `look` and `gate` subcommands, within 4,096 bytes, plus one line that
+sends a README, hero, banner or cover loop to cover mode. A type-led cue (a type
 compound, a kinetic-type or lyric request, or a quoted span of two or more words) adds one
 `type-led cue found` hint line. PostToolUse records every `motion.mjs` run, and the Stop hook holds
 the turn until the film is done: a valid treatment, gate PASS, at least two look rounds (a stills
 round with its change, then a round stamped with the final render's stills manifest), and every
-frame of that last round opened with Read. A missing or unreadable `treatment.json` or `look.json`
+frame of that last round opened with Read. A cover (treatment `mode: cover`) is done when the
+decoded cover reached every TARGET gate and the last of at least two look rounds viewed the contact
+sheet, the poster and the seam pair. A missing or unreadable `treatment.json` or `look.json`
 blocks with a named reason. After two reminders the hook tells the model to say in the reply that
 the film is not done and why.

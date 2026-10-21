@@ -255,6 +255,48 @@
       "text": "This report is not intended to rank the vendors.",
       "rule": "en-negative-pledge",
       "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): D1 ending 음",
+      "text": "두 공정의 수치는 서로 비교할 수 없음.",
+      "rule": "ko-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): form8 to be",
+      "text": "This table is not meant to be a ranking.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): form8 leaderboard",
+      "text": "This chart is not a leaderboard.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): form8 endorsement",
+      "text": "This summary is not an endorsement.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): alt0 is-not-intended-as branch",
+      "text": "This report is not intended as a vendor comparison.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): alt0 should-not-be-read-as branch (also kills drop top-alt 0)",
+      "text": "These numbers should not be read as a benchmark.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
+    },
+    {
+      "source": "mutation pin 2026-10-18 (plan 2026-10-17 task 15; not model-written): alt0 makes-no-claims branch",
+      "text": "This deck makes no claims about market share.",
+      "rule": "en-negative-pledge",
+      "severity": "block"
     }
   ],
   "near_misses": [

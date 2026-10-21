@@ -13,6 +13,7 @@
         "debugging",
         "deep-interview",
         "frontend-ui-ux",
+        "lit-brainstorm",
         "lit-burnoff",
         "lit-burnoff-file",
         "lit-code",
@@ -46,8 +47,8 @@
         "wikify"
       ],
       "inventory": {
-        "count": 38,
-        "sha256": "f886f39d4e9f7853c22094ff8517158314ae0c2800540591e98aa796c32ffff5"
+        "count": 39,
+        "sha256": "cab195e4a1040273ebe00841e598eb0f4a80df42aec69a3573c27f7999f184eb"
       }
     },
     "p28": {

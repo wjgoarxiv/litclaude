@@ -165,6 +165,51 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     }
   });
 
+  describe("the audio venv is built from a Python every pinned wheel exists for", () => {
+    const table = (versions) => (command) => {
+      if (!versions[command]) return { ok: false, command, detail: "not found" };
+      const minor = Number(versions[command].split(".")[1]);
+      if (minor < 10) return { ok: false, command, version: versions[command], detail: `${versions[command]} is older than 3.10` };
+      if (minor > 14) return { ok: false, command, version: versions[command], detail: `${versions[command]} is newer than 3.14` };
+      return { ok: true, command, version: versions[command], detail: versions[command] };
+    };
+
+    it("passes over a python3 that is 3.15 and takes the newest python3.X within 3.10 to 3.14", () => {
+      const picked = runtime.pickPython({}, table({ python3: "3.15.0", "python3.15": "3.15.0", "python3.13": "3.13.4" }));
+      assert.deepEqual([picked.ok, picked.command, picked.version], [true, "python3.13", "3.13.4"]);
+    });
+
+    it("honours LITCLAUDE_MOTION_PYTHON and never falls back past it", () => {
+      const picked = runtime.pickPython({ LITCLAUDE_MOTION_PYTHON: "/opt/py/bin/python3" }, table({ "/opt/py/bin/python3": "3.15.0", "python3.13": "3.13.4" }));
+      assert.equal(picked.ok, false);
+      assert.match(picked.detail, /newer than 3\.14/u);
+    });
+
+    it("names every interpreter it tried when none fits", () => {
+      const picked = runtime.pickPython({}, table({ python3: "3.15.0" }));
+      assert.equal(picked.ok, false);
+      assert.match(picked.detail, /no supported Python \(3\.10 to 3\.14\).*python3: 3\.15\.0 is newer than 3\.14/u);
+    });
+
+    it("installAudio runs `-m venv` with the supported interpreter when python3 on PATH is 3.15", { skip: process.platform === "win32" ? "POSIX shell shims" : false }, async () => {
+      const bin = temp("lit-motion-pybin-");
+      const log = join(bin, "calls.log");
+      const shim = (name, version, venvStatus) => {
+        writeFileSync(join(bin, name), `#!/bin/sh\necho "${name} $*" >> "${log}"\ncase "$1" in -c) echo ${version}; exit 0;; -m) exit ${venvStatus};; esac\nexit 1\n`, { mode: 0o755 });
+      };
+      shim("python3", "3.15.0", 0);
+      shim("python3.15", "3.15.0", 0);
+      shim("python3.14", "3.14.1", 1);
+      const cache = temp("lit-motion-audio-pick-");
+      const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, LITCLAUDE_MOTION_RUNTIME: cache };
+      delete env.LITCLAUDE_MOTION_PYTHON;
+      await assert.rejects(() => runtime.installAudio({ env }), /python -m venv failed/u);
+      const calls = readFileSync(log, "utf8");
+      assert.match(calls, /^python3\.14 -m venv /mu, calls);
+      assert.doesNotMatch(calls, /^python3(\.15)? -m venv /mu, calls);
+    });
+  });
+
   it("--word-timing with no models exits 14 and names its install command; install states size and pins first", () => {
     const dir = temp("lit-motion-wt-");
     const r = run([motion, "make", briefFile(dir, SHORT), "--out", join(dir, "out"), "--word-timing"], { LITCLAUDE_MOTION_RUNTIME: join(dir, "cache") });
@@ -232,12 +277,20 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     assert.equal(env.npm_config_global, "true", "the caller's env is left alone");
   });
 
-  it("the doctor prints all five probes, naming the fix when the cache is cold", () => {
+  it("the doctor prints all six probes, naming the fix when the cache is cold", () => {
     const r = run([join(skillRoot, "scripts", "motion-doctor.mjs")], { LITCLAUDE_MOTION_RUNTIME: temp("lit-motion-doctor-") });
     assert.equal(r.status, 0, r.stderr);
     const lines = r.stdout.trim().split("\n");
-    assert.deepEqual(lines.map((l) => l.split(":")[0]), ["MOTION_CHROME", "MOTION_FFMPEG", "MOTION_WEBGL2", "MOTION_SOFTWARE_GL", "MOTION_PREWARM"]);
+    assert.deepEqual(lines.map((l) => l.split(":")[0]), ["MOTION_CHROME", "MOTION_FFMPEG", "MOTION_WEBGL2", "MOTION_SOFTWARE_GL", "MOTION_PREWARM", "MOTION_COVER"]);
     assert.match(lines[4], /NOT READY — missing: .*run litclaude-ai motion-runtime install/u);
+    assert.match(lines[5], /^MOTION_COVER: (?:img2webp .* and dwebp .*: README cover loops encode as animated WebP and gate the decoded file|gifski .*|BLOCKED_NO_COVER_ENCODER: .*)$/u);
+  });
+
+  it("the cover probe names the fallback and the blocked state from what is on PATH", async () => {
+    const { coverProbe } = await import(join(skillRoot, "scripts", "motion-doctor.mjs"));
+    const empty = temp("lit-motion-nopath-");
+    assert.match(coverProbe({ ...process.env, PATH: empty }).line, /^BLOCKED_NO_COVER_ENCODER: install libwebp \(img2webp, dwebp\) or gifski/u);
+    assert.equal(coverProbe({ ...process.env, PATH: empty }).ok, false);
   });
 });
 

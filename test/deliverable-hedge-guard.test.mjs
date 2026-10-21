@@ -339,7 +339,7 @@ describe("negative pledge sentences in deliverables", () => {
   });
 
   it("blocks every pledge a model wrote in the host probe", () => {
-    assert.equal(cases.pledges_observed.length, 26);
+    assert.equal(cases.pledges_observed.length, 33);
     for (const pledge of cases.pledges_observed) {
       const hits = scanText(pledge.text, rules, "observed.md");
       assert.ok(

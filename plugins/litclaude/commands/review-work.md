@@ -81,16 +81,25 @@ keeps its required methodology and traceability fields.
 
 Use the `review-work` skill for the user's current scope or command arguments.
 
-First select the artifact mode:
+First select the mode and say which one ran on the first line of the report. The two
+named modes are **Plan review** and **Work review**. Auto-pick from what exists: a named
+PR, branch or diff, ticked plan rows or a start-work run mean work review; a plan with
+no ticked rows and no diff means plan review; neither means ask which, never guess. The
+user can force a mode with `lit review plan` or `lit review work` (also `$review-work
+plan|work` or the same word after this command), and a forced mode wins.
 
-- **plan-review mode** for a draft plan, planning brief, or request to make a
+- **plan-review mode** (Plan review) for a draft plan, planning brief, or request to make a
   checklist objective-achievable. Audit scope, objective achievability,
   checklist atomicity, acceptance/evidence, and decision/failure/cleanup gates.
   Return `PASS | ITERATE | NEEDS-CONTEXT`; revise only when needed and only the
   deficient sections. This mode must not implement, run the plan, edit product
   files, or mark checklist items complete.
-- **completed-work mode** for a diff, implementation, DoneClaim, or release
+- **completed-work mode** (Work review) for a diff, implementation, DoneClaim, or release
   readiness claim. Run the existing 5-lane contract below.
+
+Plan review is the mode that follows lit-plan and precedes start-work; work review
+follows lit-loop or start-work. When the forced or picked mode has nothing to review,
+ask for the artifact.
 
 Run the 5-lane review contract: scope/diff verification, tests/evidence
 execution, package/payload and code quality review, security/provenance review,

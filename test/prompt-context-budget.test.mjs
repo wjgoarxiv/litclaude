@@ -224,6 +224,7 @@ describe("deferred skill bodies stay reachable", () => {
     ["lit review-work", "review-work"],
     ["comprehend this repo", "lit-comprehend"],
     ["deep-interview a mobile app idea", "deep-interview"],
+    ["lit brainstorm a name for my app", "lit-brainstorm"],
     ["refactor the parser module", "refactor"],
     ["debugging why does the build hang", "debugging"],
     ["litgoal show", "litgoal"],
@@ -241,9 +242,9 @@ describe("deferred skill bodies stay reachable", () => {
 });
 
 describe("sections that become visible", () => {
-  it("asks for a soft confirmation only on a bare lit activation", () => {
-    assert.match(promptContext("lit fix the typo in README.md"), /Soft-confirm: the bare keyword 'lit' activated this hook/u);
-    for (const prompt of ["lit-loop fix the typo in README.md", "litwork fix the typo in README.md", "lit-plan fix the typo in README.md"]) {
+  it("asks for a soft confirmation only on a bare lit with no task", () => {
+    assert.match(promptContext("lit"), /Soft-confirm: the bare keyword 'lit' activated this hook/u);
+    for (const prompt of ["lit fix the typo in README.md", "lit-loop fix the typo in README.md", "litwork fix the typo in README.md", "lit-plan fix the typo in README.md"]) {
       assert.doesNotMatch(promptContext(prompt), /Soft-confirm/u, prompt);
     }
   });

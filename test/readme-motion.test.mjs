@@ -12,13 +12,13 @@ const npmCdn = `https://cdn.jsdelivr.net/npm/@litfamily/litclaude@${version}`;
 const coverSrc = `${npmCdn}/docs/assets/cover-motion.webp`;
 const staticCoverSrc = `${npmCdn}/docs/assets/cover-motion-still.webp`;
 const coverAlts = {
-  install: "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.",
-  설치: "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상",
+  install: "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.",
+  설치: "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상",
 };
 const ascii = lockup("claude", banner).map((row) => row.trimEnd()).join("\n");
 const assets = {
   "JetBrainsMono-OFL.txt": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
-  "ascii-readme.svg": "e09a45272027c4a08acd6fcfd5b8e7931f7baf881891749578a4e32dc9ba6ad3",
+  "ascii-readme.svg": "00cfb3a89e737bd8e3a873e87ec89da9bd2e1f0a39a43562f6913a345190f826",
   "badge-license.svg": "decba749e28b4b87635e62eae766899fdc3e91a8e312208ff152831f620b18d7",
   "ignition-poster.png": "0fac2d0fc78d311710d1658968a45f8d9ff07ff73c6ca6f3ebc60bcb698d318f",
   "ignition-film.mp4": "b1579c89a677ab453765f77ae6361bd9730fabc4291a85071de7f373fc5ebfad",
@@ -162,12 +162,12 @@ test("README presentation rejects missing, shifted, stacked, or disconnected vis
 
 test("README assets retain the approved outlined mark, motion bytes, and used icon licenses", () => {
   const cover = readFileSync(new URL("docs/assets/cover.webp", root));
-  assert.equal(createHash("sha256").update(cover).digest("hex"), "90c14b40d8c7ae774763ce4c3689edad6abf6697e7236cafec7987269cc5e5f4", "cover.webp must match the accepted LitClaude emphasis export");
+  assert.equal(createHash("sha256").update(cover).digest("hex"), "116cd4eeb43b376b4502fc8f1768ea8dcc3252cdb5198e56ee8508d55170e75c", "cover.webp must match the accepted LitClaude emphasis export");
   const motionCover = readFileSync(new URL("docs/assets/cover-motion.webp", root));
   assert.ok(motionCover.length <= 2_621_440, "motion cover must stay under 2.5 MiB");
-  assert.equal(createHash("sha256").update(motionCover).digest("hex"), "fea93c4dbe8e0485284538532c0a35fe4206091f546ce3b2440f294d367b8205");
+  assert.equal(createHash("sha256").update(motionCover).digest("hex"), "381d728c1ee99b4796d584bd85f3c8864ef9b57c6b9756c84eece16a9ae29f73");
   const motionStill = readFileSync(new URL("docs/assets/cover-motion-still.webp", root));
-  assert.equal(createHash("sha256").update(motionStill).digest("hex"), "24a867d39c6ca78098907460978bd327199f8afcbd1b33169bd0a63c568d4ad9");
+  assert.equal(createHash("sha256").update(motionStill).digest("hex"), "f7cf140fb71518b44fdb28490c98a43481925a57e982dfe1390271d0c6bc55f2");
   assert.equal(motionStill.subarray(0, 4).toString(), "RIFF");
   assert.equal(motionStill.subarray(8, 12).toString(), "WEBP");
   assert.deepEqual(readdirSync(assetRoot).sort(), [...Object.keys(assets), "badge-version.svg"].sort());

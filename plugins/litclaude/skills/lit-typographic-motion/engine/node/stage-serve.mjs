@@ -13,6 +13,8 @@ import { checkFont, fontLocation, fontsDir, loadFontManifest } from "./runtime.m
 export const STAGE_ORIGIN = "http://lit.stage";
 export const KIT_FILE = fileURLToPath(new URL("../stage/stage-kit.js", import.meta.url));
 export const INIT_FILE = fileURLToPath(new URL("../stage/init.js", import.meta.url));
+export const LOOP_KIT_FILE = fileURLToPath(new URL("../stage/loop-kit.js", import.meta.url));
+export const COVER_INIT_FILE = fileURLToPath(new URL("../stage/cover-init.js", import.meta.url));
 
 export const CONTENT_TYPES = Object.freeze({
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -31,6 +33,7 @@ const FAMILIES = [
   ["archivo-125-400", "Archivo", 400, "125%"], ["archivo-125-700", "Archivo", 700, "125%"], ["archivo-125-900", "Archivo", 900, "125%"],
   ["vt323", "VT323", 400, "normal"], ["silkscreen-400", "Silkscreen", 400, "normal"], ["silkscreen-700", "Silkscreen", 700, "normal"],
   ["galmuri9", "Galmuri9", 400, "normal"], ["meslo-400", "MesloLGS NF", 400, "normal"],
+  ["jetbrains-mono", "JetBrains Mono", "100 800", "normal"],
 ];
 export const STAGE_FAMILIES = Object.freeze([...new Set(FAMILIES.map((f) => f[1]))]);
 
@@ -51,7 +54,8 @@ export function stageFonts(env = process.env) {
       throw new BlockedError(EXIT.BLOCKED_FONT_FETCH, `BLOCKED_FONT_FETCH: font ${key} is ${check.problem} (${check.path}); run litclaude-ai motion-runtime install outside this session`);
     }
     const file = fontLocation(key, font, env);
-    faces.push({ key, family, weight, stretch, file, route: `/lit/fonts/${key}${path.extname(file)}`, format: path.extname(file) === ".otf" ? "opentype" : "truetype" });
+    const format = { ".otf": "opentype", ".woff2": "woff2" }[path.extname(file)] ?? "truetype";
+    faces.push({ key, family, weight, stretch, file, route: `/lit/fonts/${key}${path.extname(file)}`, format });
   }
   return faces;
 }
@@ -248,6 +252,7 @@ export function stageRouter({ stageDir, faces }) {
     }
     const pathname = decodeURIComponent(parsed.pathname);
     if (pathname === "/lit/stage-kit.js") return { kind: "file", file: KIT_FILE, type: CONTENT_TYPES[".js"] };
+    if (pathname === "/lit/loop-kit.js") return { kind: "file", file: LOOP_KIT_FILE, type: CONTENT_TYPES[".js"] };
     if (pathname === "/lit/fonts.css") return { kind: "body", body: css, type: CONTENT_TYPES[".css"] };
     if (byRoute.has(pathname)) return { kind: "file", file: byRoute.get(pathname), type: CONTENT_TYPES[path.extname(pathname)] };
     const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/u, "");

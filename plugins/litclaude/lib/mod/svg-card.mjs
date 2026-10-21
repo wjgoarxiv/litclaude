@@ -400,8 +400,8 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
   const defs = animate.sweep
     ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
     : "";
-  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="1.5"${model.idle ? ' stroke-opacity="0.8"' : ""}>`
-    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.45;1;0.45" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
+  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle ? "1.5" : "2.5"}"${model.idle ? ' stroke-opacity="0.8"' : ""}>`
+    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
     + "</rect>";
   const comet = animate.comet
     ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="url(#lit-comet)" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="70 ${perimeter - 70}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" ${loop(TIMINGS.comet * 2, 0.5)}/></rect>`

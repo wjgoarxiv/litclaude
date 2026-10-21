@@ -13,6 +13,7 @@ export const LIT_SKILL_IDS = Object.freeze([
   "debugging",
   "deep-interview",
   "frontend-ui-ux",
+  "lit-brainstorm",
   "lit-burnoff",
   "lit-burnoff-file",
   "lit-code",

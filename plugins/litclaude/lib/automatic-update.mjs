@@ -16,6 +16,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { npmInvocation } from "./npm-invocation.mjs";
 
 export const PACKAGE_NAME = "@litfamily/litclaude";
 const MARKETPLACE_NAME = "litclaude-ai";
@@ -372,7 +373,7 @@ const restoreTransaction = (entries) => {
   if (failures.length) throw new Error(`rollback failed (${failures.join("; ")})`);
 };
 
-const commandForNpm = (env, explicit) => explicit ?? env.LITCLAUDE_NPM_BIN ?? (process.platform === "win32" ? "npm.cmd" : "npm");
+const commandForNpm = (env, explicit) => explicit ?? env.LITCLAUDE_NPM_BIN;
 
 const buildNpmArgs = (targetVersion, command, extraArgs = []) => [
   "exec", "--yes", "--package", `${PACKAGE_NAME}@${targetVersion}`, "--", "litclaude-ai", command,
@@ -420,11 +421,15 @@ const verifyInstalledVersion = ({ claudeHome, targetVersion }) => {
   }
 };
 
-const runNpm = ({ command, args, env, cwd, timeout, spawn }) => {
+// `command` is an explicit npm binary, or undefined for the platform's own npm; npmEnv is the
+// caller's environment, which names npm's CLI when npm started us (the child env is sanitized).
+const runNpm = ({ command, args, env, npmEnv = env, cwd, timeout, spawn, platform = process.platform }) => {
   try {
-    const result = spawn(command, args, {
+    const invocation = npmInvocation(args, { command, platform, env: npmEnv });
+    const result = spawn(invocation.command, invocation.args, {
       cwd,
       env,
+      shell: invocation.shell,
       encoding: "utf8",
       stdio: "pipe",
       windowsHide: true,
@@ -507,6 +512,7 @@ const prefetchUpdateTarball = ({ cachePath, generation, targetVersion, env, spaw
       command: commandForNpm(env),
       args: ["cache", "add", `${PACKAGE_NAME}@${targetVersion}`],
       env: { ...sanitizeNpmEnvironment(env), npm_config_userconfig: userConfigPath, NPM_CONFIG_USERCONFIG: userConfigPath },
+      npmEnv: env,
       cwd: dirname(cachePath),
       timeout: AUTO_UPDATE_PREFETCH_TIMEOUT_MS,
       spawn,
@@ -744,6 +750,7 @@ export const runAutomaticUpdate = ({
   cwd = process.cwd(),
   npmCommand,
   spawn = nodeSpawnSync,
+  platform = process.platform,
   verifyInstall = verifyInstalledVersion,
   restore = restoreTransaction,
   spawnRefresh = spawnSessionCacheRefresh,
@@ -822,12 +829,14 @@ export const runAutomaticUpdate = ({
     const resolvedNpm = commandForNpm(env, npmCommand);
     const installInvocation = buildAutomaticInstallInvocation(candidate.version, rest, resolvedNpm);
     const install = runNpm({
-      command: installInvocation.command,
+      command: resolvedNpm,
       args: installInvocation.args,
       env: childEnv,
+      npmEnv: env,
       cwd,
       timeout: AUTO_UPDATE_INSTALL_TIMEOUT_MS,
       spawn,
+      platform,
     });
     appendJournal(journalPath, "install-finished", {
       generation: lease.generation,
@@ -844,9 +853,11 @@ export const runAutomaticUpdate = ({
         command: resolvedNpm,
         args: buildNpmArgs(candidate.version, "doctor"),
         env: childEnv,
+        npmEnv: env,
         cwd,
         timeout: AUTO_UPDATE_DOCTOR_TIMEOUT_MS,
         spawn,
+        platform,
       });
       appendJournal(journalPath, "doctor-finished", {
         generation: lease.generation,

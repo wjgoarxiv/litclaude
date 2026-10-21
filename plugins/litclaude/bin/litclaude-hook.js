@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { standard, micro, colorMode, supportsBlocks } from "../lib/lit-mark.mjs";
 import { NEON_END, NEON_START } from "../lib/hud-accent-palette.mjs";
 import { ignitionMark, writeIgnitionState } from "../lib/hud-ignition.mjs";
+import { clearActivation, readActivation, recordActivation } from "../lib/lit-activation.mjs";
+import { parsePlanTaskRows } from "../lib/plan-task-rows.mjs";
 import { DISCIPLINE_ENTRY } from "../lib/mod/workflow.mjs";
 import { observeWorkflowPostTool, observeWorkflowPreTool, observeWorkflowSubagentStop, startWorkflowStage } from "../lib/workflow-stage.mjs";
 import { renameAliases, renameNote } from "../lib/rename-aliases.mjs";
@@ -30,6 +32,7 @@ import { completeAutoloopGoal, evaluateAutoloop, readAutoloopState, writeAutoloo
 import { buildNativeGoalBindingGuidance, normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
 import { automaticUpdateCachePath, runAutomaticUpdate } from "../lib/automatic-update.mjs";
 import {
+  activeStartWorkSummary,
   handleStartWorkStop,
   handleStartWorkPreToolUse,
   parseTrustedStartWorkResume,
@@ -190,6 +193,9 @@ const triggerByToken = {
   "structural-search": { command: "structural-search", skill: "Skill(structural-search)", skillId: "structural-search", discipline: "structural-search" },
   "browser-drive": { command: "browser-drive", skill: "Skill(browser-drive)", skillId: "browser-drive", discipline: "browser-drive" },
   "lit-crucible": { command: "/litclaude:lit-plan", skill: "Skill(lit-crucible)", skillId: "lit-crucible", discipline: "lit-plan" },
+  // Open ideation. The natural routes (`lit brainstorm …`, `lit ideation …`, `lit idea …`) are in
+  // hasExplicitBrainstormRoute; the bare skill name is the leading-token form. It carries no goal line.
+  "lit-brainstorm": { command: "/litclaude:lit-brainstorm", skill: "Skill(lit-brainstorm)", skillId: "lit-brainstorm", discipline: "lit-brainstorm" },
   "lit-init": { command: "/litclaude:lit-init", skill: "Skill(lit-init)", skillId: "lit-init", discipline: "lit-init" },
   "lit-plan": { command: "/litclaude:lit-plan", skill: "Skill(lit-plan)", skillId: "lit-plan", discipline: "lit-plan" },
   "lit-recap": { command: "/litclaude:lit-recap", skill: "Skill(lit-recap)", skillId: "lit-recap", discipline: "lit-recap" },
@@ -262,9 +268,10 @@ const modeContracts = {
   "lit-comprehend": "Mode contract: lit-comprehend builds one self-contained explainer artifact so a human can understand agent-written work, not just know its status. SCOPE GATE FIRST: activation is not permission to build. If the invocation names the file or commit set directly — a path, a git range, a branch, a PR — start immediately. Otherwise (a bare invocation, or a prose question) you had to infer the set, so state the proposed scope, its countable size, what you excluded, and the rough cost, offer a one-sentence answer instead when the request looks like it deserves one, and WAIT for the go-ahead before reading the tree. Derive that proposal cheaply from git status, git diff --stat, and the ledger. Once approved: read the real diff, files, ledger, and cited evidence artifacts before writing any explanation; anchor on what the user already knew and explain only the delta; order the walkthrough conceptually rather than by file; retain detailed verification internally and state a decision-changing risk once in the reply; and close with an interactive quiz that shows the reader where to slow down. Write the artifact OUTSIDE the repository worktree, never git add it, and run the bundled verifier before claiming it is done. Never explain code you did not read, describe behavior you did not observe, or say the artifact exists before it does.",
   "lit-recap": "Mode contract: lit-recap is a READ-ONLY session recap. Do not mutate anything: no ledger writes, no run-state dispatch, no file creation, and no mutating litgoal subcommands (create-goals, record-evidence, checkpoint, steer, record-review-blockers, native-worker). Read durable state and current-session context, then report.",
   "start-work": "Mode contract: start-work is execution-only for an approved plan. Natural-language activation cannot switch Claude Code agents, so this hook must hand off safely instead of pretending execution started.",
-  "review-work": "Mode contract: review-work selects the mode from the reviewed artifact. A draft plan uses planning-only plan review, returns PASS | ITERATE | NEEDS-CONTEXT, and must not implement. Completed work uses the five-lane review: goal/constraints, real-surface QA, code quality, security, and docs/package/context readiness; PASS requires evidence from every applicable lane.",
+  "review-work": "Mode contract: review-work selects the mode from the reviewed artifact and names it on the first line of its report. Plan review (after lit-plan, before start-work): a draft plan gets a planning-only review of whether it is complete, ordered and verifiable, returns PASS | ITERATE | NEEDS-CONTEXT, and must not implement. Work review (after lit-loop or start-work): completed work uses the five-lane review of the diff, tests and evidence: goal/constraints, real-surface QA, code quality, security, and docs/package/context readiness; PASS requires evidence from every applicable lane. Auto-pick: a named PR, diff or branch, ticked plan rows or other work signals mean work review; a plan with no ticked rows and no diff means plan review; neither means ask which. `lit review plan` or `lit review work` forces the mode.",
   litresearch: "Mode contract: litresearch grounds material findings in sources and separates established facts from hypotheses in its internal journal, keeps route traces for search/query lanes, uses natural references when useful or requested, and mentions a decision-changing uncertainty once in the reply. If the user asks for read-only or no-write research, ask before writing local journal files and use transcript-only tracking unless they approve disk writes.",
-  litgoal: "Mode contract: litgoal binds one outcome-shaped objective plus checkable criteria, each with scenario, real surface, and observable evidence.",
+  litgoal: "Mode contract: litgoal sets and keeps the finish line; lit-loop and start-work run toward it. It binds one outcome-shaped objective plus checkable criteria, each with scenario, real surface, and observable evidence.",
+  "lit-brainstorm": "Mode contract: lit-brainstorm is open-ended ideation that ends in a choice, not a build. Frame the question and fix weighted criteria first, then diverge (many genuinely different options through several lenses, no filtering), then cluster, score every option against the same criteria and converge to a short list with trade-offs. Ask the user to pick, combine or widen, then hand off to deep-interview when the pick is still vague or to lit-plan when it is concrete. Never implement, and write only .litclaude/brainstorm/ notes. An option that rests on an unchecked fact is a hypothesis, never an established fact.",
   "lit-init": "Mode contract: lit-init creates or refreshes sparse AGENTS.md guidance after reading existing guidance and real repo structure. Preserve local instructions and user changes; create child files only where directory-specific conventions justify them.",
   "deep-interview": "Mode contract: deep-interview clarifies vague requirements before planning or implementation, without inventing acceptance criteria.",
   "native-workflow": "Mode contract: native workflow is opt-in orchestration for broad, risky, parallel, or long-running work; propose it first and only call Workflow after user opt-in or existing session permission.",
@@ -639,7 +646,7 @@ const slashCommandMentionPattern = new RegExp(
   `(^|\\s)(?:${slashCommandMentions.map(escapeRegExp).join("|")})(?=$|[\\s.,;:!?)}\\]])`,
   "u",
 );
-const slashLitPhrasePattern = /(^|\s)\/lit(?:work)?\s+(?:plan|recap|comprehend|review|research|search|query|goal|workflow|dynamic\s+workflow|ultracode|team|team\s+mode|teammates|start\s+work)(?=$|[\s.,;:!?)}\]])/u;
+const slashLitPhrasePattern = /(^|\s)\/lit(?:work)?\s+(?:plan|recap|comprehend|review|research|search|query|goal|workflow|dynamic\s+workflow|ultracode|team|team\s+mode|teammates|start\s+work|brainstorm(?:ing)?|ideation|ideas?)(?=$|[\s.,;:!?)}\]])/u;
 
 const containsSlashCommandMention = (text) => slashCommandMentionPattern.test(text) || slashLitPhrasePattern.test(text);
 const familyTriggerTokens = new Set(["autoconference", "autoresearch", "wikify"]);
@@ -667,6 +674,12 @@ const findLeadingBareCommandTrigger = (raw) => {
   if (!hasSafeFamilyArgumentBoundary(raw, match)) return undefined;
   return { ...triggerByToken[match[1]], source: "bare-command" };
 };
+
+// A bare `lit` carries no task. `lit continue` asks to carry on what exists. `lit new` and
+// `lit restart` ask for a fresh start, so the session's earlier activation does not count.
+const bareLitPattern = /^\s*lit(?:work)?[\s.!?]*$/u;
+const resumeLitPattern = /^\s*lit(?:work)?\s+(?:continue|resume|계속)[\s.!?]*$/u;
+const restartLitPattern = /(?:^|\s)lit(?:work)?\s+(?:new|restart)(?=$|[^\w-])/u;
 
 const hasLitTrigger = (raw) => containsCompoundBoundedWord(raw, "lit") || containsCompoundBoundedWord(raw, "litwork");
 const hasTrailingLitInvocation = (raw) => /(?:^|\s)lit(?:work)?\s*$/u.test(raw);
@@ -701,6 +714,12 @@ const findComprehendPhraseTrigger = (raw) =>
     : undefined);
 
 const hasExplicitWorkflowRoute = (normalized) => /\blit(?:work)?\s+(?:dynamic\s+workflow|workflow|ultracode)\b/u.test(normalized);
+// Open ideation. A route word must sit directly after `lit` (`lit brainstorm a name`), or the stronger
+// verbs may lead a prompt that carries `lit` anywhere (`brainstorm a name for my app lit`). `idea` and
+// `ideas` are common nouns, so they count only directly after `lit`: "lit review the brainstorm notes" and
+// "lit fix the idea generator" keep their own routes.
+const hasExplicitBrainstormRoute = (normalized) => /\blit(?:work)?\s+(?:brainstorm(?:ing)?|ideation|ideate|ideas?|브레인스토밍|아이디어)(?=$|[^\w-])/u.test(normalized)
+  || /^\s*(?:brainstorm(?:ing)?|ideation|ideate)(?=$|[^\w-])/u.test(normalized);
 const hasExplicitTeamRoute = (normalized) => /\blit(?:work)?\s+(?:team(?:\s+mode)?|teammates)\b/u.test(normalized);
 // A casual one-line request ends with `lit` ("… 조사해줘 lit"), so the research verb is not next to
 // the token. Korean stems are bare substrings for the reason given at the UI route below; 조사를 and
@@ -763,12 +782,16 @@ const slideNoun = /\b(?:slides?|slide\s?deck|deck|presentation|pptx?|powerpoint|
 const documentNoun = /\b(?:reports?|docx|doc|documents?|word\s+(?:doc(?:ument)?|file)|ms\s?word|white\s?papers?|proposals?|memos?)\b|보고서|리포트|기획서|제안서|계획서|문서|워드|백서/u;
 const codeDocumentation = /readme|changelog|contributing|api\s?(?:문서|docs?\b|reference)|docstrings?|jsdoc|javadoc|주석|\b(?:agents|claude|gemini|skill|security|code_of_conduct|license|authors|architecture|support|governance)\.md\b|\bdocs\/|\b(?:bug|test|coverage|error|crash|lint|issue|incident)\s+reports?\b|\breport\s+(?:a|the|this|that)\s+(?:bug|issue|error|problem)/u;
 
+// "each document", "all documents", "these docs" spread a task over many files that already exist; one
+// Word deliverable is "a document", "the report", "a docx". A quantified mention is not a deliverable noun.
+const quantifiedDocument = /\b(?:each|every|all|any|both|these|those|other|existing|per)\s+(?:\w+\s+)?(?:documents?|docs?)\b/gu;
+
 // Returns the office skills a bare-lit prompt asks for, slides first when both are named.
 const officeIntent = (normalized) => {
   if (!officeVerb.test(normalized) || codeDocumentation.test(normalized)) return [];
   const skills = [];
   if (slideNoun.test(normalized)) skills.push("lit-pptx");
-  if (documentNoun.test(normalized.replace(/\b(?:slide|presentation)\s+(?:doc|document)\b/gu, " "))) skills.push("lit-docx");
+  if (documentNoun.test(normalized.replace(/\b(?:slide|presentation)\s+(?:doc|document)\b/gu, " ").replace(quantifiedDocument, " "))) skills.push("lit-docx");
   return skills;
 };
 
@@ -854,6 +877,9 @@ const findNaturalLitTrigger = (prompt) => {
   const normalized = normalizedTriggerText(prompt);
   if (hasExplicitTeamRoute(normalized)) return { ...triggerByToken["agent-team"], source: "natural-language" };
   if (hasExplicitWorkflowRoute(normalized)) return { ...triggerByToken["native-workflow"], source: "natural-language" };
+  // Ahead of the plan and review words: "lit brainstorm a plan for the launch" asks for options, and the
+  // word `plan` inside it must not pull the prompt to lit-plan.
+  if (hasExplicitBrainstormRoute(normalized)) return { ...triggerByToken["lit-brainstorm"], source: "natural-language" };
   if (containsPlainWord(normalized, "plan") && hasReviewModifier(prompt)) {
     return { ...triggerByToken["lit-plan"], source: "natural-language" };
   }
@@ -885,7 +911,7 @@ const findNaturalLitTrigger = (prompt) => {
   if (hasUiDesignIntent(normalized) || hasUiModeIntent(normalized)) return { ...triggerByToken["frontend-ui-ux"], source: "natural-language" };
   if (hasStructuralSearchIntent(normalized)) return { ...triggerByToken["structural-search"], source: "natural-language" };
   if (containsPlainWord(normalized, "start") && containsPlainWord(normalized, "work") && !hasTrailingLitInvocation(normalized)) return undefined;
-  return { ...triggerByToken["lit-loop"], source: "natural-language", softConfirm: true };
+  return { ...triggerByToken["lit-loop"], source: "natural-language", softConfirm: bareLitPattern.test(raw) };
 };
 
 const findWorkflowTrigger = (prompt) => {
@@ -970,6 +996,25 @@ const reviewGateContext = (discipline, prompt) => {
   ];
 };
 
+// review-work names its mode on the first report line. A forced mode is the user's own word; otherwise the
+// hook reports the one signal it can read cheaply, the tick state of the latest plan, and the model weighs it
+// with the diff it can see.
+const forcedReviewModePattern = /(?:^|\s)\$?(?:lit(?:work)?\s+review|review-work)\s+(plan|work)(?=$|[^\w-])/u;
+const reviewModeContext = (discipline, prompt, cwd) => {
+  if (discipline !== "review-work") return [];
+  const forced = forcedReviewModePattern.exec(withoutCode(typeof prompt === "string" ? prompt : ""));
+  if (forced) return [`Review mode forced by the user: ${forced[1]} review.`];
+  try {
+    const plan = resolveLatestDurablePlan(cwd);
+    if (!plan) return [];
+    const rows = parsePlanTaskRows(plan.text);
+    const ticked = rows.filter(({ checked }) => checked).length;
+    return [`Review-mode signals: ${clipPath(plan.relativePath)} has ${ticked} ticked and ${rows.length - ticked} open task row(s).`];
+  } catch {
+    return [];
+  }
+};
+
 const teamGateContext = (discipline) => {
   if (discipline !== "agent-team") return [];
   if (process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1") {
@@ -1052,9 +1097,10 @@ const motionActivationContext = ({ skillId, discipline, source }, prompt) => {
     `<litclaude-film-context>\n${modeContracts[discipline]}\n</litclaude-film-context>`,
     ...(cue ? [`type-led cue found: ${cue.slice(0, 120)}`] : []),
     `<litclaude-skill-body name="${skillId}">
-Load this exact installed entrypoint ${JSON.stringify(`${skillRoot}SKILL.md`)} first; its references cover the treatment, the stage page, the brief, sound and the look rounds.
+Load this exact installed entrypoint ${JSON.stringify(`${skillRoot}SKILL.md`)} first; its references cover the treatment, the stage page, the brief, sound and the look rounds. A README, hero, banner or cover loop takes cover mode (references/cover.md): treatment mode cover, silent, seamless, gated on the decoded file.
 M=node ${JSON.stringify(`${skillRoot}scripts/motion.mjs`)}
 $M stage --out <dir> --round <N> [--stills-only]
+$M cover --out <dir> --round <N>
 $M make <brief.json> --out <dir> --round <N> [--stills-only]
 $M sound --out <dir>
 $M look --out <dir> --round <N> --answers <file>
@@ -1085,6 +1131,7 @@ const litworkContext = ({ command, skill, skillId, discipline, softConfirm, safe
   ...workflowGateContext(discipline),
   ...teamGateContext(discipline),
   ...reviewGateContext(discipline, input.prompt),
+  ...reviewModeContext(discipline, input.prompt, typeof input.cwd === "string" ? input.cwd : process.cwd()),
   "Subagent delegation: pass the namespaced id as the Agent/Task subagent_type, not the bare name (litclaude:lit-planner plans, litclaude:lit-executor implements, litclaude:lit-verifier verifies, litclaude:qa-runner runs QA, litclaude:quality-reviewer reviews, litclaude:librarian-researcher researches). Start each child assignment with TASK: plus DELIVERABLE, SCOPE and VERIFY; use short wait cycles and fall back only after a missing deliverable, an acknowledgement-only reply or a BLOCKED: report.",
   ...(discipline === "start-work"
     ? [
@@ -1100,6 +1147,99 @@ const litworkContext = ({ command, skill, skillId, discipline, softConfirm, safe
   ...(softConfirm ? ["Soft-confirm: the bare keyword 'lit' activated this hook. Before the full lit-loop, briefly confirm the user meant to start one (a stray English 'lit' is recoverable)."] : []),
   `Activation source: ${source ?? "legacy"}.`,
 ].join(" ");
+
+// Re-entry. The first `lit` of a discipline in a session sends the full activation. The same
+// discipline asked for again continues under the contract already in the conversation, and a bare
+// `lit` or `lit continue` with existing work resumes that work. Anything unreadable falls back to
+// the full activation, so a lost record costs bytes, never a safety line.
+const reentryProbe = (discipline) => `Begin your reply with the exact probe line \`${ignitionMark(discipline, { markdown: true })}\` on its own line, once.`;
+
+const clipPath = (path) => (path.length > 120 ? `…${path.slice(-119)}` : path);
+
+// lit-plan keeps its planning-only line and names the plan being written, because a bare `lit`
+// continuing it carries no other reminder of either.
+const planContinuation = (cwd) => {
+  let plan;
+  try {
+    plan = resolveLatestDurablePlan(cwd);
+  } catch {
+    plan = undefined;
+  }
+  return [
+    "Planning-only still applies: no implementation, no mutating command, no start-work tooling.",
+    ...(plan ? [`Plan: ${clipPath(plan.relativePath)}.`] : []),
+  ];
+};
+
+const continueContext = (discipline, cwd) => [
+  `LitClaude ${discipline} is already active in this session; continue it under the contract loaded earlier, with the user's message as its next instruction.`,
+  ...(discipline === "lit-plan" ? planContinuation(cwd) : []),
+  reentryProbe(discipline),
+  "This note adds no write, install or host-config authority.",
+].join(" ");
+
+const resumeStartWorkContext = (cwd, sessionId, discipline) => {
+  try {
+    const work = activeStartWorkSummary(lifecycleRootFor(cwd), sessionId);
+    if (work) {
+      return [
+        `LitClaude is resuming existing work, not starting new work: start-work ${work.workId} (${work.status}) on ${clipPath(relative(cwd, work.plan).replaceAll("\\", "/"))}.`,
+        "Continue from its next open task inside its recorded authority; create no new plan, run or goal line, and widen no grant.",
+        reentryProbe(discipline),
+      ].join(" ");
+    }
+  } catch {
+    // No readable start-work state.
+  }
+  return null;
+};
+
+const resumePlanContext = (cwd, discipline) => {
+  try {
+    const plan = resolveLatestDurablePlan(cwd);
+    const open = plan ? parsePlanTaskRows(plan.text).filter(({ checked }) => !checked).length : 0;
+    if (open > 0) {
+      return [
+        `LitClaude found an existing plan, ${clipPath(plan.relativePath)}, with ${open} open task(s) and no start-work run in this session.`,
+        "Resume that plan: no new plan is written. Tell the user to run `/litclaude:start-work` on it; do not implement from this prompt.",
+        reentryProbe(discipline),
+      ].join(" ");
+    }
+  } catch {
+    // An unreadable plans directory means there is nothing to resume.
+  }
+  return null;
+};
+
+// The interface, diagram, office and film routes carry per-prompt parameters (mode, style gate,
+// type cue), so each of those prompts keeps its full activation.
+const FULL_EVERY_TIME = new Set(["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-pptx", "lit-docx", "lit-typographic-motion"]);
+
+// Returns { context, discipline } for a continue or a resume, null for a full activation. A bare
+// `lit` or `lit continue` carries no task, so it carries on whatever the session has active, in this
+// order: this session's start-work run, the discipline the hook last activated, an open plan.
+const reentryContext = (trigger, prompt, input) => {
+  const sessionId = input.session_id;
+  if (!trigger || trigger.safetyBlock || typeof sessionId !== "string" || sessionId.length === 0) return null;
+  if (FULL_EVERY_TIME.has(trigger.discipline)) return null;
+  // start-work's prompt carries the write grant, so a repeat is sent in full too.
+  if (trigger.discipline === "start-work") return null;
+  const raw = rawTriggerText(prompt);
+  if (restartLitPattern.test(raw)) return null;
+  const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+  const active = readActivation(sessionId);
+  if (trigger.discipline === "lit-loop" && (bareLitPattern.test(raw) || resumeLitPattern.test(raw))) {
+    const work = resumeStartWorkContext(cwd, sessionId, trigger.discipline);
+    if (work) return { context: work, discipline: trigger.discipline };
+    if (active) return { context: continueContext(active, cwd), discipline: active };
+    const plan = resumePlanContext(cwd, trigger.discipline);
+    if (plan) return { context: plan, discipline: trigger.discipline };
+    return null;
+  }
+  // An armed review gate is a safety line of this prompt, so it is never reduced to a note.
+  if (reviewGateContext(trigger.discipline, prompt).length > 0) return null;
+  return active === trigger.discipline ? { context: continueContext(trigger.discipline, cwd), discipline: trigger.discipline } : null;
+};
 
 // The plugin root, resolved against import.meta.url so bundled rules are found from any
 // working directory — the same discipline staticSkillBodyContext uses.
@@ -1125,12 +1265,13 @@ const rulesBlockOrEmpty = (build) => {
   }
 };
 
-const staticRulesContext = ({ cwd, sessionId, maxRuleChars, maxResultChars, maxResultBytes }) =>
+const staticRulesContext = ({ cwd, sessionId, maxRuleChars, maxResultChars, maxResultBytes, createFallbackState }) =>
   rulesBlockOrEmpty(() =>
     staticRulesBlock({
       cwd,
       pluginRoot,
       sessionId,
+      ...(createFallbackState === undefined ? {} : { createFallbackState }),
       ...(maxRuleChars === undefined ? {} : { maxRuleChars }),
       ...(maxResultChars === undefined ? {} : { maxResultChars }),
       ...(maxResultBytes === undefined ? {} : { maxResultBytes }),
@@ -1192,6 +1333,8 @@ switch (eventName) {
   case "session-start": {
     const cwd = typeof input.cwd === "string" ? input.cwd : "unknown workspace";
     const compactSource = input.source === "compact";
+    // The earlier activation left the conversation with the compacted or cleared context.
+    if (compactSource || input.source === "clear") clearActivation(input.session_id);
     // A compact-sourced SessionStart is part of the existing session, so the foreground
     // automatic-update barrier has already run and must not run again.
     const automaticUpdate = !compactSource && pluginVersion
@@ -1246,6 +1389,7 @@ switch (eventName) {
       maxRuleChars: Math.min(DEFAULT_PROMPT_MAX_RULE_CHARS, maxResultChars),
       maxResultChars,
       maxResultBytes,
+      createFallbackState: false,
     });
     // The exact-bare canonical routes and the trusted-resume authority envelope are
     // deliberately excluded: both are fixed payloads where an appended block would
@@ -1272,6 +1416,8 @@ switch (eventName) {
     const exactBareScientificVisualization = isExactBareScientificVisualization(prompt);
     const autoHandoffRoute = trustedResume ? null : parseAutoHandoffRoute(prompt);
     const trigger = exactBareHandoff || exactBareScientificVisualization || autoHandoffRoute || isDiagnosticLiteralPrompt(prompt) ? undefined : findWorkflowTrigger(prompt);
+    const reentry = trustedResume ? null : reentryContext(trigger, prompt, input);
+    const effectiveDiscipline = reentry?.discipline ?? trigger?.discipline;
     // The HUD status line reads this record back, so the visible ignition mark tracks the
     // discipline actually selected for this turn instead of anything the model chooses to draw.
     try {
@@ -1283,7 +1429,7 @@ switch (eventName) {
             ? "lit-handoff"
             : exactBareScientificVisualization
               ? "lit-scientific-visualization"
-              : trigger?.discipline ?? null,
+              : effectiveDiscipline ?? null,
       });
     } catch {
       // A HUD record is cosmetic; an unwritable home never alters the prompt hook.
@@ -1293,7 +1439,7 @@ switch (eventName) {
     try {
       const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
       const stateRoot = resolveProjectStateRoot(cwd);
-      if (trigger?.discipline === "lit-plan" && !trigger.safetyBlock) recordLitPlanTurn(stateRoot, { sessionId: input.session_id });
+      if (effectiveDiscipline === "lit-plan" && !trigger.safetyBlock) recordLitPlanTurn(stateRoot, { sessionId: input.session_id });
       else clearLitPlanTurn(stateRoot);
       recordInterfaceProbeTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.safetyBlock ? null : trigger?.discipline });
       recordMotionTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.discipline });
@@ -1303,7 +1449,7 @@ switch (eventName) {
       // is read off the prompt's first word.
       const typed = /^\/(?:litclaude:)?([a-z][a-z-]{0,40})(?=\s|$)/u.exec(prompt.trim())?.[1];
       const started = trigger?.discipline && !trigger.safetyBlock ? trigger.discipline : typed && Object.hasOwn(DISCIPLINE_ENTRY, typed) ? typed : null;
-      if (started) startWorkflowStage(cwd, { sessionId: input.session_id, skill: started });
+      if (started && !reentry) startWorkflowStage(cwd, { sessionId: input.session_id, skill: started });
     } catch {
       // Persistence-gate state is advisory to routing; an unwritable record never alters the prompt hook.
     }
@@ -1342,8 +1488,8 @@ switch (eventName) {
     } else if (trigger && trigger.discipline === "lit-comprehend") {
       writeContext(withPromptRules(`${probeInstruction(trigger.discipline)}\n\n${comprehendContext(trigger)}`), activationMessage(trigger.discipline));
     } else if (trigger) {
-      const systemMessage = activationMessage(trigger.discipline);
-      let context = ["frontend-ui-ux", "visual-qa"].includes(trigger.discipline)
+      const systemMessage = activationMessage(effectiveDiscipline);
+      let context = reentry?.context ?? (["frontend-ui-ux", "visual-qa"].includes(trigger.discipline)
         ? uiuxActivationContext({ ...trigger, uiMode: interfaceMode(normalizedTriggerText(prompt)) })
         : trigger.discipline === "lit-diagram-drawer"
           ? diagramActivationContext(trigger)
@@ -1351,8 +1497,11 @@ switch (eventName) {
             ? officeActivationContext(trigger)
             : trigger.discipline === "lit-typographic-motion"
               ? motionActivationContext(trigger, prompt)
-              : litworkContext(trigger, input);
-      if (trigger.renameFrom) context = `${renameNote(trigger.renameFrom)}\n\n${context}`;
+              : litworkContext(trigger, input));
+      if (!reentry) {
+        if (trigger.renameFrom) context = `${renameNote(trigger.renameFrom)}\n\n${context}`;
+        if (!trigger.safetyBlock && !FULL_EVERY_TIME.has(trigger.discipline)) recordActivation(input.session_id, trigger.discipline);
+      }
       writeContext(withPromptRules(
         context,
         ["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-pptx", "lit-docx", "lit-typographic-motion"].includes(trigger.discipline) ? 4096 : undefined,

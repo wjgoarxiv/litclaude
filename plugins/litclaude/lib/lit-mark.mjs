@@ -101,7 +101,7 @@ export function lockup(productName, rows = standard) {
   if (typeof productName !== "string" || !/^[a-z][a-z0-9 .-]*$/u.test(productName)) {
     throw new TypeError("productName must be a plain product label");
   }
-  const labels = [productName, "──────────────", "hermes · codex", "opencode · grok"];
+  const labels = [productName, "──────────────", "hermes · codex", "opencode · grok", "muse · gravity"];
   const offset = Math.floor(rows.length / 2);
   const column = Math.max(...rows.map((row) => row.length)) + 6;
   return rows.map((row, index) => row.padEnd(column) + (labels[index - offset] ? `  ${labels[index - offset]}` : ""));

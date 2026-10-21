@@ -144,7 +144,7 @@ python3 "$SKILL_ROOT/scripts/generate_docx_templates.py" --registry my-registry.
 - **DOCX → Markdown:** `pandoc in.docx -f docx -t gfm --wrap=none --extract-media=media --markdown-headings=atx -o draft.md` (add `--track-changes=all` for tracked changes), then `python3 scripts/clean_markdown.py draft.md clean.md`, then review against `references/markdown_quality_checklist.md`. `scripts/embed_images.py clean.md inline.md --root media` makes it self-contained.
 - **PDF → Markdown:** `python3 scripts/convert_pdf.py in.pdf out.md` (multi-column layouts, paragraph merging, header and footer removal).
 - **Edit a .docx:** `python3 scripts/edit_docx.py in.docx --replace "OLD" "NEW" -o out.docx` (`--case-insensitive`), `--append-md extra.md`, `--insert-at "{{MARKER}}" "text"`, `--extract-text`, `--show-structure`.
-- **Publisher PDF:** `python3 scripts/convert_md_to_pdf.py draft.md out.pdf --publisher <profile>`; it checks pandoc, xelatex and the class file first and exits with an install hint instead of failing halfway.
+- **Publisher PDF:** `python3 scripts/convert_md_to_pdf.py draft.md out.pdf --publisher <profile>`; it checks pandoc, xelatex, the class file and the font that class loads (UnBatang for korean-generic) first and exits with an install hint instead of failing halfway.
 - **New or changed publisher profile:** edit a copy of `templates/registry.yaml`, then `python3 scripts/generate_docx_templates.py --registry my-registry.yaml --out-dir my-templates` and pass `--registry` to the converter and linter. Never regenerate into the installed skill.
 
 ### Writing rules (all profiles)

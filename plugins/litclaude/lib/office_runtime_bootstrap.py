@@ -58,4 +58,16 @@ def ensure_runtime(modules: list[str]) -> None:
         )
     env = dict(os.environ, **{_REEXEC_MARK: "1", "PYTHONDONTWRITEBYTECODE": "1"})
     script = os.path.abspath(sys.argv[0])
-    os.execve(interpreter, [interpreter, script, *sys.argv[1:]], env)
+    _reexec([interpreter, script, *sys.argv[1:]], env)
+
+
+def _reexec(argv: list[str], env: dict[str, str], platform: str = os.name) -> None:
+    """Run argv in place of this process and end with its exit code.
+
+    On Windows os.execve starts the child and ends this process at once with
+    status 0, so a caller would read success before the helper had run. There the
+    child is awaited and its exit code passed on; POSIX keeps the real exec.
+    """
+    if platform == "nt":
+        sys.exit(subprocess.call(argv, env=env))
+    os.execve(argv[0], argv, env)

@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/lit/fonts.css">
+<script src="/lit/loop-kit.js"></script>
+<style>
+  html, body { margin: 0; width: 1200px; height: 600px; overflow: hidden; background: #0b1016; }
+  #word { position: absolute; left: 80px; top: 230px; padding: 0 20px; background: #0b1016; font: 900 110px "Archivo"; color: #f2efdf; }
+  body.mask, body.mask * { background: #000 !important; color: #000 !important; }
+  body.mask #word { color: #fff !important; }
+  body.mask canvas { visibility: hidden; }
+</style>
+<body>
+<canvas id="c" width="2400" height="1200" style="position:absolute;inset:0;width:1200px;height:600px"></canvas>
+<div id="word">LOOPTEST</div>
+<script>
+// A test cover: bars drift exactly one period per loop (slow), a dot laps a ring twice (mid), and
+// the dot pulses on each lap (beat). Everything is a function of t; the word never moves.
+const { TAU, fract, cubicPulse } = LitLoop;
+const ctx = document.getElementById("c").getContext("2d");
+ctx.scale(2, 2);
+window.renderFrame = (t, o = {}) => {
+  document.body.className = o.mask ? "mask" : "";
+  ctx.fillStyle = "#0b1016";
+  ctx.fillRect(0, 0, 1200, 600);
+  if (o.mask) return;
+  ctx.fillStyle = "#1d2a38";
+  for (let k = -1; k < 13; k++) ctx.fillRect(k * 100 + 100 * t, 0, 40, 600);
+  const a = TAU * fract(2 * t);
+  const r = 14 + 10 * cubicPulse(0, 0.06, fract(2 * t));
+  ctx.fillStyle = "#ff6337";
+  ctx.beginPath(); ctx.arc(900 + 150 * Math.cos(a), 300 + 150 * Math.sin(a), r, 0, TAU); ctx.fill();
+};
+document.fonts.load('900 110px "Archivo"').then(() => { window.renderFrame(0); window.ready = true; });
+</script>
+</body>

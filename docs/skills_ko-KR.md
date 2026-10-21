@@ -2,7 +2,7 @@
 
 [README](../README_ko-KR.md) · [안내서](./guide_ko-KR.md) · [English](./skills.md)
 
-LitClaude에는 직접 시작하는 스킬 35개와 알아서 도는 스킬 3개가 있습니다. 줄마다 스킬이 주는
+LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개가 있습니다. 줄마다 스킬이 주는
 결과를 그림으로 보여 주고, 시작하는 프롬프트나 명령, 얻는 것을 적었습니다.
 
 ## 스킬 한눈에 보기
@@ -32,14 +32,14 @@ LitClaude에는 직접 시작하는 스킬 35개와 알아서 도는 스킬 3개
 <td>계획을 한 줄씩 실행합니다. 다섯 관문을 모두 통과해야 체크 표시가 붙습니다.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/review-work.webp" width="240" alt="다섯 갈래 리뷰가 같은 변경을 따로 읽고, 발견한 문제부터 보고합니다." /></td>
+<td><img src="./assets/skills/review-work.webp" width="240" alt="계획 검토는 일을 시작하기 전에 계획을 살피고, 작업 검토는 끝난 변경을 다섯 갈래로 따로 읽습니다. 발견한 문제부터 보고합니다." /></td>
 <td><code>review-work</code><br /><sub><code>lit review &lt;scope&gt;</code></sub></td>
-<td>다섯 갈래 리뷰가 같은 변경을 따로 읽고, 발견한 문제부터 보고합니다.</td>
+<td>계획 검토는 일을 시작하기 전에 계획을 살피고, 작업 검토는 끝난 변경을 다섯 갈래로 따로 읽습니다. 발견한 문제부터 보고합니다.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/litgoal.webp" width="240" alt="목표 하나와 확인 가능한 기준을 디스크에 남겨, 다음 세션이 이어받을 수 있습니다." /></td>
+<td><img src="./assets/skills/litgoal.webp" width="240" alt="끝낼 선을 정하고 지킵니다. 목표 하나와 확인 가능한 기준을 디스크에 남기면 lit-loop와 start-work가 그 선을 향해 일합니다." /></td>
 <td><code>litgoal</code><br /><sub><code>lit goal &lt;outcome&gt;</code></sub></td>
-<td>목표 하나와 확인 가능한 기준을 디스크에 남겨, 다음 세션이 이어받을 수 있습니다.</td>
+<td>끝낼 선을 정하고 지킵니다. 목표 하나와 확인 가능한 기준을 디스크에 남기면 <code>lit-loop</code>와 <code>start-work</code>가 그 선을 향해 일합니다.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-recap.webp" width="240" alt="읽기 전용 요약입니다. 끝난 일, 진행 중인 일, 막힌 곳, 증거 위치, 다음 단계를 보여줍니다." /></td>
@@ -50,6 +50,11 @@ LitClaude에는 직접 시작하는 스킬 35개와 알아서 도는 스킬 3개
 <td><img src="./assets/skills/lit-handoff.webp" width="240" alt="handoff라고 치면 다음 세션이 읽고 이어갈 인수인계 파일이 생깁니다." /></td>
 <td><code>lit-handoff</code><br /><sub><code>handoff</code></sub></td>
 <td><code>handoff</code>라고 치면 다음 세션이 읽고 이어갈 인수인계 파일이 생깁니다.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-brainstorm.webp" width="240" alt="서로 다른 선택지를 많이 내고, 정한 기준으로 점수를 매겨 고를 수 있는 짧은 목록으로 줄입니다. 고른 뒤에는 deep-interview나 lit-plan으로 넘깁니다." /></td>
+<td><code>lit-brainstorm</code><br /><sub><code>lit brainstorm &lt;topic&gt;</code></sub></td>
+<td>서로 다른 선택지를 많이 내고, 정한 기준으로 점수를 매겨 고를 수 있는 짧은 목록으로 줄입니다. 고른 뒤에는 deep-interview나 lit-plan으로 넘깁니다.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/deep-interview.webp" width="240" alt="한 번에 한 질문씩 물어 아이디어를 만들 수 있을 만큼 분명하게 다듬습니다. 남은 모호함은 게이지로 보입니다." /></td>

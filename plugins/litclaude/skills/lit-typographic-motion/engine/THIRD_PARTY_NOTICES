@@ -30,6 +30,12 @@ ${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime.
     font files: fonts/silkscreen/Silkscreen-Regular.ttf, fonts/silkscreen/Silkscreen-Bold.ttf
     licence:    fonts/silkscreen/OFL.txt
 
+  JetBrains Mono, variable wght 100-800, latin subset (bundled, unmodified; OFL 1.1, no Reserved
+  Font Name)
+    font file:  fonts/jetbrains-mono/JetBrainsMono-wght-latin.woff2
+    licence:    fonts/jetbrains-mono/OFL.txt
+    source:     @fontsource-variable/jetbrains-mono 5.3.0, files/jetbrains-mono-latin-wght-normal.woff2
+
   EMS Allure, EMS Felix, EMS Osmotron, EMS Readability, EMS Tech single-stroke SVG fonts
   (bundled, unmodified; OFL 1.1)
     font files: fonts/stroke/EMS*.svg

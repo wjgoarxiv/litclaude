@@ -460,7 +460,7 @@ const alive = (pid) => {
  * Run a full stage render in a detached child with a progress file, and wait for it. A second call
  * while one is running attaches to it instead of starting another.
  */
-export async function renderStageDetached({ out, round, cli, env = process.env, log = () => {}, pollMs = 1000 }) {
+export async function renderStageDetached({ out, round, cli, mode = "stage", env = process.env, log = () => {}, pollMs = 1000 }) {
   const runDir = path.join(out, ".run");
   mkdirSync(runDir, { recursive: true });
   const lock = path.join(runDir, "render.pid");
@@ -469,7 +469,7 @@ export async function renderStageDetached({ out, round, cli, env = process.env, 
   if (!(pid && alive(pid))) {
     rmSync(resultFile, { force: true });
     const logFd = openSync(path.join(runDir, "render.log"), "w");
-    const child = spawn(process.execPath, [cli, "stage", "--out", out, "--round", String(round), "--worker"], { detached: true, stdio: ["ignore", logFd, logFd], env });
+    const child = spawn(process.execPath, [cli, mode, "--out", out, "--round", String(round), "--worker"], { detached: true, stdio: ["ignore", logFd, logFd], env });
     closeSync(logFd);
     child.unref();
     pid = child.pid;

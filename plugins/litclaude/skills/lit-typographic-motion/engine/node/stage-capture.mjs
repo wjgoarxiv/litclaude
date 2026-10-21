@@ -102,7 +102,8 @@ export class StageBrowser {
       if (Date.now() > deadline) throw new BlockedError(EXIT.STAGE_CONTRACT_ERROR, "STAGE_CONTRACT_ERROR: the stage page did not finish loading within 60 s");
       await new Promise((r) => setTimeout(r, 50));
     }
-    const faces = this.faces.map((f) => ({ descriptor: `${f.weight} 32px "${f.family}"`, sample: f.family === "Pretendard" || f.family === "Galmuri9" ? "Aa가" : "Aa" }));
+    // A variable face declares a weight range ("100 800"); a font shorthand takes one weight.
+    const faces = this.faces.map((f) => ({ descriptor: `${String(f.weight).split(" ")[0]} 32px "${f.family}"`, sample: f.family === "Pretendard" || f.family === "Galmuri9" ? "Aa가" : "Aa" }));
     const images = rasters.map((r) => `/${r.rel.split(path.sep).map(encodeURIComponent).join("/")}`);
     this.prepared = await this.evaluate(`window.__litPrepare(${JSON.stringify({ faces, images })})`);
     this.state = await this.evaluate("window.__litStageState()");

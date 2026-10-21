@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
@@ -247,7 +247,7 @@ over the saved setting, and the doctor shows what is in force:
 
 ## What you get
 
-LitClaude ships 35 skills you can start, three that run on their own, 16 slash commands and
+LitClaude ships 36 skills you can start, three that run on their own, 17 slash commands and
 11 agents. Most days you will use a handful of them.
 
 ### The work loop
@@ -272,8 +272,10 @@ lit plan Add CSV export to the reports page, with tests.
 
 ### A second look before you merge
 
-`lit review` sends five independent review lanes over the same change and its evidence. They
-report findings first; fixing them is a separate step.
+`lit review` picks a mode from what exists: plan review for a plan that has not started, work
+review for a finished change. Work review sends five independent review lanes over the same
+change and its evidence. They report findings first; fixing them is a separate step. `lit review
+plan` or `lit review work` forces a mode.
 
 ```text
 lit review the changes on this branch
@@ -357,7 +359,7 @@ update or remove it from Claude Code's `/plugin` menu.
 - [Guide](./docs/guide.md): install options, what you will see on screen, the promo film,
   every route, automatic handoff, slides and documents, the status line, safety, and the
   Claude Code integration in depth.
-- [All skills](./docs/skills.md): the 35 skills and the automatic checks, one row each.
+- [All skills](./docs/skills.md): the 36 skills and the automatic checks, one row each.
 - [Hooks](./docs/hooks.md), [agents](./docs/agents.md), [privacy and network behavior](./docs/privacy.md),
   [migration and ownership conflicts](./docs/migration.md),
   [package-name migration and marketplace choices](./docs/migration.md#scoped-npm-migration), [native `/goal` surface](./docs/native-goal-surface.md)
@@ -368,7 +370,7 @@ update or remove it from Claude Code's `/plugin` menu.
 
 ## LITFAMILY
 
-The five armored robots on the cover stand for the five LitFamily products. Each one runs on
+The seven armored robots on the cover stand for the seven LitFamily products. Each one runs on
 its own in its own host, so install just the one you use. The cover is brand motion, and the
 [Ignition film](./docs/assets/readme/ignition-film.mp4) is a short brand film in the same
 spirit. The demo near the top of this page is the one that shows a real Claude Code session.
@@ -393,7 +395,7 @@ spirit. The demo near the top of this page is the one that shows a real Claude C
  ▐█████  ▗▟█████▀▘       ▄▄▄▄▄     ▗▖               ──────────────
  ▐█████ ▐█████▀          █████     ▐▛▀              hermes · codex
  ▐█████ ▐███▀            █████                      opencode · grok
- ▐█████ ▐█▀              █████
+ ▐█████ ▐█▀              █████                      muse · gravity
  ▐█████ ▝                █████
  ▐█████▄▄▄▄▄▄▄▖          █████
  ▐███████████▛           █████

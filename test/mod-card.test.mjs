@@ -9,7 +9,7 @@ import test from "node:test";
 import { HUD_ACCENT_THEMES } from "../plugins/litclaude/lib/hud-accent-palette.mjs";
 import { canonicalSkillIds } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { CARD_MAX, composeBand, rowText, rowWidth } from "../plugins/litclaude/lib/mod/frame.mjs";
-import { TIMINGS, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
+import { TIMINGS, lerpColor, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
 import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
 import { readGitBranch, readLitSnapshot } from "../plugins/litclaude/lib/mod/state.mjs";
@@ -18,6 +18,7 @@ import { recordWorkflowStage, runWorkflowStageCli, startWorkflowStage, workflowS
 import { advanceTimeline, ambientActive, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { AGENT_STALE_MS, STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 import { SVG_CARD, composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
+import { TOAST_GAP_MS, gateToast, mergeToasts, statusChanges, statusOf } from "../plugins/litclaude/lib/mod/toasts.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 
 const NOW = 10_000_000;
@@ -339,6 +340,8 @@ const harness = async (options = {}, agents = [], files = new Map(), { client = 
   const played = [];
   const invalidations = [];
   const polls = [];
+  const toasts = [];
+  const delays = [];
   const roster = ["terminal"];
   const $ = {
     fs: {
@@ -350,13 +353,13 @@ const harness = async (options = {}, agents = [], files = new Map(), { client = 
     },
     session: { cwd: async () => "/nowhere/project", id: async () => "card-session", usage: async () => usage, surfaces: async () => [...roster] },
     agent: { list: async () => agents },
-    clock: { now: async () => now, after: (ms, fn) => timers.push(fn), every: (ms, fn) => { polls.push(fn); return () => undefined; } },
+    clock: { now: async () => now, after: (ms, fn) => { delays.push(ms); timers.push(fn); }, every: (ms, fn) => { polls.push(fn); return () => undefined; } },
     env: { get: async () => undefined },
     settings: { read: async () => ({ statusLine: { type: "command", command: "LITCLAUDE_HUD_ACCENT=rose node hud.js" } }) },
     command: { register: async () => undefined },
     ui: {
       invalidate: (what) => { invalidations.push(what); },
-      toast: () => undefined,
+      toast: (text) => { toasts.push(text); },
       open: async () => undefined,
       resolve: () => elements,
       notify: async (text, notifyOptions) => {
@@ -396,7 +399,7 @@ const harness = async (options = {}, agents = [], files = new Map(), { client = 
     for (const fn of polls) fn();
     await flush();
   };
-  return { fire, stream, flush, band, drawOn, poll, invalidations, roster, notified, played, tick: (ms) => { now += ms; } };
+  return { fire, stream, flush, band, drawOn, poll, invalidations, roster, notified, played, toasts, delays, tick: (ms) => { now += ms; } };
 };
 
 test("the mod lights a chip for a LitClaude Skill call or slash command and dims it when the turn completes", async () => {
@@ -1163,4 +1166,237 @@ test("the prompt and Skill hooks start the stage record, and each skill tells th
   for (const [skill, call] of [["review-work", "workflow-stage main review --verdict"], ["lit-loop", "workflow-stage loop"], ["lit-crucible", "workflow-stage main plan --verdict crucible="]]) {
     assert.match(readFileSync(new URL(`${skill}/SKILL.md`, skills), "utf8"), new RegExp(`litclaude-ai ${call}`, "u"), skill);
   }
+});
+
+// Status toasts: one per real change of the LIT state, none on a refresh that changes nothing.
+const statusModel = (overrides = {}) => ({ lanes: { count: 0, list: [] }, workflow: null, ...overrides });
+
+test("status changes: a discipline starts or switches, a stage moves, a goal is set or met, a lane starts or finishes", () => {
+  const first = statusOf({ discipline: null, model: statusModel(), snapshot: idle() });
+  assert.deepEqual(statusChanges(null, first), [], "the first look at a session announces nothing");
+  assert.deepEqual(statusChanges(first, statusOf({ discipline: null, model: statusModel(), snapshot: idle() }, first)), [], "nothing changed, nothing said");
+
+  const planning = statusOf({ discipline: "lit-plan", model: statusModel({ workflow: { family: "main", current: 1, stages: [{ id: "interview" }, { id: "plan" }] } }), snapshot: idle() }, first);
+  assert.equal(mergeToasts(statusChanges(first, planning)), "🔥 lit-plan started", "the stage the discipline enters is not said twice");
+  const research = statusOf({ discipline: "litresearch", model: statusModel(), snapshot: idle() }, planning);
+  assert.equal(research.discipline, "litresearch");
+  const notDiscipline = statusOf({ discipline: "lit-docx", model: statusModel(), snapshot: idle() }, planning);
+  assert.equal(notDiscipline.discipline, "lit-plan", "a skill that is not a discipline keeps the last discipline");
+  const brainstorm = statusOf({ discipline: "lit-brainstorm", model: statusModel(), snapshot: idle() }, planning);
+  assert.equal(mergeToasts(statusChanges(planning, brainstorm)), "🔥 lit-plan → lit-brainstorm", "starting lit-brainstorm raises a toast like any discipline");
+  const quiet = statusOf({ discipline: null, model: statusModel(), snapshot: idle() }, planning);
+  assert.equal(quiet.discipline, "lit-plan", "a prompt that names no discipline keeps the last one");
+
+  const red = statusOf({ discipline: "lit-loop", model: statusModel({ workflow: { family: "loop", current: 1, stages: [{ id: "PIN" }, { id: "RED" }] } }), snapshot: idle() }, planning);
+  const green = statusOf({ discipline: "lit-loop", model: statusModel({ workflow: { family: "loop", current: 2, stages: [{ id: "PIN" }, { id: "RED" }, { id: "GREEN" }] } }), snapshot: idle() }, red);
+  assert.equal(mergeToasts(statusChanges(planning, red)), "🔥 lit-plan → lit-loop");
+  assert.equal(mergeToasts(statusChanges(red, green)), "🔥 stage · GREEN");
+
+  const goalSet = statusOf({ discipline: "lit-loop", model: statusModel(), snapshot: lit() }, red);
+  assert.match(mergeToasts(statusChanges({ ...red, stage: null }, { ...goalSet, stage: null })), /goal set · ship the card/u);
+  const goalMet = statusOf({ discipline: "lit-loop", model: statusModel(), snapshot: lit({ goal: goalOf(5, 5, "complete") }) }, goalSet);
+  assert.equal(mergeToasts(statusChanges(goalSet, goalMet)), "🔥 goal met · 5/5");
+
+  const oneLane = statusOf({ discipline: "lit-loop", model: statusModel({ lanes: { count: 1, list: [{ id: "a1", name: "review" }] } }), snapshot: lit() }, goalSet);
+  const twoMore = statusOf({ discipline: "lit-loop", model: statusModel({ lanes: { count: 3, list: [{ id: "a1", name: "review" }, { id: "a2", name: "lint" }, { id: "a3", name: "qa" }] } }), snapshot: lit() }, oneLane);
+  assert.equal(mergeToasts(statusChanges(goalSet, oneLane)), "🔥 lane started · review");
+  assert.equal(mergeToasts(statusChanges(oneLane, twoMore)), "🔥 2 lanes started");
+  assert.equal(mergeToasts(statusChanges(twoMore, goalSet)), "🔥 3 lanes finished");
+});
+
+test("the toast gate shows at most one toast per three seconds and merges what waited into one line", () => {
+  let gate = { lastAt: -Infinity, pending: [] };
+  let step = gateToast(gate, [{ kind: "discipline", from: null, to: "lit-plan" }], 1000);
+  assert.equal(step.show, "🔥 lit-plan started");
+  gate = step.gate;
+  step = gateToast(gate, [], 1500);
+  assert.equal(step.show, null, "nothing waiting, nothing shown");
+  step = gateToast(gate, [{ kind: "discipline", from: "lit-plan", to: "start-work" }], 1500);
+  assert.equal(step.show, null, "inside the gap the toast waits");
+  assert.equal(step.waitMs, TOAST_GAP_MS - 500);
+  step = gateToast(step.gate, [{ kind: "lane-start", text: "lane started · lint" }, { kind: "discipline", from: "start-work", to: "review-work" }], 2000);
+  assert.equal(step.show, null);
+  step = gateToast(step.gate, [], 1000 + TOAST_GAP_MS);
+  assert.equal(step.show, "🔥 lit-plan → review-work · lane started · lint", "a burst arrives as one line, a switch chain as its ends");
+  assert.deepEqual(step.gate.pending, []);
+  assert.equal(mergeToasts([1, 2, 3, 4, 5].map((n) => ({ kind: "note", text: `n${n}` }))), "🔥 n1 · n2 · n3 · +2 more");
+  assert.equal(mergeToasts([{ kind: "discipline", from: "lit-plan", to: "start-work" }, { kind: "discipline", from: "start-work", to: "lit-plan" }]), null, "a switch there and back says nothing");
+});
+
+test("the mod toasts LIT status changes on the host, once each, and stays silent on polls that change nothing", async () => {
+  const listed = [];
+  const host = await harness({ glyphs: "basic", motion: "off" }, listed);
+  await host.fire("session.start", {});
+  await host.flush();
+  assert.deepEqual(host.toasts, [], "opening the session raises no toast");
+  host.tick(5000);
+  await host.fire("turn.start", {});
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:lit-plan" });
+  await host.flush();
+  assert.deepEqual(host.toasts, ["🔥 lit-plan started"]);
+  for (let i = 0; i < 3; i += 1) {
+    host.tick(2000);
+    await host.poll();
+  }
+  assert.equal(host.toasts.length, 1, "polls that change nothing stay silent");
+
+  host.tick(5000);
+  listed.push({ id: "a1", description: "review", type: "general-purpose", status: "running" });
+  await host.poll();
+  assert.equal(host.toasts.at(-1), "🔥 lane started · review");
+  host.tick(5000);
+  listed[0] = { ...listed[0], status: "completed" };
+  await host.poll();
+  assert.equal(host.toasts.at(-1), "🔥 lane finished · review");
+  assert.equal(host.toasts.length, 3);
+
+  host.tick(5000);
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:start-work" });
+  host.tick(500);
+  await host.fire("tool.call", { tool: "Skill", skill: "litclaude:review-work" });
+  assert.equal(host.toasts.at(-1), "🔥 lit-plan → start-work");
+  assert.ok(host.delays.includes(TOAST_GAP_MS - 500), "the second switch waits out the gap");
+  await host.flush();
+  assert.equal(host.toasts.at(-1), "🔥 start-work → review-work");
+  assert.equal(host.toasts.length, 5);
+});
+
+test("a lane stays on the card while the host lists its agent alive, however long it is quiet", async () => {
+  const listed = [{ id: "a1", description: "long build", type: "general-purpose", status: "running" }];
+  const host = await harness({ glyphs: "basic", motion: "off" }, listed);
+  await host.fire("session.start", {});
+  await host.flush();
+  host.tick(AGENT_STALE_MS + 60_000);
+  await host.poll();
+  const { lines } = await host.band();
+  assert.match(lines[1], /1 lane\b/u, "alive by the host's word, so still listed");
+  assert.doesNotMatch(lines[0], /─ idle ─╮/u);
+
+  const model = buildBandModel({ snapshot: idle(), agents: listed, activity: { last: { a1: NOW }, first: { a1: NOW } }, now: NOW + AGENT_STALE_MS + 60_000 });
+  assert.equal(model.lanes.count, 1);
+  assert.equal(model.lanes.list[0].status, "stalled", "a quiet live lane is marked, not dropped");
+  assert.equal(model.lanes.list[0].id, "a1");
+});
+
+test("a workflow agent inside one long tool call is not dropped as lost", async () => {
+  const host = await harness({ glyphs: "basic", motion: "off" });
+  await host.fire("session.start", {});
+  await host.fire("turn.start", { text: "go", turnId: "t1" });
+  await spawnWorkflowAgent(host, "wf-long", "long build");
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "Started.", durationMs: 1000, isAborted: false });
+  let release;
+  const call = host.fire("tool.call", { tool: "Bash", agentId: "wf-long" }, {}, new Promise((resolve) => { release = resolve; }));
+  await host.flush();
+  host.tick(AGENT_STALE_MS + 60_000);
+  await host.poll();
+  assert.match((await host.band()).lines[1], /1 lane\b/u, "a call in flight means the agent is alive");
+  release({});
+  await call;
+  await host.flush();
+  host.tick(AGENT_STALE_MS + 60_000);
+  await host.poll();
+  assert.match((await host.band()).lines[0], /─ idle ─╮/u, "quiet past the limit with nothing in flight, it is let go");
+});
+
+test("lane timers keep counting on the terminal while a desktop drawing is attached", async () => {
+  const { default: LitBand } = await import("../plugins/litclaude/hooks/lit-band-client.mjs");
+  const host = await harness({ glyphs: "basic", motion: "full" }, [], new Map(), { client: true });
+  await host.fire("session.start", {});
+  await host.fire("turn.start", { text: "go", turnId: "t1" });
+  await spawnWorkflowAgent(host, "wf-1", "lint");
+  await host.fire("turn.complete", { reason: "answer", turnId: "t1", answer: "Started.", durationMs: 1000, isAborted: false });
+  await host.flush();
+  await host.drawOn("desktop");
+  const client = await host.drawOn("terminal");
+  assert.equal(client.kind, "client");
+  host.invalidations.length = 0;
+  host.tick(2000);
+  await host.poll();
+  assert.deepEqual(host.invalidations, [], "with a drawing attached, time alone does not redraw");
+
+  const timers = [];
+  const surface = {
+    state: undefined,
+    elements: { Box: (props) => ({ type: "Box", props }), Text: (props) => ({ type: "Text", props }) },
+    every: (ms, fn) => {
+      const timer = { ms, fn, stopped: false };
+      timers.push(timer);
+      return () => { timer.stopped = true; };
+    },
+    setState(next) { this.state = { ...this.state, ...next }; },
+  };
+  const flatten = (node) => (node.type === "Text" ? [node.props.children] : (node.props.children ?? []).flatMap(flatten));
+  const clockOf = () => {
+    const rows = LitBand(client.props, surface).props.children.map((row) => flatten(row).join(""));
+    return /1 lane (\d+:\d\d)/u.exec(rows[1])?.[1];
+  };
+  const advance = (ms) => {
+    let left = ms;
+    while (left > 0) {
+      const timer = timers.find((candidate) => !candidate.stopped);
+      assert.ok(timer, "a timer keeps running while a lane runs");
+      timer.fn();
+      left -= timer.ms;
+    }
+  };
+  LitBand(client.props, surface);
+  advance(1000);
+  assert.equal(clockOf(), "0:01", "past the entry the lane clock shows");
+  advance(5000);
+  assert.equal(clockOf(), "0:06", "and counts on with no new model");
+});
+
+test("the motion-off surface still ticks its clocks once a second, and stops when nothing runs", async () => {
+  const { default: LitBand } = await import("../plugins/litclaude/hooks/lit-band-client.mjs");
+  const timers = [];
+  const surface = {
+    state: undefined,
+    elements: { Box: (props) => ({ type: "Box", props }), Text: (props) => ({ type: "Text", props }) },
+    every: (ms, fn) => {
+      const timer = { ms, fn, stopped: false };
+      timers.push(timer);
+      return () => { timer.stopped = true; };
+    },
+    setState(next) { this.state = { ...this.state, ...next }; },
+  };
+  const agents = [{ id: "a1", description: "lint", type: "general-purpose", status: "running" }];
+  const running = buildBandModel({ snapshot: idle(), agents, activity: { last: { a1: NOW }, first: { a1: NOW } }, now: NOW });
+  LitBand({ model: running, columns: 80, glyphs: "basic", motion: "off", accent: CYAN }, surface);
+  const live = timers.filter((timer) => !timer.stopped);
+  assert.equal(live.length, 1);
+  assert.equal(live[0].ms, 1000, "a clock on the card ticks each second even with motion off");
+  LitBand({ model: buildBandModel({ snapshot: idle(), now: NOW }), columns: 80, glyphs: "basic", motion: "off", accent: CYAN }, surface);
+  assert.equal(timers.filter((timer) => !timer.stopped).length, 0, "an idle card with no clock keeps no timer");
+});
+
+test("running lanes move while the main turn waits: the lane dots carry a light", () => {
+  const agents = [{ id: "a1", description: "lint", type: "general-purpose", status: "running" }, { id: "a2", description: "qa", type: "general-purpose", status: "running" }];
+  const model = buildBandModel({ snapshot: idle(), agents, activity: { last: { a1: NOW, a2: NOW }, first: { a1: NOW - 65_000, a2: NOW } }, now: NOW });
+  assert.equal(model.step, null, "the main turn is not running a tool");
+  const full = motionProfile("full");
+  const timeline = createTimeline(model, 0, full);
+  const dots = (t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: 100, glyphs: "basic", accent: CYAN }).rows[1].filter(({ text }) => text === "●").map(({ fg }) => fg).join(",");
+  const seen = new Set([2000, 2300, 2600, 2900, 3200].map(dots));
+  assert.ok(seen.size > 1, "the dots change colour from frame to frame");
+  assert.match(rowText(composeBand(model, sampleTimeline(timeline, 2000, full), { columns: 100, glyphs: "basic", accent: CYAN }).rows[1]), /2 lanes 1:07/u, "the longest lane's clock shows and counts on");
+});
+
+test("the border glows brighter and breathes while LIT is active, and stays calm while idle", () => {
+  const working = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage, git: "main" });
+  const resting = buildBandModel({ snapshot: idle(), now: NOW, usage, git: "main" });
+  const full = motionProfile("full");
+  const borderAt = (model, t) => composeBand(model, sampleTimeline(createTimeline(model, 0, full), t, full), { columns: 80, glyphs: "basic", accent: CYAN }).border;
+  const active = [2000, 2600, 3200, 3800].map((t) => borderAt(working, t));
+  assert.ok(new Set(active).size > 1, "the active border pulses");
+  assert.ok(active.every((color) => luminance(color) >= luminance(CYAN) - 1e-9), "never dimmer than the accent while active");
+  assert.ok(Math.max(...active.map(luminance)) > luminance(CYAN) + 0.05, "at its peak clearly brighter than the accent");
+  const calm = [2000, 2600, 3200, 3800].map((t) => borderAt(resting, t));
+  assert.equal(new Set(calm).size, 1, "idle, the border does not move");
+  assert.ok(luminance(calm[0]) < luminance(CYAN), "idle, it is dimmer than the accent");
+  assert.equal(draw(working, 80).border, lerpColor(CYAN, "#ffffff", 0.15), "at rest (and under motion off) the active border sits a step above the accent");
+  const peak = composeBand(working, { ...settledSample(working), ambient: { breath: 1, sweep: null, comet: null, flow: null } }, { columns: 80, glyphs: "basic", accent: CYAN }).border;
+  assert.equal(peak, lerpColor(CYAN, "#ffffff", 0.45), "its breathing peak is brighter too");
+  const svg = composeSvgCard(svgModel(), { motion: "full", accent: CYAN }).source;
+  assert.match(svg, /rx="14" fill="[^"]+" stroke="#5fd7ff" stroke-width="2.5">/u, "the desktop card's border is heavier while active");
+  assert.match(svg, /attributeName="stroke-opacity" values="0.85;1;0.85"/u, "and breathes high");
 });

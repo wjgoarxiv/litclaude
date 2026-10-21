@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Guide](./guide.md) · [한국어](./skills_ko-KR.md)
 
-LitClaude ships 35 skills you start yourself and three that run on their own. Each row shows
+LitClaude ships 36 skills you start yourself and three that run on their own. Each row shows
 a picture of what the skill gives you, the prompt or command that starts it, and the result.
 
 ## Skills at a glance
@@ -32,14 +32,14 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Runs a plan row by row. A box is checked only after all five gates pass.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/review-work.webp" width="240" alt="Five independent review lanes read the same change and report findings first." /></td>
+<td><img src="./assets/skills/review-work.webp" width="240" alt="Plan review checks a plan before work starts; work review sends five independent lanes over the finished change. Findings come first." /></td>
 <td><code>review-work</code><br /><sub><code>lit review &lt;scope&gt;</code></sub></td>
-<td>Five independent review lanes read the same change and report findings first.</td>
+<td>Plan review checks a plan before work starts; work review sends five independent lanes over the finished change. Findings come first.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/litgoal.webp" width="240" alt="One objective with checkable criteria, kept on disk so the next session can pick it up." /></td>
+<td><img src="./assets/skills/litgoal.webp" width="240" alt="Sets and keeps the finish line: one objective with checkable criteria, kept on disk. lit-loop and start-work run toward it." /></td>
 <td><code>litgoal</code><br /><sub><code>lit goal &lt;outcome&gt;</code></sub></td>
-<td>One objective with checkable criteria, kept on disk so the next session can pick it up.</td>
+<td>Sets and keeps the finish line: one objective with checkable criteria, kept on disk. <code>lit-loop</code> and <code>start-work</code> run toward it.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-recap.webp" width="240" alt="A read-only summary: done, in progress, blocked, where the evidence is, what comes next." /></td>
@@ -50,6 +50,11 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td><img src="./assets/skills/lit-handoff.webp" width="240" alt="Type handoff to get a continuation file the next session can read and resume from." /></td>
 <td><code>lit-handoff</code><br /><sub><code>handoff</code></sub></td>
 <td>Type <code>handoff</code> to get a continuation file the next session can read and resume from.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-brainstorm.webp" width="240" alt="Many different options, scored against your criteria and cut to a short list you choose from. The pick then goes to deep-interview or lit-plan." /></td>
+<td><code>lit-brainstorm</code><br /><sub><code>lit brainstorm &lt;topic&gt;</code></sub></td>
+<td>Many different options, scored against your criteria and cut to a short list you choose from. The pick then goes to deep-interview or lit-plan.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/deep-interview.webp" width="240" alt="One question at a time until the idea is clear enough to build. A meter shows how much is still vague." /></td>

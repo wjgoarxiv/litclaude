@@ -30,6 +30,7 @@ import {
   themeForAccent,
 } from "../plugins/litclaude/lib/hud-accent-palette.mjs";
 import { readPublicSource } from "../plugins/litclaude/lib/public-source-reader/reader.mjs";
+import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import { MOD_CHOICES } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
@@ -76,7 +77,7 @@ const prewarmMotionRuntime = () => {
     timeout: Number(process.env.LITCLAUDE_MOTION_PREWARM_TIMEOUT_MS ?? 600000),
   });
   if (result.status === 0) return "MOTION_RUNTIME: pre-warmed (engine deps and fonts ready)";
-  const why = `${result.stderr || result.error?.message || "unknown error"}`.trim().split("\n").filter(Boolean).pop()?.slice(0, 200) ?? "unknown error";
+  const why = `${result.stderr || result.error?.message || "unknown error"}`.trim().split(/\r?\n/u).filter(Boolean).pop()?.slice(0, 200) ?? "unknown error";
   return `MOTION_RUNTIME: not pre-warmed (${why}); run: litclaude-ai motion-runtime install`;
 };
 const version = packageJson.version;
@@ -1132,8 +1133,20 @@ const requireInstalledPluginPath = (home = claudeHome()) => {
   return path;
 };
 
+// claude and the language servers are npm .cmd shims on Windows; they run unwrapped, never through
+// cmd.exe. A spawn that could not start comes back as { error }, like spawnSync's own.
+const spawnTool = (name, args, options) => {
+  let invocation;
+  try {
+    invocation = shellFreeCommand(name, args);
+  } catch (error) {
+    return { status: null, stdout: "", stderr: "", error };
+  }
+  return spawnSync(invocation.command, invocation.args, options);
+};
+
 const commandExists = (command) => {
-  const result = spawnSync(command, ["--version"], {
+  const result = spawnTool(command, ["--version"], {
     encoding: "utf8",
     stdio: "ignore",
   });
@@ -1586,33 +1599,33 @@ const doctor = ({ dryRun }) => {
   // lit-pptx and lit-docx install their pinned runtime on first use; the doctor reports
   // readiness and the optional host tools but never installs and never fails on them.
   const officeRuntime = spawnSync(process.execPath, [join(pluginPath, "lib", "office-runtime.mjs"), "status"], { encoding: "utf8" });
-  for (const line of `${officeRuntime.stdout || officeRuntime.stderr || ""}`.trim().split("\n").filter(Boolean)) {
+  for (const line of `${officeRuntime.stdout || officeRuntime.stderr || ""}`.trim().split(/\r?\n/u).filter(Boolean)) {
     process.stdout.write(`OFFICE_RUNTIME: ${line}\n`);
   }
   writeAutoHandoffDoctorLines();
   process.stdout.write(`${iconFontDoctorLine()}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
 
-  // lit-typographic-motion: the five readiness probes, every run. Read-only and never fatal; a
+  // lit-typographic-motion: the six readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.
   const motionDoctor = spawnSync(process.execPath, [join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")], { encoding: "utf8", timeout: 120000 });
-  const motionLines = `${motionDoctor.stdout || ""}`.trim().split("\n").filter(Boolean);
+  const motionLines = `${motionDoctor.stdout || ""}`.trim().split(/\r?\n/u).filter(Boolean);
   if (motionLines.length) for (const line of motionLines) process.stdout.write(`${line}\n`);
-  else process.stdout.write(`MOTION_DOCTOR_WARNING: probes did not run (${`${motionDoctor.stderr || motionDoctor.error?.message || "no output"}`.trim().split("\n")[0]})\n`);
+  else process.stdout.write(`MOTION_DOCTOR_WARNING: probes did not run (${`${motionDoctor.stderr || motionDoctor.error?.message || "no output"}`.trim().split(/\r?\n/u)[0]})\n`);
 
-  const claude = spawnSync("claude", ["--version"], { encoding: "utf8" });
+  const claude = spawnTool("claude", ["--version"], { encoding: "utf8" });
   if (claude.error) {
-    process.stdout.write("CLAUDE_WARNING: claude executable not found in PATH\n");
+    process.stdout.write(`CLAUDE_WARNING: ${claude.error.code === "ENOENT" ? "claude executable not found in PATH" : claude.error.message}\n`);
   } else {
     process.stdout.write(`CLAUDE_VERSION: ${(claude.stdout || claude.stderr).trim()}\n`);
-    const validation = spawnSync("claude", ["plugin", "validate", pluginPath], { encoding: "utf8" });
+    const validation = spawnTool("claude", ["plugin", "validate", pluginPath], { encoding: "utf8" });
     if (validation.status !== 0) {
       if (validation.stdout) process.stderr.write(validation.stdout);
       if (validation.stderr) process.stderr.write(validation.stderr);
       fail("Claude plugin validation failed.");
     }
     process.stdout.write("CLAUDE_PLUGIN_VALIDATE_PASS\n");
-    const details = spawnSync("claude", ["plugin", "details", pluginKey], { encoding: "utf8" });
+    const details = spawnTool("claude", ["plugin", "details", pluginKey], { encoding: "utf8" });
     if (details.status !== 0) {
       if (details.stdout) process.stderr.write(details.stdout);
       if (details.stderr) process.stderr.write(details.stderr);
@@ -1692,7 +1705,7 @@ const runClaude = ({ dryRun, rest }) => {
     return;
   }
 
-  const result = spawnSync(command[0], command.slice(1), { stdio: "inherit" });
+  const result = spawnTool(command[0], command.slice(1), { stdio: "inherit" });
   if (result.error) fail(`failed to start claude: ${result.error.message}`);
   exitAfterFlush(result.status ?? 1);
 };

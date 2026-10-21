@@ -253,7 +253,7 @@ test("README documents local Claude plugin usage and safety boundaries", async (
   const landing = await text("README.md");
   const readme = await userDocs("en");
 
-  assertCoverPresentation(landing, "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
+  assertCoverPresentation(landing, "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
   assert.match(landing, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(landing, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm version"/u);
   for (const page of ["docs/guide.md", "docs/skills.md", "docs/development.md"]) {
@@ -316,8 +316,8 @@ test("both READMEs give a copyable install prompt for coding agents that asks be
 
 test("English and Korean route tables retain browser-drive and omit removed skill learning", async () => {
   for (const [label, path, heading, inventory] of [
-    ["English guide", "docs/guide.md", "## What to type", /package's 35 skills/u],
-    ["Korean guide", "docs/guide_ko-KR.md", "## 무엇을 입력하나요", /35개 skill/u],
+    ["English guide", "docs/guide.md", "## What to type", /package's 36 skills/u],
+    ["Korean guide", "docs/guide_ko-KR.md", "## 무엇을 입력하나요", /36개 skill/u],
   ]) {
     const readme = await text(path);
     const routeTable = readme.match(new RegExp(`${escapeRegExp(heading)}[\\s\\S]*?(?=\\n## |$)`, "u"))?.[0] ?? "";
@@ -434,7 +434,7 @@ test("Korean README mirrors install, usage, and release-boundary guidance", asyn
   const candidateVersion = JSON.parse(await text("package.json")).version;
   const candidatePattern = escapeRegExp(candidateVersion);
 
-  assertCoverPresentation(landingKo, "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
+  assertCoverPresentation(landingKo, "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
   assert.match(landingKo, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(landingKo, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm 버전"/u);
   for (const page of ["docs/guide_ko-KR.md", "docs/skills_ko-KR.md", "docs/development_ko-KR.md"]) {
@@ -930,12 +930,12 @@ test("README cover matches the accepted Ignition vector master and raster fallba
   assert.doesNotMatch(svg, /<(?:image|text|script|foreignObject|style)\b|\b(?:href|on\w+)\s*=|url\s*\(|data:/iu);
   for (const color of ["#080D14", "#FF6337", "#D7F75B", "#F2EFDF"]) assert.ok(svg.includes(color));
   const cover = await readFile(new URL("docs/assets/cover.webp", root));
-  assert.equal(createHash("sha256").update(cover).digest("hex"), "90c14b40d8c7ae774763ce4c3689edad6abf6697e7236cafec7987269cc5e5f4");
+  assert.equal(createHash("sha256").update(cover).digest("hex"), "116cd4eeb43b376b4502fc8f1768ea8dcc3252cdb5198e56ee8508d55170e75c");
   assert.equal(cover.subarray(0, 4).toString(), "RIFF");
   assert.equal(cover.subarray(8, 12).toString(), "WEBP");
   assert.ok(cover.length > 0, "cover.webp must contain the accepted raster bytes");
-  const englishAlt = "LitFamily motion cover: five armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.";
-  const koreanAlt = "LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상";
+  const englishAlt = "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.";
+  const koreanAlt = "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상";
   for (const [name, alt, base] of [
     ["README.md", englishAlt, githubAssetBase],
     ["README_ko-KR.md", koreanAlt, githubAssetBase],

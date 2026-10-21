@@ -87,6 +87,11 @@ Use this skill when the user asks to execute a plan file, especially
 `$start-work plans/<slug>.md`. The plan file and ledger are the source of truth,
 not memory.
 
+litgoal sets and keeps the finish line; lit-loop and start-work run toward it.
+When a litgoal exists, the plan's tasks are the steps toward its criteria; the
+litgoal state stays the record of whether the finish line has been reached, and
+the plan ledger records each task.
+
 This skill is execution-only for an approved plan. If no approved plan is
 visible, stop with `BLOCKED:` and ask for the plan file or explicit approval.
 Do not redesign, rescope, or replace the plan unless fresh evidence proves a

@@ -174,7 +174,7 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
     "docs/assets/litfamily-machines.png",
     ...README_SKILL_IMAGE_PATHS,
   ]);
-  assert.equal(README_SKILL_IMAGE_PATHS.length, 36, "one skill-table snapshot per README row");
+  assert.equal(README_SKILL_IMAGE_PATHS.length, 37, "one skill-table snapshot per README row");
   for (const requiredLanding of landingAssets) {
     assert.ok(files.includes(requiredLanding), `package should include ${requiredLanding}`);
   }

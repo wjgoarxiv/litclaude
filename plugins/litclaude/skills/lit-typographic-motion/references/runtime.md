@@ -10,7 +10,7 @@
 | Pretendard Regular / Bold | `../lit-pptx/fonts/pretendard/` (reused by path, hash-checked) | the package |
 | librosa venv (Tier 2, optional) | `<cache>/audio-<digest>/` from `engine/audio/requirements.lock` with `pip install --require-hashes --only-binary=:all:` | `litclaude-ai motion-runtime install --audio` |
 | Word-timing models (Tier 3, optional) | not in this release | `--word-timing` prints the size and pins, then stops |
-| Chrome, ffmpeg, img2webp | host tools, never bundled | the user |
+| Chrome, ffmpeg, img2webp and dwebp (libwebp), gifski (optional cover fallback) | host tools, never bundled | the user |
 
 `<cache>` is `$LITCLAUDE_MOTION_RUNTIME`, otherwise `${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime`.
 
@@ -23,9 +23,10 @@ there the explicit command is the pre-warm. A render session only reads the cach
 npm, pip or a download, because a sandboxed session usually has no network or no write access
 outside the workspace, and a half-finished install would look like a broken engine.
 
-`litclaude-ai doctor` (and `npm run doctor` in a checkout) prints the five probes: Chrome,
+`litclaude-ai doctor` (and `npm run doctor` in a checkout) prints the six probes: Chrome,
 ffmpeg with the preview encoder rung, the WebGL2 renderer from a real headless probe, the software-GL
-or unknown-renderer warning, and the pre-warm state naming anything missing and the fix command.
+or unknown-renderer warning, the pre-warm state naming anything missing and the fix command, and
+the cover encoder (img2webp and dwebp, or the gifski fallback) that cover mode needs.
 `litclaude-ai motion-runtime status` prints the pre-warm state alone.
 
 ## Exit codes

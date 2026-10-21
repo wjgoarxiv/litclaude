@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 다섯 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상" /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상" /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
@@ -235,7 +235,7 @@ doctor가 지금 적용 중인 설정을 알려 줍니다.
 
 ## 무엇을 할 수 있나요
 
-LitClaude에는 직접 시작하는 스킬 35개와 알아서 도는 스킬 3개, 슬래시 명령 16개, 에이전트
+LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개, 슬래시 명령 17개, 에이전트
 11개가 들어 있습니다. 평소에는 그중 몇 개만 쓰게 됩니다.
 
 ### 작업 루프
@@ -260,8 +260,10 @@ lit plan 보고서 페이지에 CSV 내보내기를 테스트와 함께 추가�
 
 ### 병합 전에 한 번 더 보기
 
-`lit review`는 같은 변경과 그 근거를 서로 독립된 다섯 갈래의 검토로 읽습니다. 찾은 문제를
-먼저 보고하고, 고치는 일은 따로 합니다.
+`lit review`는 있는 것에 맞춰 모드를 고릅니다. 아직 시작하지 않은 계획은 계획 검토, 끝난 변경은 작업
+검토입니다. 작업 검토는 같은 변경과 그 근거를 서로 독립된 다섯 갈래의 검토로 읽습니다. 찾은 문제를
+먼저 보고하고, 고치는 일은 따로 합니다. `lit review plan`이나 `lit review work`로 모드를 직접 고를
+수 있습니다.
 
 ```text
 lit review 이 브랜치의 변경 사항
@@ -343,7 +345,7 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 
 - [안내서](./docs/guide_ko-KR.md): 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동
   핸드오프, 발표자료와 문서, 상태 줄, 안전, Claude Code 연결 구조를 자세히 다룹니다.
-- [전체 스킬](./docs/skills_ko-KR.md): 스킬 35개와 자동 점검을 한 줄씩 그림과 함께 보여 줍니다.
+- [전체 스킬](./docs/skills_ko-KR.md): 스킬 36개와 자동 점검을 한 줄씩 그림과 함께 보여 줍니다.
 - [hook](./docs/hooks.md), [에이전트](./docs/agents.md), [개인정보와 네트워크](./docs/privacy.md),
   [이전과 소유권 충돌](./docs/migration.md),
   [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration), [Claude Code `/goal` 지원 범위](./docs/native-goal-surface.md),
@@ -354,7 +356,7 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 
 ## LITFAMILY
 
-표지의 아머드 로봇 다섯 대는 LitFamily 제품 다섯 개를 뜻합니다. 각 제품은 자기 호스트에서 따로
+표지의 아머드 로봇 일곱 대는 LitFamily 제품 일곱 개를 뜻합니다. 각 제품은 자기 호스트에서 따로
 동작하니, 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이고,
 [Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드 영상입니다.
 실제 Claude Code 세션은 이 페이지 위쪽의 데모 영상에서 볼 수 있습니다.
@@ -379,7 +381,7 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
  ▐█████  ▗▟█████▀▘       ▄▄▄▄▄     ▗▖               ──────────────
  ▐█████ ▐█████▀          █████     ▐▛▀              hermes · codex
  ▐█████ ▐███▀            █████                      opencode · grok
- ▐█████ ▐█▀              █████
+ ▐█████ ▐█▀              █████                      muse · gravity
  ▐█████ ▝                █████
  ▐█████▄▄▄▄▄▄▄▖          █████
  ▐███████████▛           █████

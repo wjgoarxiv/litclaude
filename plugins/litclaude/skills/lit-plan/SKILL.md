@@ -524,7 +524,8 @@ them in the plan.
 ## Planner Restraints
 
 Do not edit production files. Do not mark tasks complete. Do not publish. Do
-not open-endedly brainstorm when the user asked for an executable plan. If the
+not open-endedly brainstorm when the user asked for an executable plan; open
+ideation belongs to `lit-brainstorm`. If the
 task is too vague, ask the smallest clarifying question or write assumptions
 explicitly.
 

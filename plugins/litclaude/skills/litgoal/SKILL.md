@@ -1,6 +1,6 @@
 ---
 name: litgoal
-description: Durable LitClaude goal orchestration with CLI-backed state, explicit success criteria, evidence ledgers, checkpoints, steering, quality gates, and cleanup receipts.
+description: Set and keep the finish line. Durable LitClaude goal orchestration with CLI-backed state, explicit success criteria, evidence ledgers, checkpoints, steering, quality gates, and cleanup receipts; lit-loop and start-work run toward the goal it holds.
 ---
 
 ## #contract.activation
@@ -81,6 +81,14 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Do not claim tests alone prove changes to hooks, commands, package payload, UI, or Manual-QA surfaces.
 
 # Litgoal
+
+litgoal sets and keeps the finish line; lit-loop and start-work run toward it.
+The goal is the destination and the criteria are how anyone, in any later session,
+can tell it has been reached. litgoal does not do the work itself: `lit-loop` runs
+the evidence loop toward the goal and records each criterion in this ledger, and
+`start-work` runs an approved plan toward it and keeps its own plan ledger beside
+it. The goal lives on disk, so it outlives a turn, a compaction or a change of agent. Route it with `lit goal <outcome>`, `litgoal`, `$litgoal`
+or `/litclaude:litgoal`; the route name is the skill name.
 
 Bind exactly one outcome-shaped objective at a time, then decompose it into
 checkable criteria. Each criterion needs a scenario, a real surface, and

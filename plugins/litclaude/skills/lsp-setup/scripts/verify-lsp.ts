@@ -16,13 +16,51 @@
 
 import { spawn } from "node:child_process"
 import { existsSync, readFileSync, statSync } from "node:fs"
-import { extname, isAbsolute, resolve } from "node:path"
-import { pathToFileURL } from "node:url"
+import { extname, isAbsolute, resolve, win32 } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import process from "node:process"
 
 import { LANGUAGES, LSP_CONFIG_FILE } from "./lsp-server-table.ts"
 
 const DEFAULT_TIMEOUT_MS = 60_000
+
+const NPM_SHIM_TARGET = /"%~?dp0%?\\([^"\r\n]+)"\s+%\*/gu
+
+interface ShellFreeHost {
+	readonly platform?: string
+	readonly env?: Record<string, string | undefined>
+	readonly execPath?: string
+	readonly exists?: (file: string) => boolean
+	readonly read?: (file: string) => string
+}
+
+// Language servers installed with npm are .cmd shims on Windows, which Node will not spawn without
+// a shell (CVE-2024-27980). The server is found with PATHEXT (never the extensionless sh script npm
+// writes beside the shim) and a shim is unwrapped to the script it launches, run with this Node, or
+// to its binary, so no argument passes through cmd.exe. A .cmd that is not an npm shim throws.
+export function shellFreeCommand(name: string, args: readonly string[], host: ShellFreeHost = {}): { command: string; args: string[] } {
+	const platform = host.platform ?? process.platform
+	if (platform !== "win32") return { command: name, args: [...args] }
+	const env = host.env ?? process.env
+	const exists = host.exists ?? existsSync
+	const read = host.read ?? ((file: string) => readFileSync(file, "utf8"))
+	const extensions = (env["PATHEXT"] || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+	const names = extensions.some((ext) => name.toLowerCase().endsWith(ext.toLowerCase())) ? [name] : extensions.map((ext) => name + ext)
+	const dirs = /[\\/]/u.test(name) ? [""] : (env["PATH"] ?? env["Path"] ?? "").split(";").filter(Boolean)
+	let found: string | undefined
+	for (const dir of dirs) {
+		found = names.map((file) => (dir ? win32.join(dir, file) : file)).find((file) => exists(file))
+		if (found) break
+	}
+	if (!found) return { command: name, args: [...args] }
+	if (!/\.(?:cmd|bat)$/iu.test(found)) return { command: found, args: [...args] }
+	const target = [...read(found).matchAll(NPM_SHIM_TARGET)].at(-1)?.[1]
+	if (!target) throw new Error(`${found} is not an npm shim and cannot run without a shell; put the program's .exe on PATH instead`)
+	const resolved = win32.join(win32.dirname(found), target)
+	return /\.[cm]?js$/iu.test(resolved)
+		? { command: host.execPath ?? process.execPath, args: [resolved, ...args] }
+		: { command: resolved, args: [...args] }
+}
 
 interface ResolvedServer {
 	readonly language: string
@@ -135,9 +173,11 @@ async function run(filePath: string, timeoutMs: number, configPath: string): Pro
 	return await new Promise<number>((resolveResult) => {
 		let child
 		try {
-			child = spawn(bin, binArgs, { stdio: ["pipe", "pipe", "pipe"] })
-		} catch {
-			process.stdout.write(`FAIL ${absolute}: language server not installed (${bin})\n`)
+			const invocation = shellFreeCommand(bin, binArgs)
+			child = spawn(invocation.command, invocation.args, { stdio: ["pipe", "pipe", "pipe"] })
+		} catch (error) {
+			const why = error instanceof Error && /not an npm shim/u.test(error.message) ? error.message : `language server not installed (${bin})`
+			process.stdout.write(`FAIL ${absolute}: ${why}\n`)
 			resolveResult(1)
 			return
 		}
@@ -239,4 +279,5 @@ async function main(): Promise<void> {
 	process.exit(code)
 }
 
-await main()
+// Run only when invoked directly, so the resolver above can be imported and tested.
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()

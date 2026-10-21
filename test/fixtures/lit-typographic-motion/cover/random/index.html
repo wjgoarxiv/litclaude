@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="/lit/loop-kit.js"></script>
+<style>html, body { margin: 0; width: 1200px; height: 600px; overflow: hidden; background: #000; }</style>
+<body><div id="d" style="position:absolute;width:40px;height:40px;background:#fff"></div>
+<script>
+// Reads unseeded entropy per frame: a cover page may not.
+window.renderFrame = (t) => { document.getElementById("d").style.left = `${Math.random() * 1100}px`; };
+window.ready = true;
+</script>
+</body>

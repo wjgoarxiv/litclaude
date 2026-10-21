@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { shellFreeCommand } from '../../../lib/npm-invocation.mjs';
 
 const MIN_AGENT_BROWSER=[0,38,1];
 const MIN_CHROME_MAJOR=154;
@@ -15,13 +16,20 @@ function versionAtLeast(found,minimum){
   return true;
 }
 
+// agent-browser is an npm .cmd shim on Windows; it runs unwrapped, never through cmd.exe.
+export function runAgentBrowser(args,options={}){
+  let invocation;
+  try{invocation=shellFreeCommand('agent-browser',args);}catch(error){return {status:null,stdout:'',stderr:error.message,error};}
+  return spawnSync(invocation.command,invocation.args,{encoding:'utf8',...options});
+}
+
 function probeRenderer(){
-  const cli=spawnSync('agent-browser',['--version'],{encoding:'utf8'});
+  const cli=runAgentBrowser(['--version']);
   const cliText=(cli.stdout||cli.stderr||'').trim();
   const version=cli.status===0?cliText.match(/(\d+)\.(\d+)\.(\d+)/)?.slice(1).map(Number):null;
   const agentBrowser={found:Boolean(version),ok:Boolean(version)&&versionAtLeast(version,MIN_AGENT_BROWSER),detail:cli.error?'agent-browser not found on PATH':cliText||'agent-browser not found on PATH'};
   if(!agentBrowser.ok)return {ok:false,agentBrowser,chrome:{ok:false,detail:'not checked without agent-browser '+MIN_AGENT_BROWSER.join('.')+'+'},setup:SETUP_STEPS};
-  const doctor=spawnSync('agent-browser',['doctor','--json'],{encoding:'utf8'});
+  const doctor=runAgentBrowser(['doctor','--json']);
   let report=null;
   try{report=JSON.parse(doctor.stdout);}catch{}
   const message=report?.checks?.find((check)=>check.id==='chrome.installed')?.message||'';

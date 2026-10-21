@@ -179,8 +179,8 @@ those are owned by Claude Code, not by this plugin.
 
 The current workflow vocabulary is the lit family: `lit`, `litwork`, `lit-loop`,
 `lit-plan`, and `litgoal`. The `lit` keyword fires `lit-loop` via the hook.
-Typing `litwork` also fires it. The bare `lit` trigger includes a soft-confirm
-step so a stray English "lit" is recoverable.
+Typing `litwork` also fires it. A `lit` with no task text and nothing active
+includes a soft-confirm step so a stray English "lit" is recoverable.
 
 ## One-release rename aliases
 

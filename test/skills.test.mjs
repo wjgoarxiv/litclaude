@@ -64,6 +64,7 @@ const expectedSkills = [
   "lit-recap",
   "lit-typographic-motion",
   "lit-comprehend",
+  "lit-brainstorm",
   "lit-handoff",
   "lit-humanizer",
   "lit-scientific-visualization",

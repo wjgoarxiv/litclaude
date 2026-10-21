@@ -89,6 +89,10 @@ Run it as a requirements mode, not an implementation mode:
 - Crystallize a spec before handing off to `/litclaude:lit-plan`,
   `/litclaude:lit-loop`, or `/litclaude:start-work`.
 
+If the user wants open-ended options rather than one spec (brainstorming, naming,
+"what could we do"), point them to `/litclaude:lit-brainstorm`; its pick can come
+back here when it is still vague.
+
 If the user has already supplied concrete files, acceptance criteria, and
 non-goals, state that the interview can be skipped and hand the brief to the
 appropriate planning or execution command.
