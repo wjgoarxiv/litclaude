@@ -1,5 +1,57 @@
 # Changelog
 
+## 1.0.36 - 2026-10-22
+
+- Repeating `lit` during active work now continues the current workflow. The new `lit-brainstorm` skill helps shape an idea before implementation, while litgoal and review-work give clearer guidance for setting goals and reviewing completed work. Start-work receives the full request.
+- The LIT card now shows status-change toasts, keeps running review lanes visible, and gives the active border a little more light.
+- Motion covers can now loop seamlessly with any machine as the hero. Checks inspect the decoded file and catch cover defects; motion audio setup picks a supported Python interpreter. The painted-light recipe keeps its own five-panel base.
+- Windows process launches now handle npm and Claude, browser and language-server helpers safely, preserve failure exit codes, and find `ffmpeg.exe`. Office tools select a supported Python, and cover contract errors stop promptly.
+- The README artwork and LIT mark now show all seven LitFamily products. The humanizer regression cases also cover seven more mutation-checked pledge examples.
+
+### Previously undated entries: output styles and lit-comprehend
+
+- Add output styles enrollment to the installer: a `chooseOutputStyle` prompt
+  (mirroring `chooseHudAccent`) lets users pick `off`, `asd-ste100`,
+  `asd-ste100-ko`, `eli5`, or `eli5-ko` on every install run, defaulted from
+  the prior choice. The installer writes `settings.outputStyle` clobber-safely —
+  skipping the write and printing a note when the field was changed outside
+  LitClaude — and tracks `outputStyleChoice`/`outputStyleWrittenName` under
+  the `litclaude` settings key for idempotent reinstall defaulting.
+
+- Add the `lit-comprehend` skill, the `/litclaude:lit-comprehend` command, and the
+  `lit-comprehend` / `comprehend` / `lit comprehend` / `$lit-comprehend` /
+  `$comprehend` hook routes. The trigger surface is deliberately wider than the
+  skill id — bare `comprehend` is what users type, the same reasoning that keeps
+  bare `recap` routed to `lit-recap`.
+- Gate execution instead of narrowing activation: being invoked is not permission
+  to build. When the invocation names the file or commit set directly (a path, a
+  git range, a branch, a PR) the skill proceeds; otherwise it proposes the scope,
+  its countable size, what it excluded, and the rough cost, offers a one-sentence
+  answer when the request deserves one, and waits. The proposal is derived from
+  `git status` / `git diff --stat` / durable state, never by reading the tree — a
+  gate that costs as much as the thing it gates is not a gate.
+- Fix a routing defect found while wiring this: `lit comprehend` and
+  `litwork comprehend` matched the bare `lit` / `litwork` tokens first and
+  activated lit-loop, injecting the wrong skill body. The two-token phrase now
+  resolves ahead of the leading-bare check, with a regression test.
+- Where `lit-recap` answers *what happened*, `lit-comprehend` builds the artifact
+  a reader needs to reason about the work: it anchors on what they already knew
+  and explains only the delta, walks the change in conceptual rather than file
+  order, ships an interactive micro-world, discloses what is **not** verified,
+  and closes with a quiz framed as a speed regulator rather than a grade.
+- Bundle `assets/explainer-scaffold.html` so the CSS, diagram components, and
+  quiz engine are written once instead of per invocation, plus
+  `references/artifact-template.md` and `references/micro-worlds.md`.
+- Add `scripts/verify-explainer.mjs` as a real verification gate. It fails a
+  phantom code quote, a quote attributed to a missing file, an external resource
+  reference, a missing canonical section, an artifact written inside the
+  worktree, a quiz option without feedback or with a positional tell, collapsed
+  code blocks, and ASCII-art diagrams — the defect classes that leave a reader
+  confidently wrong rather than merely uninformed.
+- Pin the whole `skills/lit-comprehend` tree in the canonical resource manifest so
+  the installer, install-time integrity gate, `doctor`, and package payload
+  guard all cover the bundled scaffold and verifier.
+
 ## 1.0.35 - 2026-10-19
 
 - The lit-humanizer check now catches a block that keeps saying what something is not. It counts plain negations such as `아님` or `is not` and reworded ones such as `~로 볼 수 없음`, `~와는 다르다`, `~로 읽으면 안 된다` or `does not mean`, per paragraph, list block or table column. Two Korean ones in one block, or three in any language, make the pre-write guard refuse the write and ask for wording that says what the thing is first and gives the caveat once; two in mixed languages stay a warning. Short table cells such as a `해당 아님` status, code, inline code and quotations are left out. The skill and its always-on rule explain positive-first wording with an example.
@@ -481,50 +533,6 @@
   `multi_panel.pdf`), and figures are written through Bash rather than the file
   tools, so the harness read-before-write guard never sees them — copying an
   example literally could clobber a file in the user's working directory.
-
-## Unreleased — output styles enrollment and `lit-comprehend` explainer artifacts
-
-- Add output styles enrollment to the installer: a `chooseOutputStyle` prompt
-  (mirroring `chooseHudAccent`) lets users pick `off`, `asd-ste100`,
-  `asd-ste100-ko`, `eli5`, or `eli5-ko` on every install run, defaulted from
-  the prior choice. The installer writes `settings.outputStyle` clobber-safely —
-  skipping the write and printing a note when the field was changed outside
-  LitClaude — and tracks `outputStyleChoice`/`outputStyleWrittenName` under
-  the `litclaude` settings key for idempotent reinstall defaulting.
-
-- Add the `lit-comprehend` skill, the `/litclaude:lit-comprehend` command, and the
-  `lit-comprehend` / `comprehend` / `lit comprehend` / `$lit-comprehend` /
-  `$comprehend` hook routes. The trigger surface is deliberately wider than the
-  skill id — bare `comprehend` is what users type, the same reasoning that keeps
-  bare `recap` routed to `lit-recap`.
-- Gate execution instead of narrowing activation: being invoked is not permission
-  to build. When the invocation names the file or commit set directly (a path, a
-  git range, a branch, a PR) the skill proceeds; otherwise it proposes the scope,
-  its countable size, what it excluded, and the rough cost, offers a one-sentence
-  answer when the request deserves one, and waits. The proposal is derived from
-  `git status` / `git diff --stat` / durable state, never by reading the tree — a
-  gate that costs as much as the thing it gates is not a gate.
-- Fix a routing defect found while wiring this: `lit comprehend` and
-  `litwork comprehend` matched the bare `lit` / `litwork` tokens first and
-  activated lit-loop, injecting the wrong skill body. The two-token phrase now
-  resolves ahead of the leading-bare check, with a regression test.
-- Where `lit-recap` answers *what happened*, `lit-comprehend` builds the artifact
-  a reader needs to reason about the work: it anchors on what they already knew
-  and explains only the delta, walks the change in conceptual rather than file
-  order, ships an interactive micro-world, discloses what is **not** verified,
-  and closes with a quiz framed as a speed regulator rather than a grade.
-- Bundle `assets/explainer-scaffold.html` so the CSS, diagram components, and
-  quiz engine are written once instead of per invocation, plus
-  `references/artifact-template.md` and `references/micro-worlds.md`.
-- Add `scripts/verify-explainer.mjs` as a real verification gate. It fails a
-  phantom code quote, a quote attributed to a missing file, an external resource
-  reference, a missing canonical section, an artifact written inside the
-  worktree, a quiz option without feedback or with a positional tell, collapsed
-  code blocks, and ASCII-art diagrams — the defect classes that leave a reader
-  confidently wrong rather than merely uninformed.
-- Pin the whole `skills/lit-comprehend` tree in the canonical resource manifest so
-  the installer, install-time integrity gate, `doctor`, and package payload
-  guard all cover the bundled scaffold and verifier.
 
 ## 0.3.37 - 2026-07-29 — canonical frontend corpus and workflow families
 
