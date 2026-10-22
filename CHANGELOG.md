@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.37 - 2026-10-23
+
+- The plugin now ships a listing icon at `plugins/litclaude/.claude-plugin/icon.png`.
+
 ## 1.0.36 - 2026-10-22
 
 - Repeating `lit` during active work now continues the current workflow. The new `lit-brainstorm` skill helps shape an idea before implementation, while litgoal and review-work give clearer guidance for setting goals and reviewing completed work. Start-work receives the full request.
