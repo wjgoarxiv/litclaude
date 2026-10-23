@@ -882,7 +882,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["skills/readme-studio/templates/cover-source.json", "182051737e4cda9002360316bb2c01b500ecc20c27953a2d332d908f044f5cd7"],
     ["skills/readme-studio/templates/hyperframes-cover/index.html", "edaee52e01cc7d90524b43e3da80b4bc6514fef1d17b4317cbf15ed5e36a5c67"],
     ["skills/readme-studio/templates/hyperframes-cover/index.motion.json", "bef879ce5abe7810d73cc733ab635884ec807eccd7bc5e1c9bc9900049187249"],
-    ["skills/readme-studio/templates/hyperframes-cover/package-lock.json", "5adacd09e4608c8c3917ca0245052e4d3abae3a566ebe07a2fdad593c67cb91c"],
+    ["skills/readme-studio/templates/hyperframes-cover/package-lock.json", "6f6aad0d9676f04a411ee5484d3d7ef5e6ca8187cd84fa614c77404db996e879"],
     ["skills/readme-studio/templates/hyperframes-cover/package.json", "0993c6f04892f5a318cc99030de653b7c68d3ea6789c69b30b6a2ae80e4120f0"],
     ["skills/readme-studio/templates/readme-cover-section.md", "1dc4c536f65d3437f12e09a76170a8dc76557225587c7453631a06604a21573d"],
     ["skills/readme-studio/templates/readme-facts.json", "fb95b8aece0e8591726d3a36e25cc66712b0c6e57835c848db0f07b745e73205"],
