@@ -886,7 +886,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["skills/readme-studio/templates/hyperframes-cover/package.json", "0993c6f04892f5a318cc99030de653b7c68d3ea6789c69b30b6a2ae80e4120f0"],
     ["skills/readme-studio/templates/readme-cover-section.md", "1dc4c536f65d3437f12e09a76170a8dc76557225587c7453631a06604a21573d"],
     ["skills/readme-studio/templates/readme-facts.json", "fb95b8aece0e8591726d3a36e25cc66712b0c6e57835c848db0f07b745e73205"],
-    ["skills/readme-studio/templates/remotion-cover/package-lock.json", "422af74482c6c36e5bfaa86c2fe6a78e7ff54d27d3119f9c462685333a449857"],
+    ["skills/readme-studio/templates/remotion-cover/package-lock.json", "babae71df008d6ea7db9d958eb728856a43d65dbab5f423b22f323045cd40db6"],
     ["skills/readme-studio/templates/remotion-cover/package.json", "7921a415cf96343b46c9a2a3bea9160ecc807710fb6a34ba227704eff7d83887"],
     ["skills/readme-studio/templates/remotion-cover/src/index.tsx", "81cf3edd996a98ddca46465d4bc84ca0203ecd3bdce1736bf1dc3d9f2bc15af9"],
     ["skills/readme-studio/templates/typography/package-lock.json", "1d6dc1ae0d06d0a3a5e1b2b45bea1d40be7497f1f2fb856eefd33cc3649af5bd"],
