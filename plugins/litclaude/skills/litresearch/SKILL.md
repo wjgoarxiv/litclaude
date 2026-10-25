@@ -629,6 +629,11 @@ implementation begins.
 
 ## Research-to-Plan Handoff
 
+When the research exists to port someone else's technique into a skill or system,
+hand the sources to `lit-hijack`: it captures them with provenance, gates the
+licence, writes a source-free spec and proves the port on the real surface.
+litresearch finds and verifies the sources; the port is `lit-hijack`'s job.
+
 When litresearch feeds lit-plan or start-work, the handoff should be crisp:
 objective, confirmed facts, rejected assumptions, file surfaces, exact tests,
 scanner or package gates, and risks. Do not hand over a pile of links without

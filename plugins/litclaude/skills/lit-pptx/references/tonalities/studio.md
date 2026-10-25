@@ -1,7 +1,7 @@
 # Studio
 
 Studio treats a deck like a magazine spread. The twelve-column grid shows through as thin column
-lines, titles often stand in a side rail or open the page at title size, real figures sit in labelled
+lines, titles carry a bar in the left margin or open the page at display size, real figures sit in labelled
 panels with their basis, and pages split unevenly so that one side clearly leads. A dark ochre accent marks the single
 thing to look at; everything else is black, grey and white.
 
@@ -34,7 +34,7 @@ Read from the pack file; these are the values the engine draws.
 | positive / negative | #1E7A3F / #B3261E |
 | series | #8A5A00, #141414, #525252, #3B5F7F |
 | faces | Pretendard Bold for display, title and numerals, Pretendard Regular for body and labels; `faces: a2z` swaps to A2Z Black display and numerals, A2Z Medium titles |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / not allowed, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 8 |
 | radius / edge | 0 / fill |
 | table | open style, no header fill, a 2 pt ink rule under the header, no row rules, bold totals |
@@ -46,9 +46,8 @@ title treatments, which is the point of this direction.
 ## Treatments by slide role
 
 Content, data with a takeaway, references, definitions and sequences take `side-rail`; data
-slides take `top-plain-large`; a pull quote takes `statement`; image slides take `side-rail`, the
-picture across columns 5-12 and its facts in the rail under the title (an asymmetric split, where
-Atlas would set the title under the picture); the `image-full` family takes `overlay`. For each slide the engine tries every
+slides take `top-plain-large`; a pull quote takes `statement`; image slides take `side-rail`, with the
+picture and its facts split unevenly in the body under the title; the `image-full` family takes `overlay`. For each slide the engine tries every
 treatment its family
 allows and keeps the role default when the body fills, otherwise the one that leaves the least empty
 band, while keeping any single treatment under about a third of the deck. A line such as
@@ -83,8 +82,8 @@ row's amount or date in line with its row, and the next step runs under the rows
 - Use a numeral only for a real figure (a count, a share, a year), with its label and basis.
 - Title each slide with its topic; the claim opens the body beside the picture.
 - Alternate splits: after a side-rail slide, follow with a top title or a full-bleed picture.
-- Keep titles short; a side-rail title has about eight Korean glyphs or sixteen Latin characters per
-  line, and a long one overflows its frame.
+- Keep titles short; a title has about 29 Korean glyphs per line at reading size and two lines at
+  most, and a longer one moves the slide to another treatment.
 
 ## Avoid
 

@@ -1,14 +1,15 @@
 # LitFamily diagram style
 
-This guide sets a quiet editorial skin for diagrams that must explain structure before decoration. Use it as the shared default; replace the accent only when the user supplies a brand palette.
+This guide sets a rich editorial skin: a diagram that rewards a second look, with zones, sub-parts, labelled relationships and a layered palette, while every safety floor below stays fixed. Use it as the shared default. A minimal, one-accent diagram is the opt-in variant, used only when the user asks for minimal, calm, quiet or sparse output; replace the palette only when the user supplies a brand source.
 
 ## Composition
 
 - Start with the reader's question. Group related elements and set their reading order before drawing connectors or choosing colors.
-- Delete repeated, implied, decorative, or low-value content. Merge nodes that always move together. Do not draw a connector when position already makes the relationship clear.
-- Aim for density around 4 on a 10-point scale. Keep a standard overview to roughly 9 nodes and 12 connectors. If more detail is load-bearing, zone the layout or split it into an overview and detail views.
-- Use empty space to establish groups. Avoid card grids, generic rounded boxes, shadows, glow, gradient wash, ornamental dots, fake precision, and floating legends.
-- Use one or two focal accent targets. All other nodes use the neutral ramp. Color never carries state or category by itself.
+- Show the system the way its owners know it. Keep the sub-components, protocols, data stores, queues, owners and boundary names that make the picture specific; merge only nodes that always move together, and drop only content that repeats something already on the canvas.
+- Aim for density around 8 on a 10-point scale. A standard overview carries about 14–24 nodes and as many connectors as the real relationships need, arranged in named zones or tiers. When the content outgrows one view, enlarge the canvas preset or zone the layout; split into an overview and detail views only when a label would otherwise fall below its floor.
+- Layer the composition: tinted zone bands behind groups, a sublabel or technical token under each node name, small primitive icons from `primitive-icons.md` beside names, numbered step badges on the main path, a legend that maps every accent family to its subject role in the subject's words ("payment path", not "accent" or "focal"), and one or two annotation callouts on the decisive edge or node. Every mark still names something real; avoid ornamental dots, fake precision, and glow or blur that lowers text contrast.
+- Use a palette of 3–5 accent families, each bound to one role: a zone, a category of node, the critical path, a risk or a state. Neutrals carry the rest. Color never carries state or category by itself: pair each family with a label, legend entry, line style or icon.
+- Minimal is opt-in. When the user asks for minimal, calm, quiet or sparse output, fall back to a 4/10 density, one or two focal accents and plain boxes; the floors and checks do not change.
 
 ## Color roles
 
@@ -20,10 +21,18 @@ This guide sets a quiet editorial skin for diagrams that must explain structure 
 | muted | #536268 | #BAC4C1 | Secondary labels and connectors |
 | quiet | #748084 | #8A9998 | Tertiary labels |
 | rule | #CCD2CE | #3B4A4D | Dividers and boundaries |
-| accent | #B85C42 | #E39373 | One or two focal marks |
-| accent-wash | #F4E7E0 | #3B2B28 | Focal fill |
+| accent | #B85C42 | #E39373 | First role family: focal path or primary zone |
+| accent-wash | #F4E7E0 | #3B2B28 | Fill for the first family |
+| accent-2 | #2E7D7A | #6CC4BD | Second role family |
+| accent-2-wash | #DDEFEC | #1F3B3A | Fill for the second family |
+| accent-3 | #4A5BA8 | #9AA8EC | Third role family |
+| accent-3-wash | #E3E7F6 | #2A3150 | Fill for the third family |
+| accent-4 | #9A6B12 | #E0B456 | Fourth role family |
+| accent-4-wash | #F3E9D2 | #3D3420 | Fill for the fourth family |
+| accent-5 | #8C4A86 | #D493CB | Fifth role family |
+| accent-5-wash | #F1E2EF | #3A2738 | Fill for the fifth family |
 
-Choose a different accent only when the user provides a brand source. Check all pairs after replacement. Do not add unrelated hues to create visual variety.
+Every accent stroke clears 3:1 against its paper and every ink label clears 4.5:1 on its wash in both themes. Use the families in order and stop at the number of roles the subject has; three is the usual floor for a system overview. Six or more saturated families stop reading as roles and fail `ACCENT_COUNT` (OF-202). A brand source replaces these tokens one for one; check all pairs after replacement.
 
 ## Shape, stroke, and spacing
 
@@ -34,7 +43,7 @@ Choose a different accent only when the user provides a brand source. Check all 
 - Bind each connector label to its declared source and destination. At the 1080×640 reference, its SVG text anchor sits within 24px of that route and is nearer to it than to any other connector. Give the text box clear space from every route.
 - Name each trust boundary or group in visible text. Keep its label at least 13px and 4.5:1 contrast; outline strokes must not cross labels. Never route alongside an outline within 4px for 12px or more.
 - Use line style, shape, position, or text alongside color whenever a distinction matters.
-- Do not put shadows under nodes. Depth belongs in nesting, order, or a labeled boundary.
+- Show depth through nesting, tinted zone bands, order and labelled boundaries. A soft, consistent offset under one raised layer is allowed when it separates that layer; never let it touch a label or a route.
 
 ## Typography roles
 
@@ -58,7 +67,7 @@ Visible text belongs to the subject. Do not print the product or generator name,
 ## Theme behavior
 
 - Light and dark are separate complete themes, not partial color swaps. Every label, line, focus cue, and boundary must retain contrast.
-- Full-editorial adds a title, brief, legend, or takeaway around the same diagram. It does not add cards, shadows, or a second competing accent.
+- Full-editorial adds a title, brief, legend, takeaway, and summary cards with already-declared facts around the same diagram, using the same accent families as the drawing.
 - Keep diagram semantics and reading order identical across variants.
 - Print and export must show the full final state without relying on a dark-mode preference, animation, or remote font.
 

@@ -99,9 +99,9 @@ Commands:
   workflow-check Verify Dynamic workflow, /goal, and subagent delegation readiness.
   start-work    Manage schema-3 bounded-authority lifecycle state.
   start-work-next Print the next active start-work continuation directive.
-  workflow-stage <family> <stage> [--n N --total M --unit U --verdict name=pass]
+  workflow-stage <family> <stage> [--n N --total M --unit U --verdict name=pass --session ID]
                 Record where a review, loop, iteration or crucible run stands, for
-                the LIT card's workflow map (.litclaude/workflow-stage.json).
+                the LIT card's workflow map (.litclaude/workflow-stack/<session>.json).
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
   motion-runtime Pre-warm (install [--audio] [--word-timing]) or report (status) the
                 lit-typographic-motion runtime cache. Run it outside a sandboxed session.
@@ -1606,7 +1606,7 @@ const doctor = ({ dryRun }) => {
   process.stdout.write(`${iconFontDoctorLine()}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
 
-  // lit-typographic-motion: the six readiness probes, every run. Read-only and never fatal; a
+  // lit-typographic-motion: the seven readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.
   const motionDoctor = spawnSync(process.execPath, [join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")], { encoding: "utf8", timeout: 120000 });
   const motionLines = `${motionDoctor.stdout || ""}`.trim().split(/\r?\n/u).filter(Boolean);

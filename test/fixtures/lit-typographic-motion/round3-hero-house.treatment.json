@@ -1,0 +1,353 @@
+{
+ "request": "lit LitClaude 히어로 영상 13초짜리 만들어줘. LIT 불꽃 키가 주인공으로, 프롬프트 → 계획 → 작업 → 리뷰 → 완료로 lit-loop가 돌아가는 세계를 고퀄리티 3D로 보여줘. 저장소: https://github.com/wjgoarxiv/litclaude",
+ "genre": "motion-graphics",
+ "path": "stage",
+ "pathReason": "The film shows a drawn 3D world (a keycap, a ring track, station keys, a travelling flame), not words alone.",
+ "style": "swiss-signal",
+ "idea": "A single keycap with a flame in it is pressed, and its fire runs around a ring of five station keys, lighting each one, getting turned back once at the gate, and finally closing the circle.",
+ "audience": "Claude Code users landing on the LitClaude repository or its release posts",
+ "channel": "Hero film at the top of the project page and in launch posts",
+ "format": "16:9",
+ "formatReason": "A wide hero slot on a repository page and desktop social posts.",
+ "durationSec": 13,
+ "fps": 60,
+ "register": "rich",
+ "depth": "3d",
+ "render3d": "blender",
+ "beats": [
+  {
+   "t0": 0,
+   "t1": 2.4,
+   "purpose": "opening motif: the key is pressed and catches fire",
+   "onScreen": "Macro of a charcoal keycap with a pink LIT legend on a dark keyboard; it presses down, springs back and a flame rises out of the legend. The real idle LIT card sits top left; the line sits in the low band.",
+   "motion": "Slow push-in on the key; press at 0.85 s, flame grows 1.0-1.6 s.",
+   "sound": "Intro pad with a tap on the press and a swell that rises into the cut.",
+   "layout": "hero",
+   "hero": "the key presses and the flame rises out of it",
+   "transition": "cut",
+   "lines": [
+    0
+   ]
+  },
+  {
+   "t0": 2.4,
+   "t1": 4.8,
+   "purpose": "set piece one: the loop is revealed and planning lights",
+   "onScreen": "Wide view: the flaming key at the centre of a ring track with five station keys labelled PROMPT, PLAN, WORK, REVIEW, DONE; a spark leaves PROMPT and lights PLAN violet. Copy on the left.",
+   "motion": "Crane back and orbit 15 degrees; the spark travels along the ring and beads light behind it.",
+   "sound": "Hit on the cut; a chime when PLAN lights.",
+   "layout": "split",
+   "hero": "the spark runs from PROMPT to PLAN and PLAN lights violet",
+   "transition": "cut",
+   "lines": [
+    1
+   ]
+  },
+  {
+   "t0": 4.8,
+   "t1": 7.4,
+   "purpose": "set piece two: work starts with failing tests",
+   "onScreen": "Closer on the WORK station lit blue; three test tiles rise beside it in coral, then turn green one by one. The real working LIT card sits under the copy on the right.",
+   "motion": "Camera trucks along the ring past WORK; tiles rise and flip with a stagger.",
+   "sound": "Hit on the cut; taps as the tiles rise, a chime as they turn green, a riser into the review.",
+   "layout": "split-alt",
+   "hero": "the coral test tiles turn green one after another",
+   "transition": "cut",
+   "lines": [
+    2
+   ]
+  },
+  {
+   "t0": 7.4,
+   "t1": 10.2,
+   "purpose": "peak: review blocks the flame and sends it back",
+   "onScreen": "The camera rises overhead: at REVIEW a coral gate rises across the track, the spark reverses back to WORK, a tile flips coral and back to green, then the spark returns and the gate sinks. Caption band underneath.",
+   "motion": "Crane from a low three-quarter view to almost top-down; the spark reverses and runs the arc again.",
+   "sound": "Impact on the cut as the drop lands; a whoosh when the spark passes the gate.",
+   "layout": "stage",
+   "hero": "the spark hits the coral gate, turns back to WORK and returns through the open gate",
+   "transition": "cut",
+   "lines": [
+    3
+   ]
+  },
+  {
+   "t0": 10.2,
+   "t1": 13,
+   "purpose": "resolve: DONE lights and the circle closes",
+   "onScreen": "Low hero angle: DONE lights green, the spark completes the ring back to PROMPT so every bead glows, and the key keeps burning. LitClaude and its motto on the left above the real finished LIT card.",
+   "motion": "Slow orbit settling to rest; beads light around the last arc.",
+   "sound": "Hit on the cut, a chime as DONE lights, a cadence that resolves to the end.",
+   "layout": "split",
+   "hero": "the last arc lights and the ring closes into a full circle of light",
+   "transition": "end",
+   "lines": [
+    4,
+    5
+   ]
+  }
+ ],
+ "story": {
+  "expect": "One key press sends a prompt and the work runs straight through to done.",
+  "turn": "The review gate rises and throws the flame back to WORK, which fixes its failing test before the flame is let through.",
+  "beat": 3,
+  "payoff": "The flame goes all the way round, the whole ring stays lit and the key is ready for the next prompt."
+ },
+ "protagonist": {
+  "name": "The LIT flame key",
+  "kind": "object",
+  "look": "A large charcoal keycap with bevelled edges and a hot-pink LIT legend; an orange-amber flame rises out of the legend. It is the biggest object in every shot and sits at the centre of the ring.",
+  "acts": [
+   {
+    "beat": 0,
+    "action": "Is pressed down, springs back and catches fire."
+   },
+   {
+    "beat": 1,
+    "action": "Burns at the centre of the ring while its spark lights PLAN."
+   },
+   {
+    "beat": 2,
+    "action": "Lights the ring from the centre while WORK runs its tests."
+   },
+   {
+    "beat": 3,
+    "action": "Flares as the review gate throws its spark back, then steadies when it passes."
+   },
+   {
+    "beat": 4,
+    "action": "Burns steadily inside the fully lit ring."
+   }
+  ]
+ },
+ "product": {
+  "name": "litclaude",
+  "url": "https://github.com/wjgoarxiv/litclaude",
+  "assets": [
+   {
+    "path": "stage/assets/04-readme-image.webp",
+    "role": "readme-image",
+    "source": "fetched",
+    "sha256": "b51f0a0202fa944ecdab6699125e309823e02e73f65c9406c0fa29bbd1ccdfa4"
+   },
+   {
+    "path": "stage/assets/05-readme-image.webp",
+    "role": "readme-image",
+    "source": "fetched",
+    "sha256": "018f411330e022a13e5ac80fa824765423a9ec9e76afbf2366db1fe0e70c0f54"
+   },
+   {
+    "path": "stage/assets/06-readme-image.webp",
+    "role": "readme-image",
+    "source": "fetched",
+    "sha256": "20781c9423d37112edb87d3b40f7ab46f1b1d293e7da74794ef0a1f71bdd3bf8"
+   }
+  ]
+ },
+ "subject": {
+  "name": "LitClaude",
+  "source": "user",
+  "specifics": [
+   "A Claude Code plugin: add lit to a prompt and the session plans, builds, checks and records the work",
+   "Writes a failing test first, then makes it pass",
+   "A LIT card above the prompt walks the workflow map: plan, work, review, done"
+  ]
+ },
+ "visualDevices": [
+  {
+   "kind": "depth3d",
+   "role": "subject",
+   "beats": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "kind": "screen",
+   "role": "support",
+   "beats": [
+    0
+   ],
+   "asset": "stage/assets/04-readme-image.webp"
+  },
+  {
+   "kind": "screen",
+   "role": "support",
+   "beats": [
+    2
+   ],
+   "asset": "stage/assets/05-readme-image.webp"
+  },
+  {
+   "kind": "screen",
+   "role": "support",
+   "beats": [
+    4
+   ],
+   "asset": "stage/assets/06-readme-image.webp"
+  },
+  {
+   "kind": "diagram",
+   "role": "support",
+   "beats": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  }
+ ],
+ "typePlan": {
+  "faces": [
+   "Archivo",
+   "Pretendard",
+   "MesloLGS NF"
+  ],
+  "hierarchy": "One headline line per shot in the type zone; the closing shot sets the product name as display with the motto as muted body; station names and the top rail as small labels.",
+  "maxWordsOnScreen": 14
+ },
+ "palette": [
+  {
+   "color": "#0C0E13",
+   "role": "ground"
+  },
+  {
+   "color": "#E9EBE4",
+   "role": "copy"
+  },
+  {
+   "color": "#A4A9AF",
+   "role": "muted labels"
+  },
+  {
+   "color": "#0F7A82",
+   "role": "rim light and the ring"
+  },
+  {
+   "color": "#D9A441",
+   "role": "the flame and PROMPT"
+  },
+  {
+   "color": "#9B8CFF",
+   "role": "PLAN station"
+  },
+  {
+   "color": "#5BA8E0",
+   "role": "WORK station"
+  },
+  {
+   "color": "#E2725B",
+   "role": "REVIEW gate and failing tests"
+  },
+  {
+   "color": "#8FC25A",
+   "role": "DONE station and passing tests"
+  }
+ ],
+ "world": {
+  "layers": [
+   "a field of dim keycaps receding into the dark",
+   "the ring track with five station keys and its beads",
+   "the LIT flame key and its travelling spark",
+   "the top rail and station labels over the picture"
+  ],
+  "labels": [
+   "PROMPT",
+   "PLAN",
+   "WORK",
+   "REVIEW",
+   "DONE",
+   "LIT · lit-loop",
+   "RED → GREEN",
+   "WORK 2/2"
+  ],
+  "camera": [
+   {
+    "beat": 0,
+    "move": "push-in"
+   },
+   {
+    "beat": 1,
+    "move": "crane back and orbit"
+   },
+   {
+    "beat": 2,
+    "move": "truck"
+   },
+   {
+    "beat": 3,
+    "move": "crane up to overhead"
+   },
+   {
+    "beat": 4,
+    "move": "orbit"
+   }
+  ]
+ },
+ "sound": {
+  "mode": "score",
+  "genre": "house",
+  "plan": "A short tech-house cue: a rolling intro under the key press that builds through PLAN and WORK, the drop landing on the review turn, and a resolving cadence as the ring closes.",
+  "events": [
+   {
+    "t": 0.95,
+    "on": "the LIT key is pressed down",
+    "kind": "tap"
+   },
+   {
+    "t": 3.5,
+    "on": "the spark reaches PLAN and it lights violet",
+    "kind": "chime"
+   },
+   {
+    "t": 5.6,
+    "on": "three coral test tiles rise beside WORK",
+    "kind": "tap"
+   },
+   {
+    "t": 6.6,
+    "on": "the test tiles turn green",
+    "kind": "chime"
+   },
+   {
+    "t": 7.7,
+    "on": "the coral gate rises across the track at REVIEW",
+    "kind": "tap"
+   },
+   {
+    "t": 9.43,
+    "on": "the spark passes through the sinking gate",
+    "kind": "whoosh"
+   },
+   {
+    "t": 10.6,
+    "on": "the spark reaches DONE and it lights green",
+    "kind": "chime"
+   }
+  ]
+ },
+ "copy": {
+  "source": "invented",
+  "lines": [
+   "lit 한 단어에 불이 붙고",
+   "계획이 먼저 섭니다",
+   "테스트가 먼저 실패하고",
+   "리뷰가 막으면 다시 작업으로",
+   "LitClaude",
+   "Keep the work lit."
+  ]
+ },
+ "inventions": [
+  "The copy lines in Korean, written from the README's description of the workflow",
+  "The ring world: five station keys, the travelling spark, the beads and the review gate",
+  "The look of the LIT flame key as a 3D keycap",
+  "The closing motto is the README's own line, Keep the work lit."
+ ],
+ "ambition": "Path-traced keycaps whose bevels catch the flame, a spark whose light rakes across the ring as it travels, and one clear reversal at the review gate, with every station change locked to the score.",
+ "posterBeat": 4,
+ "seed": 1707
+}

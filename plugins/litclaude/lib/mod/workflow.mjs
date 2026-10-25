@@ -4,10 +4,10 @@
 //
 // Three families. The main chain runs a request from the interview to review (litgoal and
 // autoresearch ride its work stage with criteria or iterations); litresearch has its own waves; a
-// lit-loop criterion cycles through its test-first steps. The stage comes from the newest of the
-// ignited discipline, a skill this request fired and the stage record (`.litclaude/
-// workflow-stage.json`, written by the prompt hook and `litclaude-ai workflow-stage`); without
-// any of those, from the durable state that says work is under way. The durable state also fills
+// lit-loop criterion cycles through its test-first steps. The stage comes from the session's workflow
+// stack (`.litclaude/workflow-stack/<session>.json`, kept by the hooks and `litclaude-ai
+// workflow-stage`) when it is fresh, else from the newer of the ignited discipline and a skill this
+// request fired; without any of those, from the durable state that says work is under way. The durable state also fills
 // in the detail: interview rounds, the plan draft's status, the work's tasks, research waves.
 
 export const WORKFLOW_FAMILIES = Object.freeze({
@@ -107,6 +107,8 @@ const entryOf = ({ snapshot, skills, now }) => {
   const chip = skills.find(({ id, state }) => state === "current" && DISCIPLINE_ENTRY[id]);
   if (chip) candidates.push({ ...DISCIPLINE_ENTRY[chip.id], at: chip.at ?? 0, from: "skill" });
   const record = snapshot.workflow?.record;
+  // The session's stack already follows every discipline the session started, paused or not.
+  if (record?.stacked && fresh(record, now)) return { family: record.family, stage: record.stage, at: record.at, from: "record", record };
   if (fresh(record, now)) candidates.push({ family: record.family, stage: record.stage, at: record.at, from: "record", record });
   // The record is written a moment after the ignition it answers, so a tie goes to the record.
   return candidates.sort((a, b) => b.at - a.at || (a.from === "record" ? -1 : 1))[0] ?? null;
@@ -153,11 +155,13 @@ const plainText = (text) => (typeof text === "string" ? text.replace(/\*\*|__|`/
 const percent = (value) => (Number.isFinite(value) ? Math.round(value <= 1 ? value * 100 : value) : null);
 
 /**
- * The map: `{ family, stages: [{ id, label, state }], current, count, items, verdicts, next }`,
+ * The map: `{ family, stages: [{ id, label, state }], current, count, items, verdicts, next, paused }`,
  * or null when nothing places the session on a family's map (the card then keeps its PLAN / WORK /
  * REVIEW track). `state` is done, now or todo; `current` is the index of the stage that is now,
  * or -1 once the family is done. `count` is the current stage's n/m, `items` short facts about
- * it, `verdicts` the review lanes or a crucible verdict, `next` the next task or criterion.
+ * it, `verdicts` the review lanes or a crucible verdict, `next` the next task or criterion. Under
+ * a side frame the map is the paused spine's: its stage marked `||` with its count, `paused` names
+ * the parent and the child, and the items give the child and the way back.
  */
 export const buildWorkflow = ({ snapshot, skills = [], completion = null, now }) => {
   const entry = entryOf({ snapshot, skills, now }) ?? inferredEntry(snapshot, now);
@@ -201,6 +205,9 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
         next = plainText(goal.criteria.find(({ status }) => status !== "pass")?.description);
       } else if (record?.stage === "work" && record.total) {
         countOf = { done: Math.min(record.n ?? 0, record.total), total: record.total, unit: record.unit ?? "iteration" };
+      } else if (record?.plan?.total) {
+        // A work stage with nothing else to count counts the plan it took over from lit-plan.
+        countOf = { done: record.plan.done, total: record.plan.total, unit: "task" };
       }
     }
     if (stage === "review") {
@@ -225,6 +232,8 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
     } else if (goalIsOpen(goal) && goal.criteria.length > 0) {
       countOf = { done: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length, unit: "criterion" };
       next = goal.criteria.find(({ status }) => status !== "pass")?.description || null;
+    } else if (record?.plan?.total) {
+      countOf = { done: record.plan.done, total: record.plan.total, unit: "task" };
     }
     if (record && record.step.toUpperCase() !== record.stage) items.push(record.step.toLowerCase());
     if (completion) stage = "RECORD";
@@ -237,8 +246,28 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
   const stages = order.map((id, index) => {
     let label = id;
     if (index === current && countOf && family === "main") label = `${id} ${countOf.done}/${countOf.total}`;
+    // An open work ahead of the current stage keeps its task count in view.
+    else if (family === "main" && id === "work" && index > current && current >= 0 && snapshot.work?.total > 0) label = `work ${snapshot.work.checked}/${snapshot.work.total}`;
     if (family === "research" && id === "wave" && wave > 0) label = `wave ${wave}`;
     return { id, label, state: finished || index < current ? "done" : index === current ? "now" : "todo" };
   });
-  return { family, stages, current, count: countOf, items, verdicts, next };
+  const paused = pausedUnder(sources.stack, entry, finished);
+  if (paused) {
+    // The parent's map stays where it stopped; the row under it says what runs and the way back.
+    const at = stages[current];
+    const count = family !== "main" && countOf ? ` ${countOf.done}/${countOf.total}` : "";
+    at.label = `|| ${at.label}${count}`;
+    paused.count = countOf;
+    if (!next && goalIsOpen(snapshot.goal)) next = plainText(snapshot.goal.criteria.find(({ status }) => status !== "pass")?.description);
+    return { family, stages, current, count: null, items: [`↳ ${paused.child}`, "back: lit continue"], verdicts: null, next, paused };
+  }
+  return { family, stages, current, count: countOf, items, verdicts, next, paused: null };
+};
+
+// The stack's spine below a side frame: `{ parent, child, chain }` names the paused work, the
+// discipline on top and the sides between them; null while the spine itself runs.
+const pausedUnder = (stack, entry, finished) => {
+  if (finished || !entry.record?.stacked || !stack || stack.owner >= stack.frames.length - 1) return null;
+  const sides = stack.frames.slice(stack.owner + 1).map(({ skill }) => skill ?? "work");
+  return { parent: stack.frames[stack.owner].skill ?? entry.family, child: sides.at(-1), chain: sides };
 };

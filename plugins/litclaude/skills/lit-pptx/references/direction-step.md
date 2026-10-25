@@ -2,7 +2,7 @@
 
 Every deck starts by choosing how it should look, before a single slide is written. The choice is
 a tonality: a pack of colours, type sizes, title treatments, layout families and density that the
-engine reads as data. Eight tonalities ship with the skill, and four legacy templates remain for
+engine reads as data. Thirteen tonalities ship with the skill, and four legacy templates remain for
 users who name them. Without this step the engine would have nothing to draw with, and the skill
 would drift back to one look for every topic, which is the failure this whole design exists to end.
 
@@ -16,7 +16,7 @@ card in the build log. It asks the user nothing unless the brief leaves the look
 Name four facts before ranking anything. When the brief does not say them, infer them from the
 request and the sources, and write the inference on the card so the user can correct it.
 
-- **Deck type.** One of the eight below, or "other, nearest to …".
+- **Deck type.** One of the thirteen below, or "other, nearest to …".
 - **Reader.** Who sees it, where, and for how long: a board reading at a desk, a hall watching a
   stage screen, a class that will review the file later.
 - **Delivery.** Presented live, sent ahead and read alone, or both.
@@ -30,13 +30,18 @@ start from. The first one is the default when nothing else moves the order.
 | Deck type | Candidates in order (density, variance) |
 |---|---|
 | Pitch (투자·제안 피치) | Signal (10, 6); Studio (10, 7); Atlas (10, 7) when the product is something to look at |
+| Launch, demo day or campaign (런칭·데모데이·캠페인) | Neo-Brutalism (10, 7); Signal (10, 6); Studio (10, 7) |
+| Engineering or developer review (아키텍처·인프라·장애 리뷰) | Computational Brutalism (10, 7); Night (10, 6) for a stage; Ledger (10, 5) when it is read alone |
 | Business review (경영 실적 보고) | Ledger (10, 5); Gazette (10, 4) when it is circulated in Korean and read alone; Night (10, 6) for a stage review |
 | Research talk (연구 발표) | Paper (10, 5); Night (10, 5) for a keynote room; Chalk (10, 6) for a tutorial |
 | Lecture or teaching (강의) | Chalk (10, 6); Paper (10, 5); Studio (10, 7) for a public lecture |
+| Design or culture lecture (디자인·건축·전시·워크숍) | Bauhaus (10, 7); Studio (10, 8); Atlas (10, 7) when the works are the deck |
 | Data-heavy review (데이터 리뷰) | Night (10, 6); Ledger (10, 5); Paper (10, 5) for a written analysis |
 | Image-led (product, site, portfolio) | Atlas (10, 7); Studio (10, 8); Signal (10, 6) for a launch |
 | Korean text briefing (보고서형 덱) | Gazette (10, 4); Ledger (10, 5) |
 | Status update (주간·월간 보고) | Ledger (10, 5); Gazette (10, 4); Night (10, 6) |
+| Community, culture or education programme (커뮤니티·문화·교육 프로그램) | Riso (10, 7); Studio (10, 7); Bauhaus (10, 7) for a design programme |
+| Data story for the public (주민·독자 대상 데이터 브리핑) | Newsroom (10, 6); Gazette (10, 4) when it is read alone; Ledger (10, 5) |
 
 ## 3. Measure the source and reorder
 
@@ -48,6 +53,7 @@ the deck-type order, so the same source always gives the same choice.
 |---|---|---|
 | The brief names a tonality, or the user chose one earlier | always wins | use it; still write the card |
 | The brief names a legacy template (AZURE-PRO, AZURE-A2Z, BOILERPLATE-PRETENDARD, BOILERPLATE-A2Z) | always wins | use it as named; offer two tonalities as alternatives |
+| The brief names a style rather than a pack id | 네오 브루탈리즘, neo-brutalism, neo-brutalist; 컴퓨테이셔널 브루탈리즘, computational brutalism, 레트로 퓨처, retro-futurist, terminal look; 바우하우스, Bauhaus; 리소, risograph, zine; 뉴스룸, data journalism, explainer | that pack, as if named; a bare 브루탈리즘 or brutalist takes Neo-Brutalism for a pitch or launch and Computational Brutalism for a technical deck, and the card says which reading it took |
 | The deck is read rather than presented (sent ahead, circulated, "보고서") | stated in the brief | Gazette (Korean) or Ledger (other languages) to the front, density 10 |
 | Slides with a table | 30 % or more | Ledger or Gazette up one place |
 | Slides with a chart | 30 % or more | Ledger, Night or Paper up one place |
@@ -57,6 +63,12 @@ the deck-type order, so the same source always gives the same choice.
 | Numbered citations, DOIs or a references slide | present | Paper up one place |
 | Equations, definitions, or a how-it-works sequence of three or more steps | present | Chalk or Paper up one place |
 | A dark room (keynote, stage, demo day) | stated in the brief | Night up one place |
+| Metrics with units, version numbers or identifiers (p99, rps, v3, endpoint names) | on a third of the content slides | Computational Brutalism up one place |
+| A young or consumer audience, a sign-up or launch ask | stated in the brief | Neo-Brutalism up one place |
+| Works, makers, periods or schools as the subject | on a third of the content slides | Bauhaus up one place |
+| Participants, sessions, dates and places for a community or a class | on a third of the content slides | Riso up one place |
+| Charts with one point each, for readers outside the field (residents, members, the press) | stated in the brief | Newsroom up one place |
+| A board, investor committee, finance or public-sector reader, or a sensitive topic (loss, safety, HR) | stated in the brief | Neo-Brutalism, Computational Brutalism, Bauhaus and Riso drop out |
 | A pack would leave a slide role with no family or title it allows | any slide | drop that pack |
 
 The last row matters more than it looks. Atlas, Ledger and Gazette have no statement title, Atlas
@@ -180,6 +192,11 @@ the job before writing a new deck.
 | `10-status-update-ledger-ko.md` | status update | Ledger | Gazette, Night |
 | `11-portfolio-studio-en.md` | image-led portfolio | Studio | Atlas, Signal |
 | `12-research-tutorial-chalk-en.md` | research tutorial | Chalk | Paper, Night |
+| `13-engineering-review-computational-brutalism-ko.md` | engineering review | Computational Brutalism | Night, Ledger |
+| `14-launch-pitch-neo-brutalism-ko.md` | launch pitch | Neo-Brutalism | Signal, Studio |
+| `15-design-lecture-bauhaus-ko.md` | design lecture | Bauhaus | Studio, Atlas |
+| `16-community-programme-riso-ko.md` | community programme | Riso | Studio, Bauhaus |
+| `17-public-data-briefing-newsroom-ko.md` | data story for residents | Newsroom | Gazette, Ledger |
 
 The examples that place pictures name `assets/example-a.png`, `assets/example-b.png` and
 `assets/example-c.png`; supply real images under those names (or change the paths) before

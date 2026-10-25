@@ -33,7 +33,7 @@ verdicts: [PASS, DEGRADED, FAIL, BLOCKED]
 | Mode | Trigger | Boundary |
 | --- | --- | --- |
 | direct-skill | Claude Code loads `Skill(lit-handoff)`. | Read the complete canonical source before writing. |
-| command-routed | `/litclaude:lit-handoff` is invoked. | Preserve command scope and the exact banner. |
+| command-routed | `/litclaude:lit-handoff` is invoked. | The prompt hook injects this adapter and the complete canonical source; follow them with the command arguments, preserving command scope and the exact banner. |
 | exact-bare | The entire prompt is the single word `handoff`, ignoring outer whitespace. | The hook injects the complete canonical body; compound or quoted mentions stay inert. |
 | degraded | Required workspace evidence is unavailable. | Return `BLOCKED:` and identify the missing live surface. |
 

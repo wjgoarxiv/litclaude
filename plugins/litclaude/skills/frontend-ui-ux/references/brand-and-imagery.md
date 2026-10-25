@@ -17,7 +17,7 @@ an approval you do not have.
 
 Do not invent an identity. Build a neutral system a real brand can replace at one seam.
 
-- a single accent role, defined once as a token and referenced everywhere
+- an accent role and a second accent role, each defined once as a token and referenced everywhere
 - a neutral ramp derived from one hue with fixed contrast steps
 - a system font stack with an explicit per-script fallback
 - geometric placeholder marks, never a wordmark that reads as a company name

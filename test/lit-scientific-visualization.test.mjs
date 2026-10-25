@@ -110,6 +110,27 @@ describe("LitClaude scientific-visualization payload", () => {
     assert.match(context, /never install Python, matplotlib, or optional packages silently/iu);
   });
 
+  // The adapter is disable-model-invocation, so the command's `Skill(lit-scientific-visualization)`
+  // step resolves back to the command itself and the adapter never loads. The typed slash command
+  // therefore gets the same bodies from the hook as the exact-bare route.
+  it("injects the adapter and canonical source when the slash command is typed", () => {
+    const adapterBody = readFileSync(adapterPath, "utf8").trim();
+    const canonicalSkill = readFileSync(join(originalRoot, "SKILL.md"), "utf8").trim();
+    for (const prompt of [
+      "/litclaude:lit-scientific-visualization",
+      "  /litclaude:lit-scientific-visualization plot the CO2 isotherms in data/iso.csv\nAPI_TOKEN=do-not-echo",
+    ]) {
+      const result = runHook(prompt);
+      assert.equal(result.status, 0, result.stderr);
+      const payload = JSON.parse(result.stdout);
+      const context = payload.hookSpecificOutput.additionalContext;
+      assert.match(stripAnsi(payload.systemMessage ?? ""), /🔥 LIT IGNITED · lit-scientific-visualization 🔥/u, prompt);
+      assert.equal(context.includes(adapterBody), true, `${prompt} must inject the adapter body`);
+      assert.equal(context.includes(canonicalSkill), true, `${prompt} must inject the canonical source body`);
+      assert.doesNotMatch(context, /do-not-echo|iso\.csv/u, "the prompt is never echoed");
+    }
+  });
+
   it("keeps generic, quoted, fenced, mixed, slash, and near-miss prompts inert", () => {
     for (const prompt of [
       "visualize this dataset",
@@ -121,7 +142,8 @@ describe("LitClaude scientific-visualization payload", () => {
       "`lit-scientific-visualization`",
       "```text\nlit-scientific-visualization\n```",
       "> lit-scientific-visualization",
-      "/litclaude:lit-scientific-visualization",
+      "see /litclaude:lit-scientific-visualization later",
+      "/litclaude:lit-scientific-visualizations",
       "lit-scientific-visualization\nAPI_TOKEN=do-not-echo",
     ]) {
       const result = runHook(prompt);
@@ -175,6 +197,16 @@ describe("LitClaude scientific-visualization payload", () => {
   // The immutable source examples save to fixed names (figure1.pdf, figure1.png,
   // multi_panel.pdf) and figures are written through Bash, so the harness
   // read-before-write guard never sees them. The adapter has to carry the rule.
+  it("makes the LitClaude layer rich by default and keeps minimal for an explicit request", () => {
+    const adapter = readFileSync(adapterPath, "utf8");
+    assert.doesNotMatch(adapter, /smallest correct figure/u);
+    assert.doesNotMatch(adapter, /preserve every restraint, including[^.]*grids/iu);
+    for (const layer of [/annotat/iu, /inset/iu, /light (?:major )?grid/iu, /multi-panel|panel labels/iu]) assert.match(adapter, layer);
+    assert.match(adapter, /minimal[^.]*only when the user asks/iu);
+    assert.match(adapter, /rcparams\(\)\s*\n\s*plt\.rcParams\.update\(\{[^}]*"axes\.grid": True/u, "the rich layer runs right after rcparams()");
+    assert.match(adapter, /standing request/iu, "the adapter tells the model the source's on-request clauses are satisfied");
+  });
+
   it("requires explicit output paths and forbids clobbering unrelated figures", () => {
     const adapter = readFileSync(adapterPath, "utf8");
     assert.match(adapter, /explicit output path/iu);

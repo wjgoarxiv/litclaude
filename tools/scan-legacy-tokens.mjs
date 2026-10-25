@@ -84,7 +84,7 @@ const SELF_PATH = fileURLToPath(import.meta.url);
 export const MAX_SCAN_FILE_BYTES = MAX_BOUNDED_FILE_BYTES;
 // The scan reads every repository file, images and film included, so its total budget is wider than the
 // canonical-corpus budget; the per-file limit is unchanged.
-export const MAX_SCAN_AGGREGATE_BYTES = 48 * 1024 * 1024;
+export const MAX_SCAN_AGGREGATE_BYTES = 64 * 1024 * 1024;
 
 // --- Error type -------------------------------------------------------------------------------
 

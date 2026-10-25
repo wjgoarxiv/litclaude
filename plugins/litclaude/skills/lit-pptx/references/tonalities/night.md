@@ -36,7 +36,7 @@ These values are read from the pack file `pack.yaml` of the `night` tonality.
 | positive / negative | `#6CC08B` / `#F08A7E` |
 | series | `#E3A857`, `#7FB8E0`, `#A3AEBA`, `#C58FD0` |
 | faces | display, title Pretendard Bold; body, label and numeral Pretendard Regular; `faces: a2z` swaps numerals to A2Z Light |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / not allowed, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 6 |
 | radius / edge | 6 / fill |
 | table | header row on the surface colour with bold ink, hairline rows, no banding, numbers right-aligned, totals bold, the row the title names in the accent tint |

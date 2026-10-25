@@ -100,10 +100,30 @@ export const clockShown = (timeline) => timeline.exitAt === null && Boolean(time
 /** True while the ambient loop runs; the surface module then keeps a slower frame timer going. */
 export const ambientActive = (timeline, profile) => Boolean(profile.ambient) && timeline.exitAt === null && timeline.ambient.on;
 
+// The rewind look's sparks: fixed seeds (a small LCG, so every surface draws the same sky), each a
+// starting place, a drift speed and a twinkle offset.
+const SPARK_SEEDS = (() => {
+  let state = 13;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  return Object.freeze(Array.from({ length: 7 }, () => Object.freeze({ start: next(), speed: 0.6 + 0.8 * next(), twinkle: next() })));
+})();
+
+// Where each spark stands at `elapsed` (`x`, 0 to 1, drifting right to left) and which of the four
+// ASCII sparks it shows (`glyph`, 0 to 3).
+const sparksAt = (elapsed) => SPARK_SEEDS.map(({ start, speed, twinkle }) => {
+  const x = start - (elapsed * speed) / TIMINGS.sparks;
+  const t = elapsed / (TIMINGS.sparks / 4) + twinkle;
+  return { x: ((x % 1) + 1) % 1, glyph: Math.floor((((t % 1) + 1) % 1) * 4) };
+});
+
 // One frame of the ambient loop: `breath` (0 to 1 and back over TIMINGS.breath), where the light
 // stands on the active phase (`sweep`, null between passes), how far the comet has gone around
-// the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left) and
-// where the bright head stands on the rail leaving the current stage (`flow`, 0 to 1).
+// the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left),
+// where the bright head stands on the rail leaving the current stage (`flow`, 0 to 1), how far the
+// rewind look's hue has turned (`hue`, 0 to 1 over TIMINGS.hue) and its sparks (`sparks`, full only).
 const ambientSample = (timeline, now, profile) => {
   if (!ambientActive(timeline, profile)) return null;
   const elapsed = Math.max(0, now - timeline.ambient.at);
@@ -114,6 +134,8 @@ const ambientSample = (timeline, now, profile) => {
     sweep: profile.ambient.sweep && pass >= -0.2 && pass <= 1.2 ? pass : null,
     comet: profile.ambient.comet ? (elapsed % TIMINGS.comet) / TIMINGS.comet : null,
     flow: profile.ambient.sweep ? (elapsed % TIMINGS.flow) / TIMINGS.flow : null,
+    hue: (elapsed % TIMINGS.hue) / TIMINGS.hue,
+    sparks: profile.ambient.sweep ? sparksAt(elapsed) : null,
   };
 };
 

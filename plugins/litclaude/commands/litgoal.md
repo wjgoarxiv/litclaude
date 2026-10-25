@@ -101,10 +101,11 @@ goal tools are unavailable, return explicit `BLOCKED:` / degraded-mode wording
 instead of claiming native success, and record clear criteria and evidence in
 the local ledger.
 If the hook reports `READY_TO_PASTE`, reproduce its exact `/goal <condition>`
-line for the user, instruct them to copy, paste, and send it in the current
-Claude Code session, and wait for a new user message. LitClaude cannot enter or
-send that command on the user's behalf; do not silently rewrite it or convert it
-into a tool call.
+line for the user, say they can copy, paste, and send it in the current Claude
+Code session if they want native goal tracking, then show the line once and continue
+with the goal work; the litgoal ledger keeps the run going either way. LitClaude
+cannot enter or send that command on the user's behalf; do not silently rewrite
+it or convert it into a tool call.
 For broad goal execution, use Dynamic workflow when Claude Code exposes it, and
 use `claude --worktree <short-name> --tmux` only when isolated worktree
 execution is needed.

@@ -13,6 +13,7 @@
         "debugging",
         "deep-interview",
         "frontend-ui-ux",
+        "lit-adhd",
         "lit-brainstorm",
         "lit-burnoff",
         "lit-burnoff-file",
@@ -23,12 +24,14 @@
         "lit-diagram-drawer",
         "lit-docx",
         "lit-handoff",
+        "lit-hijack",
         "lit-humanizer",
         "lit-init",
         "lit-loop",
         "lit-plan",
         "lit-pptx",
         "lit-recap",
+        "lit-schematic",
         "lit-scientific-visualization",
         "lit-team",
         "lit-typographic-motion",
@@ -47,8 +50,8 @@
         "wikify"
       ],
       "inventory": {
-        "count": 39,
-        "sha256": "cab195e4a1040273ebe00841e598eb0f4a80df42aec69a3573c27f7999f184eb"
+        "count": 42,
+        "sha256": "9e9482e2c76603b2319f560a0b4ed6b4f73ff7f725917aabb9aa3ebe97dee53b"
       }
     },
     "p28": {
@@ -290,7 +293,7 @@
     "frontend-ui-ux": {
       "median": 209,
       "closures": {
-        "p27": 221,
+        "p27": 236,
         "p28": 204,
         "p31": 198,
         "p32": 209,

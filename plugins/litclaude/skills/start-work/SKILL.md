@@ -92,8 +92,11 @@ When a litgoal exists, the plan's tasks are the steps toward its criteria; the
 litgoal state stays the record of whether the finish line has been reached, and
 the plan ledger records each task.
 
-This skill is execution-only for an approved plan. If no approved plan is
-visible, stop with `BLOCKED:` and ask for the plan file or explicit approval.
+This skill is execution-only for an approved plan. The user's typed
+`/litclaude:start-work <plan>` is that approval: the prompt hook has already initialized the
+work with code-derived grants, so do not call `start-work init` and do not ask
+again. If no plan is visible or the hook reports it did not start, stop with
+`BLOCKED:` and ask for the plan to run.
 Do not redesign, rescope, or replace the plan unless fresh evidence proves a
 blocker, contradiction, or stale state.
 
@@ -150,8 +153,12 @@ write, host-config write, and destructive VCS are forbidden boundaries: block
 them instead of manufacturing a pause. A paused work cannot complete.
 
 Resume is deliberately asymmetric. There is no `--user-confirmed`, generic
-agent-callable resume bypass, or prose-based approval. The user must submit the
-entire exact Claude-native route:
+agent-callable resume bypass, or prose-based approval. Only a prompt the user
+types settles a pause: the whole prompt `lit approve` (or `lit 승인`) grants the
+one pending boundary for this work, and `lit deny` (or `lit 거절`) clears it and
+keeps that path refused without pausing again. Tell the user the access the
+paused call asked for and those two replies. The entire exact route stays
+accepted as an alternative:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
@@ -179,6 +186,14 @@ global revision remains monotonic.
 Continuation receipts compact to the same configured bound as retained state
 events. They are bounded audit records only; retained and evicted receipts both
 remain inert during Stop-hook re-entry.
+
+### Plans that come from a lit-hijack spec
+
+When the plan was written from a `lit-hijack` spec, give implementer lanes the
+packet from `hijack.mjs brief <run>` (the spec and the target, nothing captured),
+prefer `isolation: "worktree"` for them, and run `hijack.mjs check <run> --phase build`
+before ticking the last implementation row. A build-gate failure means source wording
+reached the target; rewrite that part from the spec rather than editing words around it.
 
 ### No-plan bootstrap scaffold
 
@@ -219,10 +234,9 @@ unavailable:
   different active goal without explicit replacement, and `update_goal` only
   after all top-level checkboxes and final gates are complete (or when the plan
   is genuinely blocked).
-- If goal tools are unavailable, report explicit `BLOCKED:` / degraded mode and
-  offer the user one ready-to-paste `/goal <plan completion condition>` line or
-  `claude -p "/goal <plan completion condition>"`, then keep the Boulder/ledger
-  discipline.
+- If goal tools are unavailable, carry on with the Boulder/ledger discipline:
+  `/goal` is optional. The start-work Stop continuation already drives the run to
+  its last checkbox, so do not ask the user to set a goal before executing.
 - Do not auto-type or send `/goal` text from a skill; if the user invokes `/goal`, respect it.
 
 If model-facing goal tools are absent (the case today), continue with Boulder/ledger discipline.
@@ -457,9 +471,8 @@ installed payload has not been exercised.
 Native goal fallback belongs in the same capability note. If `get_goal`,
 `create_goal`, and `update_goal` are visible, use them conservatively and avoid
 clobbering a different active goal. If they are not visible, say once that the
-run is in degraded mode for native goal binding, give the user a ready-to-paste
-`/goal` or noninteractive `claude -p "/goal ..."` line, and continue with the
-LitClaude ledger. Do not repeat the degraded-mode message after every task; the
+run is in degraded mode for native goal binding and continue with the LitClaude
+ledger; `/goal` stays the user's option, not a step before execution. Do not repeat the degraded-mode message after every task; the
 ledger is the operative state. The important distinction is honesty: the plan
 can still complete without native goal tools, but the internal DoneClaim must not
 pretend that native goal state was updated.

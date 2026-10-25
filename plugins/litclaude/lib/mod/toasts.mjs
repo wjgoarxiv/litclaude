@@ -1,4 +1,4 @@
-// The toasts the mod raises when the LIT state really changes: a discipline starts or switches, the
+// The toasts the mod raises when the LIT state really changes: a discipline starts, switches or resumes, the
 // workflow stage moves, a goal is set or met, a lane starts or finishes. Pure: the mod keeps the last
 // status it saw and a gate, and hands each new status in; what comes back is at most one short line
 // to show, never more than one per TOAST_GAP_MS. Gate notices (state.mjs gates, the auto-handoff)
@@ -25,6 +25,8 @@ export const statusOf = ({ discipline, model, snapshot }, previous = null) => {
     discipline: DISCIPLINE_ENTRY[discipline] ? discipline : previous?.discipline ?? null,
     stage: stage && `${flow.family}:${stage}`,
     goal: goal ? { key: goal.createdAt ?? goal.objective, objective: String(goal.objective ?? ""), status: goal.status, passed: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length } : null,
+    paused: flow?.paused?.parent ?? null,
+    place: stage && `${flow.stages[flow.current].id}${flow.paused?.count ?? flow.count ? ` ${(flow.paused?.count ?? flow.count).done}/${(flow.paused?.count ?? flow.count).total}` : ""}`,
     lanes: Object.fromEntries((model?.lanes?.list ?? []).filter(({ id }) => id).map(({ id, name }) => [id, name])),
   };
 };
@@ -38,7 +40,8 @@ const laneEntries = (ids, names, verb) => {
 export const statusChanges = (previous, next) => {
   if (!previous) return [];
   const entries = [];
-  if (next.discipline && next.discipline !== previous.discipline) entries.push({ kind: "discipline", from: previous.discipline, to: next.discipline });
+  if (previous.paused && !next.paused && next.discipline === previous.paused) entries.push({ kind: "resumed", text: `resumed ${next.discipline}${next.place ? ` · ${next.place}` : ""}` });
+  else if (next.discipline && next.discipline !== previous.discipline) entries.push({ kind: "discipline", from: previous.discipline, to: next.discipline });
   else if (next.stage && next.stage !== previous.stage) entries.push({ kind: "stage", text: `stage · ${next.stage.split(":")[1]}` });
   const goal = next.goal;
   const sameGoal = goal && previous.goal?.key === goal.key;

@@ -47,7 +47,7 @@ The shared verifier reports overlap candidates, label bounds, off-canvas geometr
 - **Sequence lifeline:** a participant has no dashed lifeline, the line does not start at its box center or reach the final message, a message misses its named lifeline, or message order is not top-to-bottom. Bind each message endpoint to its actor lifeline and preserve order.
 - **Content fill:** the declared node bounds use less than 68% of canvas width or 40% of canvas height. Recompose the subject to use the available slide area.
 - **Cluster gap ratio (OF-201):** with two or more boundary or group outlines, the smallest gap between nodes of different groups is less than twice the largest gap inside a group, so nothing reads as grouped. Pull each group's members together or push the groups apart.
-- **Accent count (OF-202):** node fills use four or more saturated hue families; three is printed as an `ADVISORY` line and does not fail. Keep one structural accent plus at most one semantic colour, each paired with a label or icon.
+- **Accent count (OF-202):** node fills use six or more saturated hue families. Three to five families is the default palette and passes; bind each to one role, name it in the legend, and pair it with a label, icon or line style. Reduce the families by merging roles, not by greying out the drawing.
 - **Label case (OF-203, advisory):** a Latin label reads as Title Case, with a capitalised function word such as "Of" or "The". Use sentence case; a proper-noun component name is not flagged.
 - **Label overflow (OF-204):** a node or boundary label is wider than its own box minus an 8px inset. Shorten the label, wrap it, or widen the box. Edge labels are not measured by this check.
 

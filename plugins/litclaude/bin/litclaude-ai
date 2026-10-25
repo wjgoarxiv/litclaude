@@ -15,6 +15,7 @@ const SUBCOMMANDS = {
     return (await load("../lib/start-work-continuation.mjs")).runStartWorkContinuationCli(resolveProjectStateRoot(process.cwd()), rest);
   },
   "workflow-stage": async (load, rest) => (await load("../lib/workflow-stage.mjs")).runWorkflowStageCli(rest, process.cwd()),
+  rewind: async (load, rest) => (await load("../lib/rewind/collect.mjs")).runRewindCli(rest, process.cwd()),
   wikify: async (load, rest) => (await load("../lib/wikify-knowledge-cli.mjs")).runWikifyKnowledgeCli(rest, undefined, process.cwd()),
   "motion-runtime": async (load, rest) => (await load("../skills/lit-typographic-motion/scripts/motion-runtime.mjs")).main(rest),
 };

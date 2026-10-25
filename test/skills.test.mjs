@@ -43,6 +43,7 @@ const expectedSkills = [
   "lit-commit",
   "lit-crucible",
   "lit-diagram-drawer",
+  "lit-schematic",
   "lit-docx",
   "lit-init",
   "lsp",
@@ -64,8 +65,10 @@ const expectedSkills = [
   "lit-recap",
   "lit-typographic-motion",
   "lit-comprehend",
+  "lit-adhd",
   "lit-brainstorm",
   "lit-handoff",
+  "lit-hijack",
   "lit-humanizer",
   "lit-scientific-visualization",
   "visual-qa",
@@ -881,8 +884,9 @@ syncBuiltinESMExports();
     // The router must actually carry the lane column the procedure refers to.
     assert.match(skill, /\| Reference \| Lanes \| Open it to answer \|/u);
     const routerRows = skill.split("\n").filter((line) => /^\| `references\//u.test(line));
-    // 18 since the craft-floor and slop-register references joined the router (2026-09-27).
-    assert.equal(routerRows.length, 18, "every shipped reference needs a router row");
+    // 18 since the craft-floor and slop-register references joined the router (2026-09-27);
+    // 19 since house-styles joined it with the design lock (2026-10-25).
+    assert.equal(routerRows.length, 19, "every shipped reference needs a router row");
     assert.ok(
       routerRows.some((row) => row.startsWith("| `references/motion-guide.md` | all |")),
       "the motion guide must be reachable from the lane router",
@@ -1137,7 +1141,10 @@ syncBuiltinESMExports();
       assert.match(text, /BLOCKED:/u, `${skillName} should report degraded mode explicitly`);
       assert.match(text, /degraded mode|degraded-mode/i, `${skillName} should name degraded mode`);
       assert.match(text, /without\s+explicit replacement/i, `${skillName} should avoid goal clobbering`);
-      assert.match(text, /claude -p "\/goal/u, `${skillName} should document native non-interactive goal surface`);
+      // lit-plan and start-work no longer offer a /goal line before execution (plans/lit-adhd.md todo 9).
+      if (["lit-loop", "litgoal"].includes(skillName)) {
+        assert.match(text, /claude -p "\/goal/u, `${skillName} should document native non-interactive goal surface`);
+      }
       if (skillName !== "litgoal") {
         assert.match(text, /Dynamic workflow/u, `${skillName} should guide Claude Code Dynamic workflows`);
         assert.match(text, /Dynamic worktree/u, `${skillName} should guide worktree isolation`);

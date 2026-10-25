@@ -86,6 +86,187 @@ export const stalledLanes = (agents, activity, now, thresholdMs = STALL_MS) =>
 
 export const laneName = (agent) => String(agent.name || agent.description || agent.type || "agent").slice(0, 40);
 
+// The card shows at most this many threads; the rest are counted as `+N more`. A deep chain still
+// leaves PARALLEL_ROWS for the lanes and tasks under it.
+export const THREAD_ROWS = 4;
+const PARALLEL_ROWS = 3;
+// Another session of this project counts as live while its stack was written this recently.
+export const OTHER_SESSION_MS = 15 * 60 * 1000;
+
+const countOrNull = (value) => (Number.isInteger(value) && value >= 0 ? value : null);
+
+// `lists` maps a loop (`main`, or a subagent's id) to what its tool calls say of its progress:
+// `steps`, the tool calls it finished; `todos`, the counts of its last TodoWrite; `tasks`, the
+// status of each task it created with TaskCreate (TaskUpdate moves them); `latest`, which of the two
+// lists it touched last. Only statuses are kept, never a todo's or a task's text.
+export const EMPTY_LISTS = Object.freeze({});
+const LIST_CAP = 200;
+const LOOP_CAP = 40;
+const TASK_STATUS = new Set(["pending", "in_progress", "completed"]);
+
+const loopEntry = (lists, loop) => lists[loop] ?? { steps: 0, todos: null, tasks: {}, latest: null };
+
+/**
+ * Folds one finished tool call of `loop` into `lists`: every call counts a step, a TodoWrite
+ * replaces the loop's todo counts, a TaskCreate adds its task and a TaskUpdate moves the task in
+ * whichever loop created it (or in this loop, marked unseen, when its creation was not seen).
+ */
+export const noteLoopCall = (lists, loop, call, result) => {
+  if (typeof loop !== "string" || !loop) return lists;
+  const next = { ...lists };
+  const entry = { ...loopEntry(lists, loop) };
+  entry.steps += 1;
+  if (call?.tool === "TodoWrite" && Array.isArray(call.todos)) {
+    const todos = call.todos.slice(0, LIST_CAP);
+    entry.todos = { done: todos.filter((todo) => todo?.status === "completed").length, total: todos.length };
+    entry.latest = "todos";
+  } else if (call?.tool === "TaskCreate" && typeof result?.task?.id === "string") {
+    entry.tasks = { ...entry.tasks, [result.task.id.slice(0, 64)]: { status: "pending", seen: true } };
+    entry.latest = "tasks";
+  } else if (call?.tool === "TaskUpdate" && typeof call.taskId === "string" && (TASK_STATUS.has(call.status) || call.status === "deleted")) {
+    const id = call.taskId.slice(0, 64);
+    const owner = Object.keys(next).find((key) => key !== loop && next[key].tasks?.[id]);
+    const target = owner ? { ...next[owner] } : entry;
+    const tasks = { ...target.tasks };
+    if (call.status === "deleted") delete tasks[id];
+    else tasks[id] = { status: call.status, seen: tasks[id]?.seen ?? false };
+    target.tasks = Object.fromEntries(Object.entries(tasks).slice(-LIST_CAP));
+    target.latest = "tasks";
+    if (owner) next[owner] = target;
+  }
+  next[loop] = entry;
+  const loops = Object.keys(next);
+  return loops.length > LOOP_CAP ? Object.fromEntries(loops.slice(-LOOP_CAP).map((key) => [key, next[key]])) : next;
+};
+
+/**
+ * A loop's `{ done, total }` from its list, or null when it keeps none. A task list whose
+ * creation was not all seen knows its done count but not its total.
+ */
+export const listProgress = (entry) => {
+  if (!entry) return null;
+  const tasks = Object.values(entry.tasks ?? {});
+  const fromTasks = tasks.length ? { done: tasks.filter(({ status }) => status === "completed").length, total: tasks.every(({ seen }) => seen) ? tasks.length : null } : null;
+  if (entry.latest === "tasks" && fromTasks) return fromTasks;
+  return entry.todos ?? fromTasks;
+};
+
+// `tasks` maps a background task's id to `{ id, kind, name, at, until }`: a shell a Bash call left
+// running (its own `backgroundTaskId`) or a monitor, named by the call's description, never its
+// command. `until` is a monitor's deadline. A task ends with its notification, a TaskStop, its
+// deadline, or after TASK_STALE_MS when no ending was ever seen.
+export const EMPTY_TASKS = Object.freeze({});
+export const TASK_STALE_MS = 12 * 60 * 60 * 1000;
+const TASK_CAP = 12;
+const TASK_ID = /^[A-Za-z0-9_-]{1,64}$/u;
+
+export const noteBackgroundTask = (tasks, { id, kind, name, at, until = null }) => {
+  if (typeof id !== "string" || !TASK_ID.test(id)) return tasks;
+  const label = String(name || kind).replace(/[\u0000-\u001f\u007f]/gu, " ").trim().slice(0, 40) || kind;
+  const next = { ...tasks, [id]: { id, kind, name: label, at, until: Number.isFinite(until) ? until : null } };
+  const ids = Object.keys(next);
+  return ids.length > TASK_CAP ? Object.fromEntries(ids.slice(-TASK_CAP).map((key) => [key, next[key]])) : next;
+};
+
+export const endBackgroundTask = (tasks, id) => (typeof id === "string" && tasks[id] ? Object.fromEntries(Object.entries(tasks).filter(([key]) => key !== id)) : tasks);
+
+// The ids a task notification names as ended. Its text is read for `<task-id>` and `<status>`
+// alone and kept nowhere; a notification that still reports a running task ends nothing.
+export const endedTaskIds = (text) => {
+  const body = String(text ?? "").slice(0, 65_536);
+  const ids = [];
+  for (const block of body.split(/<\/task-notification>/u)) {
+    const id = /<task-id>\s*([A-Za-z0-9_-]{1,64})\s*<\/task-id>/u.exec(block)?.[1];
+    const status = /<status>\s*([a-z_]{1,24})\s*<\/status>/u.exec(block)?.[1] ?? "completed";
+    if (id && !["running", "pending", "in_progress"].includes(status)) ids.push(id);
+  }
+  return ids;
+};
+
+export const pruneBackgroundTasks = (tasks, now) => {
+  const kept = Object.entries(tasks).filter(([, task]) => !(task.until !== null && now > task.until) && !(now - task.at > TASK_STALE_MS));
+  return kept.length === Object.keys(tasks).length ? tasks : Object.fromEntries(kept);
+};
+
+const goalCount = (goal) => (goalIsOpen(goal) && goal.criteria.length > 0 ? { done: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length } : null);
+const LOOP_SKILLS = new Set(["lit-loop", "litgoal", "litwork"]);
+
+// A frame's k/n, the first source that knows it: the count the frame recorded, the start-work run
+// it drives, the checkboxes of the plan it works from, the open goal's criteria (a loop), and for
+// the frame on top the main loop's own todo or task list.
+const frameCount = (frame, snapshot, mainList) => {
+  const record = frame.record;
+  if (countOrNull(record?.total) !== null) return { done: countOrNull(record.n) ?? 0, total: record.total };
+  const work = snapshot.work;
+  if (work?.total > 0 && (frame.skill === "start-work" || (record?.family === "main" && record.stage === "work"))) return { done: work.checked, total: work.total };
+  if (frame.plan?.total > 0) return frame.plan;
+  if (LOOP_SKILLS.has(frame.skill) || record?.family === "loop") {
+    const goal = goalCount(snapshot.goal);
+    if (goal) return goal;
+  }
+  return mainList ?? { done: countOrNull(record?.n), total: null };
+};
+
+const frameThread = (frame, index, snapshot, active, mainList = null) => {
+  const { done, total } = frameCount(frame, snapshot, active ? mainList : null);
+  return {
+    key: `frame-${index}`,
+    name: frame.skill ?? frame.record?.family ?? "work",
+    stage: frame.record?.step ?? frame.record?.stage ?? null,
+    done,
+    total,
+    state: frame.record?.done ? "done" : frame.status === "paused" ? "paused" : frame.skill === "start-work" && snapshot.work?.status === "paused" ? "blocked" : "running",
+    active,
+  };
+};
+
+// A lane's k/n: its own todo or task list, else the steps it has finished over an unknown total.
+const laneCount = (entry) => listProgress(entry) ?? { done: entry?.steps ?? 0, total: null, steps: true };
+
+/**
+ * The live threads, or null while there is at most one: `{ chain, lanes, others, laneCount,
+ * taskCount, more, reserve }`. `chain` is this session's stack, parent first; `lanes` the subagents
+ * or work lanes running under its top frame, then its background tasks (`task` names the kind);
+ * `others` the top frame of each other session of this project whose stack moved within
+ * OTHER_SESSION_MS. At most THREAD_ROWS are kept (more under a deep chain, see PARALLEL_ROWS): the
+ * active frame and its parents first, then lanes and tasks, then other sessions. `reserve` is the card's thread-row count, never below the
+ * `threadReserve` the caller carried over, so the card does not shrink while threads are live.
+ */
+const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
+  const frames = snapshot.workflow?.stack?.frames ?? [];
+  const mainList = listProgress(lists.main);
+  const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList));
+  const laneThreads = lanes.map((lane, index) => ({
+    key: `lane-${lane.id ?? index}`,
+    name: lane.name,
+    stage: null,
+    ...laneCount(lane.id ? lists[lane.id] : null),
+    state: lane.status === "stalled" ? "blocked" : lane.status === "idle" ? "idle" : "running",
+    active: false,
+  }));
+  const taskThreads = tasks.map((task) => ({ key: `task-${task.id}`, name: task.name, stage: task.kind, done: null, total: null, state: "running", active: false, task: task.kind }));
+  const parallel = [...laneThreads, ...taskThreads];
+  const others = (snapshot.workflow?.others ?? [])
+    .filter((other) => Number.isFinite(other.at) && now - other.at <= OTHER_SESSION_MS && other.frames?.length)
+    .map((other) => ({ ...frameThread(other.frames.at(-1), 0, {}, false), key: `session-${other.id8}`, session: other.id8 }));
+  const total = chain.length + parallel.length + others.length;
+  if (total < 2) return null;
+  const room = Math.max(PARALLEL_ROWS, THREAD_ROWS - chain.length);
+  const keptLanes = parallel.slice(0, room);
+  const keptOthers = others.slice(0, Math.max(0, room - keptLanes.length));
+  const fork = parallel.length >= 2 ? 1 : 0;
+  const needed = chain.length + keptLanes.length + keptOthers.length + fork;
+  return {
+    chain,
+    lanes: keptLanes,
+    others: keptOthers,
+    laneCount: laneThreads.length,
+    taskCount: taskThreads.length,
+    more: total - chain.length - keptLanes.length - keptOthers.length,
+    reserve: Math.max(needed, Number.isInteger(threadReserve) ? threadReserve : 0),
+  };
+};
+
 const goalIsOpen = (goal) => Boolean(goal && NONTERMINAL_GOAL.has(goal.status));
 
 const progressOf = (snapshot) => {
@@ -168,9 +349,11 @@ export const stepName = (tool) => {
  * `$.session.usage()`, `notice` and `completion` whatever the mod is currently playing, `skills`
  * the chips (skills.mjs chipStates), `lastDiscipline` the discipline or skill the session last
  * lit (the idle title), `git` the branch and `step` the live step (`{ name, at }`, the tool the
- * main loop runs and since when).
+ * main loop runs and since when). `threadReserve` is the previous model's `threads.reserve`,
+ * `lists` the loops' todo and task counts (noteLoopCall) and `tasks` the background tasks
+ * (noteBackgroundTask).
  */
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null }) => {
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -197,16 +380,19 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   if (probe?.issue && probe.issueAt >= (probe.editAt ?? 0)) warnings.push({ tone: "red", subject: "ui probe", text: probe.issue, hint: "interface check failed" });
   const active = Boolean(snapshot.work) || goalIsOpen(goal) || (discipline !== null && isWorking) || liveAgents.length > 0;
   const lit = skills.some(({ state }) => state === "current");
+  const workflow = buildWorkflow({ snapshot, skills, completion, now });
+  const title = discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline;
   const visible = band === "off" ? false : band === "always" || active || lit || notice !== null || completion !== null || warnings.length > 0;
   return {
     visible,
     idle: !active && !lit,
     discipline,
-    title: discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline,
+    title: workflow?.paused ? crumbOf(workflow.paused) : title,
     phases,
     progress,
     next: snapshot.work?.nextTask ?? (goalIsOpen(goal) ? goal.criteria.find(({ status }) => status !== "pass")?.description || goal.objective || null : null),
     lanes: { count: lanes.length, list: lanes },
+    threads: threadsOf({ snapshot, lanes, tasks: Object.values(pruneBackgroundTasks(tasks, now)), lists, now, threadReserve }),
     autoloop,
     ctxWarning,
     warnings,
@@ -214,16 +400,24 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
     goal: goalSummaryOf(goal),
     skills: skills.map(({ id, at, state }) => ({ id, at, state })),
     figures: figuresOf(usage, git),
-    workflow: buildWorkflow({ snapshot, skills, completion, now }),
+    workflow,
     step: step && isWorking && stepName(step.name) ? { name: stepName(step.name), elapsedMs: Math.max(0, now - step.at) } : null,
     notice,
     completion,
   };
 };
 
-/** The spinner's suffix: the ellipsis Claude Code drew, then the discipline and the progress count. */
+// `lit-loop || > lit-brainstorm`, or `lit-loop || > … > lit-brainstorm` with a side between them.
+const crumbOf = ({ parent, child, chain }) => `${parent} || > ${chain.length > 1 ? "… > " : ""}${child}`;
+
+/**
+ * The spinner's suffix: the ellipsis Claude Code drew, then the discipline and the progress count,
+ * or the paused parent and its count while a side runs over it.
+ */
 export const spinnerSuffix = (model, base = "…") => {
   if (!model?.visible || !model.discipline) return null;
+  const paused = model.workflow?.paused;
+  if (paused) return `${base} · ${paused.child} (|| ${paused.parent}${paused.count ? ` ${paused.count.done}/${paused.count.total}` : ""})`;
   const count = model.progress ? ` · ${model.progress.done}/${model.progress.total}` : "";
   return `${base} · ${model.discipline}${count}`;
 };

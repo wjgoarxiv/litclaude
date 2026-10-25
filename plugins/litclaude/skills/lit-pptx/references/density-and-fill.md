@@ -84,10 +84,9 @@ The source strip closing a column counts as a block but never hides the band abo
 chart's values table under the takeaways is part of their column. The gate measures the same way
 (OF-115).
 
-The engine chooses the title treatment for a slide by fill as well: among the treatments the role
-and the family allow, a slide whose body stays short under the role default may move to a side rail
-or a bottom title, where a chart or table takes the full height. It never adds decoration to cover
-space and never pads cards.
+The title treatment never buys the body room: every treatment draws in the slide grid's one title
+zone over the same body (y 120-486), so a short body is filled by its own layout, never by moving the
+title. The engine never pads cards with filler. Decoration (the pack's list plus the deck's `decoration:` kinds) adds texture and structure to a full slide; it never stands in for missing content.
 
 ## Writing source that fills
 

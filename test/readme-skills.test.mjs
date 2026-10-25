@@ -14,9 +14,9 @@ const MAX_SNAPSHOT_BYTES = 81_920;
 
 // Table order. A grouped row stands for several hook-run skills that have no route of their own.
 const ROWS = [
-  "lit-loop", "litwork", "lit-plan", "start-work", "review-work", "litgoal", "lit-recap",
-  "lit-handoff", "lit-brainstorm", "deep-interview", "litresearch", "lit-crucible", "lit-init", "lit-comprehend",
-  "lit-humanizer", "lit-diagram-drawer", "lit-pptx", "lit-docx", "frontend-ui-ux", "readme-studio",
+  "lit-loop", "litwork", "lit-plan", "start-work", "review-work", "litgoal", "lit-recap", "lit-adhd",
+  "lit-handoff", "lit-brainstorm", "deep-interview", "litresearch", "lit-hijack", "lit-crucible", "lit-init", "lit-comprehend",
+  "lit-humanizer", "lit-diagram-drawer", "lit-schematic", "lit-pptx", "lit-docx", "frontend-ui-ux", "readme-studio",
   "lit-typographic-motion", "lit-scientific-visualization", "visual-qa", "browser-drive",
   "structural-search", "lit-team", "autoresearch", "autoconference", "wikify", "debugging",
   "refactor", "lit-burnoff", "lit-burnoff-file", "lit-code", "lit-commit", "lsp-setup",

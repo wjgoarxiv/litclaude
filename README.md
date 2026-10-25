@@ -247,7 +247,7 @@ over the saved setting, and the doctor shows what is in force:
 
 ## What you get
 
-LitClaude ships 36 skills you can start, three that run on their own, 17 slash commands and
+LitClaude ships 39 skills you can start, three that run on their own, 20 slash commands and
 11 agents. Most days you will use a handful of them.
 
 ### The work loop
@@ -300,6 +300,18 @@ as rendered. `lit-humanizer` rewrites stiff English or Korean prose and keeps th
 팀 워크숍 발표자료 만들어줘 lit
 write a two-page project proposal for the new onboarding flow lit
 lit-humanizer docs/intro.md
+```
+
+### P&IDs, apparatus figures and cutaways
+
+`lit-schematic` draws real equipment: a P&ID with ISA-5.1 tags, routed lines, a legend and a
+title block, a two-panel journal figure of an experimental setup, or an isometric cutaway of a
+vessel. Each drawing passes a QA gate for overlaps, lines through symbols and small text, and is
+exported as SVG, PDF and a 600 dpi PNG that Claude opens before it reports.
+
+```text
+lit draw a P&ID of the high-pressure hydrate reactor loop
+lit 논문용 실험 장치 모식도 그려줘
 ```
 
 ### Carry work into the next session
@@ -359,7 +371,7 @@ update or remove it from Claude Code's `/plugin` menu.
 - [Guide](./docs/guide.md): install options, what you will see on screen, the promo film,
   every route, automatic handoff, slides and documents, the status line, safety, and the
   Claude Code integration in depth.
-- [All skills](./docs/skills.md): the 36 skills and the automatic checks, one row each.
+- [All skills](./docs/skills.md): the 39 skills and the automatic checks, one row each.
 - [Hooks](./docs/hooks.md), [agents](./docs/agents.md), [privacy and network behavior](./docs/privacy.md),
   [migration and ownership conflicts](./docs/migration.md),
   [package-name migration and marketplace choices](./docs/migration.md#scoped-npm-migration), [native `/goal` surface](./docs/native-goal-surface.md)

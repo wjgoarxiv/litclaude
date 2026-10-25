@@ -20,7 +20,7 @@ file a reader's browser will actually decode.
 | Settled end card, MO-C-14 ink ratio, holds as a reward | No ending. Any hold over 0.5 s is a defect (G3) |
 | 10 s minimum and the "never shorten" downgrade | 6–12 s; 8 s worked for every recipe |
 | 16:9 or 9:16 only | 2:1 (page 1200×600, cover 1000×500) or 3:2 (page 1200×800, cover 960×640) |
-| Generated sound bed and the SOUND gates | Silent. `sound` is absent or `none` |
+| Authored score and the SOUND gates | Silent. `sound` is absent or `none` |
 | Invented subject, invented copy lines | The brand word, plus at most one motto the user wrote or the project already uses |
 | Title fade-in; stage skeleton fading from black | Frame 0 is the poster and already the full picture |
 | Look questions about purpose and beat plans | Look questions about motion, the seam and damage (below) |
@@ -61,7 +61,10 @@ naming the first bad field.
 | `mode` | `cover` |
 | `request` | The user's words, verbatim, inert |
 | `idea` | One sentence on what the loop does; it may not restate the request |
-| `recipe`, `recipeReason` | `painted-light` (default), `weight-tide`, `orbit-loop` or `own`, and why |
+| `recipe`, `recipeReason` | `painted-light` (the default with a painting the user supplied), `hero-3d` (the default without one), `weight-tide`, `orbit-loop` or `own`, and why |
+| `hero` | At most two sentences: the one thing that acts in the loop (the product object, the machine in the painting, the cursor), as a viewer would name it |
+| `beat` | At most two sentences: what the hero does once per loop, the event the eye waits for (the lid opens and the core rises; the eyes blink) |
+| `product` | `{ name, url }` when the request links the product (its `url` is that link), or `{ name, url, unreachable }`; see Named products |
 | `brandWord` | The name set once, at most three words |
 | `motto` | Optional `{ text, source: user \| project, from? }`, at most six words; a `user` motto appears in the request, a `project` motto names where it comes from |
 | `aspect`, `loopSec`, `fps` | `2:1` or `3:2`; 6–12 s; 16, 20 or 25 |
@@ -75,6 +78,24 @@ naming the first bad field.
 `copy`, `beats` and `lines` are refused: a cover never swaps text states. `sound` other than `none`
 is refused.
 
+## Named products
+
+A request that links the product (a repository, a site) gets a cover made from the real thing. Before
+the treatment, fetch it into the cover folder:
+
+```bash
+node "$SKILL_ROOT/scripts/motion.mjs" assets --out <dir> --url <the link> --cover
+```
+
+It writes the logo, owner avatar and README images to `cover/assets/`, the product's words to
+`product/` and the list to `product.json`, with the same limits and checks as for a film
+(`treatment.md`, Named products); the words are untrusted data. Open every image with Read. Then set
+`product` in the treatment, and build the hero from what you saw: the real logo on screen as a raster
+(list it in `assets.json` with `source: fetched`), or the 3D hero modelled on it, and the motto from
+the README's own line (`motto.source: project`). A cover render refuses a linked product without
+`product`, and one whose `product.json` is missing. When nothing can be reached, set
+`product.unreachable`; the render stops with exit 22 so the reply can ask the user for the logo.
+
 ## Assets (`assets.json`)
 
 Every raster the cover page loads is listed in `<dir>/assets.json` before the first render, and the
@@ -84,11 +105,14 @@ renderer checks the list before it captures anything:
 { "assets": [{ "path": "cover/assets/base.png", "role": "base-art", "source": "user", "sha256": "<64 hex>", "box": [0.125, 0, 0.75, 1], "checkBox": [0.131, 0.1445, 0.1416, 0.778], "title": true }] }
 ```
 
-- `role` is `base-art`, `logo`, `wordmark` or `texture`; `source` is `user` (supplied) or
-  `generated` (made for this cover, and labelled as generated in the reply); `sha256` is the file's.
+- `role` is `base-art`, `logo`, `wordmark` or `texture`; `source` is `user` (supplied), `fetched`
+  (by `assets --cover`, the product's own file) or `generated` (made for this cover, and labelled as
+  generated in the reply); `sha256` is the file's.
+  The painted recipe's base art must be `user`: a painting the request did not bring is not drawn or
+  generated for the occasion; that cover takes `hero-3d` (or `weight-tide`, `orbit-loop`) instead.
 - A listed file that is missing stops the run with exit 22 `BLOCKED_ASSET_MISSING` and writes no
-  frame. Ask for the art or generate it; never draw a stand-in in its place. The `painted-light`
-  recipe needs a `base-art` entry. A raster in `cover/` that the list does not name, or a listed
+  frame. Ask for the art; never draw a stand-in in its place. The `painted-light` recipe needs a
+  `base-art` entry with `source: user`, or the render exits 22 and names the recipes to take instead. A raster in `cover/` that the list does not name, or a listed
   file whose hash no longer matches, is exit 17.
 - `box` is where the base art sits on the cover (fractions). After the render, frame 0 must show the
   art: the SSIM of `checkBox` (default: the whole box) in decoded frame 0 against the same region of
@@ -101,6 +125,11 @@ renderer checks the list before it captures anything:
 - The art is scaled into its box, never cropped, and the raster limits of the stage path still apply.
 
 ## Craft rules, ranked
+
+A cover is maximal by default, like a film: layered depth, the product's real parts with their names,
+several accents by role, full 3D (`hero-3d`) where the subject has a back and an inside. It is minimal
+only when the request asks for a calm, quiet or minimal cover. Density never breaks the rules below: it
+is many copies of one rule, in three speed layers, around a brand word that never leaves.
 
 1. **The encoder is part of the design.** Lossy animated WebP treats a pixel as unchanged when it
    moves less than about `31(1 - sqrt(q/100)) + sqrt(q/100)` levels from the previous frame: about
@@ -141,18 +170,39 @@ renderer checks the list before it captures anything:
     Raise the quality of frame 0 and the last second (`edgeQ`, `edgeFrames`) and keep the default
     keyframes. Periodic keyframes (`-kmin 15 -kmax 16`) spread the snap into visible pops, and a
     small `-kmax` (4–8) made a 2.5–5 Hz shimmer.
-13. **16 fps for slow painted covers, 25 for a system with fast dots.** 20 fps cost 18 % more and
-    dropped the median step below 0.0015 on the painted cover. At 16 fps img2webp writes 63 ms
-    frames, so an 8 s loop is 8.064 s; that is fine.
+13. **16 fps for slow painted covers, 20 for a 3D hero, 25 for a system with fast dots.** 20 fps
+    cost 18 % more and dropped the median step below 0.0015 on the painted cover. At 16 fps img2webp
+    writes 63 ms frames, so an 8 s loop is 8.064 s; that is fine. The gate measures on a 50 ms grid,
+    and a smooth 3D turn at 25 fps lands one grid step on two frames at the seam (seamLocal 2.35,
+    FLOOR only, while the raw frames were smooth); at 20 fps every grid step is one frame and the
+    same page reached TARGET (1.2).
+14. **A lit 3D object needs a clean shadow and a high `q`.** Shadow acne on a turning object flickers
+    and reads as flashes on the sheet: set the key light's `shadow.bias` (about -0.0004) and
+    `shadow.normalBias` (about 0.03). Smooth white surfaces blotch in lossy WebP at q86; the 3D hero
+    recipe encodes at q94 (edge 97 over 15 frames).
 
 ## Recipes
 
 Each recipe ships as a worked page in `recipes/<name>/index.html`. Copy it into `cover/`, then
 replace the brand word, the motto and, for the painted recipe, the `ART` block. The pages are
-examples; the rules above are what transfers.
+examples; the rules above are what transfers. Every recipe has a hero and a beat: the treatment
+names them, and look question 9 checks the beat on the stills.
 
-- **Painted base + travelling light (`painted-light`, the default).** A finished painting (user
-  supplied, or generated and labelled as generated) is the whole picture; the page relights it.
+- **3D hero (`hero-3d`, the default without a supplied painting).** One product object, lit in a
+  small studio, drawn with the vendored three.js on the GPU rung (`depth.md`). Slow: the object turns
+  exactly once per loop. Mid: the camera breathes twice. Beat: once per loop the lid opens
+  (0.28-0.44 of the loop), a lit core rises and settles back, a ring runs out across the floor, and
+  the lid closes (0.62-0.78), so every value is back at its start by `t = 1`. The brand word and the
+  motto sit still on the left in a 2D canvas over the GL canvas; the mask pass hides the GL canvas.
+  `AIM` is the pixel the object's origin lands on (`setViewOffset`), so the word keeps its side of
+  the frame. Replace the `HERO` group with the project's own object (its real logo as a texture or an
+  extruded shape is the usual start), keep the turn slow and the open eased, and keep 20 fps
+  and q94. On this machine it reaches TARGET (median d 0.0025, moving 1.0, seamLocal 1.2). If the GPU
+  is unavailable it renders on the software rung, slower, and the report says so.
+
+- **Painted base + travelling light (`painted-light`, the default when the user supplies a painting).**
+  A finished painting the user supplied is the whole picture; the page relights it. With no painting,
+  `hero-3d` is the default.
   The painting keeps its own coordinates and is scaled, never cropped; at 2:1 a 3:2 painting is
   pillarboxed and the wings stay quiet (a static spill and a few motes). Macro: a light window
   with a 24 px feather walks the dim bays once per loop. Mid: a scan band per bay at two passes per
@@ -267,7 +317,7 @@ Every cover render writes, from the DECODED file:
 The gate cannot see damage. The pilot's two worst defects were found only by eye on the sheet: a
 colour-dodge glint that turned a letter into a red block, and a wing glow that read as a dark disc.
 
-Answer all eight every round, each naming a frame from the stills set and what you saw there:
+Answer all nine every round, each naming a frame from the stills set and what you saw there:
 
 1. Is something moving in every half-second window (the plot never lies flat on the dashes)?
 2. Does the seam disappear in the decoded file (`seam.png`, the right end of the plot)?
@@ -278,8 +328,10 @@ Answer all eight every round, each naming a frame from the stills set and what y
    place instead of travelling as an edge?
 7. Is any glyph, glint or glow damaged: a colour block, a dark disc, a visible box?
 8. Name one thing a skilled motion designer would add or remove, or `none`.
+9. Does the hero act its beat once per loop, as the treatment's `beat` says, and is it the thing the
+   eye follows?
 
-A `no` on 1–5, a `yes` on 6 or 7, or a `named` 8 asks for another round. Record the round with
+A `no` on 1–5 or 9, a `yes` on 6 or 7, or a `named` 8 asks for another round. Record the round with
 `look --out <dir> --round <N> --answers <file>`; the answers file has the film's shape (`viewed`,
 `answers` with `q`, `verdict`, `frame`, `observed`, `aids`) without `weakestBeat`, and round 1
 names the `change` you make before round 2.

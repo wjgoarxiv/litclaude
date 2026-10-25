@@ -18,11 +18,11 @@ Each node carries a stable id, parent id (empty only for the root), short name, 
 2. Center each parent above the span occupied by its descendants. Order siblings by the domain's actual sequence; if none exists, use a stable declared order so reruns are reproducible.
 3. Route orthogonal connectors: short parent stem, horizontal sibling bus, then a short drop to each child. Keep connectors behind nodes and attach them at the center of node edges.
 4. Use two node widths at most, based on measured label lengths. Align boxes to the layout grid; use a lighter border or fill for leaves only when it remains a redundant cue.
-5. Keep at most nine nodes, four levels including the root, and five children at a level. Beyond the budget, split at a meaningful subsystem boundary and provide cross-reference ids between figures.
+5. Carry up to about 24 nodes, five levels including the root, and eight children at a level. Beyond that, split at a meaningful subsystem boundary and provide cross-reference ids between figures.
 
 ## Visual encoding
 
-Connector topology carries the hierarchy; box position and text carry identity. Use a single accent node at most, chosen as root or a critical leaf. Do not style every level as a different color. Use the same visual weight for siblings and the same depth spacing throughout. Place connectors before cards so their paths terminate cleanly at the box edge.
+Connector topology carries the hierarchy; box position and text carry identity. Give each top-level subtree one accent family from the style guide (3–5 families) so a branch reads as one unit, and mark a critical leaf with a labelled badge. Do not color by depth alone. Use the same visual weight for siblings and the same depth spacing throughout. Place connectors before cards so their paths terminate cleanly at the box edge.
 
 ## Korean text
 
@@ -44,7 +44,7 @@ Run `scripts/verify-diagram.mjs` for node bounds, overlap, clipping, contrast, s
 
 - A node with two parents, a cycle, or an unlabeled skipped level.
 - Diagonal connectors or connectors that stop short of a child.
-- More than four levels, inconsistent box widths, or one exceptionally broad row.
+- More than five levels, inconsistent box widths, or one exceptionally broad row.
 - Highlighting the root and a leaf with competing accents.
 - Cross-tree dependencies drawn as if they were parent-child links.
 - Cropping a large tree so that its root or branch context disappears.

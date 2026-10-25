@@ -166,7 +166,7 @@ describe("treatment validator (exit 16 with the field)", () => {
   });
 
   it("names every missing field", () => {
-    for (const key of ["request", "genre", "path", "pathReason", "idea", "audience", "channel", "format", "durationSec", "beats", "subject", "visualDevices", "typePlan", "palette", "sound", "copy", "ambition"]) {
+    for (const key of ["request", "genre", "path", "pathReason", "style", "idea", "audience", "channel", "format", "durationSec", "beats", "subject", "visualDevices", "typePlan", "sound", "copy", "ambition"]) {
       const t = stageTreatment(TIMBRE);
       delete t[key];
       assert.equal(field(t), key, key);
@@ -227,13 +227,15 @@ describe("treatment validator (exit 16 with the field)", () => {
   });
 
   it("rejects the type path with no user copy and no cue, and the type path at 9:16", () => {
-    const noCue = stageTreatment(TIMBRE, { path: "type", visualDevices: [] });
+    const noCue = stageTreatment(TIMBRE, { path: "type", style: "swiss-signal", visualDevices: [] });
+    noCue.sound.palette = { timbre: "glass", key: "A", mode: "minor", tempo: 104 };
     assert.equal(field(noCue), "path");
     const portrait = typeTreatment(TIMBRE, { format: "9:16", formatReason: "A vertical story post." });
+    portrait.request = `${portrait.request} 세로로`;
     assert.equal(field(portrait), "path");
   });
 
-  it("rejects too few beats for the genre, a beat under 1.2 s, gaps and the announcement floor", () => {
+  it("rejects too few beats for the genre, a beat under 1.2 s, gaps and a length outside the genre band", () => {
     const few = stageTreatment(TIMBRE);
     few.beats = [{ ...few.beats[0], t1: 8 }, { ...few.beats[4], t0: 8 }, ];
     few.visualDevices = few.visualDevices.map((d) => ({ ...d, beats: d.beats.filter((b) => b < 2) }));
@@ -245,9 +247,9 @@ describe("treatment validator (exit 16 with the field)", () => {
     const gap = stageTreatment(TIMBRE);
     gap.beats[2].t0 = 7;
     assert.equal(field(gap), "beats[2]");
-    const brief = stageTreatment(TIMBRE, { genre: "announcement", durationSec: 8 });
+    const brief = stageTreatment(TIMBRE, { durationSec: 8 });
     brief.beats = [0, 1.6, 3.2, 4.8, 6.4].map((t0, i) => ({ ...stageTreatment(TIMBRE).beats[i], t0, t1: i === 4 ? 8 : t0 + 1.6 }));
-    assert.equal(field(brief), "durationSec", "announcement films have a 10 s floor unless the user asked for a length");
+    assert.equal(field(brief), "durationSec", "an explainer runs 16-24 s unless the user asked for a length");
   });
 
   it("requires inventions to list the invented subject's name", () => {

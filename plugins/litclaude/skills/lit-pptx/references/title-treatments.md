@@ -1,10 +1,11 @@
 # Title treatments
 
-A title treatment decides where a slide's title sits, how large it is, what colour it takes and what
-comes with it (a rule, a band, a rail, a numeral, a panel). The engine knows eight. Each one has a
-fixed frame, so every slide that uses a treatment puts its title in exactly the same place; the deck
-gets its variety from using three to five treatments for different slide jobs. A reader learns a
-handful of positions as quickly as one, provided each position always means the same kind of slide.
+A title treatment decides how a slide's title looks: how large it is, what colour it takes and what
+comes with it (a rule, a band, a rail, a numeral, a panel). The engine knows eight. None of them
+moves the title. Every content title sits in the slide grid's one title zone (`scripts/lib/slide-grid.js`:
+columns 1-10, y 36, 72 pt tall) and its body starts at y 120, whichever treatment and whichever
+tonality draws it; a statement sits in the display title zone. The deck gets its variety from three
+to five treatments for different slide jobs, and a reader never has to look for the title.
 
 Two rules hold for all eight. The title is a topic label, never a sentence: a noun phrase that names
 the subject, the measure and, where it matters, the period ("분기별 방문·대출 추이", "Loans per visit by
@@ -50,20 +51,21 @@ Covers, sections and closings take their own variant's title and refuse a `title
 
 ## The eight
 
-Geometry is for the standard 16:9 grid (48 pt margins, 74 pt column pitch); the dense and airy grids
-keep the same columns and y values. Glyph budgets are for Korean at the presented ramp; Latin text
-takes about twice as many characters.
+Geometry is in points on the 16:9 canvas (12 columns, 24 pt margins, 78 pt pitch); the 4:3 canvas keeps
+the same y values. The density dial changes type and spacing inside the zones, never the zones. Glyph
+budgets are for Korean at the presented ramp, with the reading ramp in brackets; Latin text takes about
+twice as many characters.
 
-| Treatment | Where the title sits | Comes with | Body | Fits | Budget |
+| Treatment | Title | Comes with | Body | Fits | Budget |
 |---|---|---|---|---|---|
-| `top-rule` | columns 1-12 at the top (y 36), title size | a short accent rule or a full hairline 6 pt under it | y 120-486 under it | content and data pages that are read | one line, about 27 glyphs |
-| `top-plain-large` | columns 1-10 at the top, display size | nothing | starts 24 pt under the title | comparison, image-split, pages that open on one claim | two lines of about 16 glyphs |
-| `side-rail` | columns 1-4 down the left, title size | an optional tinted rail or a hairline at column 4 | columns 5-12, top-aligned with the title; the rail under the title holds criteria labels, takeaways and the source | a chart or picture with its takeaways, a comparison with labelled criteria | four lines of about 8 glyphs |
-| `band` | inside a full-width band 108 pt tall | the band in the field colour, the title on it | y 132-486 | Korean briefing pages, data pages on a dark deck | one line, about 25 glyphs |
-| `statement` | columns 1-10, centred between y 120 and 486, display size | an optional support line under it | none: the text is the content | a pull quote, or a display-led deck the user asked for | three lines of about 16 glyphs |
+| `top-rule` | the title zone, title size | a short accent rule or a full hairline 4 pt under the title's last line | y 120-486 | content and data pages that are read | two lines of about 23 glyphs (29) |
+| `top-plain-large` | the title zone, display size | nothing | y 120-486 | comparison, image-split, pages that open on one claim | one line of about 17 glyphs (two of 21) |
+| `side-rail` | the title zone, title size | a bar in the left margin: the page's full height in the rail colour when the pack fills its rail, else as tall as the title zone in the accent | y 120-486 | a chart or picture with its takeaways, a comparison with labelled criteria | as `top-rule` |
+| `band` | the title zone, title size, in the on-field colour | the field colour from the page's top edge to the title zone's foot (y 108) | y 120-486 | Korean briefing pages, data pages, a newspaper masthead | as `top-rule` |
+| `statement` | the display title zone (columns 1-9, y 132-348), display or hero size, centred | an optional support line in the support zone (y 372) | none: the text is the content | a pull quote, or a display-led deck the user asked for | three lines of about 15 glyphs |
 | `overlay` | a dark panel at the lower left over a full-bleed picture | the panel at 88 % opacity, a caption on it | none: the picture is the content | full-picture slides | two lines of about 15 glyphs |
-| `kicker-numeral` | columns 3-12 at the top, with a large numeral in columns 1-2 | the numeral in the accent colour (the part number; never an agenda's row count) | y 132-486 | steps, numbered recommendations | one line, about 23 glyphs |
-| `bottom-anchor` | columns 1-9, the title frame's bottom edge on the body floor (y 486), so no band is left under it | an optional hairline 12 pt above the title | y 36 to 24 pt above the title for the visual | chart-led, figure-led and big-picture slides | two lines of about 20 glyphs |
+| `kicker-numeral` | the title zone, title size | the numeral at cover size in the aside zone right of the title (columns 11-12), in the accent colour; the part number, never an agenda's row count | y 120-486 | steps, numbered recommendations | as `top-rule` |
+| `bottom-anchor` | the title zone, title size | a 3 pt ink rule across the columns at the zone's foot (y 110) | y 120-486 | chart-led, figure-led and big-picture slides | as `top-rule` |
 
 Over budget, the engine moves the slide to another allowed treatment and says so in a `note:` line;
 a `title:` key that asks for an over-budget treatment stops the compile, because a pinned choice
@@ -71,8 +73,8 @@ that cannot hold the title is an authoring error. Shorten the title or pick anot
 
 ## Choosing well
 
-- **Data with a takeaway** reads best under `side-rail` or `bottom-anchor`: the title sits beside or
-  under the chart and explains it, and the chart gets the full height.
+- **Data with a takeaway** reads best under `bottom-anchor` or `side-rail`: the heavy rule or the
+  margin bar marks a page led by its chart, and the chart gets the body's full height under the title.
 - **A claim** is not a title. It opens the body under a label: a boxed summary over its reasons, a
   data panel of the figures behind it, or the first takeaway beside a table or chart. `statement`
   stays for pull quotes and decks the user asks to be display-led; a lone sentence on a page holds
@@ -84,8 +86,8 @@ that cannot hold the title is an authoring error. Shorten the title or pick anot
 - **Pictures** use `overlay` only on a full-bleed image, and `bottom-anchor` when a large picture
   sits above its title.
 
-Keep within one treatment's frame. Never move a title by hand with a free box: the frame is the
-treatment, and a nudged title is a second, broken treatment.
+Never move a title by hand with a free box: the zone is the slide grid's, and a nudged title breaks
+the one place every theme keeps.
 
 ## How the gate reads it
 
@@ -98,12 +100,14 @@ two; the written name alone is never taken as evidence.
   (cover and section titles not counted) or more than the variance dial allows. On a deck of any
   length it fails when a title fits none of the eight, or when a title is drawn as a different
   treatment than its name says.
-- **OF-113** fails when two slides with the same treatment place their title frames more than 1 pt
-  apart (a statement only compares x and width, because it is centred on its own line count; a bottom
-  title compares x, width and its bottom edge, because it stands on the floor).
-- **OF-115** fails a bottom title that ends more than 12 pt above the body floor and a side rail more
-  than 40 % empty under its title. Text in the rail under the title is the rail's: it neither changes
-  the side-rail reading nor counts as a body column.
+- **OF-113** fails a title frame more than 1 pt off the deck's shared frame, whatever its treatment:
+  every content title is measured against one frame and every statement against the display frame. A
+  title over a full-bleed picture keeps its own panel.
+- **OF-116**, run with `--sibling <other.pptx>` on the same source compiled under another tonality,
+  fails when the two decks place a slide's title frame or its body's top-left corner differently: a tonality changes the
+  look and never the place.
+- **OF-115** fails a column that stops short beside a longer one, a title panel taller than its text
+  and a plate under an empty page.
 
 On a legacy template the variety checks report as advisories, because the user asked for that
 template's single title position.

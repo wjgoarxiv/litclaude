@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -56,7 +56,12 @@ const preTool = (root, toolName, toolInput, overrides = {}) => runHook("pre-tool
   ...overrides,
 });
 
-const resumeRouteFromReason = (reason) => reason.match(/\/litclaude:start-work resume[^\n]+/u)?.[0];
+// The exact 5-ID resume route, built from the paused work's state; the deny text no longer prints it.
+const resumeRouteFor = (root) => {
+  const work = parse(runCli(root, ["status"])).state.works["work-1"];
+  const boundary = work.pending_boundary;
+  return boundary ? `/litclaude:start-work resume --work-id ${work.work_id} --revision ${work.revision} --boundary-id ${boundary.boundary_id} --prompt-id ${boundary.origin_prompt_id} --grant-id ${boundary.grant_id}` : undefined;
+};
 
 describe("Claude-native bounded-authority host hooks", () => {
   it("uses official PreToolUse output and allows safe reads and authorized mutations through normal host permissions", () => {
@@ -147,6 +152,7 @@ describe("Claude-native bounded-authority host hooks", () => {
         `grep fixture ${insideRead}`,
         `find ${root}`,
         `ls -la ${root}`,
+        `cat "${insideRead}"`,
         `node --test ${insideTest}`,
         "npm test",
       ]) {
@@ -161,7 +167,7 @@ describe("Claude-native bounded-authority host hooks", () => {
         `cat ${outsideRead}`,
         `node --test ${outsideTest}`,
         `npm test --prefix ${outside}`,
-        `cat "${insideRead}"`,
+        `cat "${insideRead} x"`,
         "cat $HOME/secret.txt",
         "cat ~/secret.txt",
         "cat *.txt",
@@ -329,7 +335,7 @@ describe("Claude-native bounded-authority host hooks", () => {
       assert.equal(denied.status, 0, denied.stderr);
       const denial = parse(denied);
       assert.equal(denial.hookSpecificOutput.permissionDecision, "deny");
-      const route = resumeRouteFromReason(denial.hookSpecificOutput.permissionDecisionReason);
+      const route = resumeRouteFor(root);
       assert.ok(route, "denial must provide the exact namespaced resume route");
       assert.match(route, /--prompt-id prompt-outside-write/u);
       assert.match(route, /--grant-id grant-[a-f0-9]+/u);
@@ -585,7 +591,7 @@ describe("Claude-native bounded-authority host hooks", () => {
       });
       assert.equal(result.status, 0, result.stderr);
       assert.equal(parse(result).hookSpecificOutput.permissionDecision, "deny");
-      assert.match(parse(result).hookSpecificOutput.permissionDecisionReason, /authority boundary/iu);
+      assert.match(parse(result).hookSpecificOutput.permissionDecisionReason, /outside this plan.s scope. Reply "lit approve"/u);
       const work = parse(runCli(root, ["status"])).state.works["work-1"];
       assert.equal(work.status, "paused");
       assert.equal(work.pending_boundary.origin_prompt_id, "prompt-linked-worktree");
@@ -804,3 +810,466 @@ describe("Claude-native bounded-authority host hooks", () => {
     });
   });
 });
+
+// plans/lit-adhd.md todo 6 (diag-startwork T6-T8, T10, T11): boundaries that should never exist.
+describe("start-work pauses only at a real authority boundary", () => {
+  const allowed = (result) => {
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "", result.stdout);
+  };
+  const denied = (result) => {
+    assert.equal(result.status, 0, result.stderr);
+    return parse(result).hookSpecificOutput;
+  };
+
+  it("T6 allows Read of the plugin's own skill files during an active work", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      const skill = join(repoRoot, "plugins", "litclaude", "skills", "review-work", "SKILL.md");
+      allowed(preTool(root, "Read", { file_path: skill }));
+      allowed(preTool(root, "Grep", { pattern: "review", path: join(repoRoot, "plugins", "litclaude", "skills") }));
+      const write = denied(preTool(root, "Write", { file_path: join(repoRoot, "plugins", "litclaude", "skills", "x.md"), content: "x" }, { prompt_id: "prompt-plugin-write" }));
+      assert.equal(write.permissionDecision, "deny", "a write into the plugin is still a boundary");
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "paused");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T7 treats the Skill tool as a lifecycle control, not a mutation", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      allowed(preTool(root, "Skill", { skill: "litclaude:review-work" }));
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T8 a resumed read boundary covers the target's directory, so a second file there does not pause", () => {
+    const root = fixtureRoot();
+    const outside = fixtureRoot();
+    try {
+      initialize(root);
+      writeFileSync(join(outside, "a.txt"), "a");
+      writeFileSync(join(outside, "b.txt"), "b");
+      const first = denied(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-read-a", tool_use_id: "tool-read-a" }));
+      const route = resumeRouteFor(root);
+      assert.ok(route, first.permissionDecisionReason);
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundary.root, realpathSync(outside));
+      const resumed = runHook("user-prompt-submit", root, { session_id: "session-root", prompt_id: "prompt-approve-a", prompt: route });
+      assert.equal(resumed.status, 0, resumed.stderr);
+      allowed(preTool(root, "Read", { file_path: join(outside, "b.txt") }, { prompt_id: "prompt-read-b", tool_use_id: "tool-read-b" }));
+      const write = denied(preTool(root, "Write", { file_path: join(outside, "c.txt"), content: "c" }, { prompt_id: "prompt-write-c", tool_use_id: "tool-write-c" }));
+      assert.equal(write.permissionDecision, "deny", "a read approval does not grant writes");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("T10 classifies common harmless Bash shapes and keeps the dangerous ones denied", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      writeFileSync(join(root, "package.json"), JSON.stringify({ devDependencies: { vitest: "^2" } }));
+      for (const command of [
+        "npm test 2>&1 | tail -8",
+        "npm test | tail -n 5",
+        "npm test 2>&1 | grep -c ok",
+        "npm test | wc -l",
+        "env -u OPENAI_API_KEY -u TYPESAFE_API_KEY npm test",
+        "env -u OPENAI_API_KEY npm test 2>&1 | head -20",
+        "mkdir -p src/x",
+        "python3 -m pytest",
+        "npx vitest run",
+      ]) allowed(preTool(root, "Bash", { command }, { prompt_id: `prompt-ok-${command.length}`, tool_use_id: `tool-ok-${command.length}` }));
+      for (const command of [
+        "git push",
+        "npm publish",
+        "git tag v1",
+        "git reset --hard",
+        "npm test; rm -rf ..",
+        "env K=v npm test",
+        "mkdir -p ../outside",
+        "npm test | tee out.txt",
+        "npm test | tail -n 5 secret.txt",
+        "npx some-unlisted-tool",
+        "env -u OPENAI_API_KEY git push",
+        "npm test | grep -f secret.txt",
+        "npm test | sort -o out.txt",
+        "npx vitest/../../../../bin/rm -rf x",
+      ]) {
+        const output = denied(preTool(root, "Bash", { command }, { prompt_id: `prompt-no-${command.length}`, tool_use_id: `tool-no-${command.length}` }));
+        assert.equal(output.permissionDecision, "deny", command);
+      }
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active", "a refused Bash shape never pauses the work");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // Real-session QA (plans/lit-adhd.md todo 14, S2): a run that met only bare refusals wrote its
+  // check script to the write-only temp folder and stopped; the refusal now says what does run.
+  it("T10b runs a project script with node, and a refused Bash command names the shapes that do run", () => {
+    const root = fixtureRoot();
+    const outside = mkdtempSync(join(tmpdir(), "litclaude-t10b-"));
+    try {
+      initialize(root);
+      mkdirSync(join(root, "scripts"), { recursive: true });
+      writeFileSync(join(root, "scripts", "check.mjs"), "console.log(1);\n");
+      writeFileSync(join(outside, "x.mjs"), "console.log(2);\n");
+      for (const command of [
+        "node scripts/check.mjs",
+        "node ./scripts/check.mjs 4 5",
+        `node ${join(root, "scripts", "check.mjs")}`,
+        "node scripts/check.mjs 2>&1 | tail -3",
+      ]) allowed(preTool(root, "Bash", { command }, { prompt_id: `prompt-node-${command.length}`, tool_use_id: `tool-node-${command.length}` }));
+      for (const command of [
+        "node -e 'console.log(1)'",
+        "node --eval x",
+        "node --require ./scripts/check.mjs scripts/check.mjs",
+        "node scripts/check.mjs; rm -rf ..",
+        `node ${join(outside, "x.mjs")}`,
+        "node scripts/check.mjs ../secret.txt",
+      ]) {
+        const output = denied(preTool(root, "Bash", { command }, { prompt_id: `prompt-nonode-${command.length}`, tool_use_id: `tool-nonode-${command.length}` }));
+        assert.equal(output.permissionDecision, "deny", command);
+      }
+      const reason = denied(preTool(root, "Bash", { command: "ls -a && cat package.json; cat src/x" }, { prompt_id: "prompt-why", tool_use_id: "tool-why" })).permissionDecisionReason;
+      assert.match(reason, /one plain command per Bash call/u);
+      assert.match(reason, /node <script>/u);
+      assert.match(reason, /not an approval prompt/u);
+      const temp = denied(preTool(root, "Bash", { command: `node ${join(outside, "x.mjs")}` }, { prompt_id: "prompt-temp", tool_use_id: "tool-temp" })).permissionDecisionReason;
+      assert.match(temp, /inside the project/u, "an out-of-grant script is told where scripts run");
+      const forbidden = denied(preTool(root, "Bash", { command: "git push" }, { prompt_id: "prompt-push", tool_use_id: "tool-push" })).permissionDecisionReason;
+      assert.doesNotMatch(forbidden, /one plain command/u, "a forbidden action gets no workaround");
+      // The same S2 rerun then could not remove the script it had been told to write.
+      writeFileSync(join(root, "scripts", "scratch.mjs"), "1;\n");
+      writeFileSync(join(root, "scripts", "scratch2.mjs"), "2;\n");
+      allowed(preTool(root, "Bash", { command: "rm scripts/scratch.mjs" }, { prompt_id: "prompt-rm", tool_use_id: "tool-rm" }));
+      allowed(preTool(root, "Bash", { command: "rm -f scripts/scratch2.mjs" }, { prompt_id: "prompt-rmf", tool_use_id: "tool-rmf" }));
+      for (const command of ["rm -rf scripts", "rm scripts", "rm -r scripts/check.mjs", `rm ${join(outside, "x.mjs")}`, "rm scripts/missing.mjs", "rm ../x.mjs", "rm *.mjs"]) {
+        assert.equal(denied(preTool(root, "Bash", { command }, { prompt_id: `prompt-norm-${command.length}`, tool_use_id: `tool-norm-${command.length}` })).permissionDecision, "deny", command);
+      }
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active", "a refused Bash shape never pauses the work");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("T11 writes under macOS /tmp resolve through the symlink instead of failing closed", { skip: process.platform !== "darwin" }, () => {
+    const root = fixtureRoot();
+    const scratch = mkdtempSync("/tmp/litclaude-t11-");
+    try {
+      initialize(root, [`write:${realpathSync(scratch)}`]);
+      allowed(preTool(root, "Write", { file_path: join(scratch, "x.txt"), content: "x" }));
+      const outside = denied(preTool(root, "Write", { file_path: "/tmp/litclaude-t11-elsewhere.txt", content: "x" }, { prompt_id: "prompt-tmp-out", tool_use_id: "tool-tmp-out" }));
+      assert.doesNotMatch(outside.permissionDecisionReason, /failed closed/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
+// plans/lit-adhd.md todo 7 (diag-startwork T9, D8): other sessions read, a stale run is taken over.
+describe("start-work shared with other sessions in the same project", () => {
+  const other = (root, toolName, toolInput, overrides = {}) => preTool(root, toolName, toolInput, { session_id: "session-other", prompt_id: "prompt-other", tool_use_id: "tool-other", ...overrides });
+  const status = (root) => parse(runCli(root, ["status"])).state.works["work-1"];
+  const typed = (root, prompt, sessionId = "session-other") => runHook("user-prompt-submit", root, { session_id: sessionId, prompt_id: `prompt-${sessionId}-typed`, prompt });
+  const ageWork = (root, hours) => {
+    const path = join(root, ".litclaude", "boulder.json");
+    const state = JSON.parse(readFileSync(path, "utf8"));
+    const then = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+    state.works["work-1"].updated_at = then;
+    writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+  };
+
+  it("T9 lets other sessions read but not mutate during an active work", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      writeFileSync(join(root, "a.txt"), "a");
+      const read = other(root, "Read", { file_path: join(root, "a.txt") });
+      assert.equal(read.status, 0, read.stderr);
+      const readOutput = parse(read).hookSpecificOutput;
+      assert.equal(readOutput.permissionDecision, undefined, "a read is not refused");
+      assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read, not change files\./u);
+      const statusRun = other(root, "Bash", { command: "litclaude-ai start-work status" });
+      assert.notEqual(statusRun.stdout && parse(statusRun).hookSpecificOutput.permissionDecision, "deny");
+      const skill = other(root, "Skill", { skill: "litclaude:lit-recap" });
+      assert.notEqual(skill.stdout && parse(skill).hookSpecificOutput.permissionDecision, "deny");
+      const write = parse(other(root, "Write", { file_path: join(root, "b.txt"), content: "b" })).hookSpecificOutput;
+      assert.equal(write.permissionDecision, "deny");
+      assert.match(write.permissionDecisionReason, /work-1/u);
+      assert.match(write.permissionDecisionReason, /approved\.md/u);
+      assert.match(write.permissionDecisionReason, /\/litclaude:start-work plans\/approved\.md/u, "names the takeover route");
+      assert.doesNotMatch(write.permissionDecisionReason, /!|--work-id/u);
+      assert.equal(status(root).status, "active", "another session's refusal never pauses the owner's work");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // Real-session QA (plans/lit-adhd.md todo 14, S5): `lit adhd --here` in a second session was
+  // refused, because the collector call was not classified at all, for the owner either.
+  it("T9b the lit-adhd collector is a read for the owner and for other sessions", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      const script = join(repoRoot, "plugins", "litclaude", "skills", "lit-adhd", "scripts", "rewind.mjs");
+      for (const command of ["litclaude-ai rewind --json", "litclaude-ai rewind --json --here", "litclaude rewind --json --since 7d --max 12", `node ${script} --json --here`]) {
+        for (const run of [other(root, "Bash", { command }), preTool(root, "Bash", { command }, { prompt_id: `prompt-rw-${command.length}`, tool_use_id: `tool-rw-${command.length}` })]) {
+          assert.equal(run.status, 0, run.stderr);
+          assert.notEqual(run.stdout && parse(run).hookSpecificOutput.permissionDecision, "deny", `${command}: ${run.stdout}`);
+        }
+      }
+      for (const command of ["litclaude-ai rewind --json > out.json", "litclaude-ai rewind --json --root /etc", "litclaude-ai rewind ../x", `node ${join(root, "rewind.mjs")} --json`]) {
+        assert.equal(parse(other(root, "Bash", { command })).hookSpecificOutput.permissionDecision, "deny", command);
+      }
+      assert.equal(status(root).status, "active");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("adopts a run whose owning session ended, on a typed start-work for the same plan", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      const ended = runHook("session-end", root, { session_id: "session-root", reason: "exit" });
+      assert.equal(ended.status, 0, ended.stderr);
+      const adopted = typed(root, "/litclaude:start-work plans/approved.md");
+      assert.equal(adopted.status, 0, adopted.stderr);
+      const work = status(root);
+      assert.equal(work.root_session_id, "session-other");
+      assert.equal(work.active_session_id, "session-other");
+      assert.deepEqual(work.session_ids, ["session-root", "session-other"]);
+      assert.ok(work.events.some(({ event }) => event === "work.adopted"));
+      assert.match(parse(adopted).hookSpecificOutput.additionalContext, /took over start-work work-1/u);
+      const write = other(root, "Write", { file_path: join(root, "b.txt"), content: "b" });
+      assert.equal(write.stdout, "", "the adopting session now owns the grants");
+      const old = parse(preTool(root, "Write", { file_path: join(root, "c.txt"), content: "c" })).hookSpecificOutput;
+      assert.equal(old.permissionDecision, "deny", "the old session is now the other one");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("adopts after two idle hours, but not while fresh or for a different plan", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      writeFileSync(join(root, "plans", "other.md"), "# Other\n\n## TODOs\n\n- [ ] Something else\n");
+      typed(root, "/litclaude:start-work plans/approved.md");
+      assert.equal(status(root).root_session_id, "session-root", "a fresh run is not taken over");
+      ageWork(root, 3);
+      const refused = typed(root, "/litclaude:start-work plans/other.md");
+      assert.match(parse(refused).hookSpecificOutput.additionalContext, /different plan/u);
+      assert.equal(status(root).root_session_id, "session-root", "a different plan never adopts");
+      typed(root, "/litclaude:start-work plans/approved.md");
+      assert.equal(status(root).root_session_id, "session-other");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("a session in a sibling linked worktree is not governed by the main checkout's run; one inside the run's worktree is", () => {
+    const root = fixtureRoot();
+    const sibling = fixtureRoot();
+    try {
+      mkdirSync(join(root, ".git", "worktrees", "sibling"), { recursive: true });
+      initialize(root);
+      writeFileSync(join(sibling, ".git"), `gitdir: ${join(root, ".git", "worktrees", "sibling")}\n`);
+      const free = other(root, "Write", { file_path: join(sibling, "x.txt"), content: "x" }, { cwd: sibling });
+      assert.equal(free.stdout, "", "another session in a sibling worktree works freely");
+      const governed = parse(other(root, "Write", { file_path: join(root, "x.txt"), content: "x" }, { cwd: root })).hookSpecificOutput;
+      assert.equal(governed.permissionDecision, "deny");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(sibling, { recursive: true, force: true });
+    }
+  });
+});
+
+// plans/lit-adhd.md todo 8 (diag-startwork T1-T5, T15): typing start-work is the approval.
+describe("typed start-work is the approval", () => {
+  const project = () => {
+    const root = realpathSync(fixtureRoot());
+    mkdirSync(join(root, ".git"));
+    mkdirSync(join(root, "plans"));
+    writeFileSync(join(root, "plans", "p.md"), "# P\n\n## TODOs\n\n- [ ] 1. write hello.txt\n");
+    return root;
+  };
+  const prompt = (root, text, sessionId = "session-root", promptId = "prompt-typed") => {
+    const result = runHook("user-prompt-submit", root, { session_id: sessionId, prompt_id: promptId, prompt: text });
+    assert.equal(result.status, 0, result.stderr);
+    return parse(result).hookSpecificOutput?.additionalContext ?? "";
+  };
+  const state = (root) => (existsSync(join(root, ".litclaude", "boulder.json")) ? JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")) : null);
+  const work = (root) => {
+    const current = state(root);
+    return current?.active_work_id ? current.works[current.active_work_id] : null;
+  };
+  const pluginRoot = realpathSync(join(repoRoot, "plugins", "litclaude"));
+
+  it("T1 initializes the work from a typed /litclaude:start-work <plan> prompt with hook session identity and plan-derived grants", () => {
+    const root = project();
+    try {
+      const context = prompt(root, "/litclaude:start-work plans/p.md");
+      const started = work(root);
+      assert.ok(started, context);
+      assert.equal(started.status, "active");
+      assert.equal(started.root_session_id, "session-root");
+      assert.equal(started.authority.issued_by, "user-invocation");
+      assert.equal(started.authority.origin_prompt_id, "prompt-typed");
+      const has = (action, path) => started.authority.grants.some((grant) => grant.action === action && grant.root === path);
+      for (const action of ["read", "write", "execute", "test", "package", "vcs-read"]) assert.ok(has(action, root), action);
+      assert.ok(has("read", pluginRoot), "the plugin's own files are readable");
+      assert.ok(started.authority.grants.some((grant) => grant.action === "write" && /litclaude-/u.test(grant.root) && grant.root !== root), "a private temp folder is writable");
+      assert.match(context, /already initialized; do not call `start-work init`/u);
+      assert.doesNotMatch(context, /!|--work-id|\/goal/u);
+      // The same prompt again (a host retry) changes nothing.
+      prompt(root, "/litclaude:start-work plans/p.md");
+      assert.equal(state(root).revision, 1);
+      const write = preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }, { session_id: "session-root" });
+      assert.equal(write.stdout, "", "the work's own write needs no further approval");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T2 does not initialize from quoted, fenced, mixed or multi-plan-ambiguous start-work prompts", () => {
+    const root = project();
+    try {
+      for (const text of ['"/litclaude:start-work plans/p.md"', "```\n/litclaude:start-work plans/p.md\n```", "please /litclaude:start-work plans/p.md", "> /litclaude:start-work plans/p.md"]) {
+        prompt(root, text);
+        assert.equal(work(root), null, text);
+      }
+      writeFileSync(join(root, "plans", "q.md"), "# Q\n\n## TODOs\n\n- [ ] 1. other\n");
+      const listed = prompt(root, "/litclaude:start-work");
+      assert.equal(work(root), null, "two open plans: nothing starts");
+      assert.match(listed, /plans\/p\.md/u);
+      assert.match(listed, /plans\/q\.md/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T3 approves the single pending boundary from an exact \"lit approve\" prompt in the owning session", () => {
+    const root = project();
+    const outside = realpathSync(fixtureRoot());
+    try {
+      writeFileSync(join(outside, "a.txt"), "a");
+      writeFileSync(join(outside, "b.txt"), "b");
+      prompt(root, "/litclaude:start-work plans/p.md");
+      const paused = parse(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" })).hookSpecificOutput;
+      assert.equal(paused.permissionDecision, "deny");
+      assert.equal(paused.permissionDecisionReason, `LitClaude start-work paused: read access to ${outside} is outside this plan's scope. Reply "lit approve" to allow it for this work, or "lit deny".`);
+      assert.equal(work(root).status, "paused");
+      const context = prompt(root, "lit approve", "session-root", "prompt-approve");
+      assert.match(context, /approved/iu);
+      const resumed = work(root);
+      assert.equal(resumed.status, "active");
+      assert.equal(resumed.authority.resume_token_receipts.at(-1).consumed_by_prompt_id, "prompt-approve");
+      assert.ok(resumed.authority.grants.some((grant) => grant.action === "read" && grant.root === outside));
+      assert.equal(preTool(root, "Read", { file_path: join(outside, "b.txt") }, { tool_use_id: "tool-b" }).stdout, "");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("T4 keeps \"lit approve\" inert from another session, with no pending boundary, or inside a longer prompt", () => {
+    const root = project();
+    const outside = realpathSync(fixtureRoot());
+    try {
+      prompt(root, "/litclaude:start-work plans/p.md");
+      prompt(root, "lit approve", "session-root", "prompt-early");
+      assert.equal(work(root).authority.resume_token_receipts.length, 0, "nothing pending, nothing approved");
+      preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" });
+      assert.equal(work(root).status, "paused");
+      for (const [text, sessionId] of [["lit approve", "session-other"], ["please lit approve", "session-root"], ["```\nlit approve\n```", "session-root"], ["yes", "session-root"], ["ok", "session-root"], ["lit approve it all", "session-root"]]) {
+        prompt(root, text, sessionId, `prompt-${text.length}-${sessionId}`);
+        assert.equal(work(root).status, "paused", `${sessionId}: ${text}`);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("T5 \"lit deny\" clears the pending boundary without granting it, and that path stays refused", () => {
+    const root = project();
+    const outside = realpathSync(fixtureRoot());
+    try {
+      writeFileSync(join(outside, "a.txt"), "a");
+      prompt(root, "/litclaude:start-work plans/p.md");
+      preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" });
+      const context = prompt(root, "lit 거절", "session-root", "prompt-deny");
+      assert.match(context, /denied/iu);
+      const after = work(root);
+      assert.equal(after.status, "active");
+      assert.equal(after.pending_boundary, null);
+      assert.ok(!after.authority.grants.some((grant) => grant.root === outside));
+      const again = parse(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-again", tool_use_id: "tool-again" })).hookSpecificOutput;
+      assert.equal(again.permissionDecision, "deny");
+      assert.match(again.permissionDecisionReason, /denied/u);
+      assert.equal(work(root).status, "active", "a denied path does not pause the work again");
+      assert.equal(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }).stdout, "", "the rest of the work goes on");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("starts the work in the typed project, not in a folder above it that holds another run's state", () => {
+    const parent = realpathSync(fixtureRoot());
+    try {
+      initialize(parent);
+      runCli(parent, ["complete", "--work-id", "work-1", "--session-id", "session-root", "--idempotency-key", "done-1"]);
+      const root = join(parent, "child");
+      mkdirSync(join(root, ".git"), { recursive: true });
+      mkdirSync(join(root, "plans"));
+      writeFileSync(join(root, "plans", "p.md"), "# P\n\n## TODOs\n\n- [ ] 1. write hello.txt\n");
+      const context = prompt(root, "/litclaude:start-work plans/p.md");
+      assert.doesNotMatch(context, /BLOCKED/u);
+      assert.equal(work(root)?.status, "active", context);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("classifies a quoted plain path like the same path unquoted, and keeps quoted operators, globs and spaces denied", () => {
+    const root = project();
+    try {
+      prompt(root, "/litclaude:start-work plans/p.md");
+      const bash = (command, id) => preTool(root, "Bash", { command }, { tool_use_id: id });
+      assert.equal(bash(`git -C "${root}" status --short && ls -la "${root}"`, "q1").stdout, "");
+      assert.equal(bash(`ls -la '${join(root, "plans")}'`, "q2").stdout, "");
+      for (const [command, id] of [[`ls "${root}/*"`, "q3"], [`ls "${root};touch x"`, "q4"], [`cat "${root}/a b"`, "q5"], [`ls "$HOME"`, "q6"]]) {
+        assert.equal(parse(bash(command, id)).hookSpecificOutput.permissionDecision, "deny", command);
+      }
+      assert.equal(work(root).status, "active");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T15 natural-language \"lit start work\" with exactly one open plan routes to hook-owned init instead of the safety block", () => {
+    const root = project();
+    try {
+      const context = prompt(root, "lit start work");
+      assert.doesNotMatch(context, /BLOCKED/u);
+      assert.equal(work(root)?.status, "active");
+      assert.equal(work(root).plan_name, "p.md");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+

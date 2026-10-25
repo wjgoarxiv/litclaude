@@ -115,6 +115,9 @@ in the current session transcript:
 Never invent progress. If a durable file is missing, say so and recap from the
 session context alone. Report only claims backed by evidence you actually read.
 
+For a brief across several sessions and worktrees rather than this one, the
+user wants `lit adhd` (the lit-adhd skill, alias `lit-rewind`), not this recap.
+
 ## Canonical Template (Korean, default)
 
 Use EXACTLY these headers, byte-identical, in this order:

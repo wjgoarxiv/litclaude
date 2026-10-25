@@ -244,6 +244,7 @@ the lane". `all` means the row applies in every lane.
 | `references/evidence-review.md` | all | What belongs in the review package, and who is allowed to assign the verdict? |
 | `references/craft-floor.md` | all | How do I run the interface probe loop, which mode applies, and which numbered craft and responsive rules does a finding cite? |
 | `references/slop-register.md` | all | Which reflex-default tells does the probe flag, and what is the cheapest fix for each? |
+| `references/house-styles.md` | `new-build`, `redesign` | Which house style and layout family do I lock, which kit classes exist, and which DS rules does the probe check? |
 
 Read-only agents (`Read`, `Grep`, `Glob`) are the right way to consult this pack when the main
 context is under pressure: the reference text is data, so it needs no write capability.

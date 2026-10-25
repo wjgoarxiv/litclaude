@@ -164,14 +164,17 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit query <question>` | 프로젝트에 남긴 기록에서 근거를 찾습니다. |
 | `lit goal <outcome>` | 끝낼 선을 정하고 지킵니다. 목표 하나와 확인할 수 있는 기준을 묶어 두면 `lit`과 `start-work`가 그 선을 향해 일합니다. `$litgoal`, `/litgoal`도 됩니다. |
 | `lit brainstorm <topic>`, `lit ideation`, `lit idea` | 열린 질문에 아이디어를 많이 내고 점수를 매겨 짧은 목록으로 줄인 뒤, `deep-interview`나 `lit plan`으로 넘깁니다. `$lit-brainstorm`, `/litclaude:lit-brainstorm`도 됩니다. |
+| `lit hijack <sources> into <target>` | 다른 사람이 공개한 기법을 내 스킬이나 시스템으로 옮깁니다. 출처를 기록하고 라이선스를 확인한 뒤, 원문 없이 쓴 명세를 `lit plan`과 `start-work`로 만들고, 바꾸기 전과 후를 비교해 증명합니다. `lit 하이재킹`, `$lit-hijack`, `/litclaude:lit-hijack`도 됩니다. |
 | `lit workflow <objective>` | 여러 에이전트에게 나눠 맡길 큰 작업에 Dynamic workflow를 제안합니다. |
 | `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`을 켜 두었고 사용자가 승인할 때만 Claude Code의 에이전트 팀을 제안합니다. |
 | `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | 파일을 건드리지 않고 세션을 요약합니다. |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 이 저장소의 최근 세션을 한 화면에 요약합니다. 세션마다 받은 요청, 한 일, 기다리는 것, 로드맵과 진행 게이지, 다음 한 단계를 보여 주고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
 | `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
 | `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
+| `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. |
 | `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. |
 | `litclaude wikify <capture/save/review/query/config>` | 검토를 거친 프로젝트 지식을 로컬에 정리합니다. |
@@ -287,9 +290,16 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 모양과 그 이유를 말하고, 함께 어울릴 만한 다른 두 가지도 알려 줍니다. 첫 판단이 빗나갔다면
 한 문장으로 다른 모양을 부탁하면 됩니다.
 
-`lit-pptx`에는 발표자료용 모양이 여덟 가지 있습니다. 한쪽 끝은 책상에서 읽는 촘촘한 수치 중심
-보고형이고, 다른 쪽 끝은 큰 화면에 띄우는 어두운 발표형입니다. 모양마다 색, 제목 자리, 페이지
-배치가 다릅니다. 슬라이드 제목은 주제와 지표와 기간을 담은 짧은 명사형으로 쓰고, 그 장에서
+`lit-pptx`에는 발표자료용 모양이 열세 가지 있습니다. 한쪽 끝은 책상에서 읽는 촘촘한 수치 중심
+보고형이고, 다른 쪽 끝은 큰 화면에 띄우는 어두운 발표형입니다. 그중 세 가지는 일부러 강한
+모양이라 맞는 자리에서만 고릅니다. 고정폭 제목과 격자 눈금을 쓰는 레트로 퓨처 엔지니어링형은
+아키텍처·인프라 리뷰에, 굵은 검은 테두리와 번지지 않는 그림자를 쓰는 네오 브루탈리즘형은 런칭과
+데모데이에, 표지에 원색 도형을 두는 바우하우스형은 디자인·문화 강의에 씁니다. "네오 브루탈리즘
+스타일로"처럼 스타일 이름으로 부탁해도 됩니다. 쓰임에 따라 고르는 모양도 두 가지 더 있습니다.
+두 가지 잉크로 찍은 리소 인쇄 느낌은 지역·문화·교육 프로그램에, 검은 머리띠 제목과 회색 차트를
+쓰는 뉴스룸형은 주민이나 독자에게 숫자를 설명하는 자리에 씁니다. 모양마다 색, 글자, 제목 꾸밈,
+페이지 배치가 다르지만 제목과 머리글과 본문의 자리는 모든 모양에서 같아서, 모양을 바꿔도 내용이
+움직이지 않습니다. 슬라이드 제목은 주제와 지표와 기간을 담은 짧은 명사형으로 쓰고, 그 장에서
 하려는 말은 제목 아래 첫 줄에 둡니다. 근거, 비교 대상, 출처 같은 뒷받침 내용으로 페이지를
 채우기 때문에 군더더기 없이도 장이 비지 않습니다. 숫자는 PowerPoint에서 바로 고칠 수 있는
 차트와 핵심 수치로 그리되 제목보다 크게 키우지 않고, Pretendard 글꼴을 넣습니다. 예전 AZURE
@@ -319,6 +329,16 @@ DOCX·PDF를 Markdown으로 바꾸거나 기존 `.docx`를 고치는 일도 맡�
 검사합니다. agent-browser 0.38.1 이상을 직접 설치해 두었다면 1×–3× PNG와 Office용 SVG로
 내보내고, 없으면 설치 명령과 검사를 마친 원본을 돌려줍니다. 화면 설계는
 `frontend-ui-ux`, 측정 데이터 그래프는 `lit-scientific-visualization`이 맡습니다.
+
+실제 장비를 그리는 일은 `lit-schematic`이 맡습니다. `lit`과 함께 P&ID, PFD, 공정도, 계장도,
+모식도, 장치도, 컷어웨이를 그려 달라고 하면 이 스킬로 가고, `/litclaude:lit-schematic <요청>`,
+`lit-schematic`, `$lit-schematic`도 됩니다. 스킬에 딸린 키트로 빌드 스크립트와 mm 단위 SVG를
+만듭니다. P&ID에는 ISA-5.1 심볼과 태그, 심볼을 피해 가며 교차점에서 홉을 넣는 배관, 그린
+것에서 만든 범례, ISO 표제란이 들어갑니다. 논문 그림은 정확한 단 폭과 패널 라벨, 색각 이상에도
+구별되는 흐름 색을 쓰고, 장비 그림은 음영이 들어간 아이소메트릭 부품과 창 컷어웨이, 서로
+엇갈리지 않는 지시선을 씁니다. QA 게이트가 겹침, 심볼을 지나는 선, 끊긴 선 끝, 태그, 글자
+크기, 색 대비를 검사하고, Chrome으로 PDF와 600 dpi PNG를 만든 뒤 Claude가 이미지를 열어 보고
+나서 보고합니다. Chrome이 없으면 SVG 검사까지 하고 설치 안내를 돌려줍니다.
 
 `frontend-ui-ux build <대상>`은 허용된 범위에서 화면을 구현하고 실제 렌더까지 확인합니다.
 중요한 방향이 모호하면 하나씩 묻고, 그 답을 이어받아 구현합니다. 검토나 계획만 요청했다면
@@ -433,13 +453,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 설치를 재현하려면 registry에서 현재 package version을 조회한 뒤 고정합니다.
 
 ```bash
-npm view @litfamily/litclaude@1.0.37 version
+npm view @litfamily/litclaude@1.0.38 version
 ```
 
-조회 결과가 `1.0.37`이면 exact install을 사용할 수 있습니다.
+조회 결과가 `1.0.38`이면 exact install을 사용할 수 있습니다.
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.37 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.38 -- litclaude install
 ```
 
 그렇지 않으면 명시적인 human publication을 기다립니다. Pin은 그 뒤에 사용합니다.
@@ -492,6 +512,10 @@ litclaude install
 남기며, 저장소와 홈 디렉터리에는 쓰지 않습니다. 위치는 `LITCLAUDE_HUD_STATE_ROOT`로 바꿀 수
 있습니다. Claude의 답은 `🔥 **LIT IGNITED · <discipline>** 🔥`로 시작하고, hook 시스템
 메시지는 같은 표시를 Markdown 없이 보여 줍니다.
+여러 일이 동시에 돌아가면(loop 아래에 멈춰 둔 plan, 병렬 subagent, 백그라운드 shell이나
+monitor, 같은 프로젝트의 다른 세션) 카드는 thread마다 한 줄씩 단계, `[▉▉░░] k/n` 게이지,
+상태를 부모 아래에 들여 써서 보여 줍니다. 최대 네 줄이고 나머지는 `+N more`로 셉니다. 각 숫자를
+어디서 가져오는지는 [hooks.md](hooks.md)에 있습니다.
 
 HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어두운지 밝은지, 그리고 터미널이 색을
 몇 가지까지 보여 줄 수 있는지입니다.
@@ -516,7 +540,7 @@ HUD는 배경색을 강제로 바꾸지 않습니다. Claude가 사용 한도 �
 Claude Code는 세션이 시작될 때, 프롬프트를 보낼 때, 도구가 돌 때, 서브에이전트가 시작하고 끝날
 때, 세션이 끝날 때마다 플러그인에 알립니다. 이 알림은 플러그인 안의 네 부분에 전달됩니다. 프로젝트
 규칙을 읽어 들이는 부분, 작업 흐름을 고르는 부분, 권한을 확인하는 부분, 기록을 남기는 부분입니다.
-이렇게 해서 36개 skill·17개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
+이렇게 해서 39개 skill·20개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
 동작하고, Claude Code가 허용하거나 막는 것은 그대로 적용됩니다.
 
 ```mermaid
@@ -538,7 +562,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["36 skills · 17 commands · 11 agents"]
+    LC --> S["39 skills · 20 commands · 11 agents"]
 ```
 
 새로 설치한 컴퓨터에서도 모든 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
@@ -560,9 +584,10 @@ flowchart LR
     style OK fill:#d4edda,stroke:#155724
 ```
 
-승인한 계획은 늘 slash command로 실행합니다. `lit start work <plan>`이라고 입력하면 일부러
-`BLOCKED:` handoff를 돌려주며, 승인한 plan과 함께 `/start-work` 또는
-`/litclaude:start-work`를 쓰라고 안내합니다. `lit workflow`도 사용자를 기다립니다. native
+`/litclaude:start-work plans/<slug>.md`를 입력하는 것이 곧 승인입니다. hook이 그 계획을 바로
+시작하고, 프로젝트와 plan 폴더, 계획에 적힌 `Scope roots:` 줄의 범위에 접근할 수 있게 합니다.
+열린 계획이 하나뿐이면 `/litclaude:start-work`만 쳐도, `lit start work`라고 써도 시작합니다.
+여러 개면 목록만 보여 주고 아무것도 시작하지 않습니다. `lit workflow`도 사용자를 기다립니다. native
 `Workflow`를 먼저 제안하고, 사용자가 opt-in한 뒤에만 호출합니다. 이 경로는
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1`로 끌 수 있습니다. Claude Code가 모델에게 worktree 도구를 열어
 주는 환경이라면 `EnterWorktree`를 쓰세요.
@@ -571,11 +596,15 @@ flowchart LR
 slash-command text를 보내지 않습니다. 이 경로는 먼저 `get_goal`, `create_goal`, `update_goal`
 같은 native goal 도구가 있는지 살펴 목표 연결(native goal binding)을 시도하고, 이미 걸려 있는
 다른 목표는 바꾸지 않습니다. Claude Code가 그런 도구를 주지 않으면 degraded mode라고 알리고
-로컬 `litgoal` ledger를 기준으로 삼습니다. 그때 hook은 `READY_TO_PASTE`와 함께 `/goal` 한 줄을
-건네니, 현재 세션에 직접 복사해 붙여 넣고 보내면 됩니다.
+로컬 `litgoal` ledger를 기준으로 삼습니다. `lit loop`과 `lit goal`은 `/goal` 한 줄
+(`READY_TO_PASTE`)을 한 번 보여 주고 바로 일을 이어 갑니다. native goal로 추적하고 싶을 때만
+붙여 넣으면 됩니다. `lit plan`과 `/start-work`에는 이 줄이 없습니다. start-work는 마지막 할 일까지
+스스로 이어 갑니다.
 
-`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 승인된 plan을
-다시 이어서 실행할 때는 다음 경로만 씁니다.
+`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 계획 범위 밖의
+접근이 필요하면 그 호출이 멈추고 어떤 접근인지 알려 줍니다. 이번 작업에 허용하려면
+`lit approve`(또는 `lit 승인`), 거절하려면 `lit deny`(또는 `lit 거절`)라고 답하세요. 다음 경로도
+그대로 쓸 수 있습니다.
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 

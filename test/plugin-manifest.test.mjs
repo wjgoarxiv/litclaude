@@ -57,12 +57,12 @@ const assertLlmCommandContract = (text, label) => {
 };
 
 describe("Claude plugin manifest", () => {
-  it("aligns package and plugin manifests to the v1.0.37 release", () => {
+  it("aligns package and plugin manifests to the v1.0.38 release", () => {
     const manifest = readJson(pluginManifestPath);
     const packageJson = readJson(packagePath);
 
-    assert.equal(packageJson.version, "1.0.37");
-    assert.equal(manifest.version, "1.0.37");
+    assert.equal(packageJson.version, "1.0.38");
+    assert.equal(manifest.version, "1.0.38");
     assert.equal(manifest.version, packageJson.version);
     assert.doesNotMatch(packageJson.description, /source-origin|port/i);
     assert.doesNotMatch(manifest.description, /source-origin|port/i);
@@ -96,15 +96,18 @@ describe("Claude plugin manifest", () => {
       "deep-interview.md",
       "init-deep.md",
       "korean-ai-slop-remover.md",
+      "lit-adhd.md",
       "lit-brainstorm.md",
       "lit-comprehend.md",
       "lit-handoff.md",
+      "lit-hijack.md",
       "lit-humanizer.md",
       "lit-init.md",
       "lit-korean.md",
       "lit-loop.md",
       "lit-plan.md",
       "lit-recap.md",
+      "lit-rewind.md",
       "lit-scientific-visualization.md",
       "litgoal.md",
       "litresearch.md",
@@ -112,7 +115,7 @@ describe("Claude plugin manifest", () => {
       "start-work.md",
       "wikify.md",
     ]);
-    for (const command of ["autoconference.md", "autoresearch.md", "lit-brainstorm.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-scientific-visualization.md", "wikify.md"]) {
+    for (const command of ["autoconference.md", "autoresearch.md", "lit-adhd.md", "lit-rewind.md", "lit-brainstorm.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-hijack.md", "lit-scientific-visualization.md", "wikify.md"]) {
       const commandText = readFileSync(join(commandsPath, command), "utf8");
       assert.match(commandText, /^---\n[\s\S]*description:/u, `${command} should have command frontmatter`);
       assertLlmCommandContract(commandText, command);

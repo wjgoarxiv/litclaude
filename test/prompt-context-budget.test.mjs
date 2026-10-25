@@ -33,7 +33,9 @@ const routes = [
   ["litgoal show", 3_500],
   ["readme-studio improve README", 3_500],
   ["lit start-work", 3_500],
-  ["lit recap", 9_000],
+  // lit-recap inlines its whole body; 9,200 makes room for the one-sentence lit-adhd cross-link.
+  ["lit recap", 9_200],
+  ["lit adhd", 3_500],
 ];
 
 // Routes outside the measured set still have to stay under the host's inline limit.
@@ -223,8 +225,10 @@ describe("deferred skill bodies stay reachable", () => {
     ["litresearch heat pumps", "litresearch"],
     ["lit review-work", "review-work"],
     ["comprehend this repo", "lit-comprehend"],
+    ["lit adhd", "lit-adhd"],
     ["deep-interview a mobile app idea", "deep-interview"],
     ["lit brainstorm a name for my app", "lit-brainstorm"],
+    ["lit hijack the brief technique from this post into my skill", "lit-hijack"],
     ["refactor the parser module", "refactor"],
     ["debugging why does the build hang", "debugging"],
     ["litgoal show", "litgoal"],

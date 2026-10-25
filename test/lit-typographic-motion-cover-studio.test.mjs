@@ -101,11 +101,23 @@ describe("TODO 1: cover defects carry a time, a region and a frame from the curr
     assert.throws(() => lookCommand({ out, round: 1, answersFile: answersFile(out, coverAnswers({ defects: [defect(), defect({ t: 2 }), defect({ t: 3 }), defect({ t: 4 })] })) }), /at most 3 defects per round/u);
   });
 
-  it("a film round may not carry cover defects", () => {
+  it("a film round may record defects too, checked against the film frame", () => {
     const out = fakeCoverRun(temp("lit-defects-film-"));
     const index = JSON.parse(readFileSync(join(out, "stills", "index.json"), "utf8"));
     writeFileSync(join(out, "stills", "index.json"), JSON.stringify({ ...index, mode: undefined, path: "stage", stillsOnly: true }));
-    assert.throws(() => lookCommand({ out, round: 1, answersFile: answersFile(out, { ...coverAnswers({ defects: [defect()] }), weakestBeat: 0 }) }), /defects are a cover-mode record/u);
+    const filmAnswers = (defects) => ({
+      viewed: ["stills/sheet.png"], weakestBeat: 0, change: "Moved the caption into the stage band under the drawing.", defects,
+      answers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((q) => ({
+        q, verdict: q === 7 ? "none" : [4, 8, 9].includes(q) ? "no" : "yes", frame: "stills/sheet.png",
+        observed: `Tile ${q} shows the drawn shelf and its caption in the lower band, legible at this size.`,
+        ...(q === 1 ? { by: "self", sentence: "A short film about borrowing seeds from a library shelf." } : {}),
+      })),
+    });
+    const ok = lookCommand({ out, round: 1, answersFile: answersFile(out, filmAnswers([defect()])) });
+    assert.equal(ok.record.defects.length, 1);
+    const fresh = fakeCoverRun(temp("lit-defects-film-bad-"));
+    writeFileSync(join(fresh, "stills", "index.json"), JSON.stringify({ ...index, mode: undefined, path: "stage", stillsOnly: true }));
+    assert.throws(() => lookCommand({ out: fresh, round: 1, answersFile: answersFile(fresh, filmAnswers([defect({ region: [900, 10, 330, 50] })])) }), /inside the 1000x500 frame/u);
   });
 });
 
@@ -145,6 +157,7 @@ describe("TODO 3: cover assets come from a checked list (C007, C008, C009)", () 
     const r = cli(["cover", "--out", none, "--round", "1"]);
     assert.equal(r.status, EXIT.BLOCKED_ASSET_MISSING, r.stderr);
     assert.match(r.stderr, /the painted-light recipe needs its base art listed in assets\.json/u);
+    assert.match(r.stderr, /without one, take hero-3d \(or weight-tide, orbit-loop\)/u);
     const unlisted = paintedRun({ assets: listed, extra: "logo.png" });
     const u = cli(["cover", "--out", unlisted, "--round", "1"]);
     assert.equal(u.status, EXIT.STAGE_CONTRACT_ERROR, u.stderr);

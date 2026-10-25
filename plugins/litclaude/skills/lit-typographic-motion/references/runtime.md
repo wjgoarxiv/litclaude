@@ -23,10 +23,11 @@ there the explicit command is the pre-warm. A render session only reads the cach
 npm, pip or a download, because a sandboxed session usually has no network or no write access
 outside the workspace, and a half-finished install would look like a broken engine.
 
-`litclaude-ai doctor` (and `npm run doctor` in a checkout) prints the six probes: Chrome,
+`litclaude-ai doctor` (and `npm run doctor` in a checkout) prints the seven probes: Chrome,
 ffmpeg with the preview encoder rung, the WebGL2 renderer from a real headless probe, the software-GL
-or unknown-renderer warning, the pre-warm state naming anything missing and the fix command, and
-the cover encoder (img2webp and dwebp, or the gifski fallback) that cover mode needs.
+or unknown-renderer warning, the pre-warm state naming anything missing and the fix command,
+the cover encoder (img2webp and dwebp, or the gifski fallback) that cover mode needs, and the
+house styles (each one valid, the default named).
 `litclaude-ai motion-runtime status` prints the pre-warm state alone.
 
 ## Exit codes

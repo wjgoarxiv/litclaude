@@ -122,7 +122,10 @@ test("the lifecycle root follows a linked worktree to the main checkout's boulde
     mkdirSync(join(project, ".git", "worktrees", "linked"), { recursive: true });
     writeFileSync(join(linked, ".git"), `gitdir: ${join(project, ".git", "worktrees", "linked")}\n`);
     const io = realIo();
-    assert.equal(await resolveLifecycleRoot(io, linked, linked), normalizePath(project));
+    assert.equal(await resolveLifecycleRoot(io, linked, linked, "s1"), normalizePath(project), "the run's own session follows it");
+    assert.equal(await resolveLifecycleRoot(io, linked, linked, "s2"), linked, "another session in a sibling worktree keeps its own state");
+    writeJson(join(project, ".litclaude", "boulder.json"), boulder("s1", { effective_worktree_root: realpathSync(linked) }));
+    assert.equal(await resolveLifecycleRoot(io, linked, linked, "s2"), normalizePath(project), "a run working in that worktree governs it");
     assert.equal(await resolveLifecycleRoot(io, join(project, "packages"), "fallback"), normalizePath(project));
     const lone = join(tmp, "lone");
     mkdirSync(lone);

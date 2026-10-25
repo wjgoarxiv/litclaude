@@ -261,7 +261,7 @@ describe("stage renders (real Chrome, virtual clock)", () => {
     assert.match(r.stdout + r.stderr, /record the round with look --round 1, make the change, then render the film with --round 2 \(no --stills-only\)/u, "the film is the next round");
     const index = JSON.parse(readFileSync(join(out, "stills", "index.json"), "utf8"));
     assert.equal(index.stillsOnly, true);
-    assert.deepEqual(index.files.map((f) => f.kind).sort(), ["beat", "beat", "beat", "sheet", "strip", "strip"]);
+    assert.deepEqual(index.files.map((f) => f.kind).sort(), ["beat", "beat", "beat", "board", "sheet", "strip", "strip"]);
     for (const f of index.files) assert.ok(existsSync(join(out, f.file)), f.file);
     assert.ok(!existsSync(join(out, "film.mp4")));
   });

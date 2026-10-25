@@ -261,7 +261,7 @@ function sequenceQuality(source,svg=svgContent(source),nodes=rectangles(svg),rou
 }
 
 // Craft-floor subset for diagrams (OF-201..OF-204); every threshold is data in CRAFT.
-const CRAFT={clusterRatio:2,accent:{minLightness:.12,maxLightness:.93,minSaturation:.12,familyDeg:20,medium:3,high:4},labelCase:{latinShare:.8,minWord:4,capitalShare:.6,minCapitals:2},labelInset:8};
+const CRAFT={clusterRatio:2,accent:{minLightness:.12,maxLightness:.93,minSaturation:.12,familyDeg:20,high:6},labelCase:{latinShare:.8,minWord:4,capitalShare:.6,minCapitals:2},labelInset:8};
 const FUNCTION_WORDS=new Set(['of','and','the','to','for','in']);
 function hexHsl(hex){
   let value=hex.replace('#','');if(value.length===3)value=[...value].map((c)=>c+c).join('');if(value.length<6)return null;
@@ -356,9 +356,9 @@ function visualQuality(source,{enforceCanvas=false,scale=null}={}){
   for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)if(gap(nodes[i],nodes[j])<12)issues.push('NODE_GAP '+nodes[i].id+'/'+nodes[j].id+' below 12px');
   issues.push(...clusterGapRatio(nodes,outlines));
   const accents=accentFamilies(nodes);
-  if(accents>=CRAFT.accent.high)issues.push('ACCENT_COUNT '+accents+' accent hue families among node fills; keep one or two (OF-202)');
+  if(accents>=CRAFT.accent.high)issues.push('ACCENT_COUNT '+accents+' accent hue families among node fills; keep three to five, each tied to a role (OF-202)');
   // MEDIUM findings are advisories: reported, never a failure.
-  const advisories=[...(accents===CRAFT.accent.medium?['ACCENT_COUNT '+accents+' accent hue families among node fills (OF-202)']:[]),...titleCaseLabels(texts)];
+  const advisories=titleCaseLabels(texts);
   issues.push(...labelOverflow(texts,nodes,outlines));
   const fontFailures=[];
   if(enforceCanvas){

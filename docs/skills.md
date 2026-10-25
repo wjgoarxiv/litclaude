@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Guide](./guide.md) · [한국어](./skills_ko-KR.md)
 
-LitClaude ships 36 skills you start yourself and three that run on their own. Each row shows
+LitClaude ships 39 skills you start yourself and three that run on their own. Each row shows
 a picture of what the skill gives you, the prompt or command that starts it, and the result.
 
 ## Skills at a glance
@@ -47,6 +47,11 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>A read-only summary: done, in progress, blocked, where the evidence is, what comes next.</td>
 </tr>
 <tr>
+<td><img src="./assets/skills/lit-adhd.webp" width="240" alt="A brief across your recent sessions: what each was asked, did and waits on, progress gauges, one next step." /></td>
+<td><code>lit-adhd</code><br /><sub><code>lit adhd</code> · <code>lit-rewind</code></sub></td>
+<td>A brief across your recent sessions: what each was asked, did and waits on, progress gauges, one next step.</td>
+</tr>
+<tr>
 <td><img src="./assets/skills/lit-handoff.webp" width="240" alt="Type handoff to get a continuation file the next session can read and resume from." /></td>
 <td><code>lit-handoff</code><br /><sub><code>handoff</code></sub></td>
 <td>Type <code>handoff</code> to get a continuation file the next session can read and resume from.</td>
@@ -65,6 +70,11 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td><img src="./assets/skills/litresearch.webp" width="240" alt="Splits a research question, sends parallel searchers and follows every lead before answering with sources." /></td>
 <td><code>litresearch</code><br /><sub><code>lit research &lt;question&gt;</code> · <code>lit search</code></sub></td>
 <td>Splits a research question, sends parallel searchers and follows every lead before answering with sources.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-hijack.webp" width="240" alt="Ports a technique from someone else's posts, repos or PDFs into your own skill: sources on record, licence checked, built from a spec without their wording, proven before and after." /></td>
+<td><code>lit-hijack</code><br /><sub><code>lit hijack &lt;sources&gt;</code></sub></td>
+<td>Ports a technique from someone else's posts, repos or PDFs into your own skill: sources on record, licence checked, built from a spec without their wording, proven before and after.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-crucible.webp" width="240" alt="Pressure-tests a brief before planning. Only the risks that survive critique reach the plan." /></td>
@@ -92,6 +102,11 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>A checked, editable diagram for slides and documents, with PNG and Office-safe SVG exports.</td>
 </tr>
 <tr>
+<td><img src="./assets/skills/lit-schematic.webp" width="240" alt="A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG." /></td>
+<td><code>lit-schematic</code><br /><sub><code>/litclaude:lit-schematic &lt;brief&gt;</code></sub></td>
+<td>A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG.</td>
+</tr>
+<tr>
 <td><img src="./assets/skills/lit-pptx.webp" width="240" alt="Ask for slides with lit and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered." /></td>
 <td><code>lit-pptx</code><br /><sub><code>/litclaude:lit-pptx &lt;request&gt;</code></sub></td>
 <td>Ask for slides with <code>lit</code> and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered.</td>
@@ -112,9 +127,9 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>A factual README with a moving cover, checked at phone and desktop widths in light and dark.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="Ask for a video with lit. It writes a treatment, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility and sound before handing over the film." /></td>
+<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="Ask for a video with lit. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film." /></td>
 <td><code>lit-typographic-motion</code><br /><sub><code>/litclaude:lit-typographic-motion &lt;request&gt;</code></sub></td>
-<td>Ask for a video with <code>lit</code>. It writes a treatment, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility and sound before handing over the film.</td>
+<td>Ask for a video with <code>lit</code>. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-scientific-visualization.webp" width="240" alt="A journal-sized figure with vector and 600 DPI exports. The chart type follows the data." /></td>

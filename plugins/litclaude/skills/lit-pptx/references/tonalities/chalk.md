@@ -36,7 +36,7 @@ These values are read from the pack file `pack.yaml` of the `chalk` tonality.
 | positive / negative | `#1E7A3F` / `#B3261E` |
 | series | `#9A3412`, `#1F3B33`, `#4E5A66`, `#2E6A8E` |
 | faces | Pretendard Bold for display, title and numerals, Pretendard Regular for body and labels; `faces: a2z` swaps to A2Z Bold display and titles, A2Z Black numerals |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / no hero step, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 6 |
 | radius / edge | 6 / fill |
 | rail | the side rail is a field-coloured fill |
@@ -50,9 +50,9 @@ in the wording for now.
 
 ## Treatments by slide role
 
-Sequences take `kicker-numeral`, where the step or part number stands left of the title at title size. Text
+Sequences take `kicker-numeral`, where the step or part number stands right of the title, in the accent. Text
 and data slides take `top-rule` with its short accent bar, chart and image slides with a takeaway
-take `side-rail`, definitions take `side-rail`, a comparison sets its criteria on the board rail under a
+take `side-rail`, definitions take `side-rail`, a comparison sets its criteria as row heads in the body under a
 `side-rail` title (the pack's `structure`), and a pull quote takes `statement`. When a slide's own
 treatment would leave the body half empty, the engine tries the other treatments its family allows
 and keeps the one that fills best, within the number of treatments the variance dial allows. A

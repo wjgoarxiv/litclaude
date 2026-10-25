@@ -36,7 +36,7 @@ These values are read from the pack file `pack.yaml` of the `paper` tonality.
 | positive / negative | `#1E6B3A` / `#50565E` |
 | series | `#8C1C2B`, `#111418`, `#50565E`, `#2E5E8A` |
 | faces | display and title Pretendard Bold; body, label and numeral Pretendard Regular (`faces: a2z` keeps the same map) |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / no hero step, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 5 |
 | radius / edge | 0 / border |
 | table | booktabs: heavy rule over the header, light rule under it, heavy rule at the end; no fill, no banding; numbers right-aligned; totals bold |
@@ -50,8 +50,8 @@ warning colour that would compete with the accent.
 ## Treatments by slide role
 
 Text slides, data tables, sequences and reference pages take `top-rule`, where the rule under the
-title is a full hairline. Charts and figures that carry the slide take `bottom-anchor`, so the
-picture fills the upper body and the title labels it from below. Definitions and method slides
+title is a full hairline. Charts and figures that carry the slide take `bottom-anchor`, the title
+closed by a heavy rule over a picture that takes the body's full height. Definitions and method slides
 take `side-rail`, a comparison is drawn as a ruled table under a `top-rule` title (the pack's
 `structure`, kept even when the deck already leans on that title), and a quoted line takes `statement`. The engine keeps the role's treatment when
 the body fills to the density band; when it would leave a tall empty band, it lays the slide out

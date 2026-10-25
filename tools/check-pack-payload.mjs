@@ -23,9 +23,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // The README skill table shows one snapshot per row. Each id maps to one exact path.
 export const README_SKILL_IMAGE_PATHS = Object.freeze([
-  'lit-loop', 'litwork', 'lit-plan', 'start-work', 'review-work', 'litgoal', 'lit-recap',
-  'lit-handoff', 'lit-brainstorm', 'deep-interview', 'litresearch', 'lit-crucible', 'lit-init', 'lit-comprehend',
-  'lit-humanizer', 'lit-diagram-drawer', 'lit-pptx', 'lit-docx', 'frontend-ui-ux', 'readme-studio',
+  'lit-loop', 'litwork', 'lit-plan', 'start-work', 'review-work', 'litgoal', 'lit-recap', 'lit-adhd',
+  'lit-handoff', 'lit-brainstorm', 'deep-interview', 'litresearch', 'lit-hijack', 'lit-crucible', 'lit-init', 'lit-comprehend',
+  'lit-humanizer', 'lit-diagram-drawer', 'lit-schematic', 'lit-pptx', 'lit-docx', 'frontend-ui-ux', 'readme-studio',
   'lit-typographic-motion', 'lit-scientific-visualization', 'visual-qa', 'browser-drive',
   'structural-search', 'lit-team', 'autoresearch', 'autoconference', 'wikify', 'debugging',
   'refactor', 'lit-burnoff', 'lit-burnoff-file', 'lit-code', 'lit-commit', 'lsp-setup',
@@ -76,6 +76,8 @@ export const MOD_PAYLOAD_PATHS = Object.freeze([
   'plugins/litclaude/hooks/lit-band-client.mjs',
   ...['frame', 'layout', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
+  'plugins/litclaude/lib/rewind/gauge.mjs',
+  'plugins/litclaude/lib/plan-task-rows.mjs',
 ]);
 
 // Forbidden path segments (regex patterns tested against each file path).

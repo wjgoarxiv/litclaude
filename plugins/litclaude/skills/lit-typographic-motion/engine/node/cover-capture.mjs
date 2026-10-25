@@ -1,4 +1,4 @@
-// Cover capture: one headless Chrome on the stage path's software rung, laid out at the cover's CSS
+// Cover capture: one headless Chrome on the stage path's software rung (the GPU rung for a 3D hero), laid out at the cover's CSS
 // size and captured at twice that (device scale 2), the page served from disk on the synthetic stage
 // origin, the cover init script injected before any page script. The renderer SEEKS: it calls
 // window.renderFrame(t, { mask }) for any t in [0, 1) in any order, captures, and a worker pool
@@ -18,13 +18,13 @@ const withTimeout = (promise, ms, message) => Promise.race([
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** The stage flag set at the cover's device scale. */
-export const coverFlags = ({ width, height, scale }) => stageFlags({ width, height }).map((f) => (f === "--force-device-scale-factor=1" ? `--force-device-scale-factor=${scale}` : f));
+export const coverFlags = ({ width, height, scale, rung = "software" }) => stageFlags({ width, height, rung }).map((f) => (f === "--force-device-scale-factor=1" ? `--force-device-scale-factor=${scale}` : f));
 
 export class CoverBrowser {
-  static async open({ stageDir, faces, width, height, scale, profileDir, env = process.env, log = () => {}, page = "index.html" }) {
+  static async open({ stageDir, faces, width, height, scale, profileDir, rung = "software", env = process.env, log = () => {}, page = "index.html" }) {
     const chrome = findChrome(env);
     if (!chrome) throw new BlockedError(EXIT.BLOCKED_NO_CHROME, "BLOCKED_NO_CHROME: Chrome/Chromium not found (set CHROME_PATH or install Google Chrome)");
-    const session = await ChromeSession.launch({ chrome, flags: coverFlags({ width, height, scale }), profileDir, routes: () => null });
+    const session = await ChromeSession.launch({ chrome, flags: coverFlags({ width, height, scale, rung }), profileDir, routes: () => null });
     const browser = new CoverBrowser(session, { stageDir, faces, width, height, scale, log });
     try {
       await browser.#attach();

@@ -93,6 +93,22 @@ describe("LitClaude handoff skill payload", () => {
     assert.equal(context.includes(originalSkill), true, "bare handoff must inject the complete canonical source body");
   });
 
+  it("injects the adapter and canonical source when the slash command is typed", () => {
+    const adapterBody = readFileSync(adapterPath, "utf8").trim();
+    const originalSkill = readFileSync(join(originalRoot, "SKILL.md"), "utf8").trim();
+    for (const prompt of [
+      "/litclaude:lit-handoff",
+      "  /litclaude:lit-handoff plans/next-session.md\nAPI_TOKEN=do-not-echo",
+    ]) {
+      const parsed = readHookPayload(prompt);
+      const context = parsed.hookSpecificOutput.additionalContext;
+      assert.match(stripAnsi(parsed.systemMessage ?? ""), /🔥 LIT IGNITED · lit-handoff 🔥/u, prompt);
+      assert.equal(context.includes(adapterBody), true, `${prompt} must inject the adapter body`);
+      assert.equal(context.includes(originalSkill), true, `${prompt} must inject the canonical source body`);
+      assert.doesNotMatch(context, /do-not-echo|next-session/u, "the prompt is never echoed");
+    }
+  });
+
   it("keeps mentions, compound prompts, slash commands, and secret-bearing text inert", () => {
     for (const prompt of [
       "Please explain the handoff workflow.",
@@ -101,7 +117,8 @@ describe("LitClaude handoff skill payload", () => {
       "`note`\nhandoff",
       "```text\nnote\n```\nhandoff",
       "handoff\n```text\nnote\n```",
-      "/litclaude:lit-handoff",
+      "see /litclaude:lit-handoff later",
+      "/litclaude:lit-handoffs",
       "handoff\nAPI_TOKEN=do-not-echo",
     ]) {
       const parsed = readHookPayload(prompt);

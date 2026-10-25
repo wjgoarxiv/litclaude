@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harbour fee planner</title>
+<style>
+  :root { color-scheme: light; --paper: #f7f4ec; --ink: #1b2326; --ink-2: #44515a; --terracotta: #c64d2e; --teal: #1d6b68; --ochre: #c48a1c; --blue: #2b5fa6; --green: #276f33; --line: #d9d4c6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; color: var(--ink); background-color: var(--paper); background-image: radial-gradient(circle, #d9d4c6 1px, transparent 1.5px); background-size: 24px 24px; line-height: 1.55; }
+  .wrap { position: relative; max-width: 72rem; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 48px; line-height: 1.1; margin: 0 0 12px; text-wrap: balance; background: linear-gradient(90deg, #a8401f, #1d6b68); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h2 { font-size: 20px; line-height: 1.25; margin: 0 0 8px; }
+  p { max-width: 62ch; margin: 0 0 12px; }
+  .atmosphere { position: absolute; top: 0; right: 0; width: 320px; height: 320px; background: radial-gradient(circle, rgba(198, 77, 46, 0.18), transparent 70%); pointer-events: none; }
+  .moment { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; align-items: center; padding: 24px; border-radius: 12px; background: #fffdf8; box-shadow: 0 0 40px rgba(198, 77, 46, 0.45); margin-bottom: 32px; }
+  .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 16px; margin-bottom: 32px; }
+  .band { border-radius: 10px; padding: 16px; color: #ffffff; }
+  .band--terracotta { background: var(--terracotta); }
+  .band--teal { background: var(--teal); }
+  .band--ochre { background: var(--ochre); color: #1b1b1b; }
+  .band--blue { background: var(--blue); }
+  .notes { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+  .note { border-radius: 10px; padding: 16px; background: #fffdf8; border: 0; border-left: 4px solid var(--terracotta); }
+  .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--terracotta); background: var(--terracotta); color: #ffffff; text-decoration: none; font: inherit; }
+  .button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="atmosphere" aria-hidden="true"></div>
+    <h1>Every stage fee on one harbour chart</h1>
+    <p>Plan, bill and close each architecture stage against the fee you agreed, with the overrun shown before it happens.</p>
+    <p><a class="button" href="#plan">Plan a stage</a></p>
+    <section class="moment" id="plan" aria-label="Stage four fee">
+      <div>
+        <h2>Stage 4 of the library: 92 % of the fee used</h2>
+        <p>Detail drawings took 64 hours against 40 planned; the chart marks the week the overrun began (example data).</p>
+      </div>
+      <svg width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="Harbour crane lifting a fee block, drawn from twelve blocks">
+        <rect x="16" y="200" width="208" height="24" fill="#1d6b68"/>
+        <rect x="40" y="40" width="16" height="160" fill="#1b2326"/>
+        <rect x="40" y="40" width="152" height="12" fill="#1b2326"/>
+        <rect x="176" y="52" width="4" height="60" fill="#1b2326"/>
+        <rect x="160" y="112" width="36" height="28" fill="#c64d2e"/>
+        <rect x="64" y="160" width="40" height="40" fill="#c48a1c"/>
+        <rect x="108" y="168" width="32" height="32" fill="#c48a1c"/>
+        <rect x="144" y="176" width="28" height="24" fill="#c64d2e"/>
+        <rect x="24" y="200" width="12" height="8" fill="#f7f4ec"/>
+        <rect x="60" y="208" width="12" height="8" fill="#f7f4ec"/>
+        <rect x="96" y="204" width="12" height="8" fill="#f7f4ec"/>
+        <rect x="132" y="210" width="12" height="8" fill="#f7f4ec"/>
+      </svg>
+    </section>
+    <section class="bands" aria-label="Stages">
+      <div class="band band--terracotta"><h2>Brief</h2><p>Signed off in week 2.</p></div>
+      <div class="band band--teal"><h2>Concept</h2><p>Two options priced.</p></div>
+      <div class="band band--ochre"><h2>Planning</h2><p>Conditions answered.</p></div>
+      <div class="band band--blue"><h2>Technical</h2><p>Detail drawings running.</p></div>
+    </section>
+    <section class="notes" aria-label="Notes">
+      <article class="note"><h2>Overrun warning</h2><p>Sent when a stage passes 80 % of its fee (example rule).</p></article>
+      <article class="note"><h2>Client invoice</h2><p>Drafted the day a stage closes.</p></article>
+    </section>
+  </main>
+</body>
+</html>

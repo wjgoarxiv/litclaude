@@ -148,6 +148,11 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/lib/rename-aliases.mjs', 'export const renameAliases = {};\n');
     write('plugins/litclaude/lib/secret-shapes.mjs', 'export const containsSecret = () => false;\n');
     write('plugins/litclaude/lib/plan-task-rows.mjs', 'export const parse = () => [];\n');
+    write('plugins/litclaude/lib/rewind/collect.mjs', 'export {};\n');
+    write('plugins/litclaude/lib/rewind/gauge.mjs', 'export {};\n');
+    write('plugins/litclaude/lib/rewind/next-step.mjs', 'export {};\n');
+    write('plugins/litclaude/lib/rewind/redact.mjs', 'export {};\n');
+    write('plugins/litclaude/lib/rewind/transcripts.mjs', 'export {};\n');
     write('plugins/litclaude/lib/rules/engine.mjs', 'export const rules = [];\n');
     write('plugins/litclaude/lib/strict-json.mjs', 'export const parse = JSON.parse;\n');
     write('plugins/litclaude/lib/wikify-knowledge-cli.mjs', 'export const run = () => true;\n');
@@ -158,11 +163,14 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/skills/autoconference/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/autoresearch/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/browser-drive/scripts/capability-probe.mjs', 'export const probe = {};\n');
+    write('plugins/litclaude/skills/lit-adhd/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-brainstorm/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-comprehend/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-diagram-drawer/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-docx/SKILL.md', '# fixture\n');
+    write('plugins/litclaude/skills/lit-hijack/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-pptx/SKILL.md', '# fixture\n');
+    write('plugins/litclaude/skills/lit-schematic/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-comprehend/scripts/verify-explainer.mjs', 'export const verify = () => true;\n');
     write('plugins/litclaude/skills/litresearch/ATTRIBUTION.md', '# fixture\n');
     write('plugins/litclaude/skills/litwork/SKILL.md', '# fixture\n');

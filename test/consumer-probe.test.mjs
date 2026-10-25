@@ -69,6 +69,41 @@ describe("consumer probe — design intent needs a verb AND an interface noun", 
   });
 });
 
+describe("consumer probe — an English build request for a page reaches the design skill", () => {
+  // Measured 2026-10-25: "Build the marketing landing page for …" and "Build the operations
+  // dashboard for …" activated nothing, so one of three fixed briefs ran without the skill and
+  // the other reached it only when the model chose to load it. `build` stays out of the general
+  // verb list; it routes only together with a page-shaped noun from this narrower list.
+  it("surfaces frontend-ui-ux for build, create and make with a page noun", () => {
+    for (const prompt of [
+      "Build the marketing landing page for our bookkeeping tool",
+      "Build the operations dashboard for a delivery company",
+      "create a settings page for the workspace",
+      "make a website for my pottery studio",
+      "implement the admin panel UI",
+      "build a signup form page",
+      "code a homepage for the conference",
+    ]) {
+      assert.ok(skillsNamedFor(prompt).includes("frontend-ui-ux"), `should surface for: ${prompt}`);
+    }
+  });
+
+  it("stays silent on build work that is not an interface", () => {
+    for (const prompt of [
+      "build the project",
+      "create a database migration",
+      "make the tests pass",
+      "build a CLI that parses logs",
+      "implement the payment API endpoint",
+      "create a Grafana dashboard JSON for the cluster",
+      "build the docker image for the website backend",
+      "the checkout flow broke; find out why and make sure the page works again",
+    ]) {
+      assert.ok(isSilent(prompt), `must NOT activate for: ${prompt}`);
+    }
+  });
+});
+
 describe("consumer probe — Korean UI intent reaches the design skill", () => {
   // The plugin's user writes Korean. An English-only route means the capability is
   // unreachable for exactly the prompts it exists for, even though the plan's

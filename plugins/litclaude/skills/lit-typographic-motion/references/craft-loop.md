@@ -5,8 +5,9 @@
 Rounds share one counter (1-3) with the look rounds in `look.md`.
 
 1. `make brief.json --out <dir> --round N --stills-only`: treatment check, pre-flight gate (fonts,
-   glyph coverage, timeline), the beat stills, one transition strip per cut and the contact sheet in
-   `<dir>/stills/`. Nothing is encoded yet.
+   glyph coverage, timeline), the beat stills, one transition strip per cut, the contact sheet and the
+   storyboard `board.png` in `<dir>/stills/`. Nothing is encoded yet. The brief carries no `style`: the
+   treatment's style decides the preset.
 2. **Look.** Open every file the stills index lists with the Read tool and answer the look questions
    in `look.md`: nothing clipped at the edges, no empty frame at a cut, type legible at its size, the
    preset's palette and nothing else, the accent at most once, no working title or index on screen.

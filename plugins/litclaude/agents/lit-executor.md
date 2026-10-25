@@ -100,9 +100,11 @@ bounded-authority envelope. The official `PreToolUse` hook classifies native
 Write/Edit/MultiEdit/NotebookEdit/Bash/Agent calls and denies forbidden, unknown, paused,
 wrong-session, or unauthorized mutations before execution; `PostToolUse` is
 observation-only. A new non-forbidden boundary is paused by that hook. Resume
-exists only through the user's exact
-`/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>` UserPromptSubmit route: there is no generic resume bypass
+exists only through a prompt the user types: the whole prompt `lit approve`
+grants the paused access for this work and `lit deny` refuses it, and the exact
+`/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>` UserPromptSubmit route stays an alternative. There is no generic resume bypass
 or agent-callable approval route, and the generated grant token is single-use.
+Report the paused access and those two replies to the parent instead of asking for approval yourself.
 A paused work cannot complete, and commit, push, publish, tag,
 release, version bump, registry write, host-config write, and destructive VCS
 remain fail-closed.

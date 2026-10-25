@@ -96,20 +96,22 @@ in the deck or frames what is there; it never adds words or numbers the source d
 
 | Key | Device | What it draws | Packs |
 |---|---|---|---|
-| `cover` | `drench` | the field over the whole page, the title at the cover step in up to three balanced lines, anchored low | signal |
-| `cover` | `plate` | a field plate over a little under half the page, the title on it in at most two lines; the date line above | atlas |
-| `cover` | `rail`, `band` | the pack's `cover-rail` or `cover-band` | chalk, gazette |
+| `cover` | `drench` | the field over the whole page, the title at the cover step in up to three balanced lines, anchored low | signal, computational-brutalism, riso |
+| `cover` | `plate` | a field plate over a little under half the page, the title on it in at most two lines; the date line above | atlas, neo-brutalism |
+| `cover` | `rail`, `band` | the pack's `cover-rail` or `cover-band` | chalk, gazette, newsroom |
 | `cover` | `figures` | `cover-figures` when the deck has a KPI row, else the plain cover | ledger |
 | `cover` | `numeral` | `cover-numeral` with the year from the title or date | night |
 | `cover` | `rules` | a journal title page: a heavy rule, the title, a hairline, the presenter, then place and date | paper |
+| `cover` | `geometry` | the title on the left half and an elementary composition on the right half, each shape in its own grid cell: a square in the accent tint, a circle in the accent, a bar in ink, a triangle in the field | bauhaus |
 | `statement` | `open` | the sentence alone, at the display step | signal, night |
-| `statement` | `drench` | the whole slide in the field, the sentence in the field's text colour | chalk, atlas |
-| `statement` | `plate` | the sentence set low on a field plate that covers less than half the page; a sentence too tall for it keeps the open page | none of the eight (Atlas takes `drench`) |
-| `statement` | `rules` | a hairline above the sentence and one under its support line | paper, studio |
-| `statement` | `offset` | the sentence in columns 5-12 beside a rail that stops a column short of it | none of the eight (the empty rail read as decoration; Studio takes `rules`) |
-| `number` | `field`, `tint`, `outline` | the panel behind a big number: the field, the accent tint, or the surface in an ink outline | signal / ledger, studio, atlas, chalk, night / gazette, paper |
-| `closing` | `band`, `box`, `rules` | the next step on the body floor: a field band across the grid, a tinted (or outlined) box, or a rule above it | signal, studio, atlas, night / ledger, gazette, chalk / paper |
-| `index` | `true` | section slides show the deck's parts, this part marked: one per line on a `section-rule` index page, in one line inside the `section-band` band | ledger, gazette, paper |
+| `statement` | `drench` | the whole slide in the field, the sentence in the field's text colour | chalk, atlas, computational-brutalism, neo-brutalism, riso |
+| `statement` | `plate` | the sentence set low on a field plate that covers less than half the page; a sentence too tall for it keeps the open page | no pack (Atlas takes `drench`) |
+| `statement` | `rules` | a hairline above the sentence and one under its support line | paper, studio, newsroom |
+| `statement` | `geometry` | the sentence on the left and a narrower composition from column 10 to the edge; a quote and a closing statement take it too | bauhaus |
+| `statement` | `offset` | the sentence in columns 5-12 beside a rail that stops a column short of it | no pack (the empty rail read as decoration; Studio takes `rules`) |
+| `number` | `field`, `tint`, `outline` | the panel behind a big number: the field, the accent tint, or the surface in an ink outline | signal, neo-brutalism, bauhaus, riso / ledger, studio, atlas, chalk, night, newsroom / gazette, paper, computational-brutalism |
+| `closing` | `band`, `box`, `rules` | the next step on the body floor: a field band across the grid, a tinted (or outlined) box, or a rule above it | signal, studio, atlas, night, riso / ledger, gazette, chalk, computational-brutalism, neo-brutalism / paper, bauhaus, newsroom |
+| `index` | `true` | section slides show the deck's parts, this part marked: one per line on a `section-rule` index page, in one line inside the `section-band` band | ledger, gazette, paper, newsroom |
 
 What the engine reads from the deck, never from the device:
 
@@ -170,22 +172,16 @@ stop short of the body's last quarter, so the rows reach across. Terms too long 
 a method figure first try half and half, which keeps the figure large enough to read. A closing
 summary list ends with its source as the strip, not as a numbered row.
 
-## Families that change under a title
+## Families under a title
 
-The same family is drawn differently under different treatments, which is where much of a deck's
-variety comes from:
+A family keeps its body in the same place under every treatment:
 
-- Under `side-rail`, the rail under the title carries the slide's supporting content: a
-  comparison's criteria labels level with their rows, the takeaways of a chart, picture, figure rows
-  or number panel (with a chart's values table under them when it fits), and the source strip at
-  its foot; the visual then takes columns 5-12 at full height. A table's takeaways leave the body
-  only when the table, its rows opened, still fills it. A slide whose rail would stay more than
-  40 % empty takes another title unless `title: side-rail` pins it (the gate fails that rail,
-  OF-115).
-- Under `bottom-anchor`, the visual takes the top of the page and the title explains it from below,
-  its last line on the body floor; a big number stands on its panel there, its evidence beside it.
-  A table never takes a bottom title while another title fits it.
-- Under `band`, the body starts below the band and runs to the floor at reading size.
+- No treatment moves the title or the body: every one draws in the slide grid's title zone, and
+  the body runs from y 120 to the floor whichever treatment sits over it. What changes is the
+  look over the title (a margin bar, a field band, a heavy rule, a numeral), so a deck's variety
+  comes from the families and the treatments' surfaces, not from content moving around the page.
+- `bottom-anchor` belongs to a page led by its visual; a table never takes it while another
+  title fits.
 - A `quote` under `statement` sets the quotation itself as the slide's sentence, with the source as
   the support line; the heading of the source slide is not shown.
 

@@ -2,17 +2,18 @@
 
 A style bible is the one page that decides how a film looks before any scene is written: the
 palette, the three type voices, the motion vocabulary, the shader passes and their order, the
-layout grid, what to avoid, and what makes this film its own. The engine carries each preset as
-data (`engine/core/presets.mjs`); this page is the reasoning behind that data. Write the film's own
-short bible in the reply when the user asked for a direction; under a bare `lit`, state the preset
-and why in one sentence.
+layout grid, what to avoid, and what makes this film its own. The type engine carries each preset as
+data (`engine/core/presets.mjs`), and the house styles carry the same palettes for the stage path
+(`styles/<id>.json`, `studio.md`); this page is the reasoning behind that data. The treatment's
+`style` decides the preset on the type path, so the brief leaves `style` out; under a bare `lit`, state
+the style and the rule that chose it in one sentence.
 
 ## Template
 
 | Part | Decide |
 | --- | --- |
 | Idea | One sentence: what the film says and the single image it leaves. |
-| Palette | A ground, one type colour, one signal hue, at most one rare accent. Name every colour by role. |
+| Palette | A ground, one type colour, one signal hue; a rich film (the default) adds the style's accents, each for one role, and a minimal one at most one rare accent. Name every colour by role. |
 | Three voices | Display (titles, hooks), body (running text; Hangul body for Korean), machine (data, credits, counters). |
 | Motion tone | Named tokens only: how type lands, how long it holds, how a shot ends. No per-shot curves. |
 | Passes | Which look-library passes run, in which order, and how strongly. |
@@ -23,7 +24,9 @@ and why in one sentence.
 ## Auto-pick (MO-B-00)
 
 Checked in order, first match wins, whole words only (a Korean keyword must start a token, so it
-never matches the tail of a longer word). An explicit `style` always wins.
+never matches the tail of a longer word). A style the request names always wins, then the project's
+house style. The treatment validator applies the same table to the request and the copy, plus the
+`paper` row on the stage path (`studio.md`).
 
 | The brief mentions | Preset |
 | --- | --- |
@@ -115,3 +118,24 @@ fast that held type smears.
 
 **Originality.** The flow field is seeded per shot, so no two films share one; stops are chosen for
 the brief within two or three restrained colours.
+
+## paper (stage path only)
+
+**Palette.** Warm paper ground `#F3EEE5`; near-black ink `#1D1B18`; muted `#5B564E` for second lines;
+one terracotta signal `#B0452A`; one blue accent `#2B5D8E` for a single moment; line `#C9BFAE` for
+drawn strokes. Ink on paper is 14.9:1, muted 6.3:1, signal 4.9:1.
+
+**Voices.** Pretendard throughout (700 for display and headline, 400 for body), MesloLGS NF for small
+labels. Hangul and Latin share one face, so mixed lines keep one colour of type.
+
+**Motion.** Soft springs: panels settle at damping 0.8, the subject may bounce at 0.6, type never
+overshoots. Entrances on a quint-like ease-out, exits shorter and on an ease-in.
+
+**Grid.** The shared layout zones (`studio.md`), generous margins, drawings in line weight rather than
+fills.
+
+**Anti-slop.** Drop shadows that float type; neon or glow; gradients on type; more than two saturated
+colours on screen; bouncy type.
+
+**Originality.** The drawing carries the film: hand-drawn lines, paper cut-outs, small diagrams. The
+ground stays plain so the drawing reads.

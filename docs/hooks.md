@@ -53,8 +53,8 @@ verdicts: [PASS, FAIL, BLOCKED]
 - Claude Code hook JSON containing `continue: true`, `hookSpecificOutput.hookEventName`, and route-specific `additionalContext`.
 - Optional `systemMessage` for the once-per-session mark and active route ignition marks.
 - A block-tier humanizer finding denies a supported reader-facing text write in `PreToolUse`; `PostToolUse` `additionalContext` reports advisory or fail-open notes and findings from supported DOCX/PPTX/PDF checks after creation, without claiming rollback.
-- `BLOCKED:` text for natural-language start-work, unavailable native goal binding, disabled Dynamic workflow, or gated agent-team setup.
-- Unavailable native goal binding also includes `READY_TO_PASTE` and one bounded `/goal` command for the user to copy, paste, and send; the hook never enters or submits it.
+- `BLOCKED:` text for a longer natural-language start-work phrasing, unavailable native goal binding, disabled Dynamic workflow, or gated agent-team setup.
+- Unavailable native goal binding on lit-loop, litgoal, litwork and workflow routes also includes `READY_TO_PASTE` and one bounded `/goal` command for the user to copy, paste, and send; the hook never enters or submits it. lit-plan carries none.
 
 ## #contract.evidence
 
@@ -305,7 +305,8 @@ itself. LitClaude's is `plugins/litclaude/hooks/lit-mod.mjs`, named under `modul
 setup. The status line stays as it is; the band adds a live layer above the prompt.
 
 From the first prompt to the end of the session a LIT card sits above the prompt. It keeps the
-same five rows whether LitClaude is working or idle, and takes the status line's accent
+same five rows whether LitClaude is working or idle (thread rows, below, are the one addition),
+and takes the status line's accent
 (`LITCLAUDE_HUD_ACCENT`, read from the installed status line command), so the card and the
 status line read as one family:
 
@@ -338,15 +339,44 @@ requests are muted grey pills.
   the live subagents (`● 2 lanes`), the autoloop count and its time left, and `ctx 76% → 80%` when
   the context nears the auto-handoff percent. A session no family places (a lit-docx request, a
   fresh session) keeps the old `PLAN ━━ WORK ━━ REVIEW` track there.
-- The stage comes from the newest of the ignited discipline, a LitClaude skill this request
-  fired, and the stage record; with none of those, from the state that says work is under way.
+- When more than one thread is live (the session's stack frames, its running subagents, its
+  background shells and monitors, and another session of this project whose stack moved in the
+  last 15 minutes), rows under the detail row list them, one each: name, stage, a `[▉▉░░] k/n`
+  gauge and `running`, `paused`, `blocked`, `idle` (a teammate waiting for a message) or
+  `done`. A child hangs under its paused parent with `└─`, parallel lanes and tasks sit under a fork line (`┬ 3 lanes in parallel`,
+  `┬ 2 lanes · 1 task in parallel`) with `├─`/`└─`, a background task is marked `$` (shell) or
+  `~` (monitor) with its kind as its stage, and another session is marked
+  `· other session <id>`. At most four rows show, with `+N more` on the last; the active frame
+  and its parents are never cut, and under a deeper chain three rows are still kept for lanes
+  and tasks (lanes first). The rows stay reserved while more than one thread is live, so
+  the card does not change height as lanes come and go. The desktop SVG card draws the same
+  rows and grows by them.
+- Each row's `k/n` comes from the first source that knows it. A frame: the count it recorded
+  (`litclaude-ai workflow-stage --n --total`), the start-work run it drives, the checkboxes of
+  the plan it works from (a saved lit-plan hands its plan to the lit-loop or start-work that
+  follows), the open litgoal criteria for a loop, and for the frame on top the main loop's own
+  TodoWrite or task list. A subagent: its own TodoWrite or task list, else the tool calls it has
+  finished over an unknown total (`[???] 7/?`; the desktop card counts those by tens past ten so
+  its drawing does not reload on every call). Only statuses are kept, never a todo's or a task's
+  text. A background task has no count (`[???] ?/?`). It ends with its task notification (read
+  for the task's id and status only), a TaskStop, a monitor's own deadline, or after 12 hours
+  with no ending seen. Its command is never shown.
+- The stage comes from the session's workflow stack when it has a fresh frame, and otherwise
+  from the newest of the ignited discipline and a LitClaude skill this request fired; with none
+  of those, from the state that says work is under way.
   The detail comes from files LitClaude already writes: the deep-interview state
   (`round 3/12 · ambiguity 42% → 20%`), the lit-plan draft's approval gate (`drafting`,
   `awaiting approval`), the start-work plan's tasks and next task, the litgoal criteria and the
   litresearch session folder (`wave-*.md`, `verify-*.md`, `SYNTHESIS.md`). What no file
-  records goes into `.litclaude/workflow-stage.json`, a small record LitClaude's hooks keep
-  moving without the model's help. The prompt and PreToolUse hooks start it when lit-plan,
-  review-work, lit-loop, autoresearch or lit-crucible starts, and clear it for any other skill. PostToolUse checks the plan stage when lit-plan saves
+  records goes into the session's workflow stack, `.litclaude/workflow-stack/<session>.json`,
+  which LitClaude's hooks keep moving without the model's help. The prompt and PreToolUse hooks
+  push a frame when a discipline starts. A discipline asked for in the middle of another pauses
+  it as a side frame, keeping its stage and count; a successor in the main chain (plan after
+  interview, work after plan, review after work) or anything after a finished frame replaces it;
+  asking for a skill already on the stack resumes its frame; `lit new` starts over; read-only
+  disciplines (lit-recap, lit-comprehend, lit-handoff, lit-adhd) change nothing. Each session has its own
+  file, at most three frames deep. A record from before the stack is read only while the
+  session has no stack file. PostToolUse checks the plan stage when lit-plan saves
   `plans/<slug>.md` (`plan ✓`, detail `plan saved`), counts the tasks each time the active
   start-work plan is edited (`work 1/2`), and steps a lit-loop criterion to RED when a test
   file is written, GREEN when the code changes after it, VERIFY when the tests run and RECORD
@@ -356,7 +386,7 @@ requests are muted grey pills.
   passed or failed. The card names the lanes `goal`, `quality`, `security`, `qa` and `context`
   (review-work's scope/diff, package/payload, security/provenance, tests/evidence and
   real-surface/docs lanes); five passes finish the review. The hooks keep only the stage, the
-  lane and the counts, never a path, command or prompt. The model can still refine the record
+  lane, the counts and a project-relative plan name, never another path, a command or a prompt. The model can still refine the top frame
   with `litclaude-ai workflow-stage <family> <stage> [--n --total --unit --verdict
   name=pass|fail|pending|running]` for what the hooks cannot see: a lane run without a child
   agent, a loop step such as SURFACE, an autoresearch iteration, the crucible verdict. Another
@@ -509,8 +539,13 @@ semantic grant, while relocation flags, shell syntax that would require a
 speculative parser, and unverified or outside targets are denied without
 creating an approval boundary.
 
-Resume is the only mutating `UserPromptSubmit` exception. It accepts only the
-complete prompt below, with no surrounding explanation or extra arguments:
+A typed start-work and its boundary answers are the only mutating
+`UserPromptSubmit` exceptions, and each must be the whole prompt. The prompt
+`/litclaude:start-work <plan>` (or `/start-work <plan>`, natural `lit start work`, or no
+plan with exactly one open plan) initializes the work with code-derived grants. `lit approve` / `lit 승인`
+grants the one pending boundary of the session's own work, and `lit deny` / `lit 거절`
+clears it and keeps that path refused. The exact route below is still accepted,
+with no surrounding explanation or extra arguments:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
@@ -575,6 +610,8 @@ lit goal
 lit brainstorm <topic>
 lit ideation <topic>
 lit idea <topic>
+lit hijack <sources> into <target>
+lit 하이재킹 <sources>
 lit workflow
 lit dynamic workflow
 lit ultracode
@@ -590,11 +627,18 @@ lit-comprehend
 comprehend
 $lit-comprehend
 $comprehend
+lit adhd
+lit rewind
+lit-adhd
+lit-rewind
+$lit-adhd
+$lit-rewind
 $lit-plan
 $lit-recap
 $lit-loop
 $deep-interview
 $lit-brainstorm
+$lit-hijack
 $lit-loop
 $review-work
 $litgoal
@@ -616,10 +660,10 @@ command. Slash commands and slash-command mentions are native Claude Code
 surfaces and do not activate this prompt hook; code spans, substrings, and
 compound tokens are also ignored. Closed backtick and tilde code fences are
 inert; text outside them and intentionally unclosed fence content remains eligible.
-Natural `lit start work`
-returns a `BLOCKED:` handoff that tells the user to run `/start-work` or
-`/litclaude:start-work` with the approved plan, because a prompt hook cannot
-switch Claude Code agents. The `$start-work` shorthand and natural start-work
+Natural `lit start work` as the whole prompt starts the one open plan the way
+`/litclaude:start-work` does; with several open plans it lists them, and longer
+phrasings keep the `BLOCKED:` handoff to `/litclaude:start-work`, because a prompt
+hook cannot switch Claude Code agents. The `$start-work` shorthand and natural start-work
 phrases activate only when they lead the prompt; diagnostic prose and copied or
 blockquoted mentions remain inert.
 
@@ -655,9 +699,11 @@ against another process with the same uid.
 after outer whitespace activates `Skill(lit-handoff)` and injects the complete
 canonical bundled source. Its system message shows `🔥 LIT IGNITED · lit-handoff 🔥`;
 the model begins with exactly one `🔥 **LIT IGNITED · lit-handoff** 🔥` probe line. Explanatory mentions, quoted or fenced
-text, compound prompts, `/litclaude:lit-handoff`, and secret-bearing multiline
-content do not activate the hook. The slash command remains a native Claude
-Code command surface.
+text, compound prompts and secret-bearing multiline content do not activate the hook.
+A prompt that starts with the typed `/litclaude:lit-handoff` command gets the adapter
+and the same canonical source: the adapter is `disable-model-invocation`, so the
+command's `Skill(lit-handoff)` step would only reopen the command. The arguments stay
+with the command and are never echoed.
 
 Scientific visualization has one exact-bare UserPromptSubmit route: only the
 complete prompt `lit-scientific-visualization` after outer whitespace activates
@@ -665,9 +711,11 @@ complete prompt `lit-scientific-visualization` after outer whitespace activates
 source, and shows `🔥 LIT IGNITED · lit-scientific-visualization 🔥` in its system
 message. The model begins with exactly one `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥` probe line.
 Generic visualization, plot, chart, figure, and scientific visualization prose,
-mentions, quoted or fenced text, mixed prompts, near misses, and
-`/litclaude:lit-scientific-visualization` text do not activate the prompt hook.
-The slash command remains a native Claude Code command surface.
+mentions, quoted or fenced text, mixed prompts and near misses do not activate the
+prompt hook. A prompt that starts with the typed `/litclaude:lit-scientific-visualization`
+command gets the same adapter and canonical source: the adapter is
+`disable-model-invocation`, so the command's `Skill(lit-scientific-visualization)` step
+would only reopen the command. The arguments stay with the command and are never echoed.
 
 LitClaude follows the LitClaude goal pattern as an honest native-binding attempt,
 not as slash-command injection. If Claude Code exposes native goal tools, the
@@ -749,6 +797,15 @@ must sit directly after `lit`; `brainstorm`, `brainstorming`, `ideation` and `id
 lead a prompt that carries `lit`. `lit review the brainstorm notes` and `lit fix the idea
 generator` keep their own routes, and the prompt hook adds no `/goal` line for an ideation turn.
 
+`lit hijack <sources> into <target>`, `lit hijacking`, `lit 하이재킹`, `lit 하이잭`, the leading
+skill name `lit-hijack`, `$lit-hijack` and `/litclaude:lit-hijack` load `Skill(lit-hijack)`: a
+port of someone else's published technique (posts, articles, repos, PDFs, transcripts) into the
+user's own skill or system. It captures sources with provenance, gates the licence, writes a
+source-free spec, hands it to `lit-plan` and `start-work`, proves the change against an isolated
+baseline, and checks every phase with its bundled `hijack.mjs`. The route word must sit directly
+after `lit`, so `lit debug the session hijack` and `lit review the hijack ledger` keep their own
+routes. Because a port is a long run, the prompt hook adds a ready-to-paste `/goal` line.
+
 `/review-work` and `$review-work` load `/litclaude:review-work` /
 `Skill(review-work)` and have two named modes, announced on the first line of the report.
 Plan review (after `lit-plan`, before `start-work`) is a read-only audit of whether the plan
@@ -776,6 +833,24 @@ ledgers or files and forbids mutating `litgoal` subcommands. Near-miss tokens
 `/lit recap`) do not activate the hook. The recap answers in Korean with fixed
 headers by default, switches the body to English on `--en`, and emits the brief
 `## ⚡ 요약` digest on `--brief` / `짧게`.
+
+`lit adhd`, `lit rewind`, `lit-adhd`, `lit-rewind`, `$lit-adhd` and `$lit-rewind` load
+`/litclaude:lit-adhd` / `Skill(lit-adhd)` for a read-only brief across every recent session of
+the repository's worktrees. `lit-rewind` is a permanent alias with the same skill and discipline.
+The context tells the model to run `litclaude-ai rewind --json` once and compose only from it:
+the collector reads transcripts, plans, litgoal, handoff headings, git log, workflow stacks,
+start-work state and herdr (with `HERDR_ENV=1`) under one byte budget, redacts secrets, and
+draws every progress gauge itself (`[▉▉▉░░] 3/5`, or `[???] k/?` for an unknown total) so the
+model copies them. A brief is read-only on the workflow stack. Near-miss words (`lit adhder`,
+`lit rewinding`, bare `adhd`) and the slash forms do not activate the hook; `recap` stays with
+lit-recap.
+
+The collector also records this session's one next step under `.litclaude/adhd/`. When the whole
+next prompt is `go`, `lit go`, `ㄱㄱ`, `고` or `진행` and that record is at most 30 minutes old, the
+hook deletes it and acts on that step alone: a single open plan starts through the same typed-start
+path as `/litclaude:start-work plans/<plan>.md` (the path is re-checked against `plans/*.md` with an
+open task), a paused frame or this session's start-work resumes, and a boundary still answers only to
+`lit approve` or `lit deny`. Without a fresh record of this session, `go` is ordinary text.
 
 `lit-comprehend`, bare `comprehend`, `lit comprehend`, `$lit-comprehend`, and
 `$comprehend` load `/litclaude:lit-comprehend` / `Skill(lit-comprehend)` for a self-contained explainer artifact aimed at
@@ -932,6 +1007,15 @@ is Claude Code's own skill route and does not pass through the hook. The words
 keep reaching `frontend-ui-ux` and the exact bare `lit-scientific-visualization` route
 is unchanged. Quoted, fenced, mid-sentence, and near-miss tokens stay inert.
 
+Leading `lit-schematic` / `$lit-schematic` selects the schematic skill, and a `lit` prompt
+with schematic wording selects it too: a strong noun (P&ID, PFD, BFD, plot plan, cutaway,
+experimental setup, 계장도, 공정도, 모식도, 장치도, 실험 장치) is enough, while a weak noun
+(schematic, isometric, apparatus, 사시도, 단면도) also needs a drawing or making verb and no
+web-interface noun, so an isometric hero image for a landing page stays with `frontend-ui-ux`.
+Ahead of the office route, a schematic request wins when it carries a drawing verb (그려, draw,
+sketch); "lit P&ID 설명 보고서 작성해줘" asks for a document and still reaches `lit-docx`. The
+hook adds the mode contract and the exact installed `SKILL.md` path on every such prompt.
+
 Leading `lit-pptx` / `$lit-pptx` and `lit-docx` / `$lit-docx` select the office skills, and
 so does a bare `lit` whose prompt both asks to make something (만들, 작성, 써줘, 정리해,
 준비, 초안, make, write, draft, prepare, build, …) and names slides (발표자료, 발표, 슬라이드,
@@ -957,15 +1041,17 @@ footage, a video placed in a page or in slides, a script, thumbnail or summary a
 motion (hover, motion tokens), video as a software feature (a player, an upload), or a bare 모션 /
 motion / 인트로 / intro. There is no token-free motion route, and the token-free interface fallback
 no longer claims a video prompt. The hook adds a neutral film context (a film request, the
-treatment first, the path rule between the type and stage renderers, never which path applies),
-the exact installed `SKILL.md` path and the installed `motion.mjs` named once with its `stage`,
-`cover`, `make`, `sound`, `look` and `gate` subcommands, within 4,096 bytes, plus one line that
+treatment first, the path rule between the type and stage renderers, never which path applies, the
+house style, format and length fixed by the treatment's rules, the scaffold, and the board round),
+the exact installed `SKILL.md` path and the installed `motion.mjs` named once with its `scaffold`,
+`stage`, `cover`, `make`, `sound`, `look` and `gate` subcommands, within 4,096 bytes, plus one line that
 sends a README, hero, banner or cover loop to cover mode. A type-led cue (a type
 compound, a kinetic-type or lyric request, or a quoted span of two or more words) adds one
 `type-led cue found` hint line. PostToolUse records every `motion.mjs` run, and the Stop hook holds
-the turn until the film is done: a valid treatment, gate PASS, at least two look rounds (a stills
+the turn until the film is done: a valid treatment, gate PASS, at least two look rounds (the board
 round with its change, then a round stamped with the final render's stills manifest), and every
-frame of that last round opened with Read. A cover (treatment `mode: cover`) is done when the
+frame of that last round, the storyboard included, opened with Read. A treatment with `preview: true`
+is done at a passed, viewed board. A cover (treatment `mode: cover`) is done when the
 decoded cover reached every TARGET gate and the last of at least two look rounds viewed the contact
 sheet, the poster and the seam pair. A missing or unreadable `treatment.json` or `look.json`
 blocks with a named reason. After two reminders the hook tells the model to say in the reply that

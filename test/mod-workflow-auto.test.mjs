@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 import { REVIEW_LANES, buildWorkflow, reviewLaneOf } from "../plugins/litclaude/lib/mod/workflow.mjs";
-import { workflowStagePath } from "../plugins/litclaude/lib/workflow-stage.mjs";
+import { readStack, writeStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
 
 // The map has to move on its own: in a real session the model never ran `litclaude-ai
 // workflow-stage`, and the card stayed at the stage the skill entered. These cases drive
@@ -131,8 +131,9 @@ test("the map advances through lit-plan, start-work and review-work from the hoo
     writeFileSync(join(project, "plans", "demo.md"), PLAN(0));
     await host.tool(env, "Write", { file_path: join(project, "plans", "demo.md"), content: PLAN(0) });
     rows = await host.rows();
-    assert.match(rows.map, /^interview ✓ ━━ plan ✓ ━━ work ━━ review · ── done ·$/u, "the saved plan carries a check");
-    assert.match(rows.detail, /^└ plan saved/u);
+    // The saved plan's checkboxes are the work's count before start-work records its own.
+    assert.match(rows.map, /^interview ✓ ━━ plan ✓ ━━ work 0\/2 ━━ review · ── done ·$/u, "the saved plan carries a check");
+    assert.match(rows.detail, /^└ task 0\/2 .*plan saved/u);
 
     // start-work: the work's tasks count up as each one is checked in the plan.
     await host.tool(env, "Skill", { skill: "litclaude:start-work" }, { skill: "litclaude:start-work" });
@@ -178,9 +179,10 @@ test("the map advances through lit-plan, start-work and review-work from the hoo
     rows = await host.rows();
     assert.match(rows.map, /^interview ✓ ━━ plan ✓ ━━ work ✓ ━━ review ✓ ━━ done ✓$/u, "five passing lanes finish the review");
 
-    const record = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
-    assert.equal(record.sessionId, SESSION);
-    assert.deepEqual(Object.keys(record).sort(), ["at", "family", "sessionId", "skill", "stage", "verdicts"], "the record keeps stages and verdicts, never a path, command or prompt");
+    const stack = readStack(project, SESSION);
+    assert.equal(stack.sessionId, SESSION);
+    assert.deepEqual(Object.keys(stack.frames.at(-1)).sort(), ["at", "family", "ref", "role", "skill", "stage", "status", "verdicts"], "the frame keeps stages and verdicts, never a path, command or prompt");
+    assert.deepEqual(stack.frames.at(-1).ref, { plan: "plans/demo.md" }, "the one path is the plan's project-relative name, carried on from lit-plan");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
@@ -261,8 +263,7 @@ test("a lit-loop criterion moves when its test and code are written through the 
     await host.tool(env, "Bash", { command: "cat >> greet.js <<'EOF'\nmodule.exports.x = 2;\nEOF\nnpm test" }, { response: { stdout: "# pass 3\n# fail 0" } });
     assert.match(await top(), /VERIFY ● ─╮$/u, "the code written and the passing run in one command land on VERIFY");
 
-    const record = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
-    assert.deepEqual(Object.keys(record).sort(), ["at", "family", "sessionId", "skill", "stage", "verdicts"], "the record keeps the stage, never a path or a command");
+    assert.deepEqual(Object.keys(readStack(project, SESSION).frames.at(-1)).sort(), ["at", "family", "role", "skill", "stage", "status", "verdicts"], "the frame keeps the stage, never a path or a command");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
@@ -382,25 +383,35 @@ test("the next task reads without the plan's Markdown marks", () => {
   assert.equal(buildWorkflow({ snapshot, now: 2 }).next, "Task 2: GREEN, implement shout");
 });
 
-test("a typed /litclaude:review-work starts a fresh review record, so a second review is drawn from its own lanes", () => {
+// A finished review on the session's stack: all five lanes reported.
+const finishedReview = () => ({
+  version: 1,
+  sessionId: SESSION,
+  frames: [{ skill: "review-work", family: "main", stage: "review", role: "spine", status: "active", verdicts: { goal: "pass", qa: "pass", quality: "pass", security: "pass", context: "pass" }, at: new Date().toISOString() }],
+  history: [],
+});
+
+test("a typed /litclaude:review-work after a finished review starts a fresh frame, and start-work after it succeeds it", () => {
   const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-auto-typed-")));
   const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud") };
   try {
     mkdirSync(join(project, ".git"));
-    mkdirSync(join(project, ".litclaude"));
-    writeFileSync(workflowStagePath(project), JSON.stringify({ sessionId: SESSION, skill: "review-work", family: "main", stage: "review", verdicts: { goal: "pass", qa: "pass", quality: "pass", security: "pass", context: "pass" }, at: new Date().toISOString() }));
+    writeStack(project, SESSION, finishedReview());
     runHook(project, "user-prompt-submit", { prompt: "/litclaude:review-work Review the change once more." }, env);
-    const record = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
-    assert.deepEqual({ family: record.family, stage: record.stage, verdicts: record.verdicts }, { family: "main", stage: "review", verdicts: {} });
+    const fresh = readStack(project, SESSION).frames;
+    assert.deepEqual(fresh.map(({ skill, stage, verdicts }) => ({ skill, stage, verdicts })), [{ skill: "review-work", stage: "review", verdicts: {} }], "a second review is drawn from its own lanes");
+    writeStack(project, SESSION, finishedReview());
     runHook(project, "user-prompt-submit", { prompt: "/litclaude:start-work plans/x.md" }, env);
-    assert.throws(() => readFileSync(workflowStagePath(project)), /ENOENT/u, "a typed skill the state files follow clears it");
+    const after = readStack(project, SESSION).frames;
+    assert.deepEqual(after.map(({ skill, role, status, stage }) => `${skill}:${role}:${status}:${stage}`), ["start-work:spine:active:work"], "the finished review is closed, the work frame is on top");
+    assert.equal(after[0].ref.plan, "plans/x.md");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
 });
 
 // A litgoal goal finished in an earlier request stays `complete` in goals.json. A skill started
-// after it writes a newer stage record, and the card follows the record, not the old finish.
+// after it writes a newer stack frame, and the card follows the frame, not the old finish.
 const finishedGoal = (completedAt) => ({
   version: 1,
   objective: "An earlier request",
@@ -419,7 +430,7 @@ const stageAndGoal = async (record, goal) => {
   mkdirSync(join(project, ".git"));
   mkdirSync(join(project, ".litclaude", "litgoal"), { recursive: true });
   writeFileSync(join(project, ".litclaude", "litgoal", "goals.json"), JSON.stringify(goal));
-  writeFileSync(workflowStagePath(project), JSON.stringify({ sessionId: SESSION, ...record }));
+  writeStack(project, SESSION, { version: 1, sessionId: SESSION, frames: [{ skill: null, role: "spine", status: "active", verdicts: {}, ...record }], history: [] });
   const host = await diskHost(project);
   await host.fire("session.start", {});
   return { project, rows: await host.rows() };

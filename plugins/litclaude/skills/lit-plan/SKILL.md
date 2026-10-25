@@ -88,9 +88,12 @@ fresh Claude Code session execute without re-solving the architecture.
 
 This skill is **planning-only**. You must not implement, must not edit files for
 product changes, and must not run mutating commands. Do not call any start-work
-tool from inside planning mode. Once the plan is approved, tell the
-user to run `/start-work` or `/litclaude:start-work` so Claude Code can use the
-proper execution surface.
+tool from inside planning mode. Close the saved plan with one step: tell the
+user to type `/litclaude:start-work plans/<slug>.md`; typing it approves this plan and runs it,
+so no second confirm reply and no `/goal` line is needed. The hook starts the work
+with grants derived from the project; a plan that needs more names it on a line
+such as `Scope roots: <path> (read)`, and anything else outside the
+project pauses until the user answers `lit approve` or `lit deny`.
 
 ## Planning Contract
 
@@ -299,10 +302,9 @@ unavailable:
   when no matching active goal exists, avoid clobbering a different active goal
   without explicit replacement, and delay `update_goal` until verified
   completion or a real blocker.
-- If goal tools are unavailable, include explicit `BLOCKED:` / degraded-mode
-  wording plus an exact, ready-to-paste `/goal <completion condition>` or
-  `claude -p "/goal <completion condition>"` line for the user, plus a quiet
-  local ledger for tracking.
+- If goal tools are unavailable, write no `/goal` line into the plan: start-work's
+  Stop continuation and the LitClaude ledger carry the run to its end, and a user
+  who wants native `/goal` can still set one.
 - Do not auto-type or send `/goal` text from a skill, and never claim native activation without evidence.
 
 For broad, risky, parallel, or long-running implementation, include Dynamic workflow
@@ -529,6 +531,11 @@ ideation belongs to `lit-brainstorm`. If the
 task is too vague, ask the smallest clarifying question or write assumptions
 explicitly.
 
+A plan written from a `lit-hijack` spec (`.litclaude/hijack/<slug>/SPEC.md`) cites SPEC
+sections (`M1`, `M2`) and target files in its rows and References. Keep the run's captured
+sources out of the plan: the implementer works from the spec alone, and the hijack build
+gate fails a plan that names them.
+
 ## Stop rules
 
 The plan must tell the executor to stop before commit/push or publish unless
@@ -563,9 +570,8 @@ portable QA only when the payload or install path actually changed.
 Plans must distinguish desired Claude Code behavior from observed capability.
 Native goal binding is the clearest case. The plan may include `get_goal`,
 `create_goal`, and `update_goal` steps only as capability-gated actions. It must
-also include the degraded-mode path: provide a ready-to-paste `/goal <completion
-condition>` or `claude -p "/goal <completion condition>"` line, then use the
-LitClaude ledger until native tools are actually visible. The acceptance
+also include the degraded-mode path: the LitClaude ledger and start-work's Stop
+continuation, used until native tools are actually visible. The acceptance
 criterion is not "native goal was updated" unless the host exposes the tool and
 the executor can prove the update. Otherwise the criterion is "fallback was
 reported honestly and local evidence was maintained."

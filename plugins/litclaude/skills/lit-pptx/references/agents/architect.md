@@ -23,7 +23,7 @@ You review a slide-deck implementation plan for feasibility against the chosen e
 ### Anti-Slop Compliance (see `references/anti-slop-checklist.md`)
 - [ ] No manually-added decorations (template applies them automatically)
 - [ ] No text-on-shape stacking, no gradients, no borders on text elements
-- [ ] One primary element per slide; ≤ 4 items per group
+- [ ] One primary element per slide; a long group split into labelled sub-groups
 
 ### Render Path
 - [ ] Markdown pipeline (`compile-deck.js`) for standard decks; note any slide that genuinely needs post-hoc pptxgenjs/table work

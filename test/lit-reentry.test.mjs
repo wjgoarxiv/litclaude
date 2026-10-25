@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { readStack, writeStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
 import { buildPlanSkeleton } from "../scripts/scaffold-plan.mjs";
 import { SKILL_FIRST_NOTICE } from "./helpers/hook-context.mjs";
 
@@ -73,7 +74,13 @@ const writePlan = (cwd, slug = "demo") => {
 };
 
 const turnFile = (cwd) => join(cwd, ".litclaude", "lit-plan", "turn.json");
-const stageFile = (cwd) => join(cwd, ".litclaude", "workflow-stage.json");
+// The session's top workflow frame, read and refined the way the model's stage call would.
+const topFrame = (cwd, sid) => readStack(cwd, sid).frames.at(-1);
+const setTopCount = (cwd, sid, counts) => {
+  const stack = readStack(cwd, sid);
+  Object.assign(stack.frames.at(-1), counts);
+  writeStack(cwd, sid, stack);
+};
 const activationFiles = () => (existsSync(env.LITCLAUDE_HUD_STATE_ROOT) ? readdirSync(env.LITCLAUDE_HUD_STATE_ROOT).filter((name) => name.endsWith(".activation.json")) : []);
 
 before(() => {
@@ -120,11 +127,10 @@ describe("lit re-entry: continue the active discipline", () => {
     const sid = sessionId();
     const first = prompt(cwd, sid, "lit fix the bug");
     assert.match(first, /\/goal Continue until/u);
-    const record = JSON.parse(readFileSync(stageFile(cwd), "utf8"));
-    writeFileSync(stageFile(cwd), `${JSON.stringify({ ...record, n: 2, total: 5, unit: "step" })}\n`);
+    setTopCount(cwd, sid, { n: 2, total: 5, unit: "step" });
     const second = prompt(cwd, sid, "lit add a test");
     assert.doesNotMatch(second, /\/goal/u);
-    const after = JSON.parse(readFileSync(stageFile(cwd), "utf8"));
+    const after = topFrame(cwd, sid);
     assert.equal(after.n, 2, "the progress card keeps its place");
     assert.equal(after.total, 5);
     assert.equal(existsSync(join(cwd, "plans")), false, "a repeat creates no plan file");
@@ -148,7 +154,7 @@ describe("lit re-entry: continue the active discipline", () => {
 });
 
 describe("lit re-entry: switch, restart and a new session", () => {
-  it("gives lit plan its full activation while lit-loop is active, once", () => {
+  it("gives lit plan its full activation while lit-loop is active, once, and lit-loop a short note on the way back", () => {
     const cwd = markerCwd();
     const sid = sessionId();
     assertFull(prompt(cwd, sid, "lit fix the bug"), "lit-loop");
@@ -158,7 +164,8 @@ describe("lit re-entry: switch, restart and a new session", () => {
     assert.equal(existsSync(turnFile(cwd)), true, "the plan persistence gate is armed for the plan turn");
     assertContinue(prompt(cwd, sid, "lit plan the rollback too"), "second lit plan");
     assert.equal(existsSync(turnFile(cwd)), true, "a repeated lit plan keeps the gate armed");
-    assertFull(prompt(cwd, sid, "lit fix the bug in the parser"), "back to lit-loop");
+    // lit-loop's contract is still in the conversation, so going back to it gets the short note.
+    assertContinue(prompt(cwd, sid, "lit fix the bug in the parser"), "back to lit-loop");
     assert.equal(existsSync(turnFile(cwd)), false, "leaving lit plan disarms the gate");
   });
 
@@ -208,8 +215,7 @@ describe("lit re-entry: resume and confirmation", () => {
       startSession(cwd, sid);
       assertFull(prompt(cwd, sid, "lit plan the migration"), "lit plan");
       writePlan(cwd);
-      const record = JSON.parse(readFileSync(stageFile(cwd), "utf8"));
-      writeFileSync(stageFile(cwd), `${JSON.stringify({ ...record, n: 1, total: 3, unit: "step" })}\n`);
+      setTopCount(cwd, sid, { n: 1, total: 3, unit: "step" });
       const context = prompt(cwd, sid, text);
       assertContinue(context, `${text} while lit-plan is active`);
       assert.match(context, /lit-plan/u);
@@ -218,7 +224,7 @@ describe("lit re-entry: resume and confirmation", () => {
       assert.match(context, /LIT IGNITED · lit-plan/u);
       assert.doesNotMatch(context, /Soft-confirm|resum/iu);
       assert.equal(existsSync(turnFile(cwd)), true, "the plan gate stays armed");
-      assert.equal(JSON.parse(readFileSync(stageFile(cwd), "utf8")).n, 1, "no stage reset");
+      assert.equal(topFrame(cwd, sid).n, 1, "no stage reset");
       assert.deepEqual(readdirSync(join(cwd, "plans")), ["demo.md"], "no new plan");
     }
   });

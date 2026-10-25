@@ -75,7 +75,7 @@ function main() {
   };
   const outRoot = path.resolve(opt("out") ?? mkdtempSync(path.join(tmpdir(), "lit-cover-qa-")));
   const feather = opt("feather");
-  const only = feather ? [] : opt("only") ? String(opt("only")).split(",") : ["painted-light", "weight-tide", "orbit-loop"];
+  const only = feather ? [] : opt("only") ? String(opt("only")).split(",") : ["hero-3d", "painted-light", "weight-tide", "orbit-loop"];
   const rows = [];
   let failed = 0;
 
@@ -110,7 +110,7 @@ function main() {
   const cases = [];
   if (argv.includes("--negatives")) {
     for (const name of ["title-slam", "card-scenes", "still-glow", "reset-sweep"]) cases.push({ kind: "negative", name });
-    for (const recipe of ["painted-light", "weight-tide", "orbit-loop"]) {
+    for (const recipe of ["hero-3d", "painted-light", "weight-tide", "orbit-loop"]) {
       for (const id of Object.keys(readJson(path.join(skill, "recipes", recipe, "expected.json"))?.regressions ?? {})) cases.push({ kind: "regression", recipe, id });
     }
   }
@@ -131,7 +131,7 @@ function main() {
       mustFail = expected.mustFail;
       const treatment = {
         mode: "cover", request: "A shipped negative rendered by the cover recipe QA.", idea: "A slide-like page that the decoded-file gate has to fail.",
-        recipe: "own", recipeReason: "A regression negative, never a recipe.", brandWord: "LITCLAUDE", aspect: "2:1",
+        recipe: "own", recipeReason: "A regression negative, never a recipe.", hero: "The title card.", beat: "The card swaps once per loop.", brandWord: "LITCLAUDE", aspect: "2:1",
         layers: { slow: "None by design.", mid: "None by design.", beat: "Card or text changes." },
         system: { rule: "Text states on a timeline.", copies: "One per card.", offset: "None." },
         title: { box: [0.05, 0.3, 0.9, 0.3], kind: "live" }, ambition: "It must keep failing its named gates.",

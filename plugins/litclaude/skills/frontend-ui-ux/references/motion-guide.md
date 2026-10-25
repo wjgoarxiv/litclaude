@@ -2,7 +2,7 @@
 
 Use this guide with the active frontend Design Contract and `references/interaction-motion.md`. Motion decisions belong to named components and states; they do not grant implementation scope. Start with the target page, components, and exclusions. Specify the stack, visual tokens, layers, timing, viewport behavior, reduced-motion path, assets, and performance limits before implementation. Name exact files or components so the work does not invent unrelated sections.
 
-All values below are starting defaults. Keep the page calm when motion does not explain hierarchy, state, or cause and effect.
+All values below are starting defaults. The default register is rich: layered motion (an atmosphere layer drifting behind the hero, the headline entering, the moment animating its own detail) is welcome when each layer has a job and a budget. A calm page is the opt-in, used when the request asks for a minimal or quiet page or the lock records `density: calm`. Either way, every layer stops under `prefers-reduced-motion: reduce`.
 
 ## 1. Stack, tokens, and composition
 
@@ -49,9 +49,9 @@ Use named curves so a later editor can change the motion family without hunting 
 
 ## 3. Motion and resource budgets
 
-**Do:** Give each section one entrance sequence and no more than two simultaneously moving elements. Give the hero one principal scroll or entrance effect and one animated headline. Keep controls responsive while decorative motion runs.
+**Do:** Layer motion by depth: a slow atmosphere layer (8 s or longer, transform or opacity only), one entrance sequence per section, and the signature moment's own detail. Up to four elements may move at once when they sit on separate layers and none of them is body text. Keep controls responsive while decorative motion runs, and keep each layer inside the frame budget below.
 
-**Don't:** animate the headline, background, cards, icons, and navigation at once. Remove any motion whose absence does not change comprehension or feedback.
+**Don't:** animate every card, icon and nav item on the same beat, move body text while it is being read, or loop anything faster than three flashes a second (the flash floor stays absolute). Drop a layer that costs the frame budget before dropping the moment.
 
 **Do:** Animate `transform` and `opacity` for routine movement. Target a frame callback below 4 ms so the page has room for layout, paint, and input work within a 60 Hz frame. Check for dropped frames on a mid-range device.
 

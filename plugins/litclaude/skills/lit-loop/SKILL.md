@@ -208,10 +208,11 @@ Approved-plan execution additionally uses LitClaude's code-owned schema-3
 bounded-authority start-work lifecycle. Treat `.litclaude/boulder.json` as the
 active work/session/revision authority; use canonical plan, worktree, and
 authority roots plus semantic action/root grants. Pause only for a genuinely
-new non-forbidden boundary. Never simulate user approval: only the exact
+new non-forbidden boundary. Never simulate user approval: only a prompt the
+user types resumes it, either the whole prompt `lit approve` (allow it for this
+work) or `lit deny` (refuse it and carry on), or the exact
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
-UserPromptSubmit route can resume, and paused work cannot
-complete. Stop continuations are progress-fingerprinted and root-session-only;
+UserPromptSubmit route as an alternative, and paused work cannot complete. Stop continuations are progress-fingerprinted and root-session-only;
 normal Stop events re-evaluate progress, `stop_hook_active: true` re-entry stays
 silent, later unchanged progress stays silent, and stale state remains inert.
 

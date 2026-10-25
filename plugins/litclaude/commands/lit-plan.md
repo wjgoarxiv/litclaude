@@ -79,15 +79,16 @@ arguments.
 
 This command is planning-only. Do not implement, edit files for product
 changes, run mutating commands, or call start-work tooling from the planning
-surface. End with an approval gate and instruct the user to run `/start-work` or
-`/litclaude:start-work` after approval.
+surface. End with one step: tell the user to type `/litclaude:start-work plans/<slug>.md`;
+typing it approves this plan and runs it. A plan that needs access outside the
+project names it on a `Scope roots: <path> (<actions>)` line.
 
 The plan must include Claude Code-native bootstrap steps:
 
 - If model-facing goal tools are exposed, use `get_goal`, `create_goal`, and
   delayed `update_goal` exactly as native goal state, not as slash-command text.
-- If goal tools are unavailable, include the exact user-visible `/goal`
-  completion condition to bind before execution.
+- If goal tools are unavailable, add no `/goal` step: start-work's Stop
+  continuation and the ledger carry the run, and `/goal` stays the user's option.
 - For independent, risky, parallel, or long-running work, include when Claude
   should call the `Workflow` tool and how each lane proves its evidence.
 - For isolated edit lanes, include when to use `EnterWorktree`; if only the CLI

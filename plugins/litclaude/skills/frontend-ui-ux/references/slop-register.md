@@ -44,13 +44,13 @@ or *checklist* (review by eye).
 | Id | Tell | Signal and threshold | Severity | Fix | Coverage |
 |---|---|---|---|---|---|
 | SLOP-008 | The reflex violet accent | a gradient stop, or heading text (h1 to h3 or ≥ 20 px), with hue 260° to 310° and an RGB channel spread ≥ 50, unless that hue is the brand's own action colour in ≥ 2 regions | MEDIUM | Neutral surface plus one real brand hue | both |
-| SLOP-009 | Gradient-filled headline text | `background-clip: text` with a gradient | MEDIUM | Solid colour; emphasis through weight or size | both |
-| SLOP-010 | The same coloured glow repeated | CF-404's glow test (≤ 2 px offset, ≥ 16 px blur, saturation > 0.4) on ≥ 2 unrelated controls or headings, not a focus state; a single glow is CF-404 | MEDIUM | Neutral offset shadow or none | probe |
-| SLOP-011 | A faint floating blob with no focal job | an absolutely placed radial gradient under 0.3 opacity that paints only itself (no text, media, control or link inside) | MEDIUM | Remove or tie it to a real focal point | probe (judgment) |
-| SLOP-012 | Dot or line grid texture next to other decoration | ≥ 2 gradient layers or a radial dot on a fixed px cell ≤ 48 px, no canvas, table, grid, `role=img` or SVG over 48 px in its section or landmark, beside a SLOP-008 or SLOP-011 signal | MEDIUM | Remove unless it stands in for real data | probe |
+| SLOP-009 | Reflex gradient-filled text | `background-clip: text` with a gradient that has a violet stop (SLOP-008's band), or on more than one element, or with a stop under 4.5:1 (3:1 at ≥ 24 px) on its surface; one gradient headline in the palette's own hues is craft | MEDIUM | Keep one, in palette hues with every stop readable, or use a solid colour | both (static: the violet or repeated form) |
+| SLOP-010 | The same coloured glow repeated | CF-404's glow test (≤ 2 px offset, ≥ 16 px blur, saturation > 0.4) on ≥ 3 unrelated controls or headings, not a focus state; one or two glows are CF-404, and a glow on a surface (`ui-glow`) is craft | MEDIUM | Keep the glow for the surface it lights | probe |
+| SLOP-011 | Faint floating blobs with no focal job | ≥ 2 absolutely placed radial gradients under 0.3 opacity that paint only themselves (no text, media, control or link inside); one atmosphere layer behind the focal point is craft | MEDIUM | Keep one layer tied to the focal point | probe (judgment) |
+| SLOP-012 | Dot or line grid texture next to other decoration | ≥ 2 gradient layers or a radial dot on a fixed px cell ≤ 48 px, no canvas, table, grid, `role=img` or SVG over 48 px in its section or landmark, beside a SLOP-008 or SLOP-011 signal (so notebook dots under one atmosphere layer pass) | MEDIUM | Remove unless it stands in for real data | probe |
 | SLOP-013 | Grain or noise dense enough to hide the layout | layout reads better with the layer hidden | LOW | Lighten it or remove it | checklist |
 | SLOP-014 | Glass blur as a default surface | no stated reason and no solid fallback for reduced transparency | LOW | Solid surface unless the brief earns it | checklist |
-| SLOP-015 | Coloured side stripes faking emphasis on cards | on rounded elements: a single-side accent (one side ≥ 2 px saturated, the other three 0 or ≤ 1 px neutral; an all-round outline is not a stripe), an absolutely placed 3 to 12 px `::before`/`::after` bar pinned to one edge (tab and nav indicators skipped), ≥ 2 per scope; an inset 3 to 12 px chromatic shadow counts at 1; status regions and callouts excepted | MEDIUM | Carry emphasis with the fill or an icon | probe |
+| SLOP-015 | Coloured side stripes faking emphasis on cards | on rounded elements: a single-side accent (one side ≥ 2 px saturated, the other three 0 or ≤ 1 px neutral; an all-round outline is not a stripe), an absolutely placed 3 to 12 px `::before`/`::after` bar pinned to one edge (tab and nav indicators skipped), ≥ 3 per scope; an inset 3 to 12 px chromatic shadow counts at 2; status regions and callouts excepted | MEDIUM | Carry emphasis with the fill or an icon | probe |
 
 ## Typography
 
@@ -67,7 +67,7 @@ or *checklist* (review by eye).
 | Id | Tell | Signal and threshold | Severity | Fix | Coverage |
 |---|---|---|---|---|---|
 | SLOP-021 | Neutral mid-gray text on a coloured surface | text lightness 40 % to 70 % and saturation < 10 % on a surface with saturation ≥ 25 % (see CF-201 for the contrast floor) | MEDIUM | Tint the text from the surface hue | probe |
-| SLOP-022 | Several accent hues competing | more than one saturated cluster among filled surfaces; measured as CF-205 | MEDIUM | One accent; the rest neutral | via CF-205 |
+| SLOP-022 | Too many accent hues competing | more than four saturated clusters among filled surfaces (more than one in a calm lock); measured as CF-205 | MEDIUM | Fold the extras into a family the page already uses | via CF-205 |
 | SLOP-023 | Pure #000 or #fff as the base | exact black or white body background or ink (a deliberate all-black dark theme excepted) | LOW | Move a few percent toward the brand neutral | probe |
 
 ## Motion
@@ -121,7 +121,7 @@ or *checklist* (review by eye).
 
 | Id | Tell | Signal and threshold | Severity | Fix | Coverage |
 |---|---|---|---|---|---|
-| SLOP-051 | An illustration stacked from primitives | an inline SVG ≥ 200 × 200 px with ≥ 8 rect, circle, ellipse or polygon shapes, ≥ 3 fills, ≤ 2 text elements and no pattern | MEDIUM | Simplify or use a real asset | probe (judgment: an honest diagram clears it) |
+| SLOP-051 | An unlabelled illustration stacked from primitives | an inline SVG ≥ 200 × 200 px with ≥ 8 rect, circle, ellipse or polygon shapes, ≥ 3 fills, ≤ 2 text elements, no pattern and no name (`role="img"` with `aria-label`/`aria-labelledby`, or a `<title>`); a named many-shape drawing of the subject is an authored illustration | MEDIUM | Name what it shows, or draw the subject instead of a generic stack | probe (judgment: an honest diagram clears it) |
 | SLOP-052 | A many-vertex mask faking a photo edge | `clip-path: polygon()` with ≥ 10 vertices, at least half its coordinates off the 25 % grid, or `path()` with ≥ 3 curves | LOW | A real crop or a simple shape | probe |
 | SLOP-053 | Emoji in place of an icon set | emoji as the whole content of a small control, or leading a nav item, badge, list item or heading | LOW | The project's icon set | probe (judgment) |
 | SLOP-054 | Hover zoom on the image itself | a `:hover` transform on `img` | LOW | Transform the container | checklist |

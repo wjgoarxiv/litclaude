@@ -48,11 +48,11 @@ prs = Presentation()
 prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
 blank = prs.slide_layouts[6]
 
-# 1. Three accent families (OF-101), gradient text (OF-106), glow (OF-107), emoji bullet (OF-108).
+# 1. Five accent families (OF-101), gradient text (OF-106), glow (OF-107), emoji bullet (OF-108).
 slide = prs.slides.add_slide(blank)
 title(slide, "Quarter overview")
-for x, fill in ((0.5, "D62828"), (4.6, "2A9D8F"), (8.7, "7B2CBF")):
-    box(slide, x, 1.6, 3.8, 1.2, fill=fill)
+for x, fill in ((0.5, "D62828"), (2.95, "2A9D8F"), (5.4, "7B2CBF"), (7.85, "E9A23B"), (10.3, "2E6FD8")):
+    box(slide, x, 1.6, 2.3, 1.2, fill=fill)
 gradient = text(slide, 0.5, 3.2, 12, 0.8, "Shiny headline", size=24, name="Gradient")
 rpr = gradient.text_frame.paragraphs[0].runs[0]._r.get_or_add_rPr()
 grad = etree.SubElement(rpr, qn("a:gradFill"))

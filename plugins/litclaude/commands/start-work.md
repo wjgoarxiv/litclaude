@@ -82,6 +82,17 @@ arguments.
 
 ## Code-owned bounded-authority route
 
+Typing this command is the approval. When the whole prompt is
+`/litclaude:start-work <plan>` (or `/start-work <plan>`; with no plan named, the
+one plan under `plans/` that still has open tasks), the `UserPromptSubmit` hook
+starts the work itself and says so: the work is already initialized, so do not
+call `start-work init`. Its grants come from code, not from the model: this
+project (read, write, execute, test, package, vcs-read), the plan folder (read),
+any `Scope roots: <path> (<actions>)` line in the plan, LitClaude's own files
+(read) and a private temp folder (write). Natural `lit start work` does the same
+when exactly one plan is open; with several, the hook lists them and starts
+nothing.
+
 Initialize and mutate durable work only through
 `litclaude-ai start-work <init|status|progress|pre-tool-use|pause|cancel|complete>`. The
 runtime owns schema-3 `.litclaude/boulder.json`, the reconciled start-work
@@ -91,16 +102,19 @@ Null worktree means canonical cwd only when the authority envelope grants write
 there.
 
 No CLI flag may impersonate user approval. When a genuinely new,
-non-forbidden authority boundary pauses work, show its exact identities and ask
-the user to submit exactly:
+non-forbidden authority boundary pauses work, the tool call is denied with the
+access it asked for. Tell the user what it is and that they can reply `lit approve`
+(or `lit 승인`) to allow it for this work, or `lit deny` (or `lit 거절`) to refuse
+it; a denied path stays refused for the rest of the work without pausing again.
+The exact route stays accepted as an alternative:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
 ```
 
-Only the Claude Code `UserPromptSubmit` hook accepts that entire route, matches
-the active session and pending boundary, records the grant, and returns bounded
-structured context. Explanations, quotes, fences, mixed prompts, stale
+Only the Claude Code `UserPromptSubmit` hook accepts a whole-prompt token or that
+entire route, matches the active session and pending boundary, records the grant
+or the refusal, and returns bounded structured context. Explanations, quotes, fences, mixed prompts, stale
 work/revision values, and generic agent CLI calls do not resume. Forbidden
 release, registry, host-config, destructive VCS, commit, push, publish, tag, and
 version-bump boundaries are blocked rather than paused.
@@ -112,15 +126,16 @@ grants authority. Subagent lifecycle hooks bind root-session, child-lane, and
 Claude-owned worktree identity, and active lanes gate completion.
 
 This command is the Claude Code-native execution transition for an approved
-plan. If a user reached start-work through natural language (`lit start work`),
-do not pretend the hook switched modes; require this slash command or the
-namespaced `/litclaude:start-work` equivalent before execution.
+plan. If the hook did not start the work (several open plans, a plan it could not
+find, another run already active), say why in one sentence and ask the user for
+the plan to run; do not work around it with `start-work init`.
 
 Before the first checkbox, bootstrap Claude Code-native workflow state:
 
 - Use `get_goal` and `create_goal` only if model-facing goal tools are exposed.
-- If goal tools are unavailable, ask the user to set a native `/goal` completion
-  condition for the plan before multi-turn execution.
+- If goal tools are unavailable, carry on: `/goal` is optional. The ledger and the
+  start-work Stop continuation keep the run going; a user who wants native `/goal`
+  can still set one.
 - For broad, risky, parallel, or long-running checkbox waves, call the
   `Workflow` tool when Claude Code exposes it.
 - For isolated edit lanes, use `EnterWorktree` when exposed; otherwise launch

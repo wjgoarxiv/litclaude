@@ -159,8 +159,9 @@ the local litgoal criteria have passed.
 When the UserPromptSubmit context contains `READY_TO_PASTE`, preserve the exact
 `command` line it provides. Show it as the one command the user should copy,
 paste, and send in the current Claude Code session, explain that LitClaude
-cannot enter or send it on the user's behalf, and wait for the user's next
-message before treating native goal submission as user-confirmed. Do not
+cannot enter or send it on the user's behalf, then show the line once and continue
+with the ledger-driven work. Treat native goal submission as user-confirmed only
+after the user actually sends it. Do not
 silently rewrite the condition, turn it into a tool call, or offer a different
 active goal for replacement without explicit approval.
 

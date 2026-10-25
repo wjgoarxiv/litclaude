@@ -14,7 +14,8 @@ import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xter
 import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
 import { readGitBranch, readLitSnapshot } from "../plugins/litclaude/lib/mod/state.mjs";
 import { parseStageRecord } from "../plugins/litclaude/lib/mod/workflow.mjs";
-import { recordWorkflowStage, runWorkflowStageCli, startWorkflowStage, workflowStagePath } from "../plugins/litclaude/lib/workflow-stage.mjs";
+import { recordWorkflowStage, runWorkflowStageCli, startWorkflowStage } from "../plugins/litclaude/lib/workflow-stage.mjs";
+import { readStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
 import { advanceTimeline, ambientActive, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { AGENT_STALE_MS, STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 import { SVG_CARD, composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
@@ -152,7 +153,8 @@ test("every row of every frame fits the card width from 20 to 200 columns", () =
       for (let columns = 20; columns <= 200; columns += 3) {
         for (const t of [0, 90, 200, 400, 700, 2000]) {
           const frame = composeBand(model, sampleTimeline(timeline, t, profile), { columns, glyphs, accent: CYAN });
-          assert.equal(frame.rows.length, 5);
+          // Its two agents are two live threads, so the thread rows sit between the detail and the chips.
+          assert.equal(frame.rows.length, 5 + model.threads.reserve);
           for (const row of frame.rows) assert.equal(rowWidth(row), Math.min(columns, CARD_MAX), `${glyphs} ${columns} t=${t}: "${rowText(row)}"`);
         }
       }
@@ -1088,7 +1090,7 @@ const diskIo = {
   })),
 };
 
-test("the map reads the durable state LitClaude already writes: interview rounds, the draft's gate, research waves and the stage record", async () => {
+test("the map reads the durable state LitClaude already writes: interview rounds, the draft's gate, research waves and the workflow stack", async () => {
   const project = mkdtempSync(join(tmpdir(), "litclaude-map-"));
   try {
     mkdirSync(join(project, ".git"));
@@ -1098,8 +1100,8 @@ test("the map reads the durable state LitClaude already writes: interview rounds
     writeFileSync(join(state, "drafts", "demo.md"), "---\nslug: demo\nstatus: drafting\n---\n\n## Approval gate\nstatus: awaiting-approval\n");
     for (const name of ["wave-1-web-a.md", "wave-1-code-b.md", "wave-2-web-c.md", "verify-claim.md", "expansion-log.md"]) writeFileSync(join(state, "litresearch", "s1", name), "x\n");
     startWorkflowStage(project, { sessionId: "map-session", skill: "review-work" });
-    recordWorkflowStage(project, { family: "main", stage: "review", verdicts: { scope: "pass" } });
-    recordWorkflowStage(project, { family: "main", stage: "review", verdicts: { tests: "fail" } });
+    recordWorkflowStage(project, { sessionId: "map-session", family: "main", stage: "review", verdicts: { scope: "pass" } });
+    recordWorkflowStage(project, { sessionId: "map-session", family: "main", stage: "review", verdicts: { tests: "fail" } });
     const snapshot = await readLitSnapshot(diskIo, { cwd: project, sessionId: "map-session" });
     const { interview, draft, research, record } = snapshot.workflow;
     assert.deepEqual({ ...interview, at: null }, { active: true, round: 3, max: 12, ambiguity: 0.42, threshold: 0.2, at: null });
@@ -1108,26 +1110,27 @@ test("the map reads the durable state LitClaude already writes: interview rounds
     assert.deepEqual(record.verdicts, { scope: "pass", tests: "fail" }, "lane verdicts accumulate on the same stage");
     assert.equal(record.family, "main");
     const other = await readLitSnapshot(diskIo, { cwd: project, sessionId: "another-session" });
-    assert.equal(other.workflow.record, null, "another session's record is not ours");
+    assert.equal(other.workflow.record, null, "another session's stack is not ours");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
 });
 
-test("the stage record is small and checked: known families and stages, bounded verdicts, lit-loop's eight steps on six stages", () => {
+test("the stack's frames are small and checked: known families and stages, bounded verdicts, lit-loop's eight steps on six stages", () => {
   const project = mkdtempSync(join(tmpdir(), "litclaude-stage-"));
   const out = { text: "", write(chunk) { this.text += chunk; } };
   const err = { text: "", write(chunk) { this.text += chunk; } };
   try {
     mkdirSync(join(project, ".git"));
     startWorkflowStage(project, { sessionId: "s", skill: "review-work" });
-    assert.equal(startWorkflowStage(project, { sessionId: "s", skill: "start-work" }), null, "only the skills no other file follows start a record");
-    assert.throws(() => readFileSync(workflowStagePath(project)), /ENOENT/u, "and any other discipline clears it");
-    assert.equal(startWorkflowStage(project, { sessionId: "s", skill: "lit-plan" }).stage, "plan", "lit-plan starts one so its saved plan can check the stage");
+    startWorkflowStage(project, { sessionId: "s", skill: "start-work" });
+    assert.deepEqual(readStack(project, "s").frames.map(({ skill, status }) => `${skill}:${status}`), ["review-work:paused", "start-work:active"], "every discipline gets a frame; an unfinished review is paused under it");
+    startWorkflowStage(project, { sessionId: "s", skill: "lit-plan", restart: true });
+    assert.equal(readStack(project, "s").frames.at(-1).stage, "plan", "lit-plan starts at plan so its saved plan can check the stage");
     startWorkflowStage(project, { sessionId: "s", skill: "lit-loop" });
-    assert.equal(runWorkflowStageCli(["loop", "SURFACE", "--n", "2", "--total", "5", "--json"], project, out, err), 0, err.text);
-    const written = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
-    assert.deepEqual({ ...written, at: null }, { sessionId: "s", skill: "lit-loop", family: "loop", stage: "SURFACE", verdicts: {}, n: 2, total: 5, at: null });
+    assert.equal(runWorkflowStageCli(["loop", "SURFACE", "--n", "2", "--total", "5", "--session", "s", "--json"], project, out, err), 0, err.text);
+    const written = readStack(project, "s").frames.at(-1);
+    assert.deepEqual({ ...written, at: null }, { skill: "lit-loop", family: "loop", stage: "SURFACE", role: "spine", status: "active", verdicts: {}, n: 2, total: 5, at: null });
     const parsed = parseStageRecord(written, "s");
     assert.equal(parsed.stage, "VERIFY");
     assert.equal(parsed.step, "SURFACE");
@@ -1146,7 +1149,7 @@ test("the stage record is small and checked: known families and stages, bounded 
   }
 });
 
-test("the prompt and Skill hooks start the stage record, and each skill tells the model how to move it", () => {
+test("the prompt and Skill hooks push a stack frame, and each skill tells the model how to move it", () => {
   const project = mkdtempSync(join(tmpdir(), "litclaude-stage-hook-"));
   const hook = fileURLToPath(new URL("../plugins/litclaude/bin/litclaude-hook.js", import.meta.url));
   try {
@@ -1157,8 +1160,8 @@ test("the prompt and Skill hooks start the stage record, and each skill tells th
       input: JSON.stringify({ cwd: project, hook_event_name: "PreToolUse", session_id: "hook-session", tool_name: "Skill", tool_input: { skill: "litclaude:review-work" } }),
     });
     assert.equal(result.status, 0, result.stderr);
-    const record = JSON.parse(readFileSync(workflowStagePath(project), "utf8"));
-    assert.deepEqual({ ...record, at: null }, { sessionId: "hook-session", skill: "review-work", family: "main", stage: "review", verdicts: {}, at: null });
+    const frames = readStack(project, "hook-session").frames;
+    assert.deepEqual(frames.map((frame) => ({ ...frame, at: null })), [{ skill: "review-work", family: "main", stage: "review", role: "spine", status: "active", verdicts: {}, at: null }]);
   } finally {
     rmSync(project, { recursive: true, force: true });
   }

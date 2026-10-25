@@ -3,8 +3,9 @@
 // terminal card's text border and its padded pills come apart there. Those surfaces carry an `Svg`
 // element instead, and this module draws the same card into it: the brand pill, the discipline and
 // the stage indicator on top, the workflow map (or the phase track and progress when no family
-// places the session), the detail line with the live step, the skill chips (or the notice or the
-// finish), and the live figures at the bottom.
+// places the session), the detail line with the live step, the thread rows while more than one
+// thread is live (the terminal card's rows, drawn the same way), the skill chips (or the notice or
+// the finish), and the live figures at the bottom.
 //
 // It draws the settled state of the model; the terminal's entrances and crossfades stay terminal
 // only. While LitClaude works and motion allows, SMIL animation in the drawing keeps it moving: the
@@ -19,8 +20,9 @@
 // Text is set in a monospace face and placed by counted cells (Hangul and emoji as two), so the
 // layout does not depend on measuring a font the drawing cannot see.
 
+import { gauge } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { TIMINGS, barCells, gradientAt } from "./motion.mjs";
+import { TIMINGS, barCells, gradientAt, lookOf, rainbowAt } from "./motion.mjs";
 
 const C = Object.freeze({
   bg: "#0d1117",
@@ -48,6 +50,8 @@ const PHASES = Object.freeze(["plan", "work", "review"]);
 // Drawing units: CSS pixels at the card's natural size; the surface draws it at that width, up to its slot.
 export const SVG_CARD = Object.freeze({ width: 880, height: 160, font: 13, cell: 7.8, pad: 18 });
 const ROW_Y = Object.freeze([28, 58, 86, 114, 142]);
+// Each reserved thread row adds this much height, between the detail line and the chips.
+export const THREAD_ROW_H = 22;
 const PILL_H = 20;
 const FONT = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', Consolas, monospace";
 
@@ -98,6 +102,7 @@ const indicatorOf = (model, accent) => {
   if (model.completion) return { label: "DONE ✓", fill: C.green };
   if (model.idle) return { label: "idle", fill: C.dim, plain: true };
   const flow = model.workflow;
+  if (flow?.paused && flow.current >= 0) return { label: `${flow.stages[flow.current].id.toUpperCase()} ||`, fill: C.dim };
   if (flow && flow.current >= 0) return { label: `${flow.stages[flow.current].id.toUpperCase()} ●`, fill: model.ctxWarning ? C.amber : accent };
   if (flow && model.lanes.count === 0) return { label: "DONE ✓", fill: C.green };
   const current = PHASES.find((id) => model.phases[id] === "now");
@@ -206,14 +211,19 @@ const mapRowSvg = (model, accent, animate) => {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="2.5" stroke-linecap="round"/>`);
         const filled = count && count.total > 0 ? Math.min(1, count.done / count.total) : 0;
         if (filled > 0) out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${(x1 + filled * layout.rail).toFixed(1)}" y2="${y - 4}" stroke="${mapColor(accent, mid)}" stroke-width="2.5" stroke-linecap="round"/>`);
-        if (animate.sweep) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" ${loop(TIMINGS.flow, 0.5)}/></circle>`);
+        if (animate.sweep && !model.workflow.paused) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" ${loop(TIMINGS.flow, 0.5)}/></circle>`);
       } else {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.7"/>`);
       }
       x = x2 + 6;
     }
     const label = labelOf(stage, layout.short);
-    if (stage.state === "now") {
+    if (stage.state === "now" && model.workflow.paused) {
+      // A paused stage holds still, as on the terminal card.
+      const drawn = pill(x, y, label, { fill: C.muted, ink: C.mutedText });
+      out.push(drawn.markup);
+      x = drawn.end;
+    } else if (stage.state === "now") {
       const fill = model.idle ? C.muted : model.ctxWarning ? C.amber : accent;
       const drawn = pill(x, y, label, { fill, ink: model.idle ? C.mutedText : C.ink, sweep: animate.sweep, breath: animate.breath ? "#ffffff" : null, breathPeak: 0.2 });
       out.push(drawn.markup);
@@ -288,9 +298,9 @@ const detailRowSvg = (model, accent, animate) => {
 const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
 
 // Skill chips, or the notice or the finish while one is up, or the hint while nothing has fired.
-const middleRow = (model, accent, animate) => {
+const middleRow = (model, accent, animate, shift = 0) => {
   const { width, pad } = SVG_CARD;
-  const y = ROW_Y[3];
+  const y = ROW_Y[3] + shift;
   const room = width - pad;
   if (model.completion) {
     return run(pad, y, [["✦ ", { fill: C.pink }], ["COMPLETE", { fill: C.white, bold: true }], [` · ${model.completion.detail ?? ""}`, { fill: C.green }]]).markup;
@@ -326,9 +336,9 @@ const middleRow = (model, accent, animate) => {
 };
 
 // ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main, after a warning when one is up.
-const bottomRow = (model, accent) => {
+const bottomRow = (model, accent, shift = 0) => {
   const { width, pad } = SVG_CARD;
-  const y = ROW_Y[4];
+  const y = ROW_Y[4] + shift;
   const groups = [];
   const warning = model.warnings[0];
   if (warning) {
@@ -360,10 +370,93 @@ const bottomRow = (model, accent) => {
   return out.join("");
 };
 
+const THREAD_FILL = Object.freeze({ running: ["●", C.green], paused: ["|", C.dim], blocked: ["!", C.amber], idle: ["-", C.dim], done: ["✓", C.green] });
+const TASK_MARK = Object.freeze({ shell: "$", monitor: "~" });
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+// A gauge whose count is a lane's finished steps moves on every tool call it makes, and each new
+// drawing restarts the card's animations; past ten the drawing counts steps by tens.
+const threadGauge = ({ done, total, steps }) => (steps && total === null && done >= 10 ? `[???] ${Math.floor(done / 10) * 10}+/?` : gauge(done, total));
+
+/**
+ * The thread rows (view.mjs threadsOf), as the terminal card lays them out (frame.mjs threadRows):
+ * the stack parent first with each child under it, lanes and background tasks under a fork line
+ * when two or more run, other sessions last, `+N more` on the last row. Returns the markup.
+ */
+const threadRowsSvg = (model) => {
+  const { width, pad } = SVG_CARD;
+  const { chain, lanes, others, laneCount = 0, taskCount = 0, more } = model.threads;
+  const lines = [];
+  chain.forEach((thread, index) => lines.push({ thread, lead: index === 0 ? "" : `${"   ".repeat(index - 1)}└─ ` }));
+  const under = "   ".repeat(Math.max(0, chain.length - 1));
+  if (laneCount + taskCount >= 2) {
+    const label = [laneCount ? plural(laneCount, "lane") : null, taskCount ? plural(taskCount, "task") : null].filter(Boolean).join(" · ");
+    lines.push({ fork: `${under}┬ ${label} in parallel` });
+    lanes.forEach((thread, index) => lines.push({ thread, lead: `${under}${index === lanes.length - 1 ? "└─" : "├─"} ` }));
+  } else {
+    lanes.forEach((thread) => lines.push({ thread, lead: chain.length ? `${under}└─ ` : "" }));
+  }
+  others.forEach((thread) => lines.push({ thread, lead: "" }));
+  const threads = lines.filter(({ thread }) => thread).map(({ thread }) => thread);
+  const nameCells = Math.min(28, Math.max(...threads.map(({ name }) => textWidth(name))));
+  const stageCells = Math.min(10, Math.max(0, ...threads.map(({ stage }) => (stage ? textWidth(stage) : 0))));
+  const out = [];
+  lines.forEach((line, index) => {
+    const y = ROW_Y[2] + THREAD_ROW_H * (index + 1);
+    const tail = index === lines.length - 1 && more > 0 ? `+${more} more` : null;
+    if (tail) out.push(text(width - pad, y, tail, { fill: C.dim, anchor: "end" }));
+    const room = Math.floor((width - pad * 2 - (tail ? widthOf(tail) + 16 : 0)) / SVG_CARD.cell);
+    if (line.fork) {
+      out.push(text(pad, y, truncateToWidth(line.fork, room), { fill: C.dim }));
+      return;
+    }
+    const { thread } = line;
+    const [stateMark, color] = THREAD_FILL[thread.state] ?? THREAD_FILL.running;
+    const mark = thread.task ? TASK_MARK[thread.task] ?? "$" : stateMark;
+    const name = truncateToWidth(thread.name, nameCells);
+    const pieces = [
+      [line.lead, { fill: C.dim }],
+      [`${mark} `, { fill: color, bold: true }],
+      [name + " ".repeat(Math.max(0, nameCells - textWidth(name))), { fill: C.white, bold: thread.active }],
+      ...(stageCells ? [[` ${truncateToWidth(thread.stage ?? "", stageCells).padEnd(stageCells)}`, { fill: C.dim }]] : []),
+      [` ${threadGauge(thread)}`, { fill: C.white }],
+      [` ${thread.state}`, { fill: color }],
+      ...(thread.session ? [[` · other session ${thread.session}`, { fill: C.dim }]] : []),
+    ];
+    // Pieces past the room are cut from the right, as the terminal card clips its rows.
+    let used = 0;
+    const kept = [];
+    for (const [body, style] of pieces) {
+      const cells = textWidth(body);
+      if (used + cells > room) {
+        if (room - used > 1) kept.push([truncateToWidth(body, room - used), style]);
+        break;
+      }
+      kept.push([body, style]);
+      used += cells;
+    }
+    out.push(run(pad, y, kept).markup);
+  });
+  return out.join("");
+};
+
 const borderColor = (model, accent) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return C.red;
   if (model.warnings.length) return C.amber;
   return model.idle ? C.faint : accent;
+};
+
+// The rewind look's border (plans/lit-adhd.md D7): a rainbow gradient whose stops each walk the hue
+// wheel over TIMINGS.hue while the card moves, so the colours cycle; with motion off it stands still.
+const RAINBOW_STOPS = 6;
+const rainbowDefs = (animate) => {
+  const stops = Array.from({ length: RAINBOW_STOPS + 1 }, (_, i) => {
+    const color = rainbowAt(i / RAINBOW_STOPS);
+    if (!animate) return `<stop offset="${(i / RAINBOW_STOPS).toFixed(3)}" stop-color="${color}"/>`;
+    const values = Array.from({ length: RAINBOW_STOPS + 1 }, (_, j) => rainbowAt((i + j) / RAINBOW_STOPS)).join(";");
+    return `<stop offset="${(i / RAINBOW_STOPS).toFixed(3)}" stop-color="${color}"><animate attributeName="stop-color" values="${values}" ${loop(TIMINGS.hue, 0.5)}/></stop>`;
+  });
+  return `<defs><linearGradient id="lit-rainbow" x1="0" x2="1" y1="0" y2="1">${stops.join("")}</linearGradient></defs>`;
 };
 
 /** What the card says, for a reader that cannot see the drawing. */
@@ -380,6 +473,8 @@ export const svgCardAlt = (model) => {
     parts.push(`phase ${LABELS[current]}`);
   }
   if (model.step) parts.push(`running ${model.step.name}`);
+  const threads = model.threads ? [...model.threads.chain, ...model.threads.lanes, ...model.threads.others] : [];
+  if (threads.length) parts.push(`threads ${threads.map((thread) => `${thread.name} ${gauge(thread.done, thread.total)} ${thread.state}`).join(", ")}${model.threads.more ? `, ${model.threads.more} more` : ""}`);
   if (model.skills.length) parts.push(`skills ${model.skills.map(({ id }) => id).join(", ")}`);
   const { context, rates } = model.figures;
   if (context !== null) parts.push(`context ${context}%`);
@@ -392,14 +487,18 @@ export const svgCardAlt = (model) => {
  * mod's setting; the drawing moves only while the model is not idle and motion is not off.
  */
 export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = {}) => {
-  const { width, height } = SVG_CARD;
+  const { width } = SVG_CARD;
+  // The thread rows sit between the detail line and the chips; the card grows by their reserve.
+  const shift = model.threads ? THREAD_ROW_H * model.threads.reserve : 0;
+  const height = SVG_CARD.height + shift;
   const working = !model.idle && motion !== "off";
   const animate = { breath: working, sweep: working && motion === "full", comet: working && motion === "full" };
-  const edge = borderColor(model, accent);
+  const rewind = !model.idle && model.warnings.length === 0 && lookOf(model.discipline) === "rewind";
+  const edge = rewind ? "url(#lit-rainbow)" : borderColor(model, accent);
   const perimeter = 1000;
-  const defs = animate.sweep
+  const defs = (rewind ? rainbowDefs(animate.breath) : "") + (animate.sweep
     ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
-    : "";
+    : "");
   const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle ? "1.5" : "2.5"}"${model.idle ? ' stroke-opacity="0.8"' : ""}>`
     + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
     + "</rect>";
@@ -411,8 +510,9 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
     topRow(model, accent, animate),
     model.workflow ? mapRowSvg(model, accent, animate) : phaseRow(model, accent, animate),
     detailRowSvg(model, accent, animate),
-    middleRow(model, accent, animate),
-    bottomRow(model, accent),
+    model.threads ? threadRowsSvg(model) : "",
+    middleRow(model, accent, animate, shift),
+    bottomRow(model, accent, shift),
   ].join("");
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${comet}${body}</svg>`;
   return { source, alt: svgCardAlt(model), animated: working };

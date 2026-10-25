@@ -172,14 +172,17 @@ compare it with the files as they are now, and then carry on.
 | `lit query <question>` | Evidence lookup against durable local state |
 | `lit goal <outcome>` | Set and keep the finish line: one objective and checkable criteria that `lit` and `start-work` run toward; also `$litgoal` and `/litgoal` |
 | `lit brainstorm <topic>`, `lit ideation`, `lit idea` | Open-ended ideas scored and cut to a short list, then handed to `deep-interview` or `lit plan`; also `$lit-brainstorm` and `/litclaude:lit-brainstorm` |
+| `lit hijack <sources> into <target>` | Port someone else's published technique into your own skill or system: provenance, licence gate, a source-free spec built through `lit plan` and `start-work`, and a before/after proof; also `$lit-hijack` and `/litclaude:lit-hijack` |
 | `lit workflow <objective>` | Propose a Dynamic workflow for broad delegated work |
 | `lit team`, `lit teammates` | Propose native agent teams when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled and the user approves |
 | `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | Read-only brief across your recent sessions of this repo: what each was asked, did and waits on, roadmap and progress gauges, one next step; say `go` to take it (`lit-rewind` is a permanent alias) |
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
 | `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
 | `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
 | `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
+| `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic` |
 | `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx` |
 | `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx` |
 | `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
@@ -300,9 +303,17 @@ files. Before either skill writes a slide or a paragraph, it works out who will 
 and how, and picks a look to match. The reply names that look, says why it fits, and mentions
 two others that would also suit, so a wrong first guess costs you one sentence.
 
-`lit-pptx` has eight looks for decks. At one end is a dense, number-led review meant to be read
-at a desk; at the other, a dark style built for a keynote screen. Each brings its own colours,
-title positions and page layouts. Slide titles are short noun labels that name the subject, the
+`lit-pptx` has thirteen looks for decks. At one end is a dense, number-led review meant to be read
+at a desk; at the other, a dark style built for a keynote screen. Three are loud on purpose and
+each is offered only where it fits: a retro-futurist engineering look with monospaced titles and
+grid marks for architecture and infrastructure reviews, a neo-brutalist one with thick black
+borders and hard shadows for launches and demo days, and a Bauhaus one with primary-colour geometry
+on the cover for design and culture lectures. Two more are chosen by use: a two-ink risograph look
+for community, culture and education programmes, and a newsroom look with black masthead titles and
+grey charts for data stories told to the public. You can also ask for one by its style name
+("네오 브루탈리즘 스타일로"). Each brings its own colours, type, title styles and page layouts, but
+the title, the header and the body sit in the same places in every look, so switching looks never
+moves your content. Slide titles are short noun labels that name the subject, the
 measure and the period, and the point of the slide goes in the first line under the title.
 Pages carry their supporting facts, such as the basis, the comparison and the source, so they
 fill without padding. Numbers become native charts and KPI rows you can still edit, a figure is
@@ -337,6 +348,17 @@ routes, contrast, accessibility and visible text. With agent-browser 0.38.1 or n
 installed on your machine, it exports 1×–3× PNG and an Office-safe SVG; without it, you
 get the setup commands and the verified source. Interface work stays with
 `frontend-ui-ux`, and plots of measured data stay with `lit-scientific-visualization`.
+
+For drawings of real equipment, use `lit-schematic`: a `lit` prompt that asks to draw a P&ID,
+PFD, schematic, cutaway, 공정도, 계장도, 모식도 or 장치도 reaches it, as does
+`/litclaude:lit-schematic <brief>`, `lit-schematic` or `$lit-schematic`. It writes a build
+script and a millimetre-sized SVG from its own kit: ISA-5.1 symbols and tags, lines routed
+around symbols with hops at crossings, a legend built from what is drawn and an ISO title block
+for P&IDs; exact column widths, panel labels and colour-vision-safe stream colours for journal
+figures; shaded isometric parts with window cutaways and non-crossing callouts for equipment.
+A QA gate checks overlaps, lines through symbols, dangling line ends, tags, text size and
+colour contrast, and Chrome renders a PDF and a 600 dpi PNG that Claude opens before
+reporting. Without Chrome the SVG is still checked and you get the setup line.
 
 `frontend-ui-ux build <target>` builds an interface you have authorized and inspects it
 rendered. When a choice that matters is unclear, it asks one targeted question and
@@ -452,13 +474,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 For a reproducible install, pin the current package version:
 
 ```bash
-npm view @litfamily/litclaude@1.0.37 version
+npm view @litfamily/litclaude@1.0.38 version
 ```
 
-If that lookup returns `1.0.37`, the exact install is available:
+If that lookup returns `1.0.38`, the exact install is available:
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.37 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.38 -- litclaude install
 ```
 
 Otherwise, wait for explicit human publication before using that pin. Check the
@@ -531,6 +553,10 @@ per-user temp directory, never in the repository or your home directory;
 `LITCLAUDE_HUD_STATE_ROOT` moves it elsewhere. Claude's reply opens with
 `🔥 **LIT IGNITED · <discipline>** 🔥`, and the hook system message shows the same mark
 without Markdown.
+When several things run at once (a paused plan under a loop, parallel subagents, a background
+shell or monitor, another session of the same project), the card adds one row per thread with
+its stage, a `[▉▉░░] k/n` gauge and its state, nested under its parent, up to four rows plus
+`+N more`. [hooks.md](hooks.md) lists where each count comes from.
 
 Two separate settings decide how the HUD looks: whether your terminal background is dark
 or light, and how many colors the terminal can show.
@@ -554,7 +580,7 @@ HUD shows it as is and invents no value.
 Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
 tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
 guidance, the routing that picks a workflow, the authority checks, and the ledger that
-keeps the record. Through them, the package's 36 skills, 17 current commands, three hidden
+keeps the record. Through them, the package's 39 skills, 20 current commands, three hidden
 compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
 Code allows or blocks still applies.
 
@@ -577,7 +603,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["36 skills · 17 commands · 11 agents"]
+    LC --> S["39 skills · 20 commands · 11 agents"]
 ```
 
 Every skill works on a fresh install because the package carries what each skill needs.
@@ -600,9 +626,10 @@ flowchart LR
     style OK fill:#d4edda,stroke:#155724
 ```
 
-Running an approved plan always goes through a slash command. Typing
-`lit start work <plan>` gets you a `BLOCKED:` handoff on purpose, pointing you to
-`/start-work` or `/litclaude:start-work` with the approved plan. `lit workflow` also
+Typing `/litclaude:start-work plans/<slug>.md` is the approval: the hook starts that plan
+right away, with access to the project, the plan folder and any `Scope roots:` line the plan
+declares. With one open plan, `/litclaude:start-work` alone or `lit start work` starts it;
+with several, the hook lists them and starts nothing. `lit workflow` also
 waits for you: it proposes a native `Workflow` and calls it only after you opt in. Set
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` to turn that route off. When Claude Code gives the model
 a worktree tool, use `EnterWorktree`.
@@ -611,11 +638,15 @@ Goals follow one rule: LitClaude does not auto-type `/goal` or send slash-comman
 you. The route attempts native goal binding: it looks for goal tools such as `get_goal`,
 `create_goal` and `update_goal`, and never replaces a different goal that is already
 active. If Claude Code doesn't offer those tools, LitClaude reports degraded mode and keeps
-the local `litgoal` ledger as the record. It then gives you a `READY_TO_PASTE` message
-with one short `/goal` line to copy, paste and send in the current session yourself.
+the local `litgoal` ledger as the record. `lit loop` and `lit goal` then show one short
+`/goal` line (`READY_TO_PASTE`) once and keep working; you can paste it if you want native
+goal tracking. `lit plan` and `/start-work` don't need it: start-work keeps going to the last
+task on its own.
 
-`/start-work` runs the schema-3 bounded-authority start-work lifecycle. An approved plan
-can resume only through this exact route:
+`/start-work` runs the schema-3 bounded-authority start-work lifecycle. When a task needs
+something outside the plan's scope, the call pauses and names the access it wants; reply
+`lit approve` to allow it for this work or `lit deny` to refuse it. The exact route also
+still works:
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 

@@ -102,8 +102,10 @@ For approved-plan execution, use the code-owned schema-3 bounded-authority
 start-work lifecycle rather than ad hoc ledger edits. Match active work,
 session, and monotonic revision; keep plan/worktree/authority roots canonical;
 pause only at a genuinely new non-forbidden semantic action/root boundary; and
-never invent a resume grant. The exact explicit-user resume route is documented
-by `Skill(start-work)` and `/litclaude:start-work`; paused work cannot complete.
+never invent a resume grant. A pause is settled only by the user typing
+`lit approve` or `lit deny` as the whole prompt (the exact resume route documented
+by `Skill(start-work)` and `/litclaude:start-work` stays an alternative); paused
+work cannot complete.
 
 Run the objective through `PIN -> RED -> GREEN -> VERIFY -> SURFACE -> REVIEW
 -> CLEAN -> RECORD`:

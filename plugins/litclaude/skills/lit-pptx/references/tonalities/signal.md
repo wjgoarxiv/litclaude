@@ -35,7 +35,7 @@ The values below come from the pack file and are what the engine draws.
 | positive / negative | #1E7A3F / #15131A |
 | series | #C8361A, #15131A, #6B6870, #2F6F8F |
 | faces | Pretendard Bold for display, title and numerals, Pretendard Regular for body and labels; `faces: a2z` swaps to A2Z Black display and numerals, A2Z Bold titles |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / not allowed (figures at most title size, 26 pt) |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 6 |
 | radius / edge | 0 / fill |
 | table | open style, no header fill, rules at top and bottom, protagonist row in accent-tint, bold totals |
@@ -85,7 +85,7 @@ a red band across the grid just above the footer.
 - Write every title as a topic label (subject, measure, period); the claim is the first body line.
 - Give every figure its basis or comparison and a caption with period and source.
 - Give a big-number panel two to four figures and two or three lines of evidence.
-- Keep bullet lists to four items or fewer and let each item carry a number or a name.
+- Let each bullet carry a number or a name; split a long list into labelled groups.
 - End on `closing-ask` with the amount, its uses in a table and the next meeting with an owner.
 
 ## Avoid

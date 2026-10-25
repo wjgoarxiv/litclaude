@@ -8,7 +8,7 @@ Use a Wardley map to reason about a value chain against component evolution: wha
 
 ## Content schema
 
-Each component needs a stable id, short name, value-chain position, evolution band, and its dependency links. Record which components are moving, their rightward destination or time horizon, and the evidence behind the placement. Use up to nine components, twelve links, and two movement arrows. Each component must take part in the value chain through at least one incoming or outgoing dependency.
+Each component needs a stable id, short name, value-chain position, evolution band, and its dependency links. Record which components are moving, their rightward destination or time horizon, and the evidence behind the placement. Use up to about 18 components, 26 links, and four movement arrows. Each component must take part in the value chain through at least one incoming or outgoing dependency.
 
 ## Deterministic layout recipe
 

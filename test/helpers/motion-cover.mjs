@@ -37,7 +37,7 @@ export function bumpStillsRound(out, round) {
 export const coverAnswers = (over = {}) => ({
   viewed: ["stills/sheet.png", "stills/poster.png", "stills/seam.png"],
   change: "Sharpen the light edge from 60 px to 24 px so the encoder keeps it.",
-  answers: [1, 2, 3, 4, 5, 6, 7, 8].map((q) => ({
+  answers: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((q) => ({
     q, verdict: q === 8 ? "none" : [6, 7].includes(q) ? "no" : "yes", frame: q === 2 ? "stills/seam.png" : "stills/sheet.png",
     observed: `Question ${q}: the orange dot sits at a different angle in every tile of the sheet row ${q}.`,
   })),

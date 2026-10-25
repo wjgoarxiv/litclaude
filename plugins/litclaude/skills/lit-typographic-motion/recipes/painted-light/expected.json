@@ -50,6 +50,8 @@
     "idea": "A window of work light walks the sleeping bays while the lead robot breathes and a comet laps its frame.",
     "recipe": "painted-light",
     "recipeReason": "The painting already carries the brand, so the loop relights it instead of drawing over it.",
+    "hero": "The painting the user supplied.",
+    "beat": "A light edge sweeps across the painting once per loop.",
     "brandWord": "LITFAMILY",
     "aspect": "2:1",
     "loopSec": 8,

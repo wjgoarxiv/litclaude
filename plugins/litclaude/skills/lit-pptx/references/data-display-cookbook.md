@@ -47,6 +47,6 @@ Place source text under the table/chart, smaller than body text:
 ## Filling the slide with the data, not around it
 
 - A table of three rows or fewer at the top of a slide leaves the page empty; make it a `kpi-row`, a `comparison`, or give it its takeaway.
-- A chart takes the body to the floor (`anchor-visual`), with its caption bound under it; two or three takeaways sit beside it (`chart-insight`) or the title explains it from below (`bottom-anchor`).
+- A chart takes the body to the floor (`anchor-visual`), with its caption bound under it; two or three takeaways sit beside it (`chart-insight`) or the title over a heavy rule marks a page led by its chart (`bottom-anchor`).
 - One real figure that carries the slide is a `big-number` with two or three lines of evidence; a decorative number is a defect.
 - See `density-and-fill.md` for the fill policies and the gate checks that measure the empty band.

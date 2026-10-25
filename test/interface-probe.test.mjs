@@ -32,7 +32,7 @@ const runProbe = (target, args = [], env = process.env) => {
 };
 
 const FINDING_KEYS = new Set(["rule", "severity", "tier", "viewport", "selector", "value", "threshold", "note"]);
-const MANIFEST_KEYS = ["url", "viewports_run", "browser_version", "zoom_emulation", "not_verified", "screenshots", "exit_code", "blocked_reason"];
+const MANIFEST_KEYS = ["url", "viewports_run", "browser_version", "zoom_emulation", "not_verified", "screenshots", "exit_code", "blocked_reason", "design_lock"];
 const VIEWPORTS = new Set([...MATRIX.map(({ id }) => id), "static"]);
 const assertShape = (report) => {
   assert.deepEqual(Object.keys(report).sort(), ["findings", "manifest"], "C.4: the root holds manifest and findings only");
@@ -42,7 +42,7 @@ const assertShape = (report) => {
   for (const finding of report.findings) {
     assert.ok(VIEWPORTS.has(finding.viewport), `viewport ${finding.viewport}`);
     for (const key of Object.keys(finding)) assert.ok(FINDING_KEYS.has(key), `unexpected finding key ${key}`);
-    assert.match(finding.rule, /^(CF|RS|SLOP)-\d{3}$/u);
+    assert.match(finding.rule, /^(CF|RS|SLOP|DS)-\d{3}$/u);
     assert.ok(["HIGH", "MEDIUM", "LOW"].includes(finding.severity));
     assert.ok(["measured", "derived", "not_verified"].includes(finding.tier));
     assert.ok("value" in finding && "threshold" in finding);
@@ -115,7 +115,7 @@ describe("interface probe: credits (MD-015)", () => {
 describe("interface probe: rule table", () => {
   it("keeps every rule complete, the matrix at the spec viewports, and limits as data", () => {
     for (const [id, rule] of Object.entries(RULES)) {
-      assert.match(id, /^(CF|RS|SLOP)-\d{3}$/u);
+      assert.match(id, /^(CF|RS|SLOP|DS)-\d{3}$/u);
       assert.ok(["HIGH", "MEDIUM", "LOW"].includes(rule.severity), `${id} severity`);
       assert.ok(["measured", "derived"].includes(rule.tier), `${id} tier`);
       assert.ok(rule.fix.length > 20, `${id} needs a fix`);
@@ -283,6 +283,32 @@ describe("interface probe: rendered fixtures", { skip: browserSkip }, () => {
     assert.match(run.stdout, /Verdict: Approve \(0 HIGH\)/u);
     assert.deepEqual(run.report.manifest.viewports_run, MATRIX.map(({ id }) => id));
     assert.equal(run.report.findings.some(({ rule }) => rule === "CF-202"), false, "a declared :focus-visible ring passes");
+  });
+
+  // Rich is the default register: up to four accent hues, a gradient headline in the page's own
+  // colours, one atmosphere glow and a labelled drawing are craft. The generic forms still fire.
+  const ruleHits = (report, rule) => report.findings.filter((finding) => finding.rule === rule);
+  const judgedAt = (report, rule) => report.manifest.not_verified.filter((entry) => entry.rule === rule && entry.reason.startsWith("judgment: "));
+  it("passes a dense page with four accent hues, a warm gradient headline, one glow and a labelled drawing", () => {
+    const { report } = runProbe(join(fixtures, "rich"), ["--viewports", "1440"]);
+    for (const rule of ["CF-205", "SLOP-008", "SLOP-009", "SLOP-010", "SLOP-012", "SLOP-015", "CF-404"]) assert.deepEqual(ruleHits(report, rule), [], `${rule} is craft on the rich page`);
+    for (const rule of ["SLOP-011", "SLOP-051"]) assert.deepEqual(judgedAt(report, rule), [], `${rule} is not a candidate on the rich page`);
+  });
+
+  it("still flags the overdone page: a fifth hue, three striped cards, two blobs and an unlabelled primitive drawing", () => {
+    const { report } = runProbe(join(fixtures, "rich-five"), ["--viewports", "1440"]);
+    assert.ok(ruleHits(report, "CF-205").some(({ value }) => /^5 saturated hue clusters/u.test(value)), "five hue families exceed the rich limit");
+    assert.equal(ruleHits(report, "SLOP-015").length, 1, "three striped cards in one scope are the reflex");
+    assert.equal(judgedAt(report, "SLOP-011").length, 2, "two floating blobs are the generic decoration");
+    assert.equal(judgedAt(report, "SLOP-051").length, 1, "an unlabelled primitive drawing stays a candidate");
+  });
+
+  it("holds a calm lock to one accent hue", () => {
+    const dir = scratch();
+    const lock = join(dir, "design.lock.json");
+    writeFileSync(lock, JSON.stringify({ schema_id: "litfamily.design-lock/v1", style: "field-notes", family: "editorial", density: "calm" }));
+    const { report } = runProbe(join(fixtures, "rich"), ["--viewports", "1440", "--lock", lock]);
+    assert.ok(ruleHits(report, "CF-205").some(({ threshold }) => threshold === "≤ 1"), "the calm register keeps the single-accent limit");
   });
 
   it("blocks a run that skipped matrix rows when nothing HIGH was found", () => {

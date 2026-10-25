@@ -53,10 +53,12 @@ const needsRender = (t) => {
 const run = (args, env = {}, cwd = root) => spawnSync(process.execPath, args, { cwd, encoding: "utf8", env: { ...process.env, ...env }, timeout: 300000 });
 // Every render starts from <out>/treatment.json; these cases render into <dir>/out.
 const { TIMBRES } = await import(join(skillRoot, "engine", "node", "sound.mjs"));
-const briefFile = (dir, brief) => {
+// A brief that names a preset gets a treatment in that style, and the brief's own style is dropped:
+// the treatment's style decides the preset on the type path.
+const briefFile = (dir, { style, ...brief }) => {
   const file = join(dir, "brief.json");
   writeFileSync(file, JSON.stringify({ schema: "litclaude.motion-brief/v1", ...brief }));
-  writeTreatment(join(dir, "out"), shortTypeTreatment(Object.keys(TIMBRES)[0]));
+  writeTreatment(join(dir, "out"), shortTypeTreatment(Object.keys(TIMBRES)[0], style ? { style } : {}));
   return file;
 };
 const SHORT = { shots: [{ scene: "title-slam", text: "Runtime check" }, { scene: "end-card", text: "끝" }] };
@@ -123,10 +125,10 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     assert.match(r.stderr, /listen failed \(listen EPERM: operation not permitted 127\.0\.0\.1\); using CDP pull/u);
     assert.doesNotMatch(r.stderr, /BLOCKED_NO_CHROME|page failed/u);
     assert.match(r.stdout + r.stderr, /record the round with look --round 1, make the change, then render the film with --round 2 \(no --stills-only\)/u, "the film is the next round");
-    // The common stills set: one still per treatment beat (2), one strip per cut (1), the sheet.
+    // The common stills set: one still per treatment beat (2), one strip per cut (1), the sheet, the board.
     const index = JSON.parse(readFileSync(join(dir, "out", "stills", "index.json"), "utf8"));
-    assert.deepEqual(index.files.map((f) => f.kind).sort(), ["beat", "beat", "sheet", "strip"]);
-    assert.equal(readdirSync(join(dir, "out", "stills")).filter((f) => f.endsWith(".png")).length, 4);
+    assert.deepEqual(index.files.map((f) => f.kind).sort(), ["beat", "beat", "board", "sheet", "strip"]);
+    assert.equal(readdirSync(join(dir, "out", "stills")).filter((f) => f.endsWith(".png")).length, 5);
   });
 
   it("video without ffmpeg exits 12, while stills and the sheet still render with exit 0", (t) => {
@@ -277,13 +279,14 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     assert.equal(env.npm_config_global, "true", "the caller's env is left alone");
   });
 
-  it("the doctor prints all six probes, naming the fix when the cache is cold", () => {
+  it("the doctor prints all seven probes, naming the fix when the cache is cold", () => {
     const r = run([join(skillRoot, "scripts", "motion-doctor.mjs")], { LITCLAUDE_MOTION_RUNTIME: temp("lit-motion-doctor-") });
     assert.equal(r.status, 0, r.stderr);
     const lines = r.stdout.trim().split("\n");
-    assert.deepEqual(lines.map((l) => l.split(":")[0]), ["MOTION_CHROME", "MOTION_FFMPEG", "MOTION_WEBGL2", "MOTION_SOFTWARE_GL", "MOTION_PREWARM", "MOTION_COVER"]);
+    assert.deepEqual(lines.map((l) => l.split(":")[0]), ["MOTION_CHROME", "MOTION_FFMPEG", "MOTION_WEBGL2", "MOTION_SOFTWARE_GL", "MOTION_PREWARM", "MOTION_COVER", "MOTION_STYLES"]);
     assert.match(lines[4], /NOT READY — missing: .*run litclaude-ai motion-runtime install/u);
     assert.match(lines[5], /^MOTION_COVER: (?:img2webp .* and dwebp .*: README cover loops encode as animated WebP and gate the decoded file|gifski .*|BLOCKED_NO_COVER_ENCODER: .*)$/u);
+    assert.match(lines[6], /^MOTION_STYLES: 4 house styles valid \(swiss-signal default, tidal, terminalcore, paper\)/u);
   });
 
   it("the cover probe names the fallback and the blocked state from what is on PATH", async () => {

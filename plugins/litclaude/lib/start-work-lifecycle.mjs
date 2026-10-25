@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
 import {
   appendFileSync,
   closeSync,
@@ -9,6 +10,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -178,7 +180,7 @@ const canonicalDirectory = (path, label) => {
   }
   if (stats.isSymbolicLink()) throw new StartWorkLifecycleError(`${label} must not be a symbolic link`);
   if (!stats.isDirectory()) throw new StartWorkLifecycleError(`${label} must be a directory`);
-  return realpathSync(requested);
+  return realpathSync(requested).normalize("NFC");
 };
 
 const canonicalTarget = (path, label) => {
@@ -189,10 +191,10 @@ const canonicalTarget = (path, label) => {
     if (parent === existing) throw new StartWorkLifecycleError(`${label} has no existing canonical ancestor`);
     existing = parent;
   }
-  const stats = lstatSync(existing);
-  if (stats.isSymbolicLink()) throw new StartWorkLifecycleError(`${label} must not traverse a symbolic link`);
+  // A linked ancestor (macOS `/tmp`, `/var`) resolves to where it points; the grant check then
+  // judges that real place, so a link cannot carry a path out of the grants.
   const canonicalExisting = realpathSync(existing);
-  return resolve(canonicalExisting, relative(existing, requested));
+  return resolve(canonicalExisting, relative(existing, requested)).normalize("NFC");
 };
 
 const canonicalPlan = (root, plan) => {
@@ -208,8 +210,10 @@ const canonicalPlan = (root, plan) => {
   return realpathSync(requested);
 };
 
+// APFS looks names up regardless of Unicode normalization, so `챌린지` typed (NFC) and stored (NFD)
+// are one folder; both sides compare in NFC.
 const rootCovers = (grantRoot, requestedRoot) => {
-  const path = relative(grantRoot, requestedRoot);
+  const path = relative(grantRoot.normalize("NFC"), requestedRoot.normalize("NFC"));
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
 };
 
@@ -473,6 +477,19 @@ export const readPlanProgress = (planPath) => {
 };
 
 const parseGrant = (root, raw, index) => {
+  if (raw && typeof raw === "object") {
+    const action = normalizeAction(raw.action);
+    const grantRoot = canonicalDirectory(raw.root, "grant root");
+    return {
+      grant_id: `grant-${shortHash(`${index}:${action}:${grantRoot}`)}`,
+      boundary_id: `boundary-${shortHash(`${action}:${grantRoot}`)}`,
+      action,
+      root: grantRoot,
+      issued_by: typeof raw.issuedBy === "string" ? raw.issuedBy : "approved-init",
+      issued_at: nowIso(),
+    };
+  }
+  if (typeof raw !== "string") throw new StartWorkLifecycleError("grant must be action:path", 64);
   const separator = raw.indexOf(":");
   if (separator <= 0 || separator === raw.length - 1) throw new StartWorkLifecycleError("grant must be action:path", 64);
   const action = normalizeAction(raw.slice(0, separator));
@@ -558,6 +575,8 @@ export const initializeStartWork = (root, request) => withLock(root, () => {
     authority: {
       envelope_id: `authority-${shortHash(`${request.workId}:${authorityRoot}:${JSON.stringify(grants)}`)}`,
       authority_root: authorityRoot,
+      issued_by: request.issuedBy === "user-invocation" ? "user-invocation" : "agent-init",
+      origin_prompt_id: typeof request.originPromptId === "string" ? request.originPromptId : null,
       authority_roots: [...new Set([authorityRoot, ...grants.map(({ root: grantRoot }) => grantRoot)])],
       cwd_root: canonicalCwd,
       plan_root: planRoot,
@@ -565,6 +584,7 @@ export const initializeStartWork = (root, request) => withLock(root, () => {
       effective_worktree_root: effectiveWorktree,
       grants,
       consumed_grants: [],
+      denied_boundaries: [],
       resume_token_receipts: [],
       forbidden_actions: [...forbiddenActions].sort(),
     },
@@ -1041,6 +1061,11 @@ const classifyBashWords = (words, cwd) => {
     if (rest[0] === "workflow-stage" && rest.every((word) => !word.includes("/"))) {
       return movesLifecycle([cwd, ...cli], "write");
     }
+    // lit-adhd's collector only reads records; its one write is this session's own next-step note
+    // under .litclaude/adhd, so it is a read for the owner and for every other session.
+    if (trusted && rest[0] === "rewind" && rest.slice(1).every((word) => PLAIN_ARG.test(word))) {
+      return canonicalBashTargets(cwd, [], "read");
+    }
     // The lifecycle's own moves for the active work write its state under the project's .litclaude
     // directory. `init` declares grants and `--root` points at another lifecycle, so neither passes.
     if (rest[0] === "start-work" && START_WORK_SELF_MOVES.has(rest[1]) && !rest.includes("--root") && rest.every((word) => !word.includes("/"))) {
@@ -1054,6 +1079,9 @@ const classifyBashWords = (words, cwd) => {
       && rest.every((word, index) => !word.includes("/") || rest[index - 1] === "--target-root")) {
       return movesLifecycle([cwd, ...cli], "write");
     }
+  }
+  if (head.text === "node" && args[0] && isOwnRewindScript(args[0].text, cwd) && args.slice(1).every(({ text }) => PLAIN_ARG.test(text))) {
+    return canonicalBashTargets(cwd, [], "read");
   }
   if (head.text === "node") return classifyNodeScriptWords(args, cwd);
   return null;
@@ -1114,7 +1142,42 @@ const classifyBash = (command, cwd) => {
   return { chain };
 };
 
-const classifyBashSegment = (trimmed, cwd) => {
+// `env -u NAME…` only removes variables, `2>&1` only joins the streams, and a trailing filter
+// (`| tail -8`, `| grep -c ok`, `| wc -l`) only reads the output: each is peeled off before the
+// command under it is classified. An assignment, a file operand or any other pipe stays put.
+const ENV_UNSET = /^env(?:[ \t]+-u[ \t]+[A-Za-z_][A-Za-z0-9_]*)+[ \t]+(?=\S)/u;
+// Each filter takes only flags that read stdin and print: no `-f` pattern file, no `-o` output file.
+const FILTER_PIPE = /[ \t]*\|[ \t]*(?:(?:tail|head)(?:[ \t]+-[nc][ \t]+\d+|[ \t]+-\d+|[ \t]+-q)*|wc(?:[ \t]+-[lwcm]+)*|sort(?:[ \t]+-[unrb]+)*|grep(?:[ \t]+-[cvinlEFwxq]+)*[ \t]+[A-Za-z0-9_.:-]+)[ \t]*$/u;
+const STDERR_JOIN = /[ \t]+2>&1(?=[ \t]*$)/u;
+const peelShellNoise = (segment) => {
+  let text = segment.replace(ENV_UNSET, "");
+  for (let guard = 0; guard < 4 && FILTER_PIPE.test(text); guard += 1) text = text.replace(FILTER_PIPE, "");
+  return text.replace(STDERR_JOIN, "").trim();
+};
+
+// `npx <bin>` runs a tool the project declared: a dependency name in its package.json or a binary
+// its install linked under node_modules/.bin. Its words stay plain (no path, no expansion).
+const declaredNpxBin = (cwd, name) => {
+  try {
+    const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    const declared = { ...manifest?.dependencies, ...manifest?.devDependencies };
+    return Object.hasOwn(declared, name) || existsSync(join(cwd, "node_modules", ".bin", name));
+  } catch {
+    return false;
+  }
+};
+const PLAIN_ARG = /^-{0,2}[A-Za-z0-9][\w.:=-]*$/u;
+
+// A quoted word with no space, glob, expansion or operator in it means the same word unquoted, so
+// `ls "<dir>"` is classified as `ls <dir>`. Anything else inside quotes keeps the old deny.
+const DEQUOTED_WORD = /^[^\s;&|<>()`$\\*?[\]{}~#'"!]+$/u;
+const classifyBashSegment = (raw, cwd) => {
+  const trimmed = peelShellNoise(raw);
+  if (!trimmed) return pathArgumentDenied;
+  if (/["']/u.test(trimmed)) {
+    const plain = shellWords(trimmed)?.map(({ text }) => text);
+    if (plain?.every((word) => DEQUOTED_WORD.test(word))) return classifyBashSegment(plain.join(" "), cwd);
+  }
   const relocated = classifyRelocatedGit(trimmed, cwd);
   if (relocated) return relocated;
   if (relocationPatternFor(trimmed).test(trimmed)) return { denied: "Bash relocation flags are not authorized" };
@@ -1152,6 +1215,32 @@ const classifyBashSegment = (trimmed, cwd) => {
     return canonicalBashTargets(cwd, [find[1]], "read");
   }
   if (trimmed === "pwd") return canonicalBashTargets(cwd, [], "read");
+  const mkdir = /^mkdir[ \t]+-p[ \t]+(.+)$/u.exec(trimmed);
+  if (mkdir) {
+    const targets = mkdir[1].split(/\s+/u);
+    if (targets.some((target) => target.startsWith("-"))) return pathArgumentDenied;
+    return canonicalBashTargets(cwd, targets, "write");
+  }
+  // `rm [-f] <file>…` removes regular files inside the write grant, such as a check script the work
+  // wrote and no longer needs. A directory, a link, a missing target or any other flag stays refused.
+  const rm = /^rm(?:[ \t]+-f)?[ \t]+(.+)$/u.exec(trimmed);
+  if (rm) {
+    const targets = rm[1].split(/\s+/u);
+    if (targets.some((target) => target.startsWith("-"))) return pathArgumentDenied;
+    try {
+      if (!targets.every((target) => lstatSync(resolve(cwd, target)).isFile())) return pathArgumentDenied;
+    } catch {
+      return pathArgumentDenied;
+    }
+    return canonicalBashTargets(cwd, targets, "write");
+  }
+  const npx = /^npx[ \t]+((?:@[a-z0-9][\w-]*\/)?[a-z0-9][\w-]*)((?:[ \t]+\S+)*)$/u.exec(trimmed);
+  if (npx) {
+    const args = npx[2].trim() ? npx[2].trim().split(/\s+/u) : [];
+    if (!declaredNpxBin(cwd, npx[1]) || !args.every((word) => PLAIN_ARG.test(word))) return { denied: "unclassified mutating Bash command" };
+    return canonicalBashTargets(cwd, [], "test");
+  }
+  if (/^python3?[ \t]+-m[ \t]+pytest(?:[ \t]+-{1,2}[A-Za-z][\w-]*)*$/u.test(trimmed)) return canonicalBashTargets(cwd, [], "test");
   const list = /^ls(?:\s+(.+))?$/u.exec(trimmed);
   if (list) {
     const targets = (list[1]?.split(/\s+/u) ?? []).filter((target) => !target.startsWith("-"));
@@ -1164,7 +1253,7 @@ const classifyBashSegment = (trimmed, cwd) => {
     if (targets.some((target) => target.startsWith("-"))) return { denied: "unverified path-bearing Bash argument" };
     return canonicalBashTargets(cwd, targets, "test");
   }
-  if (/^(?:env\s+(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*)?(?:npm|pnpm|yarn)\s+(?:run\s+)?test$/iu.test(trimmed)) {
+  if (/^(?:npm|pnpm|yarn)\s+(?:run\s+)?test$/iu.test(trimmed)) {
     return canonicalBashTargets(cwd, [], "test");
   }
   if (/^(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:build|check|lint|typecheck|validate|doctor|scan|qa)(?:[:\w-]*)?$/iu.test(trimmed)) {
@@ -1203,6 +1292,9 @@ const classifyToolAuthority = (root, input) => {
     case "Bash": {
       return classifyBash(toolInput.command, root);
     }
+    case "Skill":
+      // Loading a skill only reads its text into the turn; what the skill does next is checked call by call.
+      return lifecycleControl;
     case "Agent": {
       const explore = /^(?:Explore|Plan|litclaude:(?:lit-verifier|quality-reviewer|librarian-researcher))$/u.test(toolInput.subagent_type ?? "");
       return { action: explore ? "read" : "execute", targetRoot: root };
@@ -1214,12 +1306,149 @@ const classifyToolAuthority = (root, input) => {
 
 const denial = (reason) => ({ decision: "deny", reason });
 
-const resumeRoute = (work) => {
-  const boundary = work.pending_boundary;
-  return `/litclaude:start-work resume --work-id ${work.work_id} --revision ${work.revision} --boundary-id ${boundary.boundary_id} --prompt-id ${boundary.origin_prompt_id} --grant-id ${boundary.grant_id}`;
+// The bundled fallback of `litclaude-ai rewind`, inside this plugin only.
+const isOwnRewindScript = (path, cwd) => {
+  if (!PLUGIN_ROOT) return false;
+  try {
+    return realpathSync(resolve(cwd, path)).normalize("NFC") === join(PLUGIN_ROOT, "skills", "lit-adhd", "scripts", "rewind.mjs");
+  } catch {
+    return false;
+  }
 };
 
-export const handleStartWorkPreToolUse = (root, input) => {
+// A Bash shape the guard cannot verify is refused, not paused, so the refusal says what does run;
+// without it a session tried a script in the write-only temp folder and stopped. Forbidden actions
+// (push, publish, tag, reset) never get this note.
+const BASH_WAY_OUT = "This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply.";
+const bashDenial = (reason) => denial(`${reason}. ${BASH_WAY_OUT}`);
+
+// The plugin this module ships in: reading its own skills, commands and references is never a
+// boundary. Writing there still is.
+const PLUGIN_ROOT = (() => {
+  try {
+    return realpathSync(fileURLToPath(new URL("..", import.meta.url))).normalize("NFC");
+  } catch {
+    return null;
+  }
+})();
+const pluginSelfRead = (classified) => classified.action === "read" && PLUGIN_ROOT !== null
+  && (classified.targetRoots ?? [classified.targetRoot]).every((target) => rootCovers(PLUGIN_ROOT, target));
+
+// What an approved boundary covers: a read reaches the target's folder, or the toplevel of another
+// git checkout the target sits in; a write reaches the target's folder only. The next file beside
+// the first then needs no second approval.
+const gitToplevel = (directory) => {
+  for (let at = directory; ; at = dirname(at)) {
+    if (existsSync(join(at, ".git"))) return at;
+    if (dirname(at) === at) return null;
+  }
+};
+const boundaryRoot = (action, target, projectRoot) => {
+  let directory = target;
+  try {
+    if (!lstatSync(target).isDirectory()) directory = dirname(target);
+  } catch {
+    directory = dirname(target);
+  }
+  if (action !== "read") return directory;
+  const toplevel = gitToplevel(directory);
+  return toplevel && !rootCovers(toplevel, projectRoot) && !rootCovers(projectRoot, toplevel) ? toplevel : directory;
+};
+
+// What the model reads when a tool call meets the pending boundary: the access asked for and the two
+// replies that settle it. The exact 5-ID resume route stays accepted but is no longer printed.
+const pausedMessage = (work) => {
+  const boundary = work.pending_boundary;
+  return boundary
+    ? `LitClaude start-work paused: ${boundary.action} access to ${boundary.root} is outside this plan's scope. Reply "lit approve" to allow it for this work, or "lit deny".`
+    : "LitClaude start-work is paused. Reply \"lit approve\" or \"lit deny\".";
+};
+
+// A run is stale, and another session may take it over, once its owning session has ended or the
+// lifecycle has not been written for two hours (plans/lit-adhd.md D8).
+export const START_WORK_STALE_MS = 2 * 60 * 60 * 1000;
+const idleMs = (work, now) => Math.max(0, now - (Date.parse(work.updated_at) || now));
+const isStale = (work, now) => Boolean(work.root_session_ended_at) || idleMs(work, now) >= START_WORK_STALE_MS;
+const formatAge = (ms) => {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "under a minute";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+};
+const planRoute = (root, work) => {
+  const path = relative(root, work.active_plan);
+  return path.startsWith("..") || isAbsolute(path) ? work.active_plan : path;
+};
+
+// Another session in the project of a running work: reading, searching, read-only shell, loading a
+// skill, a read-type agent and the status call pass with a note; anything that changes files is
+// refused with the work, its age and the ways out. The owner's work never pauses for it.
+const STATUS_CALL = /^(?:litclaude-ai|litclaude)[ \t]+start-work[ \t]+status(?:[ \t]+--json)?$/u;
+const READ_ACTIONS = new Set(["read", "vcs-read"]);
+const otherSessionDecision = (root, work, input, now) => {
+  const age = formatAge(idleMs(work, now));
+  const toolName = input?.tool_name;
+  let reads = toolName === "Skill" || (toolName === "Bash" && STATUS_CALL.test(String(input?.tool_input?.command ?? "").trim()));
+  if (!reads) {
+    try {
+      const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : root, "tool cwd");
+      const classified = classifyToolAuthority(executionRoot, input);
+      reads = !classified.denied && !classified.control
+        && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+    } catch {
+      reads = false;
+    }
+  }
+  if (reads) {
+    return { decision: "allow-normal", action: "read", root, roots: [root], context: `Another session is running start-work ${work.work_id} here (last activity ${age} ago); you may read, not change files.` };
+  }
+  const route = `/litclaude:start-work ${planRoute(root, work)}`;
+  const takeover = isStale(work, now)
+    ? `That session has ended or gone idle, so you can take the work over by typing ${route} here.`
+    : `Once that session ends or sits idle for 2 hours, you can take it over by typing ${route} here.`;
+  return denial(`LitClaude start-work ${work.work_id} (${work.plan_name}) belongs to another session in this project (last activity ${age} ago), so this session may read but not change files. It frees up when that session finishes the work. ${takeover}`);
+};
+
+/**
+ * A typed `/litclaude:start-work <plan>` from a session that does not own the running work: the
+ * session takes the work over when it is stale and runs the same plan, keeping its grants.
+ * Returns `{ adopted }`, `{ refused }` with a sentence to show, or null when there is nothing to
+ * take over (no running work, or this session already owns it).
+ */
+export const adoptStartWork = (root, { sessionId, plan, promptId = null, now = Date.now() }) => {
+  const canonicalRoot = canonicalDirectory(root, "cwd root");
+  if (!existsSync(startWorkStatePath(canonicalRoot))) return null;
+  if (typeof sessionId !== "string" || !/^[A-Za-z0-9._:-]{1,160}$/u.test(sessionId)) return null;
+  return withLock(canonicalRoot, () => {
+    const state = readState(canonicalRoot);
+    const work = state.active_work_id ? state.works[state.active_work_id] : null;
+    if (!work || !["active", "paused"].includes(work.status) || work.root_session_id === sessionId) return null;
+    let wanted;
+    try {
+      wanted = canonicalPlan(canonicalRoot, plan).normalize("NFC");
+    } catch {
+      return { refused: `start-work ${work.work_id} (${work.plan_name}) is running in another session; ${plan} was not found, so nothing was taken over.` };
+    }
+    if (wanted !== work.active_plan.normalize("NFC")) {
+      return { refused: `start-work ${work.work_id} runs a different plan (${work.plan_name}) in another session; finish or cancel it before starting ${plan}.` };
+    }
+    if (!isStale(work, now)) {
+      return { refused: `start-work ${work.work_id} (${work.plan_name}) is still running in another session (last activity ${formatAge(idleMs(work, now))} ago); it can be taken over once that session ends or sits idle for 2 hours.` };
+    }
+    const from = work.root_session_id;
+    const fromAge = formatAge(idleMs(work, now));
+    work.session_ids = [...new Set([...(work.session_ids ?? []), sessionId])];
+    work.root_session_id = sessionId;
+    work.active_session_id = sessionId;
+    delete work.root_session_ended_at;
+    appendEvent(state, work, "work.adopted", { from_session_id: from, from_age: fromAge, ...(promptId ? { origin_prompt_id: promptId } : {}) });
+    saveState(canonicalRoot, state);
+    return { adopted: { workId: work.work_id, plan: work.plan_name, fromAge } };
+  });
+};
+
+export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}) => {
   const canonicalRoot = canonicalDirectory(root, "cwd root");
   if (!existsSync(startWorkStatePath(canonicalRoot))) return { decision: "allow-normal" };
   return withLock(canonicalRoot, () => {
@@ -1228,19 +1457,22 @@ export const handleStartWorkPreToolUse = (root, input) => {
     const work = state.works[state.active_work_id];
     if (!work || !["active", "paused"].includes(work.status)) return { decision: "allow-normal" };
     if (typeof input?.session_id !== "string" || input.session_id !== work.root_session_id) {
-      return denial("wrong session for active start-work authority");
+      return otherSessionDecision(canonicalRoot, work, input, now);
     }
     if (work.status === "paused") {
-      return denial(`start-work is paused at ${work.pending_boundary?.boundary_id ?? "an authority boundary"}; ${resumeRoute(work)}`);
+      return denial(pausedMessage(work));
     }
     const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
     const classified = classifyToolAuthority(executionRoot, input);
-    if (classified.denied) return denial(classified.denied);
+    if (classified.denied) {
+      return input.tool_name === "Bash" && !classified.denied.startsWith("forbidden") ? bashDenial(classified.denied) : denial(classified.denied);
+    }
     if (classified.control) return { decision: "allow-normal", action: "control", root: executionRoot, roots: [executionRoot] };
+    if (pluginSelfRead(classified)) return { decision: "allow-normal", action: "read", root: PLUGIN_ROOT, roots: [PLUGIN_ROOT] };
     if (classified.chain) {
       const covered = classified.chain.every((link) => link.control
         || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
-      return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : denial("Bash target is outside the effective authority grant");
+      return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : bashDenial("Bash target is outside the effective authority grant");
     }
     const targetRoots = classified.targetRoots ?? [classified.targetRoot];
     const authorized = targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, classified.action, targetRoot)));
@@ -1248,12 +1480,17 @@ export const handleStartWorkPreToolUse = (root, input) => {
       return { decision: "allow-normal", action: classified.action, root: targetRoots[0], roots: targetRoots };
     }
     if (classified.boundaryExpansion === false) {
-      return denial("Bash target is outside the effective authority grant");
+      return bashDenial("Bash target is outside the effective authority grant");
+    }
+    const refused = (work.authority.denied_boundaries ?? []).find((denied) => denied.action === classified.action
+      && targetRoots.every((targetRoot) => rootCovers(denied.root, targetRoot)));
+    if (refused) {
+      return denial(`LitClaude start-work: the user denied ${refused.action} access to ${refused.root} for this work. Carry on without it, or ask the user if the task cannot be done otherwise.`);
     }
     if (typeof input.prompt_id !== "string" || !/^[A-Za-z0-9._:-]{1,160}$/u.test(input.prompt_id)) {
       return denial("missing valid prompt identity for a new authority boundary");
     }
-    const targetRoot = targetRoots[0];
+    const targetRoot = boundaryRoot(classified.action, targetRoots[0], canonicalRoot);
     const boundaryId = `boundary-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}`)}`;
     const grantId = `grant-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}:${input.prompt_id}:${input.tool_use_id ?? "unknown"}`)}`;
     work.status = "paused";
@@ -1274,7 +1511,7 @@ export const handleStartWorkPreToolUse = (root, input) => {
       origin_prompt_id: input.prompt_id,
     });
     saveState(canonicalRoot, state);
-    return denial(`authority boundary requires exact user approval: ${resumeRoute(work)}`);
+    return denial(pausedMessage(work));
   });
 };
 
@@ -1386,7 +1623,7 @@ export const handleStartWorkStop = (root, input) => {
     });
     const next = progress.next_task
       ? `Continue work ${work.work_id} with next top-level task: ${progress.next_task}.`
-      : `Work ${work.work_id} has all top-level tasks checked; run final verification, cleanup, and code-owned complete.`;
+      : `Work ${work.work_id} has all top-level tasks checked; run final verification and cleanup, then complete it with \`litclaude-ai start-work complete --work-id ${work.work_id} --session-id ${input.session_id} --expected-revision ${work.revision} --idempotency-key complete-${work.work_id}-${work.revision}\`.`;
     const output = {
       decision: "block",
       reason: `LitClaude start-work continuation: ${next}`,
@@ -1407,5 +1644,153 @@ export const handleStartWorkStop = (root, input) => {
     };
     saveState(canonicalRoot, state);
     return { handled: true, output };
+  });
+};
+
+// Typing start-work is the approval (plans/lit-adhd.md todo 8). Only a whole prompt counts: a
+// quoted, fenced or longer prompt that merely mentions the command or a token is inert.
+const INVOCATION = /^\/(?:litclaude:)?start-work(?:[ \t]+(\S+))?$/u;
+const APPROVE_TOKEN = /^lit[ \t]+(?:approve|승인)$/u;
+const DENY_TOKEN = /^lit[ \t]+(?:deny|거절)$/u;
+const NATURAL_START = /^lit(?:work)?[ \t]+start[ \t]+work$/u;
+
+/** `{kind: "start", plan, natural?}`, `{kind: "approve"}`, `{kind: "deny"}`, or null. */
+export const parseStartWorkInvocation = (prompt) => {
+  if (typeof prompt !== "string" || prompt.length > 512) return null;
+  const text = prompt.trim();
+  if (APPROVE_TOKEN.test(text)) return { kind: "approve" };
+  if (DENY_TOKEN.test(text)) return { kind: "deny" };
+  if (NATURAL_START.test(text)) return { kind: "start", plan: null, natural: true };
+  const match = INVOCATION.exec(text);
+  if (!match) return null;
+  if (match[1] === "approve" || match[1] === "deny") return { kind: match[1] };
+  if (match[1] === "resume") return null;
+  return { kind: "start", plan: match[1] ?? null };
+};
+
+/** Project-relative `plans/*.md` files that still have an unchecked top-level task. */
+export const openPlans = (root) => {
+  const directory = join(root, "plans");
+  let names;
+  try {
+    names = readdirSync(directory, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
+  } catch {
+    return [];
+  }
+  return names.filter((name) => {
+    try {
+      return readPlanProgress(join(directory, name)).unchecked > 0;
+    } catch {
+      return false;
+    }
+  }).map((name) => `plans/${name}`);
+};
+
+// `Scope roots: <path> (<action>, <action>)` lines in the plan widen the grants it starts with.
+const SCOPE_LINE = /^Scope roots?:[ \t]*(\S+)[ \t]*\(([a-z, -]+)\)[ \t]*$/gmu;
+
+const derivedGrants = (root, plan, workId) => {
+  const grants = ["read", "write", "execute", "test", "package", "vcs-read"].map((action) => ({ action, root, issuedBy: "user-invocation" }));
+  if (!rootCovers(root, dirname(plan))) grants.push({ action: "read", root: dirname(plan), issuedBy: "user-invocation" });
+  for (const [, path, actions] of readCanonicalPlanText(plan).matchAll(SCOPE_LINE)) {
+    const scoped = isAbsolute(path) ? path : resolve(root, path);
+    try {
+      if (!lstatSync(scoped).isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    for (const action of actions.split(",").map((word) => word.trim())) {
+      if (allowedActions.has(action)) grants.push({ action, root: scoped, issuedBy: "plan-scope" });
+    }
+  }
+  if (PLUGIN_ROOT) grants.push({ action: "read", root: PLUGIN_ROOT, issuedBy: "plugin-self" });
+  const scratch = join(realpathSync(tmpdir()), `litclaude-${workId}`);
+  mkdirSync(scratch, { recursive: true, mode: 0o700 });
+  grants.push({ action: "write", root: scratch, issuedBy: "user-invocation" });
+  return grants.slice(0, MAX_GRANTS);
+};
+
+/**
+ * Starts the work a typed `/litclaude:start-work [plan]` asked for, with the hook's session and
+ * prompt identity. Returns `{started}`, `{running}` (this session already runs that plan),
+ * `{choose: [plans]}` (no plan named and not exactly one open), or `{refused}`.
+ */
+export const startWorkFromInvocation = (root, { sessionId, promptId, plan = null }) => {
+  const canonicalRoot = canonicalDirectory(root, "cwd root");
+  const candidates = plan ? [plan] : openPlans(canonicalRoot);
+  if (candidates.length !== 1) return { choose: candidates };
+  let planPath;
+  try {
+    planPath = canonicalPlan(canonicalRoot, candidates[0]);
+  } catch (error) {
+    return { refused: `${candidates[0]}: ${error.message}` };
+  }
+  const state = readState(canonicalRoot, { optional: true });
+  const running = state?.active_work_id ? state.works[state.active_work_id] : null;
+  if (running && ["active", "paused"].includes(running.status)) {
+    if (running.root_session_id === sessionId && running.active_plan.normalize("NFC") === planPath.normalize("NFC")) {
+      return { running: { workId: running.work_id, plan: running.plan_name, status: running.status } };
+    }
+    return { refused: `start-work ${running.work_id} (${running.plan_name}) is already running here; finish or cancel it first.` };
+  }
+  const slug = basename(planPath, ".md").toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "").slice(0, 40) || "plan";
+  const workId = `work-${slug}-${hash(`${sessionId}:${planPath}:${promptId}`).slice(0, 8)}`;
+  const response = initializeStartWork(canonicalRoot, {
+    plan: planPath,
+    workId,
+    sessionId,
+    grants: derivedGrants(canonicalRoot, planPath, workId),
+    idempotencyKey: `typed-start:${promptId}`,
+    issuedBy: "user-invocation",
+    originPromptId: promptId,
+  });
+  const work = response.state.works[workId];
+  return { started: { workId, plan: work.plan_name, next: work.progress.next_task } };
+};
+
+const pendingFor = (state, sessionId) => {
+  const work = state?.active_work_id ? state.works[state.active_work_id] : null;
+  return work?.status === "paused" && work.pending_boundary && work.root_session_id === sessionId && work.pending_boundary.origin_session_id === sessionId ? work : null;
+};
+
+/** `lit approve`: grants the one pending boundary of this session's work, or returns null. */
+export const approveStartWorkBoundary = (root, { sessionId, promptId }) => {
+  const canonicalRoot = canonicalDirectory(root, "cwd root");
+  const work = pendingFor(readState(canonicalRoot, { optional: true }), sessionId);
+  if (!work) return null;
+  const boundary = work.pending_boundary;
+  const response = resumeStartWorkFromUserPrompt(canonicalRoot, {
+    workId: work.work_id,
+    expectedRevision: work.revision,
+    boundaryId: boundary.boundary_id,
+    originPromptId: boundary.origin_prompt_id,
+    grantId: boundary.grant_id,
+    sessionId,
+    consumedByPromptId: promptId,
+  });
+  return { approved: { workId: work.work_id, action: boundary.action, root: boundary.root }, response };
+};
+
+/** `lit deny`: clears the pending boundary without granting it; that path then stays refused. */
+export const denyStartWorkBoundary = (root, { sessionId, promptId }) => {
+  const canonicalRoot = canonicalDirectory(root, "cwd root");
+  if (!pendingFor(readState(canonicalRoot, { optional: true }), sessionId)) return null;
+  return withLock(canonicalRoot, () => {
+    const state = readState(canonicalRoot);
+    const work = pendingFor(state, sessionId);
+    if (!work) return null;
+    const boundary = work.pending_boundary;
+    work.authority.denied_boundaries = [...(work.authority.denied_boundaries ?? []), {
+      boundary_id: boundary.boundary_id,
+      action: boundary.action,
+      root: boundary.root,
+      denied_by_prompt_id: typeof promptId === "string" ? promptId : null,
+      denied_at: nowIso(),
+    }].slice(-MAX_GRANTS);
+    work.status = "active";
+    work.pending_boundary = null;
+    appendEvent(state, work, "work.boundary_denied", { boundary_id: boundary.boundary_id, action: boundary.action, root: boundary.root });
+    saveState(canonicalRoot, state);
+    return { denied: { workId: work.work_id, action: boundary.action, root: boundary.root } };
   });
 };

@@ -37,7 +37,7 @@ Read from the pack file; these are the values the engine draws.
 | positive / negative | #1E7A3F / #1A2230 |
 | series | #A61B1B, #233A4F, #4A5568, #7A6A2A |
 | faces | Pretendard Bold for display, title and numerals, Pretendard Regular for body and labels; `faces: a2z` swaps display and numerals to A2Z Bold |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / not allowed, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 4 |
 | radius / edge | 0 / fill and border |
 | table | header-fill style, field header with on-field text, a grid on every cell, the first column shaded, bold totals |

@@ -2,7 +2,7 @@
 
 [README](../README_ko-KR.md) · [안내서](./guide_ko-KR.md) · [English](./skills.md)
 
-LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개가 있습니다. 줄마다 스킬이 주는
+LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개가 있습니다. 줄마다 스킬이 주는
 결과를 그림으로 보여 주고, 시작하는 프롬프트나 명령, 얻는 것을 적었습니다.
 
 ## 스킬 한눈에 보기
@@ -47,6 +47,11 @@ LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개
 <td>읽기 전용 요약입니다. 끝난 일, 진행 중인 일, 막힌 곳, 증거 위치, 다음 단계를 보여줍니다.</td>
 </tr>
 <tr>
+<td><img src="./assets/skills/lit-adhd.webp" width="240" alt="최근 세션 전체를 한 화면에 요약합니다. 세션마다 받은 요청, 한 일, 기다리는 것, 진행 게이지, 다음 한 단계를 보여줍니다." /></td>
+<td><code>lit-adhd</code><br /><sub><code>lit adhd</code> · <code>lit-rewind</code></sub></td>
+<td>최근 세션 전체를 한 화면에 요약합니다. 세션마다 받은 요청, 한 일, 기다리는 것, 진행 게이지, 다음 한 단계를 보여줍니다.</td>
+</tr>
+<tr>
 <td><img src="./assets/skills/lit-handoff.webp" width="240" alt="handoff라고 치면 다음 세션이 읽고 이어갈 인수인계 파일이 생깁니다." /></td>
 <td><code>lit-handoff</code><br /><sub><code>handoff</code></sub></td>
 <td><code>handoff</code>라고 치면 다음 세션이 읽고 이어갈 인수인계 파일이 생깁니다.</td>
@@ -65,6 +70,11 @@ LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개
 <td><img src="./assets/skills/litresearch.webp" width="240" alt="조사 질문을 잘게 나누고 여러 검색을 동시에 돌려, 단서를 끝까지 따라간 뒤 출처와 함께 답합니다." /></td>
 <td><code>litresearch</code><br /><sub><code>lit research &lt;question&gt;</code> · <code>lit search</code></sub></td>
 <td>조사 질문을 잘게 나누고 여러 검색을 동시에 돌려, 단서를 끝까지 따라간 뒤 출처와 함께 답합니다.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-hijack.webp" width="240" alt="다른 사람의 글, 저장소, PDF에서 기법을 가져와 내 스킬에 옮깁니다. 출처를 기록하고 라이선스를 확인하며, 원문 없이 쓴 명세로 만들고 전후를 비교해 증명합니다." /></td>
+<td><code>lit-hijack</code><br /><sub><code>lit hijack &lt;sources&gt;</code></sub></td>
+<td>다른 사람의 글, 저장소, PDF에서 기법을 가져와 내 스킬에 옮깁니다. 출처를 기록하고 라이선스를 확인하며, 원문 없이 쓴 명세로 만들고 전후를 비교해 증명합니다.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-crucible.webp" width="240" alt="계획 전에 요구사항을 반박해 봅니다. 반박을 견딘 위험만 계획으로 넘어갑니다." /></td>
@@ -92,6 +102,11 @@ LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개
 <td>슬라이드와 문서에 넣을 다이어그램을 편집 가능한 형태로 그리고, 검사한 뒤 PNG와 SVG로 내보냅니다.</td>
 </tr>
 <tr>
+<td><img src="./assets/skills/lit-schematic.webp" width="240" alt="실제 장비의 P&amp;ID, 실험 장치 그림, 아이소메트릭 컷어웨이를 그리고, QA 게이트로 검사한 뒤 SVG, PDF, 600 dpi PNG로 내보냅니다." /></td>
+<td><code>lit-schematic</code><br /><sub><code>/litclaude:lit-schematic &lt;brief&gt;</code></sub></td>
+<td>실제 장비의 P&amp;ID, 실험 장치 그림, 아이소메트릭 컷어웨이를 그리고, QA 게이트로 검사한 뒤 SVG, PDF, 600 dpi PNG로 내보냅니다.</td>
+</tr>
+<tr>
 <td><img src="./assets/skills/lit-pptx.webp" width="240" alt="lit으로 발표자료를 요청하면 원본 차트와 글꼴이 들어간 편집 가능한 PowerPoint 파일이 나옵니다. 슬라이드마다 배치 검사를 통과하고, 렌더링된 화면으로 다시 확인합니다." /></td>
 <td><code>lit-pptx</code><br /><sub><code>/litclaude:lit-pptx &lt;request&gt;</code></sub></td>
 <td><code>lit</code>으로 발표자료를 요청하면 원본 차트와 글꼴이 들어간 편집 가능한 PowerPoint 파일이 나옵니다. 슬라이드마다 배치 검사를 통과하고, 렌더링된 화면으로 다시 확인합니다.</td>
@@ -112,9 +127,9 @@ LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개
 <td>사실에 맞는 README와 움직이는 커버를 만들고, 휴대폰과 데스크톱 폭, 라이트와 다크 모드에서 확인합니다.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="lit으로 영상을 요청하면 트리트먼트를 먼저 쓰고, 장면을 그리거나 글자를 움직이고, 사운드를 입힙니다. 깜빡임, 가독성, 소리를 검사한 뒤 영상을 넘깁니다." /></td>
+<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="lit으로 영상을 요청하면 정해진 규칙으로 네 가지 하우스 스타일 중 하나를 고르고, 전체 렌더 전에 스토리보드부터 보여 줍니다. 장면을 그리거나 글자를 움직이고 사운드를 입힌 뒤, 깜빡임, 가독성, 레이아웃, 소리를 검사하고 영상을 넘깁니다." /></td>
 <td><code>lit-typographic-motion</code><br /><sub><code>/litclaude:lit-typographic-motion &lt;request&gt;</code></sub></td>
-<td><code>lit</code>으로 영상을 요청하면 트리트먼트를 먼저 쓰고, 장면을 그리거나 글자를 움직이고, 사운드를 입힙니다. 깜빡임, 가독성, 소리를 검사한 뒤 영상을 넘깁니다.</td>
+<td><code>lit</code>으로 영상을 요청하면 정해진 규칙으로 네 가지 하우스 스타일 중 하나를 고르고, 전체 렌더 전에 스토리보드부터 보여 줍니다. 장면을 그리거나 글자를 움직이고 사운드를 입힌 뒤, 깜빡임, 가독성, 레이아웃, 소리를 검사하고 영상을 넘깁니다.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-scientific-visualization.webp" width="240" alt="학술지 규격 그림을 벡터와 600 DPI로 내보냅니다. 그래프 종류는 데이터 성격에 맞춰 고릅니다." /></td>

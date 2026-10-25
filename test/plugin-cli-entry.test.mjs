@@ -68,13 +68,15 @@ test("every documented litclaude-ai subcommand resolves through the plugin's bin
       assert.equal(result.error, undefined, `${subcommand} (${file}): ${result.error?.message}`);
       assert.equal(result.status, 0, `${subcommand} (${file}): ${result.stderr}`);
     }
-    // lit-crucible's verdict line, exactly as documented, writes the stage record.
+    // lit-crucible's verdict line, exactly as documented, writes the session's workflow stack.
     const crucible = "litclaude-ai workflow-stage main plan --verdict crucible=pass";
     assert.ok(readFileSync(join(pluginRoot, "skills", "lit-crucible", "SKILL.md"), "utf8").includes(`\`${crucible}\``));
     const words = crucible.split(" ");
     const recorded = spawnSync(words[0], words.slice(1), { cwd: project, encoding: "utf8", env: pluginPathEnv() });
     assert.equal(recorded.status, 0, recorded.stderr);
-    const record = JSON.parse(readFileSync(join(project, ".litclaude", "workflow-stage.json"), "utf8"));
+    const stacks = readdirSync(join(project, ".litclaude", "workflow-stack")).filter((name) => name.endsWith(".json"));
+    assert.equal(stacks.length, 1, "one session's stack");
+    const record = JSON.parse(readFileSync(join(project, ".litclaude", "workflow-stack", stacks[0]), "utf8")).frames.at(-1);
     assert.deepEqual({ family: record.family, stage: record.stage, verdicts: record.verdicts }, { family: "main", stage: "plan", verdicts: { crucible: "pass" } });
     // A command the plugin does not serve names the npm route instead of failing silently.
     const other = spawnSync("litclaude-ai", ["install"], { cwd: project, encoding: "utf8", env: pluginPathEnv() });

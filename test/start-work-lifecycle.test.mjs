@@ -42,7 +42,12 @@ const runHook = (event, root, input = {}) => spawnSync(
 );
 
 const parse = (result) => JSON.parse(result.stdout);
-const resumeRouteFromDenial = (result) => parse(result).hookSpecificOutput.permissionDecisionReason.match(/\/litclaude:start-work resume[^\n]+/u)?.[0];
+// The exact 5-ID resume route, built from the paused work's state; the deny text no longer prints it.
+const resumeRouteFor = (root) => {
+  const work = parse(runCli(root, ["status"])).state.works["work-1"];
+  const boundary = work.pending_boundary;
+  return `/litclaude:start-work resume --work-id ${work.work_id} --revision ${work.revision} --boundary-id ${boundary.boundary_id} --prompt-id ${boundary.origin_prompt_id} --grant-id ${boundary.grant_id}`;
+};
 
 const pauseOutsideWithPreTool = (root, outside, promptId = "prompt-outside") => {
   const result = runHook("pre-tool-use", root, {
@@ -54,7 +59,7 @@ const pauseOutsideWithPreTool = (root, outside, promptId = "prompt-outside") => 
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(parse(result).hookSpecificOutput.permissionDecision, "deny");
-  return resumeRouteFromDenial(result);
+  return resumeRouteFor(root);
 };
 
 const initArgs = (root, overrides = []) => [
@@ -492,6 +497,13 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
       assert.equal(reevaluated.status, 0, reevaluated.stderr);
       assert.equal(parse(reevaluated).decision, "block");
       assert.match(parse(reevaluated).reason, /all top-level tasks checked/u);
+      // Real-session QA (plans/lit-adhd.md todo 14, S2 and S4): each run needed five tries to find the
+      // complete call's arguments, so the continuation now quotes the exact call, and it works as quoted.
+      const quoted = /`litclaude-ai start-work (complete [^`]+)`/u.exec(parse(reevaluated).reason)?.[1];
+      assert.ok(quoted, parse(reevaluated).reason);
+      const completed = runCli(root, quoted.split(" "));
+      assert.equal(completed.status, 0, completed.stdout + completed.stderr);
+      assert.equal(parse(completed).state.works["work-1"].status, "completed");
 
       const later = runHook("stop", root, {
         session_id: "session-1", prompt_id: "prompt-2", stop_hook_active: false,
@@ -643,3 +655,45 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     assert.match(help.stderr, /start-work\s+Manage schema-3 bounded-authority lifecycle state/iu);
   });
 });
+
+// plans/lit-adhd.md todo 6 (diag-startwork T12, T13).
+describe("start-work canonical roots and forbidden actions", () => {
+  it("T12 canonical roots compare equal across NFC and NFD spellings", async () => {
+    const { initializeStartWork, handleStartWorkPreToolUse, readStartWorkStatus } = await import("../plugins/litclaude/lib/start-work-lifecycle.mjs");
+    const base = realpathSync(fixtureRoot());
+    try {
+      const root = join(base, "챌린지".normalize("NFD"));
+      mkdirSync(join(root, "src"), { recursive: true });
+      writePlan(root);
+      writeFileSync(join(root, "src", "a.mjs"), "export {};\n");
+      initializeStartWork(root, { plan: "plans/approved.md", workId: "w1", sessionId: "s1", grants: [`read:${root}`, `write:${root}`], idempotencyKey: "k1" });
+      const typed = join(base, "챌린지".normalize("NFC"), "src", "a.mjs");
+      const decision = handleStartWorkPreToolUse(root, { session_id: "s1", prompt_id: "p1", tool_use_id: "t1", cwd: root, tool_name: "Read", tool_input: { file_path: typed } });
+      assert.equal(decision.decision, "allow-normal", decision.reason);
+      const write = handleStartWorkPreToolUse(root, { session_id: "s1", prompt_id: "p2", tool_use_id: "t2", cwd: root, tool_name: "Write", tool_input: { file_path: join(base, "챌린지".normalize("NFC"), "src", "b.mjs") } });
+      assert.equal(write.decision, "allow-normal", write.reason);
+      assert.equal(Object.values(readStartWorkStatus(root).state.works)[0].status, "active");
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it("T13 forbidden actions stay blocked even with a user-invocation envelope", () => {
+    const root = fixtureRoot();
+    try {
+      writePlan(root);
+      for (const action of ["commit", "push", "publish", "tag", "release", "version-bump", "registry-write", "host-config-write", "destructive-vcs"]) {
+        const result = runCli(root, initArgs(root, ["--grant", `${action}:${root}`, "--idempotency-key", `forbidden-${action}`]));
+        assert.notEqual(result.status, 0, action);
+      }
+      assert.equal(runCli(root, initArgs(root)).status, 0);
+      for (const command of ["git commit -m x", "git push", "npm publish", "git tag v1", "npm version patch", "env -u K git push", "npm test 2>&1 | tail -1; git push"]) {
+        const result = runHook("pre-tool-use", root, { session_id: "session-1", prompt_id: "p", tool_use_id: "t", tool_name: "Bash", tool_input: { command } });
+        assert.equal(parse(result).hookSpecificOutput.permissionDecision, "deny", command);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+

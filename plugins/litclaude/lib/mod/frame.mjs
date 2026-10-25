@@ -32,8 +32,9 @@
 // and move by colour alone (a colour change on `─` or `━` repaints), and the live step's spinner
 // and clock are ASCII.
 
+import { gauge } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { barCells, gradientAt, lerpColor } from "./motion.mjs";
+import { barCells, gradientAt, lerpColor, lookOf, rainbowAt } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
 import { formatDuration } from "./view.mjs";
 
@@ -167,31 +168,37 @@ const cometColor = (base, k) => {
 
 // The rule of an edge, `count` cells from column `start`. With a comet ({ x, dir }: its head's
 // column and travel direction) the cells behind the head light up, brightest at the head, and the
-// rule becomes one span per cell; without one it stays a single span.
-const ruleSpans = (count, color, start, comet) => {
-  if (!comet) return [span("─".repeat(count), { fg: color })];
+// rule becomes one span per cell; without one it stays a single span. `paint` (column to colour)
+// gives every cell its own colour; the rewind sweep's comet (`arrow`) draws its head as ASCII `<<`.
+const ruleSpans = (count, color, start, comet, paint = null) => {
+  if (!comet && !paint) return [span("─".repeat(count), { fg: color })];
   return Array.from({ length: count }, (_, i) => {
+    const base = paint ? paint(start + i) : color;
+    if (!comet) return span("─", { fg: base });
     const behind = comet.dir * (comet.x - (start + i));
     const k = behind >= 0 && behind <= COMET_TAIL ? 1 - behind / COMET_TAIL : 0;
-    return span("─", { fg: k > 0 ? cometColor(color, k) : color });
+    return span(comet.arrow && behind >= 0 && behind < 2 ? "<" : "─", { fg: k > 0 ? cometColor(base, k) : base });
   });
 };
 
 // An edge of the card: `open` and `close` are its corners, `left` its title or figures and
 // `right` the phase indicator, with the rule filling whatever room is left.
-const edgeRow = (open, left, right, close, width, color, comet = null) => {
-  const tail = right.length ? [span(" "), ...right, span(` ${close}`, { fg: color })] : [span(close, { fg: color })];
+const edgeRow = (open, left, right, close, width, color, comet = null, paint = null) => {
+  const piece = (text, at) => (paint ? [...text].map((ch, i) => span(ch, { fg: paint(at + i) })) : [span(text, { fg: color })]);
+  const tail = right.length ? [span(" "), ...right, ...piece(` ${close}`, width - textWidth(close) - 1)] : piece(close, width - textWidth(close));
   const fill = Math.max(1, width - textWidth(open) - rowWidth(left) - 1 - rowWidth(tail));
   const start = textWidth(open) + rowWidth(left) + 1;
-  return clipRow([span(open, { fg: color }), ...left, span(" "), ...ruleSpans(fill, color, start, comet), ...tail], width);
+  return clipRow([...piece(open, 0), ...left, span(" "), ...ruleSpans(fill, color, start, comet, paint), ...tail], width);
 };
 
 // Where the ambient comet is on this card: along the top rule left to right for the first half of
-// its loop, then back along the bottom rule, starting and ending just off the card.
-const cometOn = (sample, edge, width) => {
+// its loop, then back along the bottom rule, starting and ending just off the card. The rewind look
+// spends the whole loop sweeping the bottom rule right to left.
+const cometOn = (sample, edge, width, look = null) => {
   const u = sample.ambient?.comet;
   if (u === null || u === undefined) return null;
   const span = width + 2 * COMET_TAIL;
+  if (look === "rewind") return edge === "bottom" ? { x: width + COMET_TAIL - u * span, dir: -1, arrow: true } : null;
   if (edge === "top") return u < 0.5 ? { x: u * 2 * span - COMET_TAIL, dir: 1 } : null;
   return u >= 0.5 ? { x: width + COMET_TAIL - (u - 0.5) * 2 * span, dir: -1 } : null;
 };
@@ -209,6 +216,7 @@ const indicatorSpans = (model, sample, glyphs, accent) => {
   const flow = model.workflow;
   if (flow && flow.current >= 0) {
     const warn = model.ctxWarning && sample.warn > 0.02;
+    if (flow.paused) return [span(`${flow.stages[flow.current].id.toUpperCase()} ||`, { fg: PALETTE.dim, bold: true })];
     return [span(`${flow.stages[flow.current].id.toUpperCase()} ${warn ? glyphs.warn : glyphs.now}`, { fg: warn ? lerpColor(accent, PALETTE.amber, sample.warn) : accent, bold: true })];
   }
   if (flow && model.lanes.count === 0) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
@@ -220,7 +228,7 @@ const indicatorSpans = (model, sample, glyphs, accent) => {
 
 // ╭─ [🔥 LIT] · <discipline> ──── <PHASE ●> ─╮. On a narrow card the phase indicator goes first,
 // then the discipline shortens, then it goes too.
-const topEdge = (model, sample, { width, glyphs, accent, edge }) => {
+const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint }) => {
   const brand = brandSpans(sample, glyphs);
   const right = indicatorSpans(model, sample, glyphs, accent);
   const name = model.title ?? "ready";
@@ -228,11 +236,11 @@ const topEdge = (model, sample, { width, glyphs, accent, edge }) => {
   const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle)] : []);
   const fixed = textWidth("╭─ ") + rowWidth(brand) + 1 + 1;
   const withRight = fixed + rowWidth(title(name)) + 1 + rowWidth(right) + textWidth(" ─╮");
-  const comet = cometOn(sample, "top", width);
-  if (withRight <= width) return edgeRow("╭─ ", [...brand, ...title(name)], right, "─╮", width, edge, comet);
+  const comet = cometOn(sample, "top", width, look);
+  if (withRight <= width) return edgeRow("╭─ ", [...brand, ...title(name)], right, "─╮", width, edge, comet, paint[0]);
   const room = width - fixed - textWidth("─╮") - textWidth(" · ");
   const shown = room >= 4 ? truncateToWidth(name, room) : "";
-  return edgeRow("╭─ ", [...brand, ...title(shown)], [], "─╮", width, edge, comet);
+  return edgeRow("╭─ ", [...brand, ...title(shown)], [], "─╮", width, edge, comet, paint[0]);
 };
 
 const barSpans = (fraction, sample, cells) => barCells(fraction, cells, sample.fillGlow ?? 0)
@@ -281,7 +289,7 @@ const progressSegment = (model, sample, glyphs, cells) => {
 // ● PLAN ━━ [WORK] ━━ ○ REVIEW: the active phase is a pill on the accent (amber while the context
 // warning is up), done phases a dim-accent dot and the rest a dim ring. Each form of a label is
 // as wide as the others, so a phase changing state never moves the row.
-const phaseTrack = (model, sample, { glyphs, accent, rail, short }) => {
+const phaseTrack = (model, sample, { glyphs, accent, rail, short, rainbow }) => {
   const ink = inkOf(accent);
   const out = [];
   PHASES.forEach((id, index) => {
@@ -289,7 +297,7 @@ const phaseTrack = (model, sample, { glyphs, accent, rail, short }) => {
     const state = sample.phases[id].to;
     const shown = revealText(state === "now" ? label : `${state === "done" ? "●" : "○"} ${label}`, sample.pills[index + 1]);
     if (shown === null) return;
-    if (out.length) out.push(span(` ${glyphs.rail.repeat(rail)} `, { fg: sample.phases[PHASES[index - 1]].to === "done" ? ink.done : PILL.rail }));
+    if (out.length) out.push(span(` ${glyphs.rail.repeat(rail)} `, { fg: rainbow ? rainbow(index / PHASES.length) : sample.phases[PHASES[index - 1]].to === "done" ? ink.done : PILL.rail }));
     if (state === "now") {
       const fill = model.idle ? lerpColor(phaseColor(id, sample, ink), PILL.muted, 0.5) : phaseColor(id, sample, ink);
       const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
@@ -301,9 +309,9 @@ const phaseTrack = (model, sample, { glyphs, accent, rail, short }) => {
   return out;
 };
 
-const phaseRow = (model, sample, { inner, glyphs, accent }) => {
+const phaseRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const variants = [{ rail: 2, short: false }, { rail: 1, short: false }, { rail: 1, short: true }];
-  const tracks = variants.map((variant) => phaseTrack(model, sample, { glyphs, accent, ...variant }));
+  const tracks = variants.map((variant) => phaseTrack(model, sample, { glyphs, accent, rainbow, ...variant }));
   const right = [];
   if (sample.rest > 0) {
     const warning = model.ctxWarning && sample.warn > 0.02
@@ -333,9 +341,11 @@ const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(
 
 // The rail from stage `index - 1` to stage `index`, `cells` wide. Behind the current stage it is
 // `━` graded along the map; leaving it, `━` filled by the stage's count with a bright head while
-// LitClaude works; ahead, dim `─`. With no room for rails, one space.
-const railSpans = (model, sample, index, cells, accent) => {
+// LitClaude works; ahead, dim `─`. With no room for rails, one space. The rewind look grades the
+// `━` cells by its `rainbow` instead.
+const railSpans = (model, sample, index, cells, accent, rainbow = null) => {
   if (cells === 0) return [span(" ")];
+  const grade = rainbow ?? ((position) => mapColor(accent, position));
   const { stages } = model.workflow;
   const last = Math.max(1, stages.length - 1);
   const at = (cell) => (index - 1 + (cell + 0.5) / cells) / last;
@@ -343,13 +353,13 @@ const railSpans = (model, sample, index, cells, accent) => {
   const from = stages[index - 1].state;
   let body;
   if (into === "done" || into === "now") {
-    body = Array.from({ length: cells }, (_, cell) => span("━", { fg: mapColor(accent, at(cell)) }));
+    body = Array.from({ length: cells }, (_, cell) => span("━", { fg: grade(at(cell)) }));
   } else if (from === "now") {
     const filled = model.workflow.count ? sample.fill * cells : 0;
-    const flow = model.idle ? null : sample.ambient?.flow ?? null;
+    const flow = model.idle || model.workflow.paused ? null : sample.ambient?.flow ?? null;
     const head = flow === null ? -1 : Math.floor(flow * cells);
     body = Array.from({ length: cells }, (_, cell) => {
-      const base = cell < filled ? mapColor(accent, at(cell)) : PILL.rail;
+      const base = cell < filled ? grade(at(cell)) : PILL.rail;
       return span("━", { fg: cell === head ? lerpColor(base, "#ffffff", 0.75) : base });
     });
   } else {
@@ -359,7 +369,7 @@ const railSpans = (model, sample, index, cells, accent) => {
 };
 
 // interview ✓ ━━ plan ✓ ━━ [work 3/7] ━━ review · ── done ·
-const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window = false }) => {
+const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window = false, rainbow = null }) => {
   const { stages, current } = model.workflow;
   const last = Math.max(1, stages.length - 1);
   const focus = current < 0 ? stages.length - 1 : current;
@@ -372,8 +382,11 @@ const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window =
     const text = stage.state === "now" ? label : `${label} ${stage.state === "done" ? glyphs.done : "·"}`;
     const revealed = revealText(text, sample.pills[Math.min(3, 1 + Math.floor(index / 2))]);
     if (revealed === null) return;
-    if (out.length && !(window && out.length === 1 && shown[0] > 0)) out.push(...railSpans(model, sample, index, rail, accent));
-    if (stage.state === "now") {
+    if (out.length && !(window && out.length === 1 && shown[0] > 0)) out.push(...railSpans(model, sample, index, rail, accent, rainbow));
+    if (stage.state === "now" && model.workflow.paused) {
+      // A paused stage holds still: the muted pill, no breath and no light along it.
+      out.push(...pill([span(revealed.slice(0, label.length).padEnd(label.length), { fg: PILL.mutedText, bg: PILL.muted, bold: true })], PILL.muted, glyphs));
+    } else if (stage.state === "now") {
       let fill = model.idle ? lerpColor(accent, PILL.muted, 0.5) : accent;
       if (model.ctxWarning) fill = lerpColor(fill, PALETTE.amber, sample.warn);
       if (sample.ambient && !model.idle) fill = lerpColor(fill, "#ffffff", 0.2 * sample.ambient.breath);
@@ -396,8 +409,8 @@ const MAP_VARIANTS = Object.freeze([
 ]);
 
 // The map, then the context warning, the lanes and the autoloop budget while there is room.
-const mapRow = (model, sample, { inner, glyphs, accent }) => {
-  const tracks = MAP_VARIANTS.map((variant) => mapTrack(model, sample, { glyphs, accent, ...variant }));
+const mapRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
+  const tracks = MAP_VARIANTS.map((variant) => mapTrack(model, sample, { glyphs, accent, rainbow, ...variant }));
   const track = tracks.find((candidate) => rowWidth(candidate) <= inner) ?? tracks.at(-1);
   const right = [];
   if (sample.rest > 0) {
@@ -490,6 +503,88 @@ const detailRow = (model, sample, { inner, glyphs, accent }) => {
   return fitRow([...body, span(" ".repeat(Math.max(1, inner - rowWidth(body) - rowWidth(right)))), ...right], inner);
 };
 
+// A thread's state: its glyph, its colour and the word written beside it. The word is ASCII, so a
+// state change always repaints the glyph with it. Paused is an ASCII bar: `‖` is ambiguous-width
+// and some fonts draw it two cells wide, which pushes the card's right edge out.
+const THREAD_STATE = Object.freeze({
+  running: (glyphs) => [glyphs.lane, PALETTE.green],
+  paused: () => ["|", PALETTE.dim],
+  blocked: () => ["!", PALETTE.amber],
+  idle: () => ["-", PALETTE.dim],
+  done: (glyphs) => [glyphs.done, lerpColor(PALETTE.green, PALETTE.dim, 0.4)],
+});
+// A background task's glyph says its kind (ASCII, so it repaints with the row): a shell or a monitor.
+const TASK_GLYPH = Object.freeze({ shell: "$", monitor: "~" });
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+const parallelCount = ({ laneCount = 0, taskCount = 0 }) => laneCount + taskCount;
+/** `3 lanes in parallel`, `2 lanes · 1 task in parallel`, `2 tasks in parallel`. */
+export const forkLabel = ({ laneCount = 0, taskCount = 0 }) => `${[laneCount ? plural(laneCount, "lane") : null, taskCount ? plural(taskCount, "task") : null].filter(Boolean).join(" · ")} in parallel`;
+// The last child of a branch draws `└─` and the others `├─`. Those are not ASCII, so the name beside
+// them takes a slightly different white: the row repaints when a branch's last child changes.
+const THREAD_NAME = Object.freeze({ mid: PALETTE.white, last: "#d8e0e8" });
+
+/**
+ * The thread rows (view.mjs threadsOf), `model.threads.reserve` of them, blank rows filling the
+ * rest. The stack goes parent first, each child under the one before it; lanes hang under the top
+ * frame, with a fork line over them when two or more run in parallel; other sessions come last.
+ *
+ *   | lit-plan   plan  [▉▉░░░] 2/5 paused
+ *   └─ ● lit-loop RED   [▉░░░] 1/4 running
+ *      ┬ 2 lanes · 1 task in parallel
+ *      ├─ ● executor    [▉▉░] 2/3 running
+ *      ├─ ● reviewer    [???] 7/? running
+ *      └─ $ dev server shell [???] ?/? running
+ */
+const threadRows = (model, { inner, glyphs }) => {
+  const { chain, lanes, others, more, reserve } = model.threads;
+  const lines = [];
+  chain.forEach((thread, index) => lines.push({ thread, lead: index === 0 ? "" : `${"   ".repeat(index - 1)}└─ `, last: true }));
+  // Lanes and background tasks are children of the top frame, so they hang at its indent.
+  const under = "   ".repeat(Math.max(0, chain.length - 1));
+  if (parallelCount(model.threads) >= 2) {
+    lines.push({ fork: `${under}┬ ${forkLabel(model.threads)}` });
+    lanes.forEach((thread, index) => {
+      const last = index === lanes.length - 1;
+      lines.push({ thread, lead: `${under}${last ? "└─" : "├─"} `, last });
+    });
+  } else {
+    lanes.forEach((thread) => lines.push({ thread, lead: chain.length ? `${under}└─ ` : "", last: true }));
+  }
+  others.forEach((thread) => lines.push({ thread, lead: "", last: true }));
+  const rows = lines.map((line) => line.thread ?? null).filter(Boolean);
+  // A wide card spends its room on names, so lanes that share a prefix stay apart.
+  const nameWidth = Math.min(inner >= 90 ? 28 : 18, Math.max(...rows.map(({ name }) => textWidth(name))));
+  const stageWidth = Math.min(10, Math.max(0, ...rows.map(({ stage }) => (stage ? textWidth(stage) : 0))));
+  const lastIndex = lines.length - 1;
+  const out = lines.map((line, index) => {
+    const tail = index === lastIndex && more > 0 ? [span(`+${more} more`, { fg: PALETTE.dim })] : [];
+    let body;
+    if (line.fork) {
+      body = [span(line.fork, { fg: PALETTE.dim })];
+    } else {
+      const { thread } = line;
+      const [stateGlyph, color] = THREAD_STATE[thread.state](glyphs);
+      const glyph = thread.task ? TASK_GLYPH[thread.task] ?? "$" : stateGlyph;
+      const name = truncateToWidth(thread.name, nameWidth);
+      body = [
+        span(line.lead, { fg: PALETTE.dim }),
+        span(`${glyph} `, { fg: color }),
+        span(name + " ".repeat(Math.max(0, nameWidth - textWidth(name))), { fg: line.last ? THREAD_NAME.last : THREAD_NAME.mid, bold: thread.active }),
+        ...(stageWidth ? [span(` ${(thread.stage ?? "").slice(0, stageWidth).padEnd(stageWidth)}`, { fg: PALETTE.dim })] : []),
+        span(` ${gauge(thread.done, thread.total)}`, { fg: PALETTE.white }),
+        span(` ${thread.state}`, { fg: color }),
+        ...(thread.session ? [span(` · other session ${thread.session}`, { fg: PALETTE.dim })] : []),
+      ];
+    }
+    if (!tail.length) return fitRow(body, inner);
+    const room = inner - rowWidth(tail) - 1;
+    const clipped = clipRow(body, room);
+    return fitRow([...clipped, span(" ".repeat(Math.max(1, inner - rowWidth(clipped) - rowWidth(tail)))), ...tail], inner);
+  });
+  while (out.length < reserve) out.push(fitRow([], inner));
+  return out;
+};
+
 const CHIP_TONE = Object.freeze({
   current: (accent) => ({ fill: accent, text: PILL.ink }),
   recent: () => ({ fill: PILL.muted, text: PILL.mutedText }),
@@ -515,7 +610,19 @@ const chipSpans = (chip, timed, glyphs, accent, sweep = null) => {
 
 const mutedPill = (text, glyphs) => pill([span(text, { fg: PALETTE.dim, bg: PILL.muted })], PILL.muted, glyphs);
 
-const chipsRow = (model, sample, { inner, glyphs, accent }) => {
+const REWIND_SPARKS = Object.freeze([".", "*", "+", "'"]);
+
+// The rewind look's sparks, drifting through the cells the chips leave free (one gap cell kept).
+const sparkled = (row, inner, sample, rainbow) => {
+  const sparks = sample.ambient?.sparks;
+  const spare = inner - rowWidth(row) - 1;
+  if (!rainbow || !sparks || spare < 3) return fitRow(row, inner);
+  const sky = Array.from({ length: spare }, () => span(" "));
+  for (const { x, glyph } of sparks) sky[Math.min(spare - 1, Math.floor(x * spare))] = span(REWIND_SPARKS[glyph], { fg: rainbow(x) });
+  return fitRow([...row, span(" "), ...sky], inner);
+};
+
+const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const chips = model.skills;
   if (chips.length === 0) {
     if (!model.idle && model.next && !model.workflow?.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
@@ -540,7 +647,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent }) => {
     shown += 1;
   }
   if (shown < chips.length) row.push(...(row.length ? [span(" ")] : []), ...mutedPill(`+${chips.length - shown}`, glyphs));
-  return fitRow(row, inner);
+  return sparkled(row, inner, sample, rainbow);
 };
 
 const noticeRow = (sample, inner) => {
@@ -583,7 +690,7 @@ const levelColor = (percent) => (percent >= 90 ? HUD.red : percent >= 70 ? HUD.y
 
 // ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ───╯, or a warning first when one is up. The branch goes
 // first on a narrow card, then the weekly window, the five-hour one and the context bar.
-const bottomEdge = (model, sample, { width, glyphs, accent, edge }) => {
+const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint }) => {
   const { context, rates, git } = model.figures;
   const warning = model.warnings[0];
   const segments = [];
@@ -602,7 +709,7 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge }) => {
   let kept = fitJoined(segments, room);
   if (kept[0]?.id === "ctxbar") kept = kept.slice(1);
   if (kept.length === 0 && warning) kept = [{ ...segments[0], spans: clipRow(segments[0].spans, room) }];
-  return edgeRow("╰─ ", joinSegments(kept, edge), [], "─╯", width, edge, cometOn(sample, "bottom", width));
+  return edgeRow("╰─ ", joinSegments(kept, edge), [], "─╯", width, edge, cometOn(sample, "bottom", width, look), paint[4]);
 };
 
 // The border: red or amber under a warning, otherwise the accent. Idle it is a calm, dim accent;
@@ -616,8 +723,9 @@ const edgeColor = (model, sample, accent) => {
 };
 
 /**
- * The card for one frame: `{ mode: "card", border, width, rows }`, always five rows (top edge,
- * workflow map or phase track, detail line, chips row, bottom edge), each exactly `width` cells:
+ * The card for one frame: `{ mode: "card", border, width, rows }`, five rows (top edge, workflow
+ * map or phase track, detail line, chips row, bottom edge), with the thread rows between the detail
+ * line and the chips while more than one thread is live, each exactly `width` cells:
  * the terminal's columns up to CARD_MAX. `accent` is the status line's accent colour
  * (settings.mjs accentFromSettings).
  */
@@ -626,18 +734,29 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
   const width = Math.max(12, Math.min(CARD_MAX, columns));
   const inner = width - 4;
   const edge = edgeColor(model, sample, accent);
-  const side = (row) => [span("│ ", { fg: edge }), ...row, span(" │", { fg: edge })];
-  const options = { width, inner, glyphs, accent, edge };
+  // The rewind look's rainbow turns with the ambient hue (still at 0 with motion off). A warning
+  // keeps the border its warning colour; the rails stay rainbow.
+  const look = model.idle ? null : lookOf(model.discipline);
+  const hue = sample.ambient?.hue ?? 0;
+  const rainbow = look === "rewind" ? (position) => rainbowAt(position + hue) : null;
+  const painted = rainbow && model.warnings.length === 0;
+  const paint = [0, 1, 2, 3, 4].map((r) => (painted ? (col) => rainbow(col / width + r * 0.04) : null));
+  const side = (row, r) => (paint[r]
+    ? [span("│", { fg: paint[r](0) }), span(" "), ...row, span(" "), span("│", { fg: paint[r](width - 1) })]
+    : [span("│ ", { fg: edge }), ...row, span(" │", { fg: edge })]);
+  const options = { width, inner, glyphs, accent, edge, look, rainbow, paint };
   const middle = sample.completion ? completionRow(sample, inner) : sample.notice ? noticeRow(sample, inner) : chipsRow(model, sample, options);
   return {
     mode: "card",
     border: edge,
     width,
+    look,
     rows: [
       topEdge(model, sample, options),
-      side(model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options)),
-      side(detailRow(model, sample, options)),
-      side(middle),
+      side(model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options), 1),
+      side(detailRow(model, sample, options), 2),
+      ...(model.threads ? threadRows(model, options).map((row) => side(row, 2)) : []),
+      side(middle, 3),
       bottomEdge(model, sample, options),
     ],
   };

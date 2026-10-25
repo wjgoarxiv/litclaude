@@ -73,6 +73,7 @@ const ANSWERS = [
   { q: 7, verdict: "none", frame: "stills/sheet.png", observed: "Shelf, soil, harvest and return all appear across the twelve frames." },
   { q: 8, verdict: "no", frame: "stills/beat-02.png", observed: "Every stem and furrow in the soil drawing belongs to the growing step." },
   { q: 9, verdict: "no", frame: "stills/beat-01.png", observed: "The copy names borrowing seeds and repaying with harvest, nothing generic." },
+  { q: 10, verdict: "yes", frame: "stills/beat-02.png", observed: "The packet tips open in beat two and seeds spill where the stamp was expected." },
 ];
 function answersFile(dir, extra = {}) {
   const file = join(dir, `answers-${Math.random().toString(36).slice(2)}.json`);
@@ -115,6 +116,8 @@ describe("look rounds (director brief 9)", () => {
     assert.match(refused(() => lookCommand({ out, round: 1, answersFile: answersFile(dir, { weakestBeat: 1, change: "Slowed the soil wipe down a lot.", answers: bare }) })), /question 2: observed/u);
     assert.match(refused(() => lookCommand({ out, round: 1, answersFile: answersFile(dir, { weakestBeat: 1, change: "Slowed the soil wipe down a lot.", answers: ANSWERS.slice(1) }) })), /questions 1 are not answered/u);
     assert.match(refused(() => lookCommand({ out, round: 1, answersFile: answersFile(dir) })), /weakest beat/u);
+    const offTurn = ANSWERS.map((x) => (x.q === 10 ? { ...x, frame: "stills/beat-01.png" } : x));
+    assert.match(refused(() => lookCommand({ out, round: 1, answersFile: answersFile(dir, { weakestBeat: 1, change: "Slowed the soil wipe down a lot.", answers: offTurn }) })), /question 10: answer it on the turn beat's still stills\/beat-02\.png/u);
     const ok = lookCommand({ out, round: 1, answersFile: answersFile(dir, { weakestBeat: 1, change: "Slowed the soil wipe so the stems read." }) });
     assert.equal(ok.record.viewed.length, 6);
     assert.equal(ok.record.frames.length, 6);

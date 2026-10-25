@@ -235,7 +235,7 @@ doctor가 지금 적용 중인 설정을 알려 줍니다.
 
 ## 무엇을 할 수 있나요
 
-LitClaude에는 직접 시작하는 스킬 36개와 알아서 도는 스킬 3개, 슬래시 명령 17개, 에이전트
+LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개, 슬래시 명령 20개, 에이전트
 11개가 들어 있습니다. 평소에는 그중 몇 개만 쓰게 됩니다.
 
 ### 작업 루프
@@ -289,6 +289,18 @@ lit research 작은 웹 앱에서 SQLite 쓰기 속도에 가장 큰 영향을 �
 팀 워크숍 발표자료 만들어줘 lit
 새 온보딩 흐름에 대한 두 쪽짜리 프로젝트 제안서 써줘 lit
 lit-humanizer docs/intro.md
+```
+
+### P&ID, 실험 장치도, 컷어웨이
+
+`lit-schematic`은 실제 장비를 그립니다. ISA-5.1 태그와 배관 경로, 범례, 표제란을 갖춘 P&ID,
+논문에 넣을 두 패널짜리 실험 장치 그림, 용기 내부를 보여 주는 아이소메트릭 컷어웨이를 만들
+수 있습니다. 그림마다 겹침, 심볼을 지나는 선, 작은 글자를 QA 게이트로 검사하고, SVG와 PDF,
+600 dpi PNG로 내보낸 뒤 Claude가 이미지를 직접 열어 확인하고 나서 보고합니다.
+
+```text
+lit 고압 하이드레이트 반응기 루프 P&ID 그려줘
+lit draw a two-panel journal figure of the experimental setup
 ```
 
 ### 다음 세션으로 이어가기
@@ -345,7 +357,7 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 
 - [안내서](./docs/guide_ko-KR.md): 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동
   핸드오프, 발표자료와 문서, 상태 줄, 안전, Claude Code 연결 구조를 자세히 다룹니다.
-- [전체 스킬](./docs/skills_ko-KR.md): 스킬 36개와 자동 점검을 한 줄씩 그림과 함께 보여 줍니다.
+- [전체 스킬](./docs/skills_ko-KR.md): 스킬 39개와 자동 점검을 한 줄씩 그림과 함께 보여 줍니다.
 - [hook](./docs/hooks.md), [에이전트](./docs/agents.md), [개인정보와 네트워크](./docs/privacy.md),
   [이전과 소유권 충돌](./docs/migration.md),
   [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration), [Claude Code `/goal` 지원 범위](./docs/native-goal-surface.md),

@@ -18,7 +18,8 @@ const has = (source, pattern) => new RegExp(pattern, "u").test(source);
 // Keys no code reads, and why that is right for each.
 const UNREAD_BY_DESIGN = {
   // The pitfalls a writer checks a deck against; the tonality sheet repeats them under "Avoid".
-  deck: ["avoid"],
+  // The gate's allowances: craft_extras.py reads them from the stamped pack, the renderer never does.
+  deck: ["avoid", "qa.accent-families", "qa.display-accent-families", "qa.offset-shadow"],
   // File metadata: the schema the file follows, the look's display name and its one-line summary.
   document: ["schema_version", "tonality", "summary"],
 };

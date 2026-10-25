@@ -34,6 +34,10 @@ What it does, in order:
    counted under Not verified instead of being opened.
 4. Writes `<evidence dir>/findings.json` (`{ manifest, findings }`, each finding naming exactly
    one rule id) and prints the review table below.
+5. When a `design.lock.json` sits beside the page (or `--lock` names one), runs the DS-* lock rules
+   from `references/house-styles.md` in the same pass and records the lock in
+   `manifest.design_lock`; without one, DS-001 is listed under Not verified. A rendered run ends with
+   the screenshot paths and the six LOOK questions that section 2's loop answers.
 
 Exit codes are the contract: **0** all seven matrix rows ran and no measured or derived HIGH
 finding remains; **1** at least one measured or derived HIGH finding remains (this wins over a
@@ -80,7 +84,8 @@ build (or baseline) -> probe -> fix -> probe -> fix -> probe -> fix -> final pro
   below). Never phrase an inferred value as measured. A derived value built on a missing or stale
   measurement drops to inferred. *Not verified* is its own state: the check did not run.
 - **Look at the screenshots** for 320, 390 and 1440 before claiming the page works; the probe
-  measures rules, it does not see a composition.
+  measures rules, it does not see a composition. Answer its LOOK-1 to LOOK-6 questions in one line
+  each, fix the two worst, and stop after two look rounds.
 
 ## 3. Modes
 
@@ -196,7 +201,7 @@ Every DOM rule samples only what a person can see: `checkVisibility`, no accessi
 | CF-202 | Focus indicator | in-page focus confirmed as `:focus-visible`, then focused and resting styles compared: outline, shadow, border or background must change; the browser's own `auto` ring passes; a custom ring needs ≥ 2 px and ≥ 3:1 against the colour just outside it | HIGH when focus changes nothing; MEDIUM for a weak custom ring | measured |
 | CF-203 | APCA | advisory Lc figure beside every CF-201 finding (body 75, non-body 60, large 45, components 30) | information | in the note |
 | CF-204 | Text over image or gradient | on a CSS gradient the text clears CF-201's floor against its worst colour stop; text over an image is not verified | HIGH | derived |
-| CF-205 | One accent per view | ≤ 1 saturated hue cluster (±15°) among filled surfaces ≥ 24 × 24 px; status roles, live regions, `aria-invalid`, success/warning/error/danger/info-style class tokens and pills ≤ 32 px tall excluded | MEDIUM | measured |
+| CF-205 | Accent families per view | ≤ 4 saturated hue clusters (±15°) among filled surfaces ≥ 24 × 24 px in the default rich register, ≤ 1 when the lock records `density: calm`; status roles, live regions, `aria-invalid`, success/warning/error/danger/info-style class tokens and pills ≤ 32 px tall excluded | MEDIUM | measured |
 | CF-206 | Hue tolerance | hues within 15° count as one meaning | LOW | inside CF-205 |
 | CF-207 | Not colour alone | state carries text, an icon or a pattern too | HIGH | checklist (Inferred) |
 
@@ -212,8 +217,8 @@ Every DOM rule samples only what a person can see: `checkVisibility`, no accessi
 | CF-306 | Container `gap` | rhythm from the parent's `gap`, not child margins | LOW | checklist |
 | CF-401 | Concentric radius | inner = outer − padding, ±2 px, compared per corner where the child reaches that corner, radii capped at half the short side, padding ≤ 24 px | LOW | measured |
 | CF-402 | Elevation once | no hard ≤ 2 px shadow retracing a border | LOW | checklist |
-| CF-403 | Hard offset shadow | a zero-blur shadow offset past a hairline, unless the direction records a neo-brutalist register (the probe's proxy for one: the same shadow on ≥ 3 elements that each carry a ≥ 2 px solid border) | MEDIUM | measured |
-| CF-404 | No glow on the primary action | no ≤ 2 px offset, ≥ 16 px blur, saturation > 0.4 shadow on the primary action or a heading; the same glow on ≥ 2 unrelated elements is reported once, as SLOP-010 | LOW | measured |
+| CF-403 | Hard offset shadow | a zero-blur shadow offset past a hairline, unless the direction records a neo-brutalist register (a `design.lock.json` with `offset` elevation, the `neo-brutalism` house style, records one; without a lock the probe's proxy is the same shadow on ≥ 3 elements that each carry a ≥ 2 px solid border) | MEDIUM | measured |
+| CF-404 | No glow on the primary action | no ≤ 2 px offset, ≥ 16 px blur, saturation > 0.4 shadow on the primary action or a heading; the same glow on ≥ 3 unrelated elements is reported once, as SLOP-010; a glow on a section, panel or the moment (the kit's `ui-glow`) is not a control halo and is never reported | LOW | measured |
 | CF-405 | Neutral image outline | ~1 px, low opacity, saturation < 15 % | LOW | checklist |
 | CF-406 | Solid scrim | no `backdrop-filter: blur` on a full-viewport overlay | LOW | measured |
 | CF-407 | Decorative patterns | grids, halos, marquees and stripes need a real referent (see the slop register) | LOW to MEDIUM | via SLOP rows |

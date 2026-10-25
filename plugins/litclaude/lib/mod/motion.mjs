@@ -34,6 +34,8 @@ export const TIMINGS = Object.freeze({
   spin: 120,
   ambientFrame: 66,
   clock: 1000,
+  hue: 4800,
+  sparks: 3600,
 });
 
 // full: the approved motion, and while LitClaude works the brand breathes, a light sweeps the active
@@ -49,6 +51,12 @@ export const motionProfile = (mode) => {
   }
   return { mode: "full", duration: (ms) => ms, enterEase: EASE.outBack, noticeEase: EASE.outBack, shimmer: true, embers: true, ambient: { sweep: true, comet: true } };
 };
+
+// The rewind look (plans/lit-adhd.md D7): while lit-adhd runs, the card's border and rails take a
+// cycling rainbow, ASCII sparks drift through the skills row and a `<<` comet sweeps the bottom rule
+// right to left. It is keyed on the ignition discipline alone; every other discipline keeps its look.
+const REWIND = new Set(["lit-adhd", "lit-rewind"]);
+export const lookOf = (discipline) => (REWIND.has(discipline) ? "rewind" : null);
 
 export const clamp01 = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x);
 
@@ -85,6 +93,19 @@ export const gradientAt = (stops, position) => {
   const scaled = clamp01(position) * (stops.length - 1);
   const index = Math.min(stops.length - 2, Math.floor(scaled));
   return lerpColor(stops[index], stops[index + 1], scaled - index);
+};
+
+// A colour `position` of the way around the hue wheel (wrapping past 1), saturated and light enough
+// to stay bright on the dark card. The rewind look draws only fixed glyphs and ASCII with it.
+export const rainbowAt = (position) => {
+  const h = (((position % 1) + 1) % 1) * 6;
+  const s = 0.9;
+  const l = 0.62;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h % 2) - 1));
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.min(5, Math.floor(h))];
+  const m = l - c / 2;
+  return `#${[r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("")}`;
 };
 
 export const BAR_STOPS = Object.freeze(["#ff2d95", "#00e5ff"]);

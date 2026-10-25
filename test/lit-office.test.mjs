@@ -185,7 +185,7 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
       assert.ok(fill.includes(policy), `density-and-fill.md: ${policy}`);
     }
     assert.match(readFileSync(join(refs, "direction-step.md"), "utf8"), /## 6\. The compare strip/u);
-    for (const id of ["atlas", "chalk", "gazette", "ledger", "night", "paper", "signal", "studio"]) {
+    for (const id of ["atlas", "bauhaus", "chalk", "computational-brutalism", "gazette", "ledger", "neo-brutalism", "newsroom", "night", "paper", "riso", "signal", "studio"]) {
       const sheet = readFileSync(join(refs, "tonalities", `${id}.md`), "utf8");
       for (const section of ["## When to use it", "## When it is the wrong choice", "## Tokens", "## Treatments by slide role", "## Families and variants", "## Do", "## Avoid", "## Two worked slides", "## Examples"]) {
         assert.ok(sheet.includes(`\n${section}\n`), `${id}.md: ${section}`);
@@ -196,6 +196,47 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
       assert.ok((sheet.match(/```markdown\n/gu) || []).length >= 2, `${id}.md has two worked slide sources`);
       assert.ok(sheet.split(/\s+/u).length >= 550, `${id}.md is a full sheet`);
     }
+  });
+
+  it("no tonality pack is an orphan: each has its sheet, an example, a manifest entry and a place in every routing table", () => {
+    const refs = join(pptxRoot, "references");
+    const packs = readdirSync(join(pptxRoot, "templates", "tonalities")).filter((id) => existsSync(join(pptxRoot, "templates", "tonalities", id, "pack.yaml"))).sort();
+    assert.ok(packs.length >= 11, packs.join(", "));
+    const skill = readFileSync(join(pptxRoot, "SKILL.md"), "utf8");
+    const direction = readFileSync(join(refs, "direction-step.md"), "utf8");
+    const families = readFileSync(join(refs, "layout-families.md"), "utf8");
+    const examples = readdirSync(join(refs, "examples")).filter((f) => f.endsWith(".md"))
+      .map((f) => [f, (readFileSync(join(refs, "examples", f), "utf8").match(/^tonality: (\S+)$/mu) || [])[1]]);
+    const manifest = JSON.parse(readFileSync(join(root, "tools", "version-manifests.json"), "utf8")).manifests.map((m) => m.path);
+    const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+    for (const id of packs) {
+      const pack = readFileSync(join(pptxRoot, "templates", "tonalities", id, "pack.yaml"), "utf8");
+      const name = pack.match(/^name: (.+)$/mu)[1];
+      assert.ok(existsSync(join(refs, "tonalities", `${id}.md`)), `${id}: sheet`);
+      const own = examples.filter(([, t]) => t === id).map(([f]) => f);
+      assert.ok(own.length > 0, `${id}: an example deck`);
+      for (const f of own) {
+        assert.ok(direction.includes(`| \`${f}\` |`), `${id}: ${f} in the example library`);
+        assert.ok(readFileSync(join(refs, "tonalities", `${id}.md`), "utf8").includes(`\`${f}\``), `${id}: the sheet points at ${f}`);
+      }
+      assert.ok(manifest.includes(`plugins/litclaude/skills/lit-pptx/templates/tonalities/${id}/pack.yaml`), `${id}: version manifest`);
+      assert.ok(skill.includes(`| \`${id}\` |`), `${id}: SKILL.md tonality table`);
+      assert.ok(skill.includes(`\`references/tonalities/${id}.md\``), `${id}: SKILL.md sheet link`);
+      // A deck type names it as a candidate in both deck-type tables.
+      for (const [doc, text] of [["SKILL.md", skill], ["direction-step.md", direction]]) {
+        assert.ok(text.split("\n").some((l) => /^\s*\| [^|]+\(.+\) \| /u.test(l) && l.includes(`${name} (10,`)), `${id}: a ${doc} deck-type row names ${name}`);
+      }
+      // Every display device the pack uses is documented with the pack beside it.
+      const display = pack.match(/^display:\n((?: {2}.+\n)+)/mu);
+      for (const [, key, device] of display ? display[1].matchAll(/^ {2}([a-z]+): ([a-z-]+)$/gmu) : []) {
+        assert.ok(families.split("\n").some((l) => l.startsWith(`| \`${key}\` |`) && l.includes(`\`${device}\``) && l.includes(id)), `${id}: display ${key} ${device} in layout-families.md`);
+      }
+    }
+    const count = words[packs.length];
+    assert.match(skill, new RegExp(`\\(${count} tonalities with their own palette`, "u"));
+    assert.match(direction, new RegExp(`${count[0].toUpperCase()}${count.slice(1)} tonalities ship with the skill`, "u"));
+    assert.match(skill, new RegExp(`\\(${words[examples.length]}, all ${count} tonalities and deck types\\)`, "u"));
+    assert.match(readFileSync(join(root, "docs", "guide.md"), "utf8"), new RegExp(`\`lit-pptx\` has ${count} looks for decks`, "u"));
   });
 
   it("lit-docx chooses a direction before writing, binds the four page rules, and its reference library covers every tonality and component", () => {
@@ -281,7 +322,7 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
 
   it("bundled fonts are the unmodified OFL releases within the 6 MB budget", () => {
     const provenance = JSON.parse(readFileSync(join(pptxRoot, "fonts", "provenance.json"), "utf8"));
-    const files = [...provenance.pretendard.files, ...provenance.a2z.files];
+    const files = [...provenance.pretendard.files, ...provenance.a2z.files, ...provenance["jetbrains-mono"].files];
     let total = 0;
     for (const { file, bytes, sha256: expected } of files) {
       const path = join(pptxRoot, "fonts", file);
@@ -293,6 +334,10 @@ describe("lit-pptx and lit-docx — organic enrollment", () => {
     const onDisk = walk(join(pptxRoot, "fonts")).map((file) => relative(join(pptxRoot, "fonts"), file)).filter((f) => f !== "provenance.json").sort();
     assert.deepEqual(onDisk, files.map(({ file }) => file).sort());
     assert.match(readFileSync(join(pptxRoot, "fonts", "pretendard", "OFL.txt"), "utf8"), /SIL Open Font License/u);
+    // The mono face is a Latin-only release with no Reserved Font Name, shipped whole.
+    assert.match(readFileSync(join(pptxRoot, "fonts", "jetbrains-mono", "OFL.txt"), "utf8"), /SIL Open Font License/u);
+    assert.doesNotMatch(readFileSync(join(pptxRoot, "fonts", "jetbrains-mono", "OFL.txt"), "utf8"), /with Reserved Font Name/u);
+    assert.match(provenance["jetbrains-mono"].license, /unmodified/u);
   });
 
   it("the installed doctor and the repo doctor report office runtime readiness without installing", () => {
@@ -356,6 +401,20 @@ describe("lit-pptx and lit-docx — bare lit routing", () => {
     assert.deepEqual(officeSkillsFor("draft a memo about the office move lit"), ["lit-docx"]);
     assert.deepEqual(officeSkillsFor("lit build a presentation on our hiring funnel"), ["lit-pptx"]);
     assert.deepEqual(officeSkillsFor("write a docx summarizing the vendor survey lit"), ["lit-docx"]);
+  });
+
+  it("routes a deck asked for by its slide count and a named style, with no making verb, to lit-pptx", () => {
+    for (const prompt of [
+      "lit 신규 서비스 투자 피칭 덱 10장, 네오 브루탈리즘 스타일로",
+      "lit 사내 플랫폼 아키텍처 리뷰 발표자료 9장, 컴퓨테이셔널 브루탈리즘 스타일로",
+      "lit 디자인사 강의 슬라이드 12장 바우하우스 느낌으로",
+      "lit a 10-slide launch deck in a neo-brutalist style",
+    ]) {
+      assert.deepEqual(officeSkillsFor(prompt), ["lit-pptx"], prompt);
+      assert.doesNotMatch(hookContext(prompt).split("\n\n## Project Instructions\n", 1)[0], /Skill\(frontend-ui-ux\)/u, prompt);
+    }
+    // A count alone is not a deck: no slide noun, no route.
+    assert.deepEqual(officeSkillsFor("lit 사진 10장 보정 스타일로"), []);
   });
 
   it("keeps code documentation, tool reports and non-office work off the office route", () => {
@@ -659,13 +718,13 @@ describe("lit-pptx engine without the runtime", () => {
     assert.deepEqual(out.legacy["BOILERPLATE-PRETENDARD"].caps, []);
   });
 
-  const TONALITIES = ["atlas", "chalk", "gazette", "ledger", "night", "paper", "signal", "studio"];
+  const TONALITIES = ["atlas", "bauhaus", "chalk", "computational-brutalism", "gazette", "ledger", "neo-brutalism", "newsroom", "night", "paper", "riso", "signal", "studio"];
   const packOf = (id) => JSON.parse(registryProbe(`console.log(JSON.stringify(r.loadPack(${JSON.stringify(id)})))`).stdout);
 
-  it("lists eight tonalities, and each tonality's families with the titles they take there and its variants", () => {
+  it("lists every tonality, and each tonality's families with the titles they take there and its variants", () => {
     const listed = compile(["--list-tonalities"], root);
     assert.equal(listed.status, 0, listed.stderr);
-    assert.deepEqual([...listed.stdout.matchAll(/^([a-z]+) — /gmu)].map((m) => m[1]), TONALITIES);
+    assert.deepEqual([...listed.stdout.matchAll(/^([a-z-]+) — /gmu)].map((m) => m[1]), TONALITIES);
     for (const id of TONALITIES) {
       const pack = packOf(id);
       const layouts = compile(["--list-layouts", id], root);
@@ -678,7 +737,7 @@ describe("lit-pptx engine without the runtime", () => {
     }
     const unknown = compile(["--list-layouts", "wobble"], root);
     assert.equal(unknown.status, 1);
-    assert.match(unknown.stderr, /Unknown tonality or template "wobble"\. Tonalities: atlas, chalk/u);
+    assert.match(unknown.stderr, /Unknown tonality or template "wobble"\. Tonalities: atlas, bauhaus, chalk/u);
   });
 
   it("no two tonalities share both their title treatments and their layout families", () => {
@@ -729,11 +788,68 @@ describe("lit-pptx engine without the runtime", () => {
         { LIT_PPTX_TONALITY_DIRS: dir }).stdout;
       assert.match(load("no-ink"), /palette\.ink is missing/u);
       assert.match(load("dense-eleven"), /density must be an integer 1-10/u);
-      assert.match(load("a2z-default"), /faces\.display must name a bundled face \(Pretendard Regular or Bold\)/u);
+      assert.match(load("a2z-default"), /faces\.display must name a bundled face \(Pretendard Regular or Bold, or JetBrains Mono Regular or Bold\)/u);
       assert.match(load("grey-ink"), /ink on ground is [\d.]+:1, below 4\.5:1/u);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("refuses a hard edge, a shadow, a qa allowance or grid marks out of their bounds, and a mono body", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lit-office-pack-"));
+    try {
+      const neo = readFileSync(join(pptxRoot, "templates", "tonalities", "neo-brutalism", "pack.yaml"), "utf8");
+      const mono = readFileSync(join(pptxRoot, "templates", "tonalities", "computational-brutalism", "pack.yaml"), "utf8");
+      const plant = (id, source, from, edit) => {
+        mkdirSync(join(dir, id), { recursive: true });
+        writeFileSync(join(dir, id, "pack.yaml"), edit(source.replace(`id: ${from}`, `id: ${id}`)));
+      };
+      plant("heavy-edge", neo, "neo-brutalism", (s) => s.replace(/^edge-weight: .*$/mu, "edge-weight: 6"));
+      plant("far-shadow", neo, "neo-brutalism", (s) => s.replace(/^ {2}offset: 6$/mu, "  offset: 14"));
+      plant("pink-shadow", neo, "neo-brutalism", (s) => s.replace(/^ {2}colour: ink$/mu, "  colour: hotpink"));
+      plant("flat-shadow", neo, "neo-brutalism", (s) => s.replace(/^edge: .*$/mu, "edge: fill"));
+      plant("loose-qa", neo, "neo-brutalism", (s) => s.replace(/^ {2}offset-shadow: true$/mu, "  offset-shadow: true\n  contrast: 2"));
+      plant("wide-qa", neo, "neo-brutalism", (s) => s.replace(/^ {2}offset-shadow: true$/mu, "  offset-shadow: true\n  accent-families: 9"));
+      // A pack may only widen the accent limit (default: five families fail); a narrower one is out of range.
+      plant("narrow-qa", neo, "neo-brutalism", (s) => s.replace(/^ {2}offset-shadow: true$/mu, "  offset-shadow: true\n  accent-families: 3"));
+      plant("no-shadow", neo, "neo-brutalism", (s) => s.replace(/^shadow:\n {2}offset: 6\n {2}colour: ink\n/mu, ""));
+      plant("banded-marks", mono, "computational-brutalism", (s) => s.replace(/^treatments: \[top-rule, /mu, "treatments: [band, top-rule, "));
+      plant("mono-body", mono, "computational-brutalism", (s) => s.replace(/^ {2}body: Pretendard Regular$/mu, "  body: JetBrains Mono Regular"));
+      // Presented type belongs to a bold register; a report pack (no register) keeps reading type. The hero step is every pack's.
+      plant("loud-report", neo, "neo-brutalism", (s) => s.replace(/^register: bold\n/mu, ""));
+      plant("odd-register", neo, "neo-brutalism", (s) => s.replace(/^register: bold$/mu, "register: shouty"));
+      const load = (id) => registryProbe(`try { r.loadPack(${JSON.stringify(id)}); console.log("loaded"); } catch (e) { console.log(e.message); }`,
+        { LIT_PPTX_TONALITY_DIRS: dir }).stdout;
+      assert.match(load("heavy-edge"), /edge-weight must be 0\.5-4 pt/u);
+      assert.match(load("far-shadow"), /shadow\.offset must be 3-10 pt/u);
+      assert.match(load("pink-shadow"), /shadow\.colour must name a palette role/u);
+      assert.match(load("flat-shadow"), /a shadow needs a bordered edge \(border or fill\+border\)/u);
+      assert.match(load("loose-qa"), /unknown qa allowance "contrast" \(known: accent-families, display-accent-families, offset-shadow\)/u);
+      assert.match(load("wide-qa"), /qa\.accent-families is out of range/u);
+      assert.match(load("narrow-qa"), /qa\.accent-families is out of range/u);
+      assert.match(load("no-shadow"), /qa\.offset-shadow needs a shadow/u);
+      assert.match(load("banded-marks"), /grid-marks needs the top margin on the ground \(no band treatment, no rail-fill\)/u);
+      assert.match(load("mono-body"), /faces\.body must be a face that sets Hangul/u);
+      assert.match(load("loud-report"), /presented type needs register: bold; a report pack keeps ramp: reading/u);
+      assert.match(load("odd-register"), /register must be report or bold/u);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("takes extra decoration kinds and the calm hero opt-out from the deck's front matter", () => {
+    const run = registryProbe(`const base = r.loadTonality("paper").pack;
+const more = r.loadTonality("paper", { decoration: "numeral, column-hairlines" }).pack;
+const calm = r.loadTonality("paper", { hero: "false" }).pack;
+const tryLoad = (id, decoration) => { try { r.loadTonality(id, { decoration }); return "loaded"; } catch (e) { return e.message; } };
+console.log(JSON.stringify({ base: base.decoration, more: more.decoration, hero: [base.hero, calm.hero], unknown: tryLoad("paper", "sparkles"), marks: tryLoad("ledger", "grid-marks") }));`);
+    assert.equal(run.status, 0, run.stderr);
+    const out = JSON.parse(run.stdout);
+    assert.ok(!out.base.includes("numeral"), "paper does not draw a numeral by itself");
+    assert.deepEqual(out.more, [...new Set([...out.base, "numeral", "column-hairlines"])], "front matter adds to the pack's own list");
+    assert.deepEqual(out.hero, [true, false], "hero: false is the calm opt-out");
+    assert.match(out.unknown, /decoration "sparkles" is not a known kind/u);
+    assert.match(out.marks, /grid-marks needs the top margin on the ground/u);
   });
 });
 
@@ -822,6 +938,40 @@ prs.save(sys.argv[1])
       const spacing = report.craft_floor.advisories.filter((finding) => finding.check === "OF-105");
       assert.ok(spacing.length > 0, "cards closer than twice the gap between their contents");
       assert.ok(spacing.every((finding) => finding.severity === "MEDIUM"), "OF-105 stays advisory until the calibration re-run promotes it");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("OF-101 passes four accent hue families on a slide and fails at five, with no advisory below", () => {
+    const dir = work();
+    try {
+      const build = (fills, out) => spawnSync(runtimePython, ["-B", "-c", `
+import sys
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.util import Inches, Pt
+prs = Presentation()
+prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
+title.text_frame.text = "Stage fees by phase"
+title.text_frame.paragraphs[0].runs[0].font.size = Pt(28)
+fills = sys.argv[2].split(",")
+width = 12.3 / len(fills) - 0.2
+for i, fill in enumerate(fills):
+    box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5 + i * (width + 0.2)), Inches(1.6), Inches(width), Inches(1.6))
+    box.fill.solid()
+    box.fill.fore_color.rgb = RGBColor.from_string(fill)
+    box.line.fill.background()
+prs.save(sys.argv[1])
+`, join(dir, out), fills.join(",")], { encoding: "utf8" });
+      const accents = (out) => JSON.parse(py(join(pptxRoot, "scripts", "craft_extras.py"), [join(dir, out)], dir).stdout).findings.filter((f) => f.check === "OF-101");
+      assert.equal(build(["C64D2E", "1D6B68", "C48A1C", "2B5FA6"], "four.pptx").status, 0);
+      assert.deepEqual(accents("four.pptx"), [], "four hue families are a rich slide, not a defect");
+      assert.equal(build(["C64D2E", "1D6B68", "C48A1C", "2B5FA6", "8E3B8E"], "five.pptx").status, 0);
+      assert.deepEqual(accents("five.pptx").map((f) => f.severity), ["HIGH"], "five hue families fail");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -1244,22 +1394,23 @@ print(json.dumps({"slides": out, "subject": p.core_properties.subject}))
       const b = shapesOf(join(dir, "deck.pptx"));
       assert.equal(b.slides.length, a.slides.length);
       const treatments = (deck) => deck.slides.map((shapes) => (shapes.find((s) => s.name.startsWith("title@")) || {}).name);
-      // The agenda takes each pack's content title.
-      assert.equal(treatments(a)[1], "title@top-rule");
-      assert.equal(treatments(b)[1], "title@band");
+      // The variant's band title reaches its deck (the spread may give the agenda another of the pack's styles).
+      assert.ok(treatments(b).includes("title@band") && !treatments(a).includes("title@band"), treatments(b).join(" "));
       assert.equal(treatments(a)[2], "title@top-rule", "the pinned title is kept");
-      // A chart with no takeaways and no source has nothing for a side title's rail, so it takes the
-      // bottom title the family allows (spec-v2 Amendments 7: a rail is never left empty).
-      assert.equal(treatments(a)[3], "title@bottom-anchor", "a chart alone takes the bottom title, not an empty rail");
+      // Whichever treatment each pack gives a slide, its title stands on the one title frame of the slide grid.
+      const frames = (deck) => deck.slides.slice(1, 5).map((shapes) => shapes.find((s) => s.name.startsWith("title@")))
+        .filter((t) => t && t.name !== "title@statement").map((t) => [t.x, t.y, t.w, t.h].map(Math.round).join(","));
+      assert.deepEqual([...new Set([...frames(a), ...frames(b)])], ["24,36,756,72"]);
       const fills = (deck) => new Set(deck.slides.flat().flatMap((s) => [s.fill, s.colour]).filter(Boolean));
       assert.ok(fills(a).has("0E6B5A") && !fills(a).has("5B2C83"));
       assert.ok(fills(b).has("5B2C83") && !fills(b).has("0E6B5A"));
       // The body's left edge (a list marker or a line of text) sits on the grid margin.
       const bullets = (deck) => deck.slides[4].filter((s) => (s.text || s.fill) && !s.name.startsWith("title@") && s.y < 486 && s.y > 100).sort((p, q) => p.x - q.x);
-      assert.equal(Math.round(bullets(a)[0].x), 36, "dense grid margin at density 8");
-      assert.equal(Math.round(bullets(b)[0].x), 48, "standard grid margin at density 4");
-      assert.match(a.subject, /tonality=ledger density=8 grid=dense/u);
-      assert.match(b.subject, /tonality=variant-test density=4 grid=standard/u);
+      // The density dial sets type and spacing, never the margins: both decks keep the slide grid's 24 pt margin.
+      assert.equal(Math.round(bullets(a)[0].x), 24, "grid margin at density 8");
+      assert.equal(Math.round(bullets(b)[0].x), 24, "grid margin at density 4");
+      assert.match(a.subject, /tonality=ledger density=8 grid=compact/u);
+      assert.match(b.subject, /tonality=variant-test density=4 grid=compact/u);
       // Each slide carries its layout family as the first shape's name, so a checker can compare it with what it measures.
       assert.deepEqual(a.slides.map((shapes) => shapes[0].name), ["family@cover-typographic", "family@agenda", "family@kpi-row",
         "family@chart-insight", "family@text-column", "family@section-rule", "family@closing-ask"]);
@@ -1377,7 +1528,7 @@ print(json.dumps({"slides": out, "subject": p.core_properties.subject}))
       writeFileSync(join(dir, "n.md"), source);
       const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "n.md"), "--pptx", join(dir, "n.pptx")], { cwd: dir, encoding: "utf8" });
       assert.equal(built.status, 0, built.stderr + built.stdout);
-      assert.match(built.stdout, /note: slide 5: ledger has no statement title, so the sentence is drawn as a top-rule title/u);
+      assert.match(built.stdout, /note: slide 5: the statement family takes none of the ledger titles; drawn under top-rule/u);
       assert.match(built.stdout, /note: slide 6: section-image is not a ledger section variant \(section-rule, section-numeral\)/u);
       assert.match(built.stdout, /note: slide 6: drawn as section-rule/u);
     } finally {
@@ -1385,7 +1536,7 @@ print(json.dumps({"slides": out, "subject": p.core_properties.subject}))
     }
   });
 
-  for (const id of ["atlas", "chalk", "gazette", "ledger", "night", "paper", "signal", "studio"]) {
+  for (const id of ["atlas", "bauhaus", "chalk", "computational-brutalism", "gazette", "ledger", "neo-brutalism", "newsroom", "night", "paper", "riso", "signal", "studio"]) {
     it(`${id}: every layout family and cover, section and closing variant it lists compiles, and its sample passes the QA gate`, () => {
       const dir = work();
       try {
@@ -1496,7 +1647,103 @@ print(json.dumps({"slides": out, "subject": p.core_properties.subject}))
         rmSync(dir, { recursive: true, force: true });
       }
     }
-    assert.deepEqual([...tonalities].sort(), ["atlas", "chalk", "gazette", "ledger", "night", "paper", "signal", "studio"]);
+    assert.deepEqual([...tonalities].sort(), ["atlas", "bauhaus", "chalk", "computational-brutalism", "gazette", "ledger", "neo-brutalism", "newsroom", "night", "paper", "riso", "signal", "studio"]);
+  });
+
+  it("a point written after two columns is kept under them, never dropped (comparison, text-two-column)", () => {
+    const dir = work();
+    try {
+      const cols = `:::: columns 1fr 1fr\n::: col\n- **저녁반**\n  (1) 시간: 저녁 7시-9시\n  (2) 정원: 30명\n:::\n::: col\n- **주말반**\n  (1) 시간: 오전 10시-12시\n  (2) 정원: 20명\n:::\n::::\n\n- 두 반 모두 무료이며 재료비는 도서관이 낸다\n- 출처: 예시 운영 계획 (예시)`;
+      writeFileSync(join(dir, "cols.md"), `---\ntonality: ledger\ntitle: 열 뒤의 요점\n---\n\n---\nlayout: cover-typographic\n\n# 열 뒤의 요점\n---\n\n---\nlayout: comparison\n\n## 두 반 비교\n\n${cols}\n---\n\n---\nlayout: text-two-column\n\n## 두 반 소개\n\n${cols}\n---\n`);
+      const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "cols.md"), "--pptx", join(dir, "deck.pptx")], { cwd: dir, encoding: "utf8" });
+      assert.equal(built.status, 0, built.stderr + built.stdout);
+      const { slides } = shapesOf(join(dir, "deck.pptx"));
+      for (const n of [1, 2]) {
+        const point = slides[n].find((sh) => (sh.text || "").includes("두 반 모두 무료"));
+        assert.ok(point, `slide ${n + 1} keeps the point`);
+        const columns = slides[n].filter((sh) => /정원/u.test(sh.text || ""));
+        assert.ok(columns.length && columns.every((c) => c.y + c.h <= point.y + 1), `slide ${n + 1}: the point runs under the columns`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  const slideXml = (file) => {
+    const listed = spawnSync("unzip", ["-Z1", file], { encoding: "utf8" }).stdout.split("\n").filter((n) => /^ppt\/slides\/slide\d+\.xml$/u.test(n));
+    return listed.sort((a, b) => Number(a.match(/\d+/u)[0]) - Number(b.match(/\d+/u)[0]))
+      .map((n) => spawnSync("unzip", ["-p", file, n], { encoding: "utf8", maxBuffer: 1 << 26 }).stdout);
+  };
+  const restamp = (file, from, to) => spawnSync(runtimePython, ["-B", "-c", `
+import sys
+from pptx import Presentation
+prs = Presentation(sys.argv[1])
+prs.core_properties.subject = prs.core_properties.subject.replace(sys.argv[2], sys.argv[3])
+prs.save(sys.argv[1])
+`, file, from, to], { encoding: "utf8" });
+  const exampleDeck = (dir, file, extra = []) => {
+    exampleAssets(dir);
+    copyFileSync(join(exampleRoot, file), join(dir, file));
+    const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, file), "--pptx", join(dir, "deck.pptx"), ...extra], { cwd: dir, encoding: "utf8" });
+    assert.equal(built.status, 0, built.stderr);
+    return join(dir, "deck.pptx");
+  };
+
+  it("a hard-edged pack writes its offset shadows with no blur, keeps its KPI cards, and the gate allows them there only", () => {
+    const dir = work();
+    try {
+      const file = exampleDeck(dir, "14-launch-pitch-neo-brutalism-ko.md");
+      const xml = slideXml(file);
+      const shadows = xml.flatMap((x) => [...x.matchAll(/<a:outerShdw\b[^>]*>/gu)].map((m) => m[0]));
+      assert.ok(shadows.length >= 4, `${shadows.length} shadows`);
+      for (const s of shadows) assert.match(s, /\bblurRad="0"/u, s);
+      // The KPI row stays a row of bordered, shadowed cards on the compact step.
+      const kpi = shapesOf(file).slides.findIndex((shapes) => shapes.some((s) => s.name === "family@kpi-row"));
+      assert.ok((xml[kpi].match(/<a:outerShdw\b/gu) || []).length >= 4, "four shadowed KPI cards");
+      const own = JSON.parse(py(join(pptxRoot, "scripts", "qa_deck.py"), [file], dir).stdout);
+      const checks = (report, id) => [...report.craft_floor.findings, ...report.craft_floor.advisories].filter((f) => f.check === id);
+      assert.deepEqual(checks(own, "OF-120"), []);
+      assert.deepEqual(checks(own, "OF-101"), []);
+      // The same file under a pack without the shadow allowance: the shadows fail, and its three hue families still pass (OF-101 fails at five).
+      assert.equal(restamp(file, "tonality=neo-brutalism", "tonality=signal").status, 0);
+      const other = JSON.parse(py(join(pptxRoot, "scripts", "qa_deck.py"), [file], dir).stdout);
+      assert.ok(checks(other, "OF-120").some((f) => f.severity === "HIGH" && /hard offset shadow in a pack that does not draw one/u.test(f.detail)), JSON.stringify(checks(other, "OF-120")));
+      assert.deepEqual(checks(other, "OF-101"), []);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a mono pack sets Hangul in Pretendard, marks the grid as page chrome, and renders with the faces it embeds", () => {
+    const dir = work();
+    try {
+      const file = exampleDeck(dir, "13-engineering-review-computational-brutalism-ko.md", ["--embed-fonts"]);
+      const xml = slideXml(file);
+      const mono = xml.flatMap((x) => [...x.matchAll(/<a:latin typeface="JetBrains Mono"[^>]*\/>(<a:ea [^>]*\/>)?/gu)]);
+      assert.ok(mono.length > 0);
+      for (const m of mono) assert.match(m[1] || "", /typeface="Pretendard"/u, m[0]);
+      assert.doesNotMatch(xml.join(""), /<a:ea typeface="JetBrains Mono"/u);
+      const slides = shapesOf(file).slides;
+      const kinds = slides.map((shapes) => (shapes.find((s) => s.name.startsWith("family@")) || {}).name);
+      const marked = slides.map((shapes) => shapes.some((s) => s.name === "grid-mark index"));
+      assert.equal(marked[kinds.indexOf("family@kpi-row")], true);
+      assert.equal(marked[kinds.indexOf("family@statement")], false, "a drenched statement goes without grid marks");
+      assert.equal(marked[0], false, "the cover goes without grid marks");
+      // LibreOffice ignores embedded font parts; the renderer installs them in its private profile.
+      const placed = spawnSync(runtimePython, ["-B", "-c", `
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import render_pages
+print("\\n".join(sorted(p.name for p in render_pages.profile_fonts(Path(sys.argv[2]), Path(sys.argv[3])))))
+`, libRoot, file, join(dir, "profile")], { encoding: "utf8" });
+      assert.equal(placed.status, 0, placed.stderr);
+      const names = placed.stdout.trim().split("\n");
+      assert.ok(names.length >= 2 && names.every((n) => /\.(ttf|otf)$/u.test(n)), placed.stdout);
+      for (const n of names) assert.ok(existsSync(join(dir, "profile", "user", "fonts", n)));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("draws tables and charts in each pack's style, one colour per data series", () => {
@@ -1628,11 +1875,11 @@ print(json.dumps([[r.text, bool(r.font.italic)] for sh in s.shapes if sh.has_tex
     }
   });
 
-  it("a quote beside a side title sits in the middle of the body as a display slide, not at the top of an empty page", () => {
+  it("a quote in a pack without a statement title still sits on the display zones, in the middle of the page", () => {
     const dir = work();
     try {
-      // A pack with neither a statement nor a top-rule title draws a quote beside its side rail
-      // (the bundled packs all take one of the two, so the pack is written here as data).
+      // A pack with neither a statement nor a top-rule title (the bundled packs all take one of the two, so the
+      // pack is written here as data): its quote is a display slide all the same, on the slide grid's display zones.
       const packs = join(dir, "packs");
       mkdirSync(join(packs, "rail-only"), { recursive: true });
       writeFileSync(join(packs, "rail-only", "pack.yaml"), readFileSync(join(pptxRoot, "templates", "tonalities", "studio", "pack.yaml"), "utf8")
@@ -1644,8 +1891,10 @@ print(json.dumps([[r.text, bool(r.font.italic)] for sh in s.shapes if sh.has_tex
       const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "q.md"), "--pptx", join(dir, "q.pptx")], { cwd: dir, encoding: "utf8", env: { ...process.env, LIT_PPTX_TONALITY_DIRS: packs } });
       assert.equal(built.status, 0, built.stderr);
       const slide = shapesOf(join(dir, "q.pptx")).slides[0];
-      assert.ok(slide.some((s) => s.name === "title@side-rail"), JSON.stringify(slide.map((s) => s.name)));
-      const quote = slide.find((s) => s.text.startsWith("퇴근"));
+      const title = slide.find((s) => s.name === "title@statement");
+      assert.ok(title, JSON.stringify(slide.map((s) => s.name)));
+      assert.deepEqual([title.x, title.y, title.w, title.h].map(Math.round), [24, 132, 678, 216]);
+      const quote = slide.find((s) => s.text.includes("퇴근"));
       const middle = quote.y + quote.h / 2;
       assert.ok(middle > 36 + 450 / 3 && middle < 36 + (2 * 450) / 3, `quote centre at y ${middle}`);
       const gate = JSON.parse(py(join(pptxRoot, "scripts", "qa_deck.py"), [join(dir, "q.pptx")], dir).stdout);
@@ -1745,13 +1994,16 @@ print(json.dumps(out))
   const fullCanvas = (s) => s.fill && Math.round(s.x) === 0 && Math.round(s.y) === 0 && Math.round(s.w) === 960 && Math.round(s.h) === 540;
   const lines = (text) => text.split(/[\n\v]/u).map((l) => l.trim()).filter(Boolean);
 
-  it("a statement is set at the display step, never the retired hero step, in balanced lines that never end on one word", () => {
+  it("a statement takes the hero step by default and the display step with hero: false, in balanced lines that never end on one word", () => {
     const dir = work();
     try {
       const { runs } = displayDeck(dir, "signal");
       const title = runs[3].find((s) => s.name === "title@statement");
       assert.ok(title, JSON.stringify(runs[3].map((s) => s.name)));
-      assert.ok(title.runs.every(([, size]) => size === 36), `statement sizes ${JSON.stringify(title.runs)}`);
+      assert.ok(title.runs.every(([, size]) => size === 60), `statement sizes ${JSON.stringify(title.runs)}`);
+      writeFileSync(join(dir, "calm.md"), readFileSync(join(fixtures, "deck-display.md"), "utf8").replace("tonality: ledger\n", "tonality: ledger\nhero: false\n"));
+      const calm = displayDeck(dir, "signal", join(dir, "calm.md"), "calm").runs[3].find((s) => s.name === "title@statement");
+      assert.ok(calm.runs.every(([, size]) => size === 36), `hero: false statement sizes ${JSON.stringify(calm.runs)}`);
       const set = lines(title.text);
       assert.ok(set.length >= 2, `lines ${JSON.stringify(set)}`);
       assert.ok(set.every((l) => l.split(/\s+/u).length >= 2), `a line holds one word: ${JSON.stringify(set)}`);
@@ -1760,29 +2012,35 @@ print(json.dumps(out))
     }
   });
 
-  it("a named type-led cover takes each tonality's own device, so covers differ in structure", () => {
+  it("a named type-led cover takes each tonality's own device: the device differs, the title's place does not", () => {
     const dir = work();
     try {
       const device = {};
+      const hero = {};
       for (const t of ["signal", "atlas", "chalk", "gazette", "ledger", "paper", "night"]) {
         const { shapes, runs } = displayDeck(dir, t, undefined, t);
         const cover = shapes[0];
         const title = runs[0].find((s) => s.name === "title@cover");
         assert.ok(title, `${t}: ${JSON.stringify(cover.map((s) => s.name))}`);
+        hero[t] = title.runs.every(([, size]) => size === 60);
+        const box = cover.find((s) => s.name === "title@cover");
+        assert.deepEqual([box.x, box.y, box.w, box.h].map(Math.round), [24, 144, 678, 168], t);
         const fills = cover.filter((s) => s.fill && !s.name.startsWith("lit-notice"));
         if (fills.some(fullCanvas)) device[t] = "drench";
         else if (fills.some((s) => Math.round(s.x) === 0 && Math.round(s.y) > 0 && Math.round(s.y + s.h) === 540 && Math.round(s.w) === 960)) device[t] = "plate";
         else if (fills.some((s) => Math.round(s.x) === 0 && Math.round(s.y) === 0 && Math.round(s.h) === 540 && s.w < 400)) device[t] = "rail";
-        else if (fills.some((s) => Math.round(s.y) === 0 && Math.round(s.w) === 960 && s.h >= 150 && s.h <= 240)) device[t] = "band";
+        else if (fills.some((s) => Math.round(s.y) === 0 && Math.round(s.w) === 960 && s.h >= 150 && s.h <= 330)) device[t] = "band";
         else if (cover.filter((s) => s.text && /^[\d.,]+[^\s]*|^\d/u.test(s.text) && runs[0].some((r) => r.text === s.text && r.runs.some(([, z]) => z >= 24 && z <= 26))).length >= 3) device[t] = "figures";
         else if (/^20\d\d$/u.test((cover.find((s) => /^20\d\d$/u.test(s.text)) || {}).text || "")) device[t] = "numeral";
         else if (cover.filter((s) => !s.text && s.h <= 3 && s.w >= 600).length >= 2) device[t] = "rules";
         else device[t] = "plain";
       }
       assert.deepEqual(device, { signal: "drench", atlas: "plate", chalk: "rail", gazette: "band", ledger: "figures", paper: "rules", night: "numeral" });
-      // On the drenched cover the title is at the cover step (no hero step) in the colour that reads on the field.
+      // Whatever the device, a title that fits the zone takes the hero step by default.
+      assert.deepEqual(Object.keys(hero).filter((t) => !hero[t]), []);
+      // On the drenched cover the title takes the hero step in the colour that reads on the field.
       const signal = runsOf(join(dir, "signal.pptx"))[0].find((s) => s.name === "title@cover");
-      assert.ok(signal.runs.every(([, size, colour]) => size === 44 && colour === "FFFFFF"), JSON.stringify(signal.runs));
+      assert.ok(signal.runs.every(([, size, colour]) => size === 60 && colour === "FFFFFF"), JSON.stringify(signal.runs));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -1819,13 +2077,13 @@ print(json.dumps(out))
       const marked = index.runs.filter(([, , colour]) => colour === "0E6B5A").map(([text]) => text).join("");
       assert.match(marked, /03.*실적/u, JSON.stringify(index.runs));
       assert.ok(!/시장|요청/u.test(marked), JSON.stringify(index.runs));
-      // Gazette: the index sits in the header band, the title on the ground under it.
+      // Gazette: the index sits in the header band (the display header zone), the title on the ground under it.
       const gazette = displayDeck(dir, "gazette", undefined, "gazette").shapes[2];
       const strip = gazette.find((s) => s.text.includes("01") && s.text.includes("04"));
-      assert.ok(strip && strip.y + strip.h <= 216, JSON.stringify(gazette.map((s) => [s.text, s.y])));
-      // Under the band the title is set as a statement over what the part opens with, down the page.
-      const under = gazette.filter((s) => s.text && s.y > 216 && !s.name.startsWith("lit-notice"));
-      assert.ok(under.some((s) => s.text.includes("맞벌이 가구")) && Math.max(...under.map((s) => s.y + s.h)) >= 330, JSON.stringify(under.map((s) => [s.text, s.y, s.h])));
+      assert.ok(strip && strip.name === "header@section" && strip.y + strip.h <= 126, JSON.stringify(gazette.map((s) => [s.text, s.y])));
+      // Under the band the title stands in the display title zone over what the part opens with, in the support zone.
+      const under = gazette.filter((s) => s.text && s.y >= 372 && !s.name.startsWith("lit-notice"));
+      assert.ok(under.some((s) => s.text.includes("주문 시스템 개편")), JSON.stringify(under.map((s) => [s.text, s.y, s.h])));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -2124,11 +2382,10 @@ print(json.dumps(out))
   it("a deck short of distinct layouts moves a data slide to a title that adds one (OF-111)", () => {
     const dir = work();
     try {
-      // The pitch under Paper, whose fill-chosen titles leave four layouts where five are needed (since
-      // checkpoint D round 2 Signal reaches five from fill alone).
-      writeFileSync(join(dir, "p.md"), readFileSync(join(fixtures, "deck-pitch-signal.md"), "utf8").replace("tonality: signal\n", "tonality: paper\n"));
-      mkdirSync(join(dir, "assets"), { recursive: true });
-      writeFileSync(join(dir, "assets", "sample-image-a.png"), png(480, 270, [90, 120, 150]));
+      // The ledger business review under Paper, whose fill-chosen titles leave four layouts where five are
+      // needed (since every title shares one zone, the pitch under Paper reaches five from fill alone).
+      exampleAssets(dir);
+      writeFileSync(join(dir, "p.md"), readFileSync(join(exampleRoot, "03-business-review-ledger-ko.md"), "utf8").replace("tonality: ledger\n", "tonality: paper\n"));
       const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "p.md"), "--pptx", join(dir, "p.pptx")], { cwd: dir, encoding: "utf8" });
       assert.equal(built.status, 0, built.stderr + built.stdout);
       assert.match(built.stdout, /^variety: slide \d+ drawn under \S+ so the deck carries \d+ layouts$/mu, built.stdout);
@@ -2221,7 +2478,7 @@ print(json.dumps(sorted(names)))
     }
   });
 
-  it("numbers stay within two steps of the body: no hero step, no figure above the title size", () => {
+  it("numbers stay within two steps of the body; only a display title reaches the hero step", () => {
     const dir = work();
     try {
       for (const t of ["signal", "ledger", "studio", "gazette", "chalk", "night"]) {
@@ -2229,7 +2486,7 @@ print(json.dumps(sorted(names)))
         runs.forEach((slide, i) => {
           for (const shape of slide) {
             for (const [text, size] of shape.runs) {
-              assert.ok(size == null || size <= 44, `${t} slide ${i + 1}: "${text}" at ${size} pt`);
+              assert.ok(size == null || size <= 44 || (/^title@/u.test(shape.name) && size <= 60), `${t} slide ${i + 1}: "${text}" at ${size} pt in ${shape.name}`);
               const figure = /^[\s\d.,:%/+\-▲▼()]*\d[\s\d.,:%/+\-▲▼()]*(?:[조억만천]?\s?(?:원|건|명|개|곳|일|월|년|%p?))?$/u.test(text.trim());
               assert.ok(!figure || size == null || size <= 26, `${t} slide ${i + 1}: figure "${text}" at ${size} pt`);
             }
@@ -2261,22 +2518,66 @@ print(json.dumps(sorted(names)))
     }
   });
 
-  it("every pack sits at the dense end: density 10 on the compact grid and ramp, above the readable floor", () => {
+  it("every tonality sets one deck's titles, headers and body on the shared slide grid: a theme changes the look, never the place", () => {
+    const zonesProbe = spawnSync(process.execPath, ["-e", `console.log(JSON.stringify(require(${JSON.stringify(join(pptxRoot, "scripts", "lib", "slide-grid.js"))}).zones("16:9")))`], { encoding: "utf8" });
+    assert.equal(zonesProbe.status, 0, zonesProbe.stderr);
+    const Z = JSON.parse(zonesProbe.stdout);
+    const ids = readdirSync(join(pptxRoot, "templates", "tonalities")).filter((id) => existsSync(join(pptxRoot, "templates", "tonalities", id, "pack.yaml"))).sort();
+    const near = (a, b) => Math.abs(a - b) <= 0.5;
+    const same = (box, z) => near(box.x, z.x) && near(box.y, z.y) && near(box.w, z.w) && near(box.h, z.h);
+    const at = (s) => `[${[s.x, s.y, s.w, s.h].map((v) => v.toFixed(1)).join(", ")}]`;
+    const dir = work();
+    try {
+      const off = [];
+      for (const id of ids) {
+        const slides = displayDeck(dir, id, join(fixtures, "deck-placement.md"), id).shapes;
+        slides.forEach((shapes, i) => {
+          const title = shapes.find((s) => s.name.startsWith("title@"));
+          const kind = i === 0 ? "cover" : title && /^title@(statement|section)$/u.test(title.name) ? "display" : "content";
+          if (!title) { off.push(`${id} slide ${i + 1}: no title frame`); return; }
+          if (!same(title, Z[kind].title)) off.push(`${id} slide ${i + 1} ${title.name} at ${at(title)}, the ${kind} title zone is ${at(Z[kind].title)}`);
+          for (const h of shapes.filter((s) => s.name.startsWith("header@"))) {
+            if (!same(h, Z[kind].header)) off.push(`${id} slide ${i + 1} ${h.name} at ${at(h)}, the ${kind} header zone is ${at(Z[kind].header)}`);
+          }
+          if (kind !== "content") return;
+          // The body is what the slide says and the cards and fields that hold it. A device bled off the page from
+          // above the body zone (a band, a rail) and a title's ornament over the body zone are not.
+          const bled = (s) => s.x <= 0.5 || s.y <= 0.5 || s.x + s.w >= 959.5 || s.y + s.h >= 539.5;
+          const body = shapes.filter((s) => s !== title && (s.text.trim() || s.chart || s.table || s.picture || s.fill)
+            && !(bled(s) && s.y < Z.content.body.y - 0.5)
+            && !/^(lit-notice|grid-mark|header@|numeral@)/u.test(s.name) && s.y < Z.content.footer.y - 6 && s.y + s.h > Z.content.body.y + 0.5);
+          const top = Math.min(...body.map((s) => s.y));
+          const left = Math.min(...body.map((s) => s.x));
+          if (!near(top, Z.content.body.y) || !near(left, Z.content.body.x)) off.push(`${id} slide ${i + 1}: body starts at (${left.toFixed(1)}, ${top.toFixed(1)}), the body zone at (${Z.content.body.x}, ${Z.content.body.y})`);
+          const out = body.filter((s) => !bled(s) && (s.x + s.w > Z.content.body.x + Z.content.body.w + 0.5 || s.y + s.h > Z.content.body.y + Z.content.body.h + 0.5));
+          if (out.length) off.push(`${id} slide ${i + 1}: ${out.map((s) => s.name || s.text.slice(0, 20)).join(", ")} past the body zone`);
+        });
+      }
+      assert.deepEqual(off, []);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("every pack sits at the dense end: density 10 on the compact grid, a report pack on the reading ramp and a bold one on presented type", () => {
     const registryFile = join(pptxRoot, "scripts", "lib", "template-registry.js");
     const probe = spawnSync(process.execPath, ["-e", `const r = require(${JSON.stringify(registryFile)});
-console.log(JSON.stringify(["atlas","chalk","gazette","ledger","night","paper","signal","studio"].map((id) => { const t = r.loadTonality(id); return [id, t.pack.dials.density, t.pack.tok.sizes.body, t.pack.hero, t.pack.grid.name, t.pack.grid.margin]; })));
+console.log(JSON.stringify(["atlas","bauhaus","chalk","computational-brutalism","gazette","ledger","neo-brutalism","newsroom","night","paper","riso","signal","studio"].map((id) => { const t = r.loadTonality(id); return [id, t.pack.dials.density, t.pack.tok.sizes.body, t.pack.hero, t.pack.grid.name, t.pack.grid.margin]; })));
 const g = r.loadTonality("ledger").pack;
 console.log(JSON.stringify({ sizes: g.tok.sizes, sum: 2 * g.grid.margin + 12 * g.grid.col + 11 * g.grid.gutter }));`], { encoding: "utf8" });
     assert.equal(probe.status, 0, probe.stderr);
     const [packs, ledger] = probe.stdout.trim().split("\n").map((l) => JSON.parse(l));
-    assert.deepEqual(packs, ["atlas", "chalk", "gazette", "ledger", "night", "paper", "signal", "studio"].map((id) => [id, 10, 13, false, "compact", 24]));
+    // A bold register (neo-brutalism) sets presented type inside the same zones; every other pack reads. Every pack takes the hero step.
+    const bold = new Set(["neo-brutalism"]);
+    assert.deepEqual(packs, ["atlas", "bauhaus", "chalk", "computational-brutalism", "gazette", "ledger", "neo-brutalism", "newsroom", "night", "paper", "riso", "signal", "studio"]
+      .map((id) => (bold.has(id) ? [id, 10, 18, true, "compact", 24] : [id, 10, 13, true, "compact", 24])));
     // The readable floor (spec-v2 Amendments 6): body 12 pt or more, captions and sources 9, table cells 11.
     assert.ok(ledger.sizes.body >= 12 && ledger.sizes.source >= 9 && ledger.sizes.label >= 11, JSON.stringify(ledger.sizes));
     assert.equal(ledger.sum, 960);
   });
 
   // ── Checkpoint B round 3 (spec-v2 Amendments 6): denser pages ──
-  it("on the compact step a one-line top title sits close over its rule and the body starts higher", () => {
+  it("at every density a one-line top title sits close over its rule and the body starts on the slide grid's body zone", () => {
     const resolver = join(pptxRoot, "scripts", "lib", "grid-resolver.js");
     const probe = spawnSync(process.execPath, ["-e", `const G = require(${JSON.stringify(resolver)});
 const out = {};
@@ -2284,14 +2585,16 @@ for (const d of [9, 10]) {
   const tok = G.densityTokens(d);
   const grid = G.makeGrid("16:9", tok.grid);
   const f = G.treatmentGeometry("top-rule", { grid, sizes: tok.sizes, title: "분기별 매출 추이", decoration: new Set(["hairline-rule"]), tight: tok.tight });
-  out[d] = { titleBottom: f.title.y + f.title.h, rule: f.decor[0].y, body: f.body.y };
+  out[d] = { titleTop: f.title.y, titleBottom: f.title.y + f.title.h, line: tok.sizes.title * 1.15, rule: f.decor[0].y, body: f.body.y };
 }
 console.log(JSON.stringify(out));`], { encoding: "utf8" });
     assert.equal(probe.status, 0, probe.stderr);
     const out = JSON.parse(probe.stdout);
+    // The density dial sets type and spacing inside the zones; it no longer raises the body.
     assert.equal(out[9].body, 120);
-    assert.ok(out[10].body <= 96, JSON.stringify(out));
-    assert.ok(out[10].rule >= out[10].titleBottom && out[10].rule <= out[10].titleBottom + 24, JSON.stringify(out));
+    assert.equal(out[10].body, 120);
+    // The rule hugs the title's one line inside the title zone: under the line, within 12 pt of it.
+    for (const d of [9, 10]) assert.ok(out[d].rule >= out[d].titleTop + out[d].line && out[d].rule <= out[d].titleTop + out[d].line + 12 && out[d].rule <= out[d].titleBottom, JSON.stringify(out));
   });
 
   it("Ledger at density 9 keeps five distinct layouts on the briefing deck (OF-111): the engine reads partitions as the check does", () => {
@@ -2471,7 +2774,7 @@ console.log(JSON.stringify(out));`], { encoding: "utf8" });
         assert.equal(probe.status, 0, probe.stderr);
         return probe.stdout;
       };
-      const crowded = oneSlide(dir, "crowd", "gazette", "layout: chart-insight\ntitle: side-rail\n\n## 분기별 매출 실적과 계획 추이\n\n::: chart type=column unit=\"억 원\"\n| 분기 | 매출 실적 (억 원) | 매출 계획 (억 원) |\n|---|---|---|\n| 24년 1Q | 702 | 690 |\n| 24년 2Q | 731 | 720 |\n| 24년 3Q | 760 | 745 |\n| 24년 4Q | 802 | 790 |\n| 25년 1Q | 845 | 830 |\n| 25년 2Q | 921 | 900 |\n| 25년 3Q | 962 | 940 |\n| 25년 4Q | 1,015 | 990 |\n| 26년 1Q | 1,071 | 1,040 |\n| 26년 2Q | 1,120 | 1,090 |\n| 26년 3Q | 1,184 | 1,140 |\n> 분기별 매출 실적과 계획 (예시 데이터)\n:::\n\n- 매출은 열한 분기 연속 늘었다\n- 3분기 매출은 계획을 4% 넘었다", 8);
+      const crowded = oneSlide(dir, "crowd", "gazette", "layout: chart-insight\n\n## 분기별 매출 실적과 계획 추이\n\n::: chart type=column unit=\"억 원\"\n| 분기 | 매출 실적 (억 원) | 매출 계획 (억 원) |\n|---|---|---|\n| 2024년 1분기 | 702 | 690 |\n| 2024년 2분기 | 731 | 720 |\n| 2024년 3분기 | 760 | 745 |\n| 2024년 4분기 | 802 | 790 |\n| 2025년 1분기 | 845 | 830 |\n| 2025년 2분기 | 921 | 900 |\n| 2025년 3분기 | 962 | 940 |\n| 2025년 4분기 | 1,015 | 990 |\n| 2026년 1분기 | 1,071 | 1,040 |\n| 2026년 2분기 | 1,120 | 1,090 |\n| 2026년 3분기 | 1,184 | 1,140 |\n> 분기별 매출 실적과 계획 (예시 데이터)\n:::\n\n- 매출은 열한 분기 연속 늘었다\n- 3분기 매출은 계획을 4% 넘었다", 8);
       const x = chartXml(crowded.pptx);
       assert.match(x, /<c:min val="0"\/>/u, "a value axis of positive data starts at zero");
       assert.doesNotMatch(x, /<c:showVal val="1"\/>/u, "paired values too wide for their bars are read off the axis");
@@ -2760,10 +3063,11 @@ im.save(sys.argv[1])
   it("R1: a section preview runs at most two lines an opened slide in a column within 70 % of the page, run-in labels bold with their colon", () => {
     const dir = work();
     try {
-      writeFileSync(join(dir, "s.md"), "---\ntonality: chalk\ntitle: 회귀 입문\nnotice: 예시 데이터 — 실제 수치로 바꿔 주세요\n---\n\n---\nlayout: text-column\n\n## 4강 학습 목표\n\n- 회귀가 답하는 질문을 정의한다\n---\n\n---\nlayout: section\n\n# 회귀가 답하는 질문\n---\n\n---\nlayout: text-column\n\n## 회귀 기울기의 뜻과 해석 예\n\n- 회귀는 x가 1 늘 때 y가 평균 얼마나 변하는지 묻는다\n- 기울기는 언제나 'y 단위 / x 단위'로 읽는다\n- 세 번째 줄은 미리보기에 나오지 않는다\n---\n\n---\nlayout: text-column\n\n## 예제: 공부 시간과 시험 점수, 학생 40명\n\n- **결과** 공부 시간이 1시간 긴 학생의 점수가 평균 4.2점 높다 (95% 구간 2.7-5.7)\n- **자료:** 학생 40명, 하루 공부 시간 0-6시간, 점수 100점 만점\n- **주의** 이 줄도 미리보기에 나오지 않는다\n---\n");
+      writeFileSync(join(dir, "s.md"), "---\ntonality: chalk\ntitle: 회귀 입문\nnotice: 예시 데이터 — 실제 수치로 바꿔 주세요\n---\n\n---\nlayout: text-column\n\n## 4강 학습 목표\n\n- 회귀가 답하는 질문을 정의한다\n---\n\n---\nlayout: section\n\n# 회귀가 답하는 질문\n---\n\n---\nlayout: text-column\n\n## 회귀 기울기의 뜻과 해석 예\n\n- **자료:** 학생 40명, 하루 공부 시간 0-6시간, 점수 100점 만점\n- 회귀는 x가 1 늘 때 y가 평균 얼마나 변하는지 묻는다\n- 세 번째 줄은 미리보기에 나오지 않는다\n---\n\n---\nlayout: text-column\n\n## 예제: 공부 시간과 시험 점수, 학생 40명\n\n- **결과** 공부 시간이 1시간 긴 학생의 점수가 평균 4.2점 높다 (95% 구간 2.7-5.7)\n- 기울기는 언제나 'y 단위 / x 단위'로 읽는다\n- **주의** 이 줄도 미리보기에 나오지 않는다\n---\n");
       const d = displayDeck(dir, "chalk", join(dir, "s.md"), "s");
       const page = d.shapes[1].filter((s) => s.text && !s.name.startsWith("lit-notice") && !s.name.startsWith("title@"));
-      const previews = page.filter((s) => /회귀는|결과|기울기는/u.test(s.text));
+      // The support zone holds each opened slide's first line, or its first two when they fit there.
+      const previews = page.filter((s) => /자료|회귀는|결과|기울기는/u.test(s.text));
       assert.ok(previews.length >= 2, JSON.stringify(page.map((s) => s.text)));
       for (const s of previews) {
         assert.ok(s.w <= 0.7 * 960 + 0.5, `preview ${Math.round(s.w)} pt wide, over 70 % of the page`);
@@ -2791,81 +3095,32 @@ process.stdout.write(String(r.loadTonality("night").pack.tok.sizes.body));`], { 
     }
   });
 
-  it("R2a: a bottom title ends on the body floor whatever its line count, and the gate fails one that floats above it (OF-115)", () => {
+  // Round 2 of the lane (fixed zones): the bottom title on the floor and the side rail beside the body
+  // are retired as places; bottom-anchor and side-rail are styles on the one title zone.
+  it("R2a/R2b: a bottom-anchor and a side-rail title are styles on the shared title zone, and the gate fails a title moved off it (OF-113)", () => {
     const dir = work();
     try {
       const chart = "::: chart type=column unit=\"천 건\"\n| 월 | 전체 주문 (천 건) | 재주문 (천 건) |\n|---|---|---|\n| 4월 | 6.2 | 1.9 |\n| 5월 | 7.9 | 2.9 |\n| 6월 | 9.4 | 3.9 |\n| 7월 | 11.8 | 5.4 |\n> 월별 전체 주문과 재주문 (예시 데이터)\n:::\n\n- 월 주문은 4월 6,200건에서 7월 1만 1,800건으로 늘었다\n- 광고비를 늘리지 않은 6-7월에도 증가세가 이어졌다\n- 출처: 예시 내부 주문 기록";
-      writeFileSync(join(dir, "b.md"), `---\ntonality: paper\ntitle: 주문\nnotice: 예시 데이터 — 실제 수치로 바꿔 주세요\n---\n\n---\nlayout: chart-insight\ntitle: bottom-anchor\n\n## 월별 전체 주문과 재주문 추이\n\n${chart}\n---\n\n---\nlayout: chart-insight\ntitle: bottom-anchor\n\n## 수도권 세 지역의 월별 전체 주문과 재주문 추이, 2026년 4월부터 7월까지 넉 달\n\n${chart}\n---\n`);
+      writeFileSync(join(dir, "b.md"), `---\ntonality: paper\ntitle: 주문\nnotice: 예시 데이터 — 실제 수치로 바꿔 주세요\n---\n\n---\nlayout: chart-insight\ntitle: bottom-anchor\n\n## 월별 전체 주문과 재주문 추이\n\n${chart}\n---\n\n---\nlayout: chart-insight\ntitle: side-rail\n\n## 수도권 세 지역의 월별 전체 주문과 재주문 추이, 2026년 4월부터 7월까지 넉 달\n\n${chart}\n---\n\n---\nlayout: chart-insight\ntitle: top-rule\n\n## 월별 재주문 비중 추이\n\n${chart}\n---\n`);
       const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "b.md"), "--pptx", join(dir, "b.pptx")], { cwd: dir, encoding: "utf8" });
       assert.equal(built.status, 0, built.stderr + built.stdout);
       const slides = shapesOf(join(dir, "b.pptx")).slides;
-      const titles = slides.map((s) => s.find((x) => x.name === "title@bottom-anchor"));
+      const titles = ["bottom-anchor", "side-rail", "top-rule"].map((t, i) => slides[i].find((x) => x.name === `title@${t}`));
       assert.ok(titles.every(Boolean), JSON.stringify(slides.map((s) => s.map((x) => x.name))));
-      assert.equal(lines(titles[0].text).length, 1);
-      assert.equal(lines(titles[1].text).length, 2);
-      for (const t of titles) {
-        const textBottom = t.y + lines(t.text).length * 26 * 1.15;
-        assert.ok(textBottom >= 486 - 12 && t.y + t.h <= 487, `title text ends at ${textBottom.toFixed(0)}, frame ${t.y.toFixed(0)}+${t.h.toFixed(0)}`);
-      }
-      // A chart beside its takeaways grows into the room a one-line title used to leave under itself.
-      const besides = slides.filter((s) => { const c = s.find((x) => x.chart); return s.some((x) => x.text && x.x >= c.x + c.w); });
-      assert.ok(besides.length >= 1);
-      for (const s of besides) {
-        const c = s.find((x) => x.chart);
-        const t = s.find((x) => x.name === "title@bottom-anchor");
-        assert.ok(c.y + c.h >= t.y - 60, `chart ends at ${(c.y + c.h).toFixed(0)}, title at ${t.y.toFixed(0)}`);
+      for (const t of titles) assert.deepEqual([t.x, t.y, t.w, t.h].map(Math.round), [24, 36, 756, 72], t.name);
+      // Bottom-anchor closes the title zone with a heavy rule across the body; side-rail sets a bar in the left margin.
+      assert.ok(slides[0].some((x) => x.fill && Math.round(x.y) === 110 && x.h >= 2 && x.h <= 4 && x.w >= 0.9 * 912), JSON.stringify(slides[0].map((x) => [x.name, x.x, x.y, x.w, x.h])));
+      assert.ok(slides[1].some((x) => x.fill && x.x <= 1 && x.w <= 14 && x.y <= 36 && x.y + x.h >= 108), JSON.stringify(slides[1].map((x) => [x.name, x.x, x.y, x.w, x.h])));
+      // Under every style the body starts on the body zone, never beside or over the title.
+      for (const s of slides) {
+        const ink = s.filter((x) => (x.text || x.chart) && !x.name.startsWith("title@") && !x.name.startsWith("lit-notice"));
+        assert.ok(Math.min(...ink.map((x) => x.y)) >= 120 - 0.5, JSON.stringify(ink.map((x) => [x.name, x.y])));
       }
       const gate = gateJson(dir, join(dir, "b.pptx"));
-      assert.deepEqual(floorFindings(gate, "OF-115"), []);
-      assert.deepEqual(floorFindings(gate, "OF-113"), [], "a bottom title is anchored by its bottom edge");
-      // The old geometry: the title and what stands on its line 54 pt higher, leaving the floor empty under it.
-      plant(join(dir, "b.pptx"), join(dir, "up.pptx"), "for s in p.slides[0].shapes:\n    if s.top >= Pt(380) and not s.name.startswith('lit-notice'):\n        s.top = s.top - Pt(54)");
-      const up = gateJson(dir, join(dir, "up.pptx"));
-      assert.ok(floorFindings(up, "OF-115").some((f) => f.slide === 1 && f.severity === "HIGH" && /bottom title/u.test(f.detail)), JSON.stringify(floorFindings(up, "OF-115")));
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("R2b: a side rail carries the criteria labels, the takeaways and the source under its title; the gate fails a rail left empty (OF-115)", () => {
-    const dir = work();
-    try {
-      const cmp = oneSlide(dir, "c", "ledger", "layout: comparison\ntitle: side-rail\n\n## 3분기 계획 대비 실적 비교\n\n:::: columns 1fr 1fr\n::: col\n- **계획**\n  (1) 매출: 1,140억 원, 전년 3분기 962억 원보다 18.5% 많은 목표\n  (2) 영업이익: 100억 원, 전년 3분기 84억 원보다 19% 많은 목표\n  (3) 영업이익률: 8.8%, 전년 3분기 8.7%와 비슷한 수준\n  (4) 영업현금흐름: 90억 원, 영업이익의 90%\n:::\n::: col\n- **실적**\n  (1) 매출: 1,184억 원으로 계획보다 44억 원(▲ +3.9%) 많았다\n  (2) 영업이익: 110억 원으로 계획보다 10억 원 많았다\n  (3) 영업이익률: 9.3%로 계획보다 0.5%p 높았다\n  (4) 영업현금흐름: 96억 원으로 계획보다 6억 원 많았다\n:::\n::::\n\n- 출처: 예시 기업 2026년 연간 사업 계획(1월 확정), 3분기 내부 결산 자료\n- 주: 전년 대비는 2025년 3분기 기준");
-      const title = cmp.shapes.find((s) => s.name === "title@side-rail");
-      assert.ok(title, JSON.stringify(cmp.shapes.map((s) => s.name)));
-      const titleBottom = title.y + lines(title.text).length * 26 * 1.15;
-      for (const label of ["매출", "영업이익", "영업이익률", "영업현금흐름"]) {
-        const s = cmp.shapes.find((x) => x.text === label);
-        assert.ok(s && s.x + s.w <= 336 + 0.5 && s.y >= titleBottom, `${label} in the rail under the title: ${JSON.stringify(s)}`);
-      }
-      const strip = cmp.shapes.find((s) => s.text.startsWith("출처:"));
-      assert.ok(strip && strip.x + strip.w <= 336 + 0.5 && strip.y + strip.h >= 440, `source at the rail's foot: ${JSON.stringify(strip)}`);
-      assert.ok(cmp.shapes.filter((s) => /계획보다/u.test(s.text)).every((s) => s.x >= 336 - 0.5), "the sides keep the body beside the rail");
-      const g1 = gateJson(dir, cmp.pptx);
-      assert.deepEqual([...floorFindings(g1, "OF-110"), ...floorFindings(g1, "OF-115")], [], "still read as a side rail, and the rail is used");
-      const chart = oneSlide(dir, "k", "ledger", "layout: chart-insight\ntitle: side-rail\n\n## 주차별 남은 작업량, 계획 대비 실적\n\n::: chart type=column unit=\"점\"\n| 주차 | 실적 (점) | 계획 (점) |\n|---|---|---|\n| 8월 3주 | 492 | 470 |\n| 8월 4주 | 450 | 425 |\n| 9월 1주 | 410 | 380 |\n| 9월 2주 | 371 | 335 |\n| 9월 3주 | 335 | 290 |\n| 9월 4주 | 296 | 245 |\n> 주차별 남은 작업량, 실적과 계획 (예시 데이터)\n:::\n\n- 9월 남은 작업량은 주당 평균 38점씩 줄었다 (410 → 296점)\n- 이 속도면 약 8주 뒤인 11월 셋째 주에 남은 작업이 0이 된다\n- 계획과의 차이는 8월 3주 22점에서 9월 4주 51점으로 커졌다\n- 계획 완료 시점(11월 첫째 주, 6주 뒤)에 맞추려면 주당 약 49점씩 줄여야 한다\n- 출처: 예시 프로젝트 작업 관리 도구 주간 집계");
-      const takeaways = chart.shapes.filter((s) => /주당 평균|8주 뒤|차이는|6주 뒤/u.test(s.text));
-      assert.equal(takeaways.length, 4, JSON.stringify(chart.shapes.map((s) => s.text.slice(0, 16))));
-      assert.ok(takeaways.every((s) => s.x + s.w <= 336 + 0.5), "the takeaways stand in the rail");
-      const plot = chart.shapes.find((s) => s.chart);
-      assert.ok(plot.x >= 336 - 0.5 && plot.w >= 500, `the chart takes the body beside the rail: ${JSON.stringify(plot)}`);
-      const g2 = gateJson(dir, chart.pptx);
-      assert.deepEqual([...floorFindings(g2, "OF-110"), ...floorFindings(g2, "OF-115")], []);
-      // A side rail pinned on a slide with nothing to put in it is reported.
-      const empty = oneSlide(dir, "e", "studio", "layout: text-column\ntitle: side-rail\n\n## 경첩 하나로 바꾸는 식탁\n\n- 2만 회 개폐 시험 통과 (예시)\n- 펼친 상태에서 자동으로 고정된다\n- 접으면 깊이가 18cm로 줄어 벽에 붙는다\n- 세 칸 선반이 칸당 8kg까지 버틴다");
-      assert.ok(floorFindings(gateJson(dir, empty.pptx), "OF-115").some((f) => f.severity === "HIGH" && /rail/u.test(f.detail)));
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("R2b: a slide whose rail would stay empty takes another title unless the source pins the rail", () => {
-    const dir = work();
-    try {
-      // Chalk draws definitions under a side rail by default; a method with nothing for the rail takes a top title.
-      const { shapes } = oneSlide(dir, "m", "chalk", "layout: method\n\n## 단순 선형회귀식과 기호의 뜻\n\ny = β₀ + β₁x + ε\n\n- **y** 설명하려는 값 (예: 시험 점수)\n  (1) 예제: 100점 만점, 학생 40명 평균 67.8점\n- **x** 설명에 쓰는 값 (예: 공부 시간)\n  (1) 예제: 시험 전 1주일 하루 평균, 0-6시간\n- **β₁** 기울기, x가 1 늘 때 y의 평균 변화\n  (1) 예제 값 4.2점/시간, 95% 구간 2.7-5.7\n- **β₀** 절편, x가 0일 때 y의 평균\n  (1) 예제 값 51점");
-      const title = shapes.find((s) => s.name.startsWith("title@"));
-      assert.notEqual(title.name, "title@side-rail", "the rail would hold the title alone");
+      assert.deepEqual([...floorFindings(gate, "OF-110"), ...floorFindings(gate, "OF-113"), ...floorFindings(gate, "OF-115")], []);
+      // The old bottom geometry (the title moved down onto the floor) is a title off the shared zone.
+      plant(join(dir, "b.pptx"), join(dir, "down.pptx"), "t = next(x for x in p.slides[0].shapes if x.name.startswith('title@'))\nt.top = Pt(414)");
+      assert.ok(floorFindings(gateJson(dir, join(dir, "down.pptx")), "OF-113").some((f) => f.severity === "HIGH"), "a title moved off the zone is reported");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -2912,7 +3167,7 @@ process.stdout.write(String(r.loadTonality("night").pack.tok.sizes.body));`], { 
     }
   });
 
-  it("R2d: a title panel over a picture hugs its text on the page foot, and Atlas sets a quote on the whole-page field", () => {
+  it("R2d: a title panel over a picture runs down the title's columns, and Atlas sets a quote on the whole-page field", () => {
     const dir = work();
     try {
       mkdirSync(join(dir, "assets"), { recursive: true });
@@ -2922,20 +3177,22 @@ process.stdout.write(String(r.loadTonality("night").pack.tok.sizes.body));`], { 
       const title = d.shapes[0].find((s) => s.name === "title@cover");
       const panel = d.shapes[0].find((s) => s.fill && s.y <= title.y && s.y + s.h >= title.y + title.h && s.w < 960);
       assert.ok(panel, JSON.stringify(d.shapes[0].map((s) => [s.name, s.fill, s.x, s.y, s.w, s.h])));
-      assert.ok(panel.y + panel.h >= 539.5, `the panel bleeds off the foot: ${panel.y + panel.h}`);
-      assert.ok(title.y - panel.y <= 36, `the panel starts just above the title: panel ${panel.y}, title ${title.y}`);
+      // The title keeps the cover zone of every tonality; the panel is the page's height over the columns left of the side zone.
+      assert.deepEqual([title.x, title.y, title.w, title.h].map(Math.round), [24, 144, 678, 168]);
+      assert.ok(panel.y <= 0.5 && panel.y + panel.h >= 539.5, `the panel runs the page's height: ${panel.y}-${panel.y + panel.h}`);
+      assert.ok(panel.x <= 0.5 && panel.x + panel.w >= title.x + title.w, `the panel covers the title's columns: ${panel.x}+${panel.w}`);
       assert.ok(d.shapes[2].some(fullCanvas), "the quote stands on the whole-page field");
       const gate = gateJson(dir, d.pptx);
       assert.deepEqual(floorFindings(gate, "OF-115"), []);
-      // The old plate (the field under the lower half, nothing above it) is reported.
-      plant(d.pptx, join(dir, "plate.pptx"), "s = p.slides[2]\nf = next(x for x in s.shapes if x.left == 0 and x.top == 0 and x.width == p.slide_width)\nf.top = Pt(300)\nf.height = Pt(240)\nt = next(x for x in s.shapes if x.name.startswith('title@'))\nt.top = Pt(330)");
+      // A plate (the field under part of the page, its title in the display zone, nothing above it) is reported.
+      plant(d.pptx, join(dir, "plate.pptx"), "s = p.slides[2]\nf = next(x for x in s.shapes if x.left == 0 and x.top == 0 and x.width == p.slide_width)\nf.top = Pt(120)\nf.height = Pt(420)");
       assert.ok(floorFindings(gateJson(dir, join(dir, "plate.pptx")), "OF-115").some((f) => f.slide === 3 && /open page|plate/u.test(f.detail)));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("R3: two tonalities of one source never draw the same skeleton (OF-116 via --sibling)", () => {
+  it("R3: two tonalities of one source set every title and the body's corner in the same places (OF-116 via --sibling)", () => {
     const dir = work();
     try {
       mkdirSync(join(dir, "assets"), { recursive: true });
@@ -2947,10 +3204,12 @@ process.stdout.write(String(r.loadTonality("night").pack.tok.sizes.body));`], { 
       }
       const pair = gateJson(dir, join(dir, "paper.pptx"), ["--sibling", join(dir, "chalk.pptx")]);
       assert.deepEqual(floorFindings(pair, "OF-116"), [], JSON.stringify(floorFindings(pair, "OF-116")));
-      const same = gateJson(dir, join(dir, "paper.pptx"), ["--sibling", join(dir, "paper.pptx")]);
-      const hit = floorFindings(same, "OF-116");
-      assert.ok(hit.length === 1 && hit[0].severity === "HIGH" && /0 of \d+ content slides/u.test(hit[0].detail), JSON.stringify(hit));
-      assert.equal(same.pass, false);
+      // One tonality that moves a content title down by a line is reported against the other.
+      plant(join(dir, "paper.pptx"), join(dir, "moved.pptx"), "t = next(x for x in p.slides[1].shapes if x.name.startswith('title@'))\nt.top = t.top + Pt(30)");
+      const moved = gateJson(dir, join(dir, "moved.pptx"), ["--sibling", join(dir, "chalk.pptx")]);
+      const hit = floorFindings(moved, "OF-116");
+      assert.ok(hit.length === 1 && hit[0].severity === "HIGH" && /slide 2 title at/u.test(hit[0].detail), JSON.stringify(hit));
+      assert.equal(moved.pass, false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -3153,14 +3412,17 @@ for sh in s.shapes:
     }
   });
 
-  it("T1: a short sidebar note beside a long main column stands across the top and the main points run in two columns under it", () => {
+  it("T1: a short sidebar note beside a long main column stands across the top and the main points run under it to the floor", () => {
     const dir = work();
     try {
       const { pptx, shapes } = oneSlide(dir, "n", "chalk", "layout: sidebar-note\ntitle: top-rule\n\n## Four common calibration mistakes\n\n- **Reading outside the standards**\n  (1) A sample above 8 mg/L must be diluted and measured again\n  (2) The fit says nothing about linearity beyond the top standard\n- **Forcing the line through zero**\n  (1) A blank still gives a small signal, and dropping it biases low samples\n  (2) Here, forcing zero moves a 0.5 mg/L sample by about 2%\n- **Measuring standards in one rising run**\n  (1) Drift over the run then looks like a change in slope\n  (2) Randomise the order and rerun the blank at the end\n- **Skipping the residual check**\n  (1) A high r² can hide one bad standard; the practice run still had r² 0.99\n  (2) Read the residual table before you read the slope\n\n::: main-box\nReport the value, its interval and the standard range together\n:::");
       const note = shapes.find((s) => s.text.startsWith("Report the value"));
       const heads = shapes.filter((s) => /^(Reading outside|Forcing the line|Measuring standards|Skipping the residual)/u.test(s.text));
       assert.ok(note && heads.every((h) => h.y > note.y + note.h), "the note stands above the main points");
-      assert.ok(new Set(heads.map((h) => Math.round(h.x))).size === 2, `two columns: ${JSON.stringify(heads.map((h) => Math.round(h.x)))}`);
+      // One column or two, whichever the body zone fills: the points reach the floor either way.
+      const points = shapes.filter((s) => s.text && s.y > note.y + note.h && !s.name.startsWith("lit-notice"));
+      assert.ok(new Set(heads.map((h) => Math.round(h.x))).size <= 2, `at most two columns: ${JSON.stringify(heads.map((h) => Math.round(h.x)))}`);
+      assert.ok(Math.max(...points.map((s) => s.y + s.h)) >= 486 - 48, `the points reach the floor: ${JSON.stringify(points.map((s) => [s.y, s.h]))}`);
       assert.deepEqual(floorFindings(gateJson(dir, pptx), "OF-115"), []);
       // The note in a narrow column beside main points that stop short of three quarters of the body: the
       // gate still reads the band under the note against where the points end.
@@ -3204,32 +3466,21 @@ for sh in s.shapes:
       assert.notEqual(title.name, "title@kicker-numeral");
       assert.ok(!shapes.some((s) => s.text === "4" && s.y < 120), "no stray numeral beside the title");
       assert.ok(title.x <= 30, `the title starts at the margin: ${title.x}`);
-      plant(pptx, join(dir, "k.pptx"), "s = p.slides[0]\nt = [sh for sh in s.shapes if sh.name.startswith('title@')][0]\nt.left = Pt(180)\nt.name = 'title@kicker-numeral'\nb = s.shapes.add_textbox(Pt(24), Pt(36), Pt(120), Pt(72))\nb.text_frame.text = '4'\nb.text_frame.paragraphs[0].runs[0].font.size = Pt(60)");
+      plant(pptx, join(dir, "k.pptx"), "s = p.slides[0]\nt = [sh for sh in s.shapes if sh.name.startswith('title@')][0]\nt.name = 'title@kicker-numeral'\nb = s.shapes.add_textbox(Pt(804), Pt(36), Pt(132), Pt(72))\nb.text_frame.text = '4'\nb.text_frame.paragraphs[0].runs[0].font.size = Pt(60)");
       assert.ok(gateOn(dir, join(dir, "k.pptx"), 1).some((f) => f.check === "OF-119"), JSON.stringify(gateOn(dir, join(dir, "k.pptx"), 1).map((f) => f.check)));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("T5: two tonalities of one source differ on at least two content slides (OF-116 needs two), and a pack draws a comparison with its own structure", () => {
+  it("T5: placement parity tolerates a point of rounding and nothing more, for the title frame and the body's corner (OF-116)", () => {
     const dir = work();
     try {
-      mkdirSync(join(dir, "assets"), { recursive: true });
-      writeFileSync(join(dir, "assets", "sample-image-b.png"), png(800, 600, [200, 205, 212]));
-      copyFileSync(join(fixtures, "deck-lecture-ko.md"), join(dir, "lecture.md"));
-      for (const t of ["chalk", "paper"]) {
-        const built = spawnSync(process.execPath, [join(pptxRoot, "scripts", "compile-deck.js"), join(dir, "lecture.md"), "--tonality", t, "--pptx", join(dir, `${t}.pptx`)], { cwd: dir, encoding: "utf8" });
-        assert.equal(built.status, 0, built.stderr);
-      }
-      assert.deepEqual(floorFindings(gateJson(dir, join(dir, "chalk.pptx"), ["--sibling", join(dir, "paper.pptx")]), "OF-116"), []);
-      const cmp = (t) => shapesOf(join(dir, `${t}.pptx`)).slides.map((s) => s.find((x) => x.name.startsWith("title@"))?.name).filter(Boolean);
-      assert.ok(cmp("paper").length && cmp("chalk").length);
-      // One differing slide is not enough once a deck has four content slides.
       // craft_extras re-executes itself under the office runtime, so the probe runs as a file, not with -c.
-      writeFileSync(join(dir, "bar.py"), "import sys\nsys.path.insert(0, sys.argv[1])\nimport craft_extras as c\na = [('top', 'one')] * 6\nb = [('side', 'one')] + a[1:]\nseq = iter([a, b, a, [('side', 'one'), ('side', 'grid')] + a[2:]])\nc.skeleton = lambda prs: next(seq)\nc.Presentation = lambda path: None\nprint(len(c.compare_skeletons('x', 'y')), len(c.compare_skeletons('x', 'y')))\n");
+      writeFileSync(join(dir, "bar.py"), "import sys\nsys.path.insert(0, sys.argv[1])\nimport craft_extras as c\nslide = lambda n, title, body: {'n': n, 'title': title, 'body': body}\nbase = [slide(1, (24, 144, 678, 168), None), slide(2, (24, 36, 756, 72), (24, 120))]\nnear = [slide(1, (24.6, 144, 678, 168), None), slide(2, (24, 36.8, 756, 72), (24.5, 120.9))]\ntitle = [base[0], slide(2, (24, 60, 756, 72), (24, 120))]\nbody = [base[0], slide(2, (24, 36, 756, 72), (336, 120))]\nseq = iter([base, near, base, title, base, body])\nc.placement = lambda prs: next(seq)\nc.Presentation = lambda path: None\nprint(*[len(c.compare_placement('x', 'y')) for _ in range(3)])\n");
       const bar = spawnSync(runtimePython, ["-B", join(dir, "bar.py"), join(pptxRoot, "scripts")], { encoding: "utf8" });
       assert.equal(bar.status, 0, bar.stderr);
-      assert.equal(bar.stdout.trim(), "1 0", "one differing slide of six fails, two pass");
+      assert.equal(bar.stdout.trim(), "0 1 1", "within a point passes; a moved title or a body beside a rail fails");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

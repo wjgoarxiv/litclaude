@@ -6,7 +6,10 @@
 // when LIT work completes or a long LIT turn ends. It is read-only: it reads LitClaude's own state
 // files and the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and
 // the host's live figures, and never writes, spawns, fetches or calls a model. Of a tool call it
-// keeps the tool's name and start time, never its arguments.
+// keeps the tool's name and start time, never its arguments, with three exceptions that keep counts
+// and names only: the statuses of a TodoWrite or a task-list call (each loop's k/n on the card), and
+// the task id and description a background Bash or Monitor call answers (a thread row until its
+// notification, which is read for the task's id and status alone).
 // Claude Code releases before mods ignore the `modules` key and keep running the settings hooks.
 //
 // The mods loader only follows `$` into functions declared at the top of this file, so each helper
@@ -15,7 +18,7 @@
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
-import { accentFromSettings, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
+import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
@@ -23,13 +26,19 @@ import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot } from "
 import { settledSample } from "../lib/mod/timeline.mjs";
 import {
   EMPTY_ACTIVITY,
+  EMPTY_LISTS,
+  EMPTY_TASKS,
   buildBandModel,
   buildEvidenceModel,
   detectCompletion,
   diffNotices,
+  endBackgroundTask,
+  endedTaskIds,
   formatDuration,
   mergeSpawned,
   noteAgentActivity,
+  noteBackgroundTask,
+  noteLoopCall,
   noteSpawn,
   noteSpawnActivity,
   noteSpawnEnded,
@@ -86,6 +95,8 @@ const createLive = (options) => ({
   mainToolCalls: 0,
   turnStartedAt: null,
   turnNotified: false,
+  lists: EMPTY_LISTS,
+  tasks: EMPTY_TASKS,
 });
 
 const stateIo = ($) => ({
@@ -148,6 +159,10 @@ async function rebuild($, live) {
     lastDiscipline: live.lastDiscipline,
     git: live.git,
     step: live.step,
+    lists: live.lists,
+    tasks: live.tasks,
+    // The thread rows stay reserved while threads are live, so the card does not shrink between repaints.
+    threadReserve: previous?.threads?.reserve ?? 0,
   });
   live.model = next;
   // The status is compared from the first snapshot on, so what was already there is not announced.
@@ -216,6 +231,23 @@ function noteIgnition(live, ignition, now) {
   if (id) live.fired = noteSkill(live.fired, id, ignition.at ?? now);
 }
 
+// What a finished call says of the thread rows: its loop's list counts, a background task it
+// started, or one it stopped. A refused or failed call starts nothing.
+function noteToolOutcome(live, e, outcome, now) {
+  if (!outcome || outcome.deny !== undefined) return;
+  const output = outcome.isError ? null : outcome.result;
+  live.lists = noteLoopCall(live.lists, typeof e.agentId === "string" ? e.agentId : "main", e, output);
+  if (!output || typeof output !== "object") return;
+  if (e.tool === "Bash" && typeof output.backgroundTaskId === "string") {
+    live.tasks = noteBackgroundTask(live.tasks, { id: output.backgroundTaskId, kind: "shell", name: e.description, at: now });
+  } else if (e.tool === "Monitor" && typeof output.taskId === "string") {
+    const timeout = Number.isFinite(output.timeoutMs) && output.timeoutMs > 0 ? output.timeoutMs : null;
+    live.tasks = noteBackgroundTask(live.tasks, { id: output.taskId, kind: "monitor", name: e.description, at: now, until: output.persistent || timeout === null ? null : now + timeout + 5000 });
+  } else if (e.tool === "TaskStop") {
+    live.tasks = endBackgroundTask(live.tasks, output.task_id ?? e.task_id ?? e.shell_id);
+  }
+}
+
 async function refresh($, live, options) {
   if (live.refreshing) return;
   live.refreshing = true;
@@ -275,7 +307,10 @@ export const register = (on, options) => {
       LOCALAPPDATA: await $.env.get("LOCALAPPDATA"),
     });
     live.settledAt = await $.clock.now();
-    live.accent = accentFromSettings(await $.settings.read().catch(() => null), await $.env.get("LITCLAUDE_HUD_ACCENT"));
+    const hostSettings = await $.settings.read().catch(() => null);
+    live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
+    live.reducedMotion = hostSettings?.prefersReducedMotion === true;
+    live.motion = effectiveMotion(live.motion, hostSettings);
     await $.command.register({ name: PANE, description: "Show LitClaude goal criteria, evidence, lanes and gates in a pane" });
     await refresh($, live, options);
     $.clock.every(POLL_MS, () => {
@@ -346,8 +381,18 @@ export const register = (on, options) => {
         live.spawned = noteSpawnActivity(live.spawned, e.agentId, now, -1);
       }
     }
+    noteToolOutcome(live, e, result, await $.clock.now());
     refreshSoon($, live, options);
     return result;
+  }).catch(($, e, next) => next(e));
+
+  // A background task's notification ends its thread row: its text is read for ids alone.
+  on("prompt.submit", async ($, e, next) => {
+    if (e.origin?.kind === "task-notification") {
+      for (const id of endedTaskIds(e.text)) live.tasks = endBackgroundTask(live.tasks, id);
+      refreshSoon($, live, options);
+    }
+    return next(e);
   }).catch(($, e, next) => next(e));
 
   // A model request on the main loop: the step reads "thinking" until a tool call names itself.
@@ -392,6 +437,7 @@ export const register = (on, options) => {
 
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const settings = normalizeModSettings(options);
+    const motion = effectiveMotion(settings.motion, { prefersReducedMotion: live.reducedMotion });
     const glyphs = resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present);
     const model = live.model;
     if (!model || settings.band === "off" || e.props.hasSurvey || (!model.visible && !live.exiting)) return next(e);
@@ -403,11 +449,11 @@ export const register = (on, options) => {
       // A desktop or editor draws Text in a proportional font, so the cell-built card comes apart
       // there; those surfaces get the card as one drawing instead.
       if (model.visible) {
-        const { source, alt, animated } = composeSvgCard(model, { motion: settings.motion, accent: live.accent });
+        const { source, alt, animated } = composeSvgCard(model, { motion, accent: live.accent });
         drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
       }
     } else if (elements.Client && !live.clientFailed) {
-      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion: settings.motion, accent: live.accent } });
+      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent } });
     } else if (model.visible) {
       drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent }));
     }

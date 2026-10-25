@@ -24,6 +24,10 @@ export const normalizeModSettings = (options) => ({
   notify: pick(options?.notify, MOD_CHOICES.notify),
 });
 
+// Claude Code's own `prefersReducedMotion` setting (/config "Reduce motion") turns the band's motion
+// off, whatever the plugin's `motion` option says; unset or false leaves that option in charge.
+export const effectiveMotion = (motion, hostSettings) => (hostSettings?.prefersReducedMotion === true ? "off" : motion);
+
 // The glyph set one surface draws. Private-use Nerd Font glyphs only reach the terminal, which
 // draws with the person's own fonts; `auto` uses them there when the icon font is installed. The
 // desktop app and the other surfaces always get the basic set.

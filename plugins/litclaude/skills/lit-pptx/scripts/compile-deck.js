@@ -148,7 +148,7 @@ async function resolveAndRender(ast, templateName, outputs, options = {}) {
   const meta = (ast.deck && ast.deck.metadata) || {};
   const tonality = options.tonality || meta.tonality || null;
   const templateObj = tonality
-    ? templateRegistry.loadTonality(tonality, { density: meta.density, variance: meta.variance, canvas: meta.canvas, faces: options.faces || meta.faces })
+    ? templateRegistry.loadTonality(tonality, { density: meta.density, variance: meta.variance, canvas: meta.canvas, faces: options.faces || meta.faces, hero: meta.hero, decoration: meta.decoration })
     : templateRegistry.loadTemplate(templateName);
   if (tonality) {
     const d = templateObj.pack.dials;

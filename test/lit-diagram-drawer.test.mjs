@@ -170,6 +170,37 @@ describe("lit-diagram-drawer verifiers on packaged content", () => {
   });
 });
 
+describe("lit-diagram-drawer maximal default", () => {
+  const skill = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
+  const style = readFileSync(join(skillRoot, "references", "style-guide.md"), "utf8");
+  const guide = readFileSync(join(skillRoot, "references", "verifier-guide.md"), "utf8");
+
+  it("defaults to a dense, layered diagram and keeps minimal for an explicit request", () => {
+    for (const text of [skill, style]) {
+      assert.match(text, /density (?:near|around) 8/iu);
+      assert.doesNotMatch(text, /density (?:near|around) 4/iu);
+      assert.match(text, /minimal[^.]*only when the (?:user|request) asks/iu);
+    }
+    assert.doesNotMatch(style, /roughly 9 nodes and 12 connectors/u);
+    assert.doesNotMatch(style, /Delete repeated, implied, decorative/u);
+    assert.doesNotMatch(style, /Use empty space to establish groups/u);
+    assert.doesNotMatch(skill, /at most two focal accents/u);
+  });
+
+  it("documents a three-to-five family palette in both themes, matched by the gate", () => {
+    for (let i = 2; i <= 5; i++) assert.match(style, new RegExp(`\\| accent-${i} \\| #[0-9A-F]{6} \\| #[0-9A-F]{6} \\|`, "u"), `accent-${i}`);
+    assert.match(skill, /3[–-]5 accent families/u);
+    assert.match(guide, /six or more saturated hue families/u);
+  });
+
+  it("lifts the nine-node overview cap from the structural type guides", () => {
+    for (const type of ["architecture", "dependency", "tree", "wardley"]) {
+      const text = readFileSync(join(skillRoot, "references", `type-${type}.md`), "utf8");
+      assert.doesNotMatch(text, /(?:within|up to|at most) (?:9|nine) (?:nodes|components|package)/iu, type);
+    }
+  });
+});
+
 describe("lit-diagram-drawer visible-text check", () => {
   const svg = (label) => `<main data-type="flowchart" data-variant="light"><svg viewBox="0 0 400 200" role="img" aria-labelledby="t d"><title id="t">Flow</title><desc id="d">Two steps</desc><rect width="400" height="200" fill="#ffffff"/><text x="200" y="100" text-anchor="middle" font-size="16" fill="#202a33">${label}</text></svg></main>`;
 
@@ -231,13 +262,14 @@ describe("lit-diagram-drawer visual-quality rules", () => {
     assert.equal(has(issues(svg("", node("A", 40) + node("B", 300))), "CLUSTER_GAP_RATIO"), false, "a flat diagram has no groups to compare");
   });
 
-  it("craft floor: node fills keep to one or two accent families (OF-202)", () => {
-    const filled = (fills) => fills.map((fill, index) => `<rect x="${40 + index * 200}" y="200" width="150" height="80" fill="${fill}" data-node-id="N${index}"/>`).join("");
-    const four = visualQuality(svg("", filled(["#d62828", "#2a9d8f", "#7b2cbf", "#f4a261"])));
-    assert.ok(has(four.issues, "ACCENT_COUNT"));
+  it("craft floor: node fills carry a layered palette of up to five accent families (OF-202)", () => {
+    const filled = (fills) => fills.map((fill, index) => `<rect x="${40 + index * 160}" y="200" width="140" height="80" fill="${fill}" data-node-id="N${index}"/>`).join("");
+    const five = visualQuality(svg("", filled(["#d62828", "#2a9d8f", "#7b2cbf", "#f4a261", "#3a6ea5"])));
+    assert.equal(has([...five.issues, ...five.advisories], "ACCENT_COUNT"), false, "three to five families is the default palette");
     const three = visualQuality(svg("", filled(["#d62828", "#2a9d8f", "#7b2cbf"])));
-    assert.equal(has(three.issues, "ACCENT_COUNT"), false);
-    assert.ok(has(three.advisories, "ACCENT_COUNT"), "three families is an advisory");
+    assert.equal(has([...three.issues, ...three.advisories], "ACCENT_COUNT"), false);
+    const six = visualQuality(svg("", filled(["#d62828", "#2a9d8f", "#7b2cbf", "#f4a261", "#3a6ea5", "#8ab17d"])));
+    assert.ok(has(six.issues, "ACCENT_COUNT"), "six families stop reading as roles");
     const two = visualQuality(svg("", filled(["#1f6f4a", "#d62828", "#f4f4f2", "#ffffff"])));
     assert.equal(has([...two.issues, ...two.advisories], "ACCENT_COUNT"), false, "neutrals are not accents");
   });

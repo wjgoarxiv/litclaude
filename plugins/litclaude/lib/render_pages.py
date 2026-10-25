@@ -2,7 +2,9 @@
 """Render a .pptx, .docx or .pdf to PNG pages so a person (or the model) can look at it.
 
 LibreOffice (soffice) converts Office files to PDF in a private profile directory,
-so parallel runs never share a lock; PyMuPDF rasterises the PDF pages. A PDF input
+so parallel runs never share a lock; PyMuPDF rasterises the PDF pages. Fonts a .pptx
+embeds as plain font files are placed in that profile's font folder first, so the pages
+show the faces PowerPoint shows even where the font is not installed. A PDF input
 skips the conversion. Without soffice an Office file cannot be rendered: the script
 prints SKIP with the reason and exits 0, and the caller must say that the visual
 pass did not happen.
@@ -21,7 +23,32 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
+
+
+def profile_fonts(source: Path, profile: Path) -> list[Path]:
+    """Copy the plain font files a .pptx embeds (ppt/fonts/*.fntdata) into the profile's font folder."""
+    if source.suffix.lower() != ".pptx":
+        return []
+    placed = []
+    try:
+        with zipfile.ZipFile(source) as z:
+            for name in z.namelist():
+                if not (name.startswith("ppt/fonts/") and name.endswith(".fntdata")):
+                    continue
+                data = z.read(name)
+                # Only a TrueType or OpenType file; an obfuscated or EOT part is left to the renderer.
+                kind = ".otf" if data[:4] == b"OTTO" else ".ttf" if data[:4] in (b"\x00\x01\x00\x00", b"true") else None
+                if not kind:
+                    continue
+                target = profile / "user" / "fonts" / (Path(name).stem + kind)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                placed.append(target)
+    except zipfile.BadZipFile:
+        return []
+    return placed
 
 
 def to_pdf(source: Path, out_dir: Path) -> tuple[Path | None, str]:
@@ -31,6 +58,7 @@ def to_pdf(source: Path, out_dir: Path) -> tuple[Path | None, str]:
     if not soffice:
         return None, "LibreOffice (soffice) is not on PATH"
     with tempfile.TemporaryDirectory(prefix="litclaude-soffice-") as profile:
+        profile_fonts(source, Path(profile))
         result = subprocess.run(
             [
                 soffice,

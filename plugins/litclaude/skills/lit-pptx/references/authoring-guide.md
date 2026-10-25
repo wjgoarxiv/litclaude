@@ -9,7 +9,7 @@ the user named. Choose it with the direction step (`direction-step.md`) before w
 put it in the frontmatter so the source carries its own look:
 
 ```bash
-node "$SKILL_ROOT/scripts/compile-deck.js" --list-tonalities              # eight tonalities and the legacy templates
+node "$SKILL_ROOT/scripts/compile-deck.js" --list-tonalities              # thirteen tonalities and the legacy templates
 node "$SKILL_ROOT/scripts/compile-deck.js" --list-layouts <tonality>      # families, the titles each allows, variants
 node "$SKILL_ROOT/scripts/compile-deck.js" --list-templates               # legacy and learned templates
 ```
@@ -22,7 +22,7 @@ node "$SKILL_ROOT/scripts/compile-deck.js" --list-templates               # lega
 | `chalk` | teaching: numbered steps, worked examples, marked terms |
 | `paper` | ink on white, figures and booktabs tables, citations |
 | `gazette` | Korean briefing pages: header band, boxed summary, 개조식 evidence |
-| `studio` | editorial grid, asymmetric splits, side titles, large real numerals |
+| `studio` | editorial grid, asymmetric splits, margin-bar titles, large real numerals |
 | `night` | dark ground for data and technical keynotes |
 
 Legacy templates (`AZURE-PRO`, `AZURE-A2Z`, `BOILERPLATE-PRETENDARD`, `BOILERPLATE-A2Z`, or one

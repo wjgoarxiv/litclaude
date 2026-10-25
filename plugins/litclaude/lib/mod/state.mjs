@@ -12,6 +12,7 @@
 // while boulder.json is found the way `lifecycleRootFor` in bin/litclaude-hook.js finds it, walking up
 // from the working directory and across a linked Git worktree to its main checkout.
 
+import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { parseStageRecord } from "./workflow.mjs";
 
 export const STATE_CAPS = Object.freeze({
@@ -85,7 +86,19 @@ export const resolveStateRoot = async (io, cwd) => {
   return normalizePath(cwd);
 };
 
-export const resolveLifecycleRoot = async (io, cwd, stateRoot) => {
+// The main checkout's run reaches a linked worktree only when the run's worktree covers cwd or the
+// session is one of the run's; a sibling worktree reads its own state (the hook's rule, mirrored).
+const governsLinkedCwd = async (io, mainRoot, cwd, sessionId) => {
+  const state = await readGuardedJson(io, mainRoot, joinPath(".litclaude", "boulder.json"), STATE_CAPS.boulder);
+  const work = state?.active_work_id ? state.works?.[state.active_work_id] : null;
+  if (!work || !["active", "paused"].includes(work.status)) return true;
+  if (typeof sessionId === "string" && Array.isArray(work.session_ids) && work.session_ids.includes(sessionId)) return true;
+  const scope = splitPath(normalizePath(String(work.effective_worktree_root ?? work.worktree_path ?? mainRoot)).normalize("NFC"));
+  const here = splitPath(normalizePath((await statOf(io, cwd))?.realPath ?? cwd).normalize("NFC"));
+  return scope.every((part, index) => here[index] === part);
+};
+
+export const resolveLifecycleRoot = async (io, cwd, stateRoot, sessionId = null) => {
   for (const directory of ancestors(cwd)) {
     if (await statOf(io, joinPath(directory, ".litclaude", "boulder.json"))) return directory;
     const marker = joinPath(directory, ".git");
@@ -102,7 +115,7 @@ export const resolveLifecycleRoot = async (io, cwd, stateRoot) => {
         const worktreesDir = parentOf(resolvePath(directory, match[1]));
         if (splitPath(worktreesDir).at(-1) === "worktrees") {
           const mainRoot = parentOf(parentOf(worktreesDir));
-          if (await statOf(io, joinPath(mainRoot, ".litclaude", "boulder.json"))) return mainRoot;
+          if (await statOf(io, joinPath(mainRoot, ".litclaude", "boulder.json")) && await governsLinkedCwd(io, mainRoot, cwd, sessionId)) return mainRoot;
         }
       }
     }
@@ -336,14 +349,85 @@ export const summarizeResearchFiles = (entries, slug) => {
   };
 };
 
+const FRAME_SKILL = /^[a-z][a-z0-9-]{0,40}$/u;
+// The plan a frame works from, as lib/workflow-stack.mjs keeps it: a project-relative `plans/<name>.md`.
+const FRAME_PLAN = /^plans\/[A-Za-z0-9_-][A-Za-z0-9._-]*\.md$/u;
+
+/**
+ * The session's workflow stack (lib/workflow-stack.mjs) as the card trusts it: at most three frames,
+ * each with its skill, role, status and stage record, and the frame whose map the card draws, which
+ * is the nearest paused spine while a side frame is on top and the top frame otherwise. The owner's
+ * record carries the top frame's time, so a side frame keeps the paused map fresh.
+ */
+export const parseWorkflowStack = (stack, sessionId) => {
+  if (!stack || typeof stack !== "object" || !Array.isArray(stack.frames) || !stack.frames.length || stack.frames.length > 3) return null;
+  const frames = stack.frames.map((frame) => ({
+    skill: typeof frame?.skill === "string" && FRAME_SKILL.test(frame.skill) ? frame.skill : null,
+    role: frame?.role === "side" ? "side" : "spine",
+    status: frame?.status === "paused" ? "paused" : "active",
+    record: parseStageRecord({ ...frame, sessionId: undefined }, sessionId),
+    at: typeof frame?.at === "string" ? Date.parse(frame.at) : Number.NaN,
+    planRef: typeof frame?.ref?.plan === "string" && FRAME_PLAN.test(frame.ref.plan) && !frame.ref.plan.includes("..") ? frame.ref.plan : null,
+    plan: null,
+  }));
+  const top = frames.at(-1);
+  const owner = top.role === "side" ? frames.findLast(({ role }) => role === "spine") ?? top : top;
+  const record = owner.record && Number.isFinite(top.at) ? { ...owner.record, at: Math.max(owner.record.at, top.at), stacked: true } : null;
+  return { frames, owner: frames.indexOf(owner), record };
+};
+
+/** A plan's `{ done, total }` by the start-work checkbox grammar, or null when it has no task rows. */
+export const countPlanTasks = (text) => {
+  const rows = parsePlanTaskRows(String(text ?? ""));
+  return rows.length ? { done: rows.filter(({ checked }) => checked).length, total: rows.length } : null;
+};
+
+// Each frame that names a plan gets that plan's checkbox counts, read once per plan under the cap.
+const withPlanCounts = async (io, stateRoot, frames) => {
+  const refs = [...new Set(frames.map(({ planRef }) => planRef).filter(Boolean))];
+  const counts = new Map(await Promise.all(refs.map(async (ref) => [ref, countPlanTasks(await readGuarded(io, stateRoot, ref, STATE_CAPS.goals))])));
+  for (const frame of frames) frame.plan = frame.planRef ? counts.get(frame.planRef) ?? null : null;
+  return frames;
+};
+
+const OTHER_STACKS = 6;
+
+// The stacks other sessions of this project keep beside this one's, newest first and at most
+// OTHER_STACKS: `{ id8, at, frames }` each, `at` being the file's mtime. Links, this session's own
+// file and the unknown-session file are skipped; whether one is still live is the view's call.
+const readOtherStacks = async (io, stateRoot, sessionId) => {
+  const own = new Set([ignitionFileName(sessionId), ignitionFileName(null)]);
+  const files = (await listOf(io, joinPath(stateRoot, ".litclaude", "workflow-stack")))
+    .filter((entry) => entry?.kind === "file" && !entry.isLink && /^[A-Za-z0-9._-]+\.json$/u.test(entry.name) && !own.has(entry.name))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .slice(0, OTHER_STACKS);
+  const read = await Promise.all(files.map(async (entry) => {
+    const raw = await readGuardedJson(io, stateRoot, joinPath(".litclaude", "workflow-stack", entry.name), STATE_CAPS.small);
+    const id = typeof raw?.sessionId === "string" ? raw.sessionId : null;
+    const parsed = id ? parseWorkflowStack(raw, id) : null;
+    if (parsed) await withPlanCounts(io, stateRoot, parsed.frames.slice(-1));
+    return parsed ? { id8: id.replace(/[^A-Za-z0-9]/gu, "").slice(0, 8), at: entry.mtimeMs, frames: parsed.frames } : null;
+  }));
+  return read.filter(Boolean);
+};
+
 const readWorkflowSources = async (io, stateRoot, sessionId) => {
   const dir = (name) => joinPath(stateRoot, ".litclaude", name);
-  const [interviews, drafts, researches, record] = await Promise.all([
+  const [interviews, drafts, researches, ownStack, unknownStack] = await Promise.all([
     listOf(io, dir("deep-interview")),
     listOf(io, dir("drafts")),
     listOf(io, dir("litresearch")),
-    readGuardedJson(io, stateRoot, ".litclaude/workflow-stage.json", STATE_CAPS.small),
+    readGuardedJson(io, stateRoot, joinPath(".litclaude", "workflow-stack", ignitionFileName(sessionId)), STATE_CAPS.small),
+    readGuardedJson(io, stateRoot, joinPath(".litclaude", "workflow-stack", ignitionFileName(null)), STATE_CAPS.small),
   ]);
+  const stack = parseWorkflowStack(ownStack, sessionId) ?? parseWorkflowStack(unknownStack, sessionId);
+  if (stack) {
+    await withPlanCounts(io, stateRoot, stack.frames);
+    if (stack.record) stack.record.plan = stack.frames[stack.owner].plan;
+  }
+  const others = await readOtherStacks(io, stateRoot, sessionId);
+  // A record written before the stack existed, read only while this session has no stack.
+  const legacy = stack ? null : await readGuardedJson(io, stateRoot, ".litclaude/workflow-stage.json", STATE_CAPS.small);
   const interviewFile = newestFile(interviews, /^[A-Za-z0-9._-]+-state\.json$/u);
   const draftFile = newestFile(drafts, /^[A-Za-z0-9._-]+\.md$/u);
   let research = null;
@@ -358,7 +442,9 @@ const readWorkflowSources = async (io, stateRoot, sessionId) => {
     draftFile ? readGuarded(io, stateRoot, `.litclaude/drafts/${draftFile.name}`, STATE_CAPS.goals) : null,
   ]);
   return {
-    record: parseStageRecord(record, sessionId),
+    record: stack?.record ?? parseStageRecord(legacy, sessionId),
+    stack,
+    others,
     interview: interview ? parseInterviewState(interview, interviewFile.mtimeMs) : null,
     draft: draft === null ? null : parseDraftStatus(draft, draftFile.name.replace(/\.md$/u, ""), draftFile.mtimeMs),
     research,
@@ -367,7 +453,7 @@ const readWorkflowSources = async (io, stateRoot, sessionId) => {
 
 export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
   const stateRoot = await resolveStateRoot(io, cwd);
-  const lifecycleRoot = await resolveLifecycleRoot(io, cwd, stateRoot);
+  const lifecycleRoot = await resolveLifecycleRoot(io, cwd, stateRoot, sessionId);
   const state = (relative, cap = STATE_CAPS.small) => readGuardedJson(io, stateRoot, joinPath(".litclaude", relative), cap);
   const handoffId = handoffSessionId(sessionId);
   const [ignition, boulder, goals, autoloop, litPlan, probe, motion, handoffSettings, handoffSession] = await Promise.all([
@@ -475,6 +561,13 @@ export const detectIconFont = async (io, env) => {
 
 // The litgoal ledger's newest entries for the evidence pane, newest first. Lines that are not JSON
 // objects are skipped; the file is read only under its cap.
+// A workflow stack event's place: `lit-loop RED 1/4`.
+const stackDetail = (entry) => {
+  if (!String(entry.event ?? "").startsWith("workflow.") || typeof entry.skill !== "string") return null;
+  const count = Number.isInteger(entry.n) && Number.isInteger(entry.total) ? ` ${entry.n}/${entry.total}` : "";
+  return `${entry.skill}${typeof entry.stage === "string" ? ` ${entry.stage}${count}` : ""}`;
+};
+
 export const readLedgerTail = async (io, stateRoot, limit = 8) => {
   const text = await readGuarded(io, stateRoot, ".litclaude/litgoal/ledger.jsonl", STATE_CAPS.ledger);
   if (text === null) return [];
@@ -488,7 +581,7 @@ export const readLedgerTail = async (io, stateRoot, limit = 8) => {
       entries.push({
         event: str(entry.event, 60) ?? "event",
         at: time(entry.timestamp),
-        detail: str(entry.criterionId ?? entry.note ?? entry.objective ?? entry.status, 120) ?? "",
+        detail: str(entry.criterionId ?? entry.note ?? entry.objective ?? stackDetail(entry) ?? entry.status, 120) ?? "",
         status: str(entry.status, 40),
       });
     } catch {

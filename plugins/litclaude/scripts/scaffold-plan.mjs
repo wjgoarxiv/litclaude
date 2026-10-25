@@ -771,7 +771,7 @@ Your next move: <fill — e.g. approve, or ask for a high-accuracy review>. Full
   Commit: <Y/N> | <type>(<scope>): <summary>
 
 ## Final verification wave
-> Runs in parallel after ALL todos. ALL must APPROVE. Surface the results and wait for the user's explicit okay before declaring the work complete.
+> Runs in parallel after ALL todos. ALL must APPROVE. Surface the results, then complete the work; a commit and push still ask first.
 ${FINAL_VERIFICATION_ITEMS.map((item) => `- [ ] ${item}`).join("\n")}
 
 ## Commit strategy

@@ -154,14 +154,21 @@ describe("PreToolUse falls back to the project root when the working directory i
       assert.match(guardedOutput.permissionDecisionReason, /forbidden/iu);
       assert.match(guardedOutput.additionalContext, ADVISORY);
 
-      const wrongSession = runHook({
+      // Another session may read during the run (plans/lit-adhd.md todo 7); its write is refused.
+      const otherRead = runHook({
         processCwd: root,
         projectDir: root,
         input: { cwd: gone, session_id: "session-other", tool_name: "Read", tool_input: { file_path: join(root, "a.txt") } },
       });
+      assert.equal(JSON.parse(otherRead.stdout).hookSpecificOutput.permissionDecision, undefined);
+      const wrongSession = runHook({
+        processCwd: root,
+        projectDir: root,
+        input: { cwd: gone, session_id: "session-other", tool_name: "Write", tool_input: { file_path: join(root, "a.txt"), content: "x" } },
+      });
       const wrongSessionOutput = JSON.parse(wrongSession.stdout).hookSpecificOutput;
       assert.equal(wrongSessionOutput.permissionDecision, "deny");
-      assert.equal(wrongSessionOutput.permissionDecisionReason, "wrong session for active start-work authority");
+      assert.match(wrongSessionOutput.permissionDecisionReason, /belongs to another session in this project/u);
 
       const allowed = runHook({
         processCwd: root,

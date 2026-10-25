@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.0.38 - 2026-10-26
+
+- New `lit-schematic` skill draws real equipment: detailed P&IDs with ISA-5.1 tags, routed
+  lines, legends built from the drawing and ISO title blocks; PFDs with stream numbers and stream
+  tables; journal apparatus figures at exact column widths with panel labels and
+  colour-vision-safe stream colours; and shaded isometric cutaways with non-crossing callouts. A
+  QA gate checks overlaps, lines through symbols, dangling line ends, tags, legends, text size and
+  colour contrast, and Chrome renders a PDF and a 600 dpi PNG. Start it with
+  `/litclaude:lit-schematic`, `lit-schematic`, `$lit-schematic`, or a `lit` prompt that asks to
+  draw a P&ID, PFD, cutaway, 공정도, 계장도, 모식도 or 장치도. `lit-diagram-drawer` and
+  `lit-scientific-visualization` now hand physical schematics to it.
+- New `lit-adhd` skill, with `lit-rewind` as a permanent alias: `lit adhd` briefs you across every recent session of the repository's worktrees (what each was asked, did and waits on, the roadmap with progress gauges, paused work) and offers one next step. The records come from the new read-only `litclaude-ai rewind` collector, which redacts secrets and says `unknown` for anything it could not read. Typing `go` (or `ㄱㄱ`, `진행`) within 30 minutes of the brief continues that step in the same session; a boundary approval still needs `lit approve`.
+- When more than one workflow is live, the LIT card lists them as threads, one row each with a stage, a progress gauge and running, paused, blocked, idle or done: a child nested under its paused parent, parallel lanes under a fork line, and other live sessions of the project marked as such, up to four rows plus `+N more` (three lanes always keep their rows under a deeper chain). Every row has a real count: a frame's recorded count, its start-work run, its plan's checkboxes (lit-plan's saved plan carries on to the lit-loop or start-work after it), the goal's criteria or the main loop's todo list; a subagent's own TodoWrite or task list, else its finished steps as `k/?`. Background shells and monitors are threads too, until their notification or TaskStop, and the desktop card draws the same rows.
+- New `lit-hijack` skill ports the know-how in someone else's published work (posts, articles,
+  threads, repos, gists, PDFs, transcripts) into your own skill, re-expressed rather than copied,
+  with a ledger of each source's provenance and a report of what was taken, what was left and the
+  exposure. Start it with `/litclaude:lit-hijack`, `$lit-hijack`
+  or `lit hijack …` / `lit 하이재킹 …`.
+- A per-session workflow stack: a `lit` command typed during a running loop pauses that loop
+  instead of replacing it, and the loop resumes at its stage and count when the interjection ends.
+  The LIT card shows the paused work.
+- Typing the `start-work` command is now the approval for that plan; the separate goal-paste step
+  is gone. Another session can read a stale run and take it over. start-work no longer pauses on
+  plugin reads, NFD paths or harmless shell shapes, says which Bash shapes run when it refuses one,
+  lets `rm` remove a regular file inside the write grant, and quotes the exact complete call once
+  every task is checked.
+- `lit-pptx` sets every tonality on one slide grid and adds five tonalities: Computational
+  Brutalism, Neo-Brutalism, Bauhaus, Riso and Newsroom. A deck asked for by its slide count
+  ("덱 10장", "a 10-slide deck") routes to it without a making verb.
+- `frontend-ui-ux` locks a house style and checks every build against it, adds the
+  computational-brutalism and neo-brutalism house styles, defaults work surfaces to graphite, and
+  requires one signature moment per page.
+- Rich output is the default. Diagrams, schematics and figures come out layered. Interfaces get a
+  second accent and layered craft. Decks get four accent families, hero titles and extra
+  decoration. Ask for calm when you want it.
+- `lit-typographic-motion` round 3: every film gets a house style, a shot grid and a checked
+  storyboard, a story with a hero and the linked product's real assets, a layered score, and rich
+  frames by default. There is a GPU 3D route and a Blender rung for high-quality 3D. The master
+  limiter keeps the peak through AAC.
+- Routing: an interface that shows a schematic ("a dashboard showing the P&ID") goes to
+  `frontend-ui-ux`. Korean drawing nouns (배치도, 계통도, 단면도, and 도면 with a drawing verb) go
+  to `lit-schematic`. A chart of drawing data stays with the chart route.
+- `/litclaude:lit-scientific-visualization` now receives its adapter and canonical source from
+  the prompt hook. Before, the command's skill step only reopened the command.
+
 ## 1.0.37 - 2026-10-23
 
 - The plugin now ships a listing icon at `plugins/litclaude/.claude-plugin/icon.png`.

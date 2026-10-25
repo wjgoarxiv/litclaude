@@ -1,7 +1,7 @@
 # Atlas
 
 Atlas is a picture book with good captions. Photographs bleed to the edge or take most of the body,
-titles sit on a dark panel over the picture or under it, and the words stay calm but carry the
+titles sit on a dark panel over a full-bleed picture or in the slide grid's title zone above it, and the words stay calm but carry the
 facts each picture needs: what, where, when and how much. The
 palette is quiet on purpose, a near-black ink and one muted navy, because the photographs bring the
 colour. Every picture carries a numbered caption and its source, which keeps the deck honest about
@@ -37,7 +37,7 @@ These values are read from the pack file `pack.yaml` of the `atlas` tonality.
 | positive / negative | `#1E7A3F` / `#B3261E` |
 | series | `#2B4C7E`, `#555B63`, `#8A6A2E`, `#3E7A5A` |
 | faces | title Pretendard Bold, body, label, display and numerals Pretendard Regular; `faces: a2z` swaps display and numerals to A2Z Light |
-| ramp / hero | compact (body 13 pt, labels 11, sources 9) / no hero step, figures at most title size |
+| ramp / hero | compact (body 13 pt, labels 11, sources 9) / hero step (60 pt) on cover and statement titles that fit, off with `hero: false`; figures at most title size |
 | density / variance | 10 / 7 |
 | radius / edge | 0 / fill |
 | table | light grid: no header fill, bold ink header, hairline rows, no banding, numbers right-aligned, totals bold |
@@ -48,8 +48,8 @@ These values are read from the pack file `pack.yaml` of the `atlas` tonality.
 ## Treatments by slide role
 
 Image slides take `overlay`, where the title sits on a dark panel over a full-bleed photograph.
-Charts and figures with a takeaway take `bottom-anchor`, so the visual fills the top and the title
-explains it from below. Text, reference and definition slides take `side-rail`, data and
+Charts and figures with a takeaway take `bottom-anchor`, the title closed by a heavy rule over a
+visual that takes the body's full height. Text, reference and definition slides take `side-rail`, data and
 sequences take `top-plain-large`, and a pull quote takes `statement` on the dark field over the
 whole page (a plate under half the page left its top half open). The
 engine starts from the role's treatment and, when

@@ -2,10 +2,11 @@
   "schema_id": "litfamily.frontend-default-profile/v1",
   "name": "Field notes / pixel signal",
   "authorship": "Original LitClaude profile outside the immutable library",
-  "hierarchy": ["large editorial title with intentional breaks", "small terminal labels", "broad spacing and thin rules", "asymmetric atmospheric field", "original task-specific pixel-art illustration as the primary visual anchor when the brief gives no visual direction"],
-  "spacing": {"unit_px": 8, "detail_px": 4, "section_desktop_px": [80, 128], "section_mobile_px": [40, 64]},
+  "hierarchy": ["large editorial title with intentional breaks", "small terminal labels", "a tight editorial rhythm with thin rules, notebook-dot paper and a second accent", "layered surfaces: a colour band, a two-accent wash and one atmosphere glow", "asymmetric atmospheric field", "original task-specific pixel-art illustration as the primary visual anchor when the brief gives no visual direction"],
+  "spacing": {"unit_px": 8, "detail_px": 4, "section_desktop_px": [72, 96], "section_mobile_px": [40, 56]},
+  "density": {"default": "rich", "calm_only_when": "the request asks for a minimal, calm, quiet or restrained page (미니멀, 차분, 절제), or design-lock.mjs init --density calm; calm restores 64 to 128 px sections, a flat canvas and no glow"},
   "type": {"display_desktop_px": [56, 104], "display_mobile_px": [36, 56], "latin_leading": [0.95, 1.05], "korean_leading": [1.12, 1.25], "body_leading": [1.5, 1.7]},
-  "palette": {"paper": "#f5f3eb", "ink": "#18272b", "accent": "#c64d2e", "mist": "#b7d8c7"},
+  "palette": {"paper": "#f5f3eb", "ink": "#18272b", "accent": "#c64d2e", "accent_2": "#1d6b68", "mist": "#b7d8c7"},
   "pixel_art": {
     "default_when_unspecified": true,
     "primary_visual_anchor": true,
@@ -19,9 +20,9 @@
     "applies_to": "screens people work in repeatedly, such as admin consoles, analytics views and internal tools, as opposed to pages people read once",
     "first_viewport": "the working content and primary controls; no hero headline, tagline or illustration block above them",
     "pixel_art": "a small accent at most, never the primary visual anchor",
-    "keeps": "the palette, type scale and spacing of this profile"
+    "keeps": "nothing of this palette: work surfaces lock the graphite house style (scripts/design-lock.mjs family default); the pixel art stays a small accent at most"
   },
   "responsive": {"minimum_css_width": 320, "rule": "reflow content and line breaks, never crop the title"},
-  "motion": "state changes remain understandable with nonessential motion disabled",
+  "motion": "layered motion is welcome where it explains or delights (see references/motion-guide.md); state changes remain understandable with nonessential motion disabled",
   "precedence": "explicit user direction and existing brand tokens override this default; if the brief names competing visual directions without choosing or delegating one, ask before applying it"
 }

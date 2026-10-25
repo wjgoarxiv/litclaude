@@ -659,10 +659,20 @@ describe("Claude hook runner", () => {
     }
   });
 
+  // plans/lit-adhd.md todo 9 (diag-startwork T14): a plan is not execution, so lit-plan offers no /goal line.
+  it("T14 lit-plan activation carries no READY_TO_PASTE /goal line", () => {
+    const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "lit plan build a widget using /tmp/repo as input", cwd: root });
+    assert.equal(result.status, 0, result.stderr);
+    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+    assert.match(context, /lit-plan/u);
+    assert.doesNotMatch(context, /READY_TO_PASTE|Native goal binding attempt/u);
+    const loop = JSON.parse(runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "lit loop build a widget", cwd: root }).stdout).hookSpecificOutput.additionalContext;
+    assert.match(loop, /READY_TO_PASTE/u, "lit-loop keeps its one-time /goal offer");
+  });
+
   it("adds honest native-goal degraded guidance for goal-bearing routes", () => {
     for (const prompt of [
       "lit goal ship native goal binding",
-      "lit plan build a widget using /tmp/repo as input",
       "lit implement a long-running migration",
       "litwork ship the release",
     ]) {

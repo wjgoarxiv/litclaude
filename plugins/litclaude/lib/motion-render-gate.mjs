@@ -11,7 +11,7 @@
 // environment (exit 10-12, 14, 15, 21, 22) goes straight to that notice. A done film with a downgrade, open
 // look items or no image tool blocks once so the reply says so.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
 
@@ -22,6 +22,16 @@ const BLOCKED_EXITS = new Set([10, 11, 12, 14, 15, 21, 22]);
 const DONE_MODULE = new URL("../skills/lit-typographic-motion/engine/node/done.mjs", import.meta.url);
 
 export const motionTurnPath = (cwd = resolveProjectStateRoot()) => join(resolveProjectStateRoot(cwd), ".litclaude", "motion", "turn.json");
+
+// The model often works inside the film folder (`cd motion-x && motion.mjs stage --out .`). Outside a Git
+// repository that folder resolves to its own state root, so the tool and Stop hooks look for the turn the
+// prompt armed in the nearest folder up the tree that holds one.
+const turnRoot = (cwd) => {
+  for (let dir = resolve(cwd); ; dir = dirname(dir)) {
+    if (existsSync(motionTurnPath(dir))) return dir;
+    if (dirname(dir) === dir) return cwd;
+  }
+};
 
 const readTurn = (cwd) => {
   const path = motionTurnPath(cwd);
@@ -51,11 +61,17 @@ export const recordMotionTurn = (cwd, { sessionId, discipline, now = Date.now() 
 
 const unquote = (value) => value?.replace(/^["']|["']$/gu, "");
 
+// `$NAME` / `${NAME}` from `NAME=value` assignments earlier in the same command line. A variable the
+// command never sets stays unexpanded, and the caller treats that path as unknown.
+const expandVars = (value, vars) => value?.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/gu, (whole, name) => vars.get(name) ?? whole);
+
 /** Parse one `motion.mjs <subcommand> ...` command line into { mode, out, brief, round, stillsOnly }. */
 export function parseMotionCommand(command, workdir) {
   const match = COMMAND.exec(command);
   if (!match) return null;
-  const tokens = [...match[2].matchAll(/"[^"]*"|'[^']*'|[^\s]+/gu)].map((m) => unquote(m[0]));
+  const vars = new Map();
+  for (const m of command.slice(0, match.index).matchAll(/(?:^|[\s;&|(])([A-Za-z_][A-Za-z0-9_]*)=("[^"]*"|'[^']*'|[^\s;&|]*)/gu)) vars.set(m[1], expandVars(unquote(m[2]), vars));
+  const tokens = [...match[2].matchAll(/"[^"]*"|'[^']*'|[^\s]+/gu)].map((m) => expandVars(unquote(m[0]), vars));
   const values = {};
   const positional = [];
   let stillsOnly = false;
@@ -69,7 +85,7 @@ export function parseMotionCommand(command, workdir) {
       }
     } else if (!t.startsWith(">") && !t.startsWith("2>")) positional.push(t);
   }
-  const abs = (p) => (p ? (isAbsolute(p) ? p : join(workdir, p)) : null);
+  const abs = (p) => (p && !p.includes("$") ? (isAbsolute(p) ? p : join(workdir, p)) : null);
   const mode = match[1];
   if (mode === "gate") return { mode, out: abs(positional[0]), brief: null, round: null, stillsOnly: false };
   // cover-gate checks a file; it is not a render, so it never becomes the output the Stop hook judges.
@@ -90,7 +106,8 @@ const toolOutput = (input) => {
   return [response.stdout, response.stderr, response.output].filter((part) => typeof part === "string").join("\n");
 };
 
-export const observeMotionTool = (cwd, { input, now = Date.now() }) => {
+export const observeMotionTool = (start, { input, now = Date.now() }) => {
+  const cwd = turnRoot(start);
   let turn;
   try {
     turn = readTurn(cwd);
@@ -98,7 +115,7 @@ export const observeMotionTool = (cwd, { input, now = Date.now() }) => {
     return null;
   }
   if (!turn || turn.sessionId !== input.session_id) return null;
-  const workdir = typeof input.cwd === "string" ? input.cwd : cwd;
+  const workdir = typeof input.cwd === "string" ? input.cwd : start;
   const command = input.tool_name === "Bash" && typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
   const parsed = parseMotionCommand(command, workdir);
   if (!parsed) return null;
@@ -126,7 +143,8 @@ export function readsFromTranscript(transcriptPath) {
 
 const notDoneNotice = (reasons) => `lit-typographic-motion: the film is not done (${reasons.join("; ")}). Stop rendering now and say in the reply, in plain words, that the film is not done and why, and what the user can run to finish it.`;
 
-export const evaluateMotionStop = async ({ cwd, sessionId, transcriptPath = null, now = Date.now() }) => {
+export const evaluateMotionStop = async ({ cwd: start, sessionId, transcriptPath = null, now = Date.now() }) => {
+  const cwd = turnRoot(start);
   let turn;
   try {
     turn = readTurn(cwd);
@@ -153,7 +171,7 @@ export const evaluateMotionStop = async ({ cwd, sessionId, transcriptPath = null
     ];
     if (!say.length) return { action: "allow", why: "done" };
     writeTurn(cwd, { ...turn, notified: true });
-    return { action: "block", why: verdict.status, reason: `lit-typographic-motion: the film is finished. The reply must say plainly: ${say.join("; ")}.` };
+    return { action: "block", why: verdict.status, reason: `lit-typographic-motion: ${verdict.preview ? "the storyboard preview is finished" : "the film is finished"}. The reply must say plainly: ${say.join("; ")}.` };
   }
   if (verdict.status === "BLOCKED" || turn.blockCount >= MOTION_MAX_BLOCKS) {
     writeTurn(cwd, { ...turn, notified: true, warned: true });

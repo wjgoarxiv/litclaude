@@ -111,7 +111,7 @@ describe("sound reaches the film on both paths (director brief 7)", () => {
     const out = join(temp("lit-sound-stage-"), "out");
     mkdirSync(out, { recursive: true });
     cpSync(join(root, "test", "fixtures", "lit-typographic-motion", "stage", "clock"), join(out, "stage"), { recursive: true });
-    const treatment = stageTestTreatment(TIMBRE, { fps: 30, sound: { mode: "generated", plan: "Pulse with a hit on each cut.", palette: { timbre: TIMBRE, key: "C", mode: "major", tempo: 100 } } });
+    const treatment = stageTestTreatment(TIMBRE, { fps: 30, sound: { mode: "generated", plan: "Pulse with a hit on each cut.", palette: { timbre: "glass", key: "A", mode: "minor", tempo: 104 }, events: [{ t: 0.6, on: "The square starts to turn.", kind: "tap" }, { t: 3.4, on: "The copy line settles.", kind: "chime" }] } });
     treatment.channel = "A wall panel played with sound.";
     writeTreatment(out, treatment);
     const r = cli(["stage", "--out", out, "--round", "2"]);
@@ -122,13 +122,13 @@ describe("sound reaches the film on both paths (director brief 7)", () => {
     assert.ok(Math.abs(Number(audio.bit_rate) - 256000) <= 16000, `bit rate ${audio.bit_rate}`);
   });
 
-  it("the sound subcommand builds the bed and its cues from the treatment, and says so for other modes", () => {
+  it("the sound subcommand builds the score and its cues from the treatment, and says so for other modes", () => {
     const out = join(temp("lit-sound-cli-"), "out");
     writeTreatment(out, shortTypeTreatment(TIMBRE));
     const r = cli(["sound", "--out", out]);
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /SOUND: generated bed/u);
-    assert.ok(existsSync(join(out, "sound", "bed.wav")) && existsSync(join(out, "sound-cues.json")));
+    assert.match(r.stdout, /SOUND: score, [a-z-]+ in [A-G]#? (major|minor), \d+ BPM, \d+ stems/u);
+    assert.ok(existsSync(join(out, "sound", "score.wav")) && existsSync(join(out, "sound", "stems", "kick.wav")) && existsSync(join(out, "sound-cues.json")));
     const cues = JSON.parse(readFileSync(join(out, "sound-cues.json"), "utf8"));
     assert.ok(cues.cues.every((c) => "target" in c && "delta" in c));
     writeTreatment(out, { ...shortTypeTreatment(TIMBRE), channel: "A muted loop.", sound: { mode: "none", plan: "Silent." } });

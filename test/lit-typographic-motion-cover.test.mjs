@@ -94,12 +94,20 @@ describe("loop kit and the cover init script", () => {
     assert.doesNotMatch(kit.replace(/^\s*\/\/.*$/gmu, ""), /Math\.random\(|Date\.now\(|performance\.now\(|requestAnimationFrame\(/u);
   });
 
-  it("the init script makes every clock and entropy source throw and records the call", () => {
+  it("the init script makes every clock and entropy source throw once the page is ready, and records the call", () => {
     const init = readFileSync(join(engine, "stage", "cover-init.js"), "utf8");
     class Performance { now() { return 1; } }
     const ctx = { Math: Object.create(Math), Date, Performance, performance: new Performance(), crypto: { getRandomValues: () => 1 }, document: { documentElement: null, addEventListener() {} } };
     ctx.window = ctx;
     vm.runInNewContext(init, ctx);
+    const before = [ctx.Math.random(), ctx.Math.random()];
+    assert.ok(before.every((x) => x >= 0 && x < 1) && before[0] !== before[1], "while the page builds, Math.random answers from a fixed seed");
+    class Performance2 { now() { return 1; } }
+    const again = { Math: Object.create(Math), Date, Performance: Performance2, performance: new Performance2(), crypto: { getRandomValues: () => 1 }, document: ctx.document };
+    again.window = again;
+    vm.runInNewContext(init, again);
+    assert.deepEqual([again.Math.random(), again.Math.random()], before, "the same sequence in every browser");
+    ctx.window.ready = true;
     assert.throws(() => ctx.Math.random(), /Math\.random is forbidden/u);
     assert.throws(() => ctx.window.Date.now(), /Date\.now is forbidden/u);
     assert.throws(() => new ctx.window.Date(), /Date is forbidden/u);
@@ -212,7 +220,7 @@ describe("decoding the encoded cover (img2webp + dwebp)", () => {
 const fakeCoverRun = (opts) => fakeCoverRunIn(temp("lit-cover-done-"), opts);
 
 describe("cover look rounds and the cover done-check", () => {
-  it("a cover round takes the eight cover questions, needs no stills-only round 1 and no weakest beat", () => {
+  it("a cover round takes the nine cover questions, needs no stills-only round 1 and no weakest beat", () => {
     const out = fakeCoverRun();
     const file = join(out, "answers.json");
     writeFileSync(file, JSON.stringify(coverAnswers()));
@@ -220,10 +228,10 @@ describe("cover look rounds and the cover done-check", () => {
     assert.equal(r.code, 0);
     assert.equal(r.record.mode, "cover");
     assert.deepEqual(r.record.revise, []);
-    const nine = coverAnswers();
-    nine.answers.push({ q: 9, verdict: "yes", frame: "stills/sheet.png", observed: "A ninth answer about the sheet that a cover does not ask for." });
-    writeFileSync(file, JSON.stringify(nine));
-    assert.throws(() => lookCommand({ out, round: 1, answersFile: file }), /unknown question 9/u);
+    const ten = coverAnswers();
+    ten.answers.push({ q: 10, verdict: "yes", frame: "stills/sheet.png", observed: "A tenth answer about the sheet that a cover does not ask for." });
+    writeFileSync(file, JSON.stringify(ten));
+    assert.throws(() => lookCommand({ out, round: 1, answersFile: file }), /unknown question 10/u);
   });
 
   it("damage, a slide read or a named designer change asks for another round", () => {

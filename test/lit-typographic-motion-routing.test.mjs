@@ -130,6 +130,11 @@ describe("lit-typographic-motion completion contract (Stop hook)", () => {
     assert.deepEqual({ ...parsed }, { mode: "make", brief: "/work/brief.json", out: "/work/film", round: 2, stillsOnly: false });
     assert.deepEqual({ ...parseMotionCommand(`node "${join(skillRoot, "scripts", "motion.mjs")}" stage --out ./film --round 1 --stills-only`, "/work") }, { mode: "stage", brief: null, out: "/work/film", round: 1, stillsOnly: true });
     assert.equal(parseMotionCommand(`node "${join(skillRoot, "scripts", "motion.mjs")}" look --out ./film --round 2 --answers a.json`, "/work").out, "/work/film");
+    // A shell variable set earlier in the same command is expanded; one the command never sets leaves no output to judge.
+    const motion = join(skillRoot, "scripts", "motion.mjs");
+    assert.equal(parseMotionCommand(`D=./motion-cover; node "${motion}" look --out $D --round 2 --answers a.json`, "/work").out, "/work/motion-cover");
+    assert.equal(parseMotionCommand(`D="/abs/film" && node "${motion}" stage --out "\${D}" --round 2`, "/work").out, "/abs/film");
+    assert.equal(parseMotionCommand(`node "${motion}" stage --out "$D" --round 2`, "/work").out, null);
     assert.equal(exitCodeOf("…\nexit 13 GATE_FAIL_QA\n"), 13);
     const project = mkdtempSync(join(tmpdir(), "lit-motion-stop-"));
     try {
