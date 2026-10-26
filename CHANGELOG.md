@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.40 - 2026-10-26
+
+- Security: LitClaude never writes its state files through a symlink. A cloned repository can carry
+  a linked `.litclaude` folder, subfolder or state file; the write is now refused instead of landing
+  on whatever file the link points at.
+- Security: lit-hijack captures and lit-typographic-motion asset fetches check every redirect hop,
+  refuse localhost and loopback, link-local and private addresses (and names that resolve to them),
+  and stop reading a body once it passes the size cap, whatever length the server declares.
+- lit-hijack now fetches `https` only; capture an `http://` page from a saved copy with
+  `--kind file --url <url>`. A reuse prohibition on any line of a source now pauses for review.
+- The lit-adhd brief redacts before it clips, catches more secret shapes (webhook URLs, URL-form
+  environment values, JSON `"api_token": "…"` pairs, keys split by invisible characters), strips
+  terminal control characters from commit subjects and plan rows, and shows only this folder's
+  sessions when another folder shares its Claude project name.
+
 ## 1.0.39 - 2026-10-26
 
 - No question-mark progress anywhere: a gauge is drawn only when both numbers are known. A thread
