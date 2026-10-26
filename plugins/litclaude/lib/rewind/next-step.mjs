@@ -6,11 +6,11 @@
 //   4. a single open plan with no work running    -> start-plan     (`/litclaude:start-work <plan>`)
 //   5. otherwise                                  -> none
 
-import { closeSync, constants, fstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { ignitionFileName } from "../mod/state.mjs";
-import { ensureStateDirIgnored } from "../project-state-root.mjs";
+import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
 
 export const chooseNextStep = (data, sessionId) => {
   const ownStack = data.workflows.find((frame) => frame.sessionId === sessionId && frame.role === "spine" && frame.status === "paused");
@@ -36,10 +36,9 @@ export const nextStepPath = (stateRoot, sessionId) => join(stateRoot, ".litclaud
 /** Writes `{kind, target, at}` for this session, whole, through a temporary file. */
 export const writeNextStep = (stateRoot, sessionId, step, now = new Date()) => {
   const path = nextStepPath(stateRoot, sessionId);
-  mkdirSync(dirname(path), { recursive: true });
-  ensureStateDirIgnored(path);
+  requireStateDir(dirname(path));
   const staging = `${path}.${process.pid}.tmp`;
-  writeFileSync(staging, `${JSON.stringify({ kind: step.kind, target: step.target, at: now.toISOString() })}\n`);
+  writeFileSync(staging, `${JSON.stringify({ kind: step.kind, target: step.target, at: now.toISOString() })}\n`, { flag: STATE_WRITE_FLAG });
   renameSync(staging, path);
   return path;
 };

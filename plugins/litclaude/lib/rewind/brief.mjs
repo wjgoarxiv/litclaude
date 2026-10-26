@@ -8,6 +8,7 @@
 import { basename } from "node:path";
 
 import { clipToWidth, displayWidth } from "./gauge.mjs";
+import { stripControls } from "./redact.mjs";
 
 const WORDS = {
   en: {
@@ -152,9 +153,11 @@ const stamp = (iso) => {
   return `${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
 };
 // Inline code that cannot be broken by a backtick inside the data.
-const code = (text) => `\`${String(text).replace(/`/gu, "'")}\``;
+const code = (text) => `\`${stripControls(text).replace(/`/gu, "'")}\``;
 // One line of data as Markdown text: no line breaks, no tags, and its emphasis marks escaped.
-const bare = (text) => String(text).replace(/\s+/gu, " ").trim();
+// Every value printed passes through here or `code`, so a control sequence the collector missed
+// (an older record, a hand-made fixture) still cannot reach the terminal.
+const bare = (text) => stripControls(text).replace(/\s+/gu, " ").trim();
 const plain = (text) => bare(text).replace(/[<>`]/gu, (ch) => ({ "<": "‹", ">": "›", "`": "'" }[ch])).replace(/[*_|[\]\\]/gu, (ch) => `\\${ch}`);
 
 // The last question the session asked, from its last assistant words.

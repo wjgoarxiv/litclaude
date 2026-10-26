@@ -6,7 +6,9 @@
 // <out>/product/ (never into the stage, never followed as instructions). Nothing reachable: exit 22 and
 // the film asks the user for the logo, a screenshot or the README images.
 import { createHash } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { isIP, isIPv4, isIPv6 } from "node:net";
 import path from "node:path";
 import { EXIT } from "../core/constants.mjs";
 import { BlockedError } from "./chrome.mjs";
@@ -79,14 +81,79 @@ export function pageFacts(html, base) {
   return { title: meta("og:title") ?? title, description: meta("og:description") ?? meta("description"), images };
 }
 
-async function get(fetchImpl, url, { accept, limit }) {
-  const res = await fetchImpl(url, { headers: { accept, "user-agent": "lit-typographic-motion-assets" }, redirect: "follow", signal: AbortSignal.timeout(ASSET_LIMITS.timeoutMs) });
-  if (!res.ok) throw new Error(`${res.status} from ${url}`);
-  const declared = Number(res.headers.get("content-length") ?? 0);
-  if (declared > limit) throw new Error(`${url} is ${declared} B (limit ${limit})`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > limit) throw new Error(`${url} is ${buf.length} B (limit ${limit})`);
-  return buf;
+// Every hop, the first request and each redirect, must be https to a public host: a product page
+// or README image must not bounce the fetch into loopback, the cloud metadata address or the local
+// network. Bodies are counted as they stream, so a missing or false content-length cannot buffer more.
+const MAX_HOPS = 5;
+const privateV4 = (ip) => {
+  const [a, b] = ip.split(".").map(Number);
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19));
+};
+function privateAddress(address) {
+  const ip = String(address).replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isIPv4(ip)) return privateV4(ip);
+  if (!isIPv6(ip)) return false;
+  const mapped = /^(?:0*:)*:?ffff:(?:(\d+\.\d+\.\d+\.\d+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/u.exec(ip);
+  if (mapped) {
+    if (mapped[1]) return privateV4(mapped[1]);
+    const [high, low] = [mapped[2], mapped[3]].map((part) => Number.parseInt(part, 16));
+    return privateV4(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+  }
+  return ip === "::" || ip === "::1" || /^f[cd]/u.test(ip) || /^fe[89ab]/u.test(ip) || /^ff/u.test(ip);
+}
+async function checkHop(href, lookup) {
+  const url = new URL(href);
+  if (url.protocol !== "https:") throw new Error(`refusing ${url.protocol} ${href}: assets are fetched over https only`);
+  const host = url.hostname.replace(/^\[|\]$/gu, "");
+  if (host === "localhost" || host.endsWith(".localhost") || privateAddress(host)) throw new Error(`refusing ${href}: a loopback, link-local or private host`);
+  if (!isIP(host) && lookup) {
+    const addresses = await lookup(host, { all: true });
+    if (addresses.some(({ address }) => privateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
+  }
+  return url.href;
+}
+async function readCapped(res, url, limit) {
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > limit) {
+    await res.body?.cancel?.();
+    throw new Error(`${url} is ${declared} B (limit ${limit})`);
+  }
+  if (!res.body?.getReader) {
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > limit) throw new Error(`${url} is ${buf.length} B (limit ${limit})`);
+    return buf;
+  }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return Buffer.concat(chunks, total);
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      throw new Error(`${url} is over ${limit} B`);
+    }
+    chunks.push(value);
+  }
+}
+
+async function get(fetchImpl, url, { accept, limit, lookup }) {
+  let current = await checkHop(url, lookup);
+  const signal = AbortSignal.timeout(ASSET_LIMITS.timeoutMs);
+  for (let hop = 0; hop <= MAX_HOPS; hop += 1) {
+    const res = await fetchImpl(current, { headers: { accept, "user-agent": "lit-typographic-motion-assets" }, redirect: "manual", signal });
+    const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    if (location) {
+      await res.body?.cancel?.();
+      current = await checkHop(new URL(location, current).href, lookup);
+      continue;
+    }
+    if (!res.ok) throw new Error(`${res.status} from ${current}`);
+    return readCapped(res, current, limit);
+  }
+  throw new Error(`${url} redirected more than ${MAX_HOPS} times`);
 }
 
 function roleFor(url, fallback) {
@@ -98,7 +165,7 @@ function roleFor(url, fallback) {
  * Fetch a product's assets into <out>. `fetchImpl` is injectable for tests. Returns { code, message,
  * product }; throws BlockedError 22 when nothing could be reached.
  */
-export async function fetchAssets({ out, url, into = "stage", fetchImpl = globalThis.fetch, now = () => new Date() }) {
+export async function fetchAssets({ out, url, into = "stage", fetchImpl = globalThis.fetch, lookup = fetchImpl === globalThis.fetch ? dnsLookup : null, now = () => new Date() }) {
   let link;
   try {
     link = new URL(url);
@@ -120,7 +187,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
     const [, owner, rname] = repo;
     name = rname;
     try {
-      const meta = JSON.parse((await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}`, { accept: "application/vnd.github+json", limit: ASSET_LIMITS.pageBytes })).toString("utf8"));
+      const meta = JSON.parse((await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}`, { accept: "application/vnd.github+json", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8"));
       Object.assign(words, { name: meta.name ?? rname, description: meta.description ?? null, homepage: meta.homepage || null, topics: meta.topics ?? [] });
       name = meta.name ?? rname;
       if (meta.owner?.avatar_url) candidates.push({ url: meta.owner.avatar_url, role: "icon", note: "owner avatar" });
@@ -128,7 +195,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
       problems.push(`repository: ${error.message}`);
     }
     try {
-      const readme = (await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}/readme`, { accept: "application/vnd.github.raw", limit: ASSET_LIMITS.pageBytes })).toString("utf8");
+      const readme = (await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}/readme`, { accept: "application/vnd.github.raw", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
       writeFileSync(path.join(wordsDir, "README.md"), readme);
       words.readme = "product/README.md";
       const images = readmeImages(readme, `https://raw.githubusercontent.com/${owner}/${rname}/HEAD/`).map((u) => ({ url: u.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\//u, "https://raw.githubusercontent.com/$1/"), role: "readme-image" }));
@@ -138,7 +205,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
     }
   } else {
     try {
-      const html = (await get(fetchImpl, link.href, { accept: "text/html", limit: ASSET_LIMITS.pageBytes })).toString("utf8");
+      const html = (await get(fetchImpl, link.href, { accept: "text/html", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
       const facts = pageFacts(html, link.href);
       Object.assign(words, { title: facts.title, description: facts.description });
       if (facts.title) name = facts.title.split(/\s[|·—–-]\s/u)[0].trim() || name;
@@ -154,7 +221,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
   for (const c of candidates) {
     if (assets.length >= ASSET_LIMITS.files) break;
     try {
-      const buf = await get(fetchImpl, c.url, { accept: "image/*", limit: ASSET_LIMITS.fileBytes });
+      const buf = await get(fetchImpl, c.url, { accept: "image/*", limit: ASSET_LIMITS.fileBytes, lookup });
       const kind = sniffImage(buf);
       if (!kind) throw new Error("not an image");
       if (kind === "svg" && !cleanSvg(buf.toString("utf8"))) throw new Error("an SVG with script or outside links");

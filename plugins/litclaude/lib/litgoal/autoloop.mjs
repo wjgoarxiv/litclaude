@@ -3,9 +3,9 @@
 // stopping only while it can durably increment this counter under the cap. If the
 // counter cannot be read or written, the hook fails SAFE (allows stopping) rather
 // than risk a runaway loop. State lives at `.litclaude/litgoal/autoloop.json`.
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ensureStateDirIgnored } from "../project-state-root.mjs";
+import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
 import { appendLitgoalLedger } from "./ledger.mjs";
 import { litgoalGoalsPath, litgoalLedgerPath, litgoalLockDir, litgoalStateDir } from "./paths.mjs";
 import { readLitgoalState, withLitgoalLock, writeLitgoalState } from "./state.mjs";
@@ -40,11 +40,10 @@ export const readAutoloopState = (cwd = process.cwd()) => {
 
 export const writeAutoloopState = (cwd, state) => {
   const dir = litgoalStateDir(cwd);
-  mkdirSync(dir, { recursive: true });
-  ensureStateDirIgnored(dir);
+  requireStateDir(dir);
   const target = litgoalAutoloopPath(cwd);
   const tmp = `${target}.tmp`;
-  writeFileSync(tmp, JSON.stringify(state));
+  writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
   return state;
 };

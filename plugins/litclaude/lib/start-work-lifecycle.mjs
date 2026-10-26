@@ -21,7 +21,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import { fileURLToPath } from "node:url";
 
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
-import { ensureStateDirIgnored } from "./project-state-root.mjs";
+import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
 const SCHEMA_VERSION = 3;
@@ -67,10 +67,9 @@ export const startWorkLockDir = (root) => join(startWorkStateDir(root), ".lock")
 const startWorkLockOwnerPath = (root) => join(startWorkLockDir(root), "owner.json");
 
 const atomicWriteJson = (path, value) => {
-  mkdirSync(dirname(path), { recursive: true });
-  ensureStateDirIgnored(path);
+  requireStateDir(dirname(path));
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600, flag: STATE_WRITE_FLAG });
   const fd = openSync(temporary, "r");
   fsyncSync(fd);
   closeSync(fd);
@@ -107,8 +106,7 @@ const readLockOwner = (root) => {
 
 export const acquireStartWorkLock = (root, options = {}) => {
   const lockDir = startWorkLockDir(root);
-  mkdirSync(dirname(lockDir), { recursive: true });
-  ensureStateDirIgnored(lockDir);
+  requireStateDir(dirname(lockDir));
   const configured = Number.parseInt(process.env.LITCLAUDE_START_WORK_LOCK_TIMEOUT_MS ?? "5000", 10);
   const timeout = Number.isFinite(options.timeoutMs)
     ? Math.max(0, options.timeoutMs)
@@ -319,14 +317,13 @@ const assertLedgerCompatible = (existing, stateEvents) => {
 
 const reconcileLedger = (root, state) => {
   const path = startWorkLedgerPath(root);
-  mkdirSync(dirname(path), { recursive: true });
-  ensureStateDirIgnored(path);
+  requireStateDir(dirname(path));
   const existing = ledgerRecords(root);
   assertLedgerCompatible(existing, state.events);
   const ids = new Set(existing.map(({ event_id: eventId }) => eventId).filter(Boolean));
   for (const event of state.events) {
     if (ids.has(event.event_id)) continue;
-    appendFileSync(path, `${JSON.stringify(event)}\n`, { mode: 0o600 });
+    appendFileSync(path, `${JSON.stringify(event)}\n`, { mode: 0o600, flag: STATE_APPEND_FLAG });
     ids.add(event.event_id);
   }
   if (existsSync(path)) {

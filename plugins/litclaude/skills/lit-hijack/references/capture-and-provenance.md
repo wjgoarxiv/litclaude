@@ -72,6 +72,13 @@ terms, and a single skill folder can be source-available inside an otherwise per
 title, the author and date from the page's metadata, and a `rel=license` link if there is one
 (Creative Commons pages usually carry it). Scripts, styles and navigation are dropped from the text.
 
+Every fetch is https only, on the first request and on each redirect. Redirects are followed one
+hop at a time, at most five, and a hop to `localhost`, a loopback, link-local or private address, or
+a name that resolves to one is refused, so a public page cannot bounce the capture into the cloud
+metadata service or the local network. The body is counted while it streams and dropped past 20 MiB,
+whatever length the server declares. For an `http://` page, ask the user for a saved copy and capture
+it with `--kind file --url <url>`.
+
 - A page that needs a login, shows a challenge, or answers with a cookie wall is not captured. Ask
   the user for an export or a saved copy, then capture that file with `--kind file --url <url>`.
 - A page that loads its article with scripts may come back nearly empty. Check the extracted text

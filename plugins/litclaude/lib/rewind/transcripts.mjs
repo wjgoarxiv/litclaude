@@ -236,7 +236,7 @@ export const sessionRecord = (lines, { redact = (text) => text, now = Date.now()
     return inside && !inside.startsWith("..") ? inside : path;
   };
   const changed = [...new Set(files.reverse())].slice(0, 5).map((path) => redact(relativeFile(path)));
-  const asked = [...new Set([prompts[0], prompts.at(-1)].filter(Boolean))].slice(0, 2).map((text) => redact(clip(text, 160)));
+  const asked = [...new Set([prompts[0], prompts.at(-1)].filter(Boolean))].slice(0, 2).map((text) => clip(redact(text), 160));
   const waiting = lastEntry?.role === "assistant" && WAITING_TEXT.test(lastEntry.text.slice(-400));
   const status = last === null ? "unknown" : waiting ? "waiting-on-user" : now - last < ACTIVE_MS ? "active" : "ended";
   return {
@@ -248,11 +248,11 @@ export const sessionRecord = (lines, { redact = (text) => text, now = Date.now()
     started: started === null ? "unknown" : new Date(started).toISOString(),
     last: last === null ? "unknown" : new Date(last).toISOString(),
     lastMs: last,
-    title: redact(clip(customTitle ?? aiTitle ?? prompts[0] ?? "unknown", 80)),
+    title: clip(redact(customTitle ?? aiTitle ?? prompts[0] ?? "unknown"), 80),
     asked: asked.length ? asked : ["unknown"],
     done: { tools, files: changed, commits: [] },
-    lastAction: lastAction ? { tool: lastAction.tool, ...(lastAction.target ? { target: redact(clip(lastAction.target, 60)) } : {}) } : null,
-    result: result ? redact(clip(result, 240)) : "unknown",
+    lastAction: lastAction ? { tool: lastAction.tool, ...(lastAction.target ? { target: clip(redact(lastAction.target), 60) } : {}) } : null,
+    result: result ? clip(redact(result), 240) : "unknown",
     status,
     ...(waiting ? { waitingReason: "asked the user" } : {}),
   };

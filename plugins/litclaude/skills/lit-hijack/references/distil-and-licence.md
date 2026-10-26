@@ -93,6 +93,11 @@ wording. `hijack.mjs licence` applies this table from the captured licence evide
 | Anything else | unrecognised | `ideas-only` | Treated as all rights reserved until a person says otherwise |
 | Text that states reuse terms | restricted-terms | `needs-review` | "do not copy", "no part of this", "source-available", "proprietary", "confidential" |
 
+Reuse terms count on any line of the source and outrank a permissive identifier: a page that says
+MIT in one paragraph and "do not redistribute this guide" in another is `needs-review`. A checklist
+label such as "DO NOT COPY: the hero layout" (a prohibition followed by a colon) is advice about the
+subject, not a term, and does not count.
+
 `needs-review` blocks the licence phase until a person decides:
 
 ```text

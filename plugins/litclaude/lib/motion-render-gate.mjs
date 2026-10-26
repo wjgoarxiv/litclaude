@@ -10,10 +10,10 @@
 // once more to tell the model to say, in the reply, that the film is not done and why; a blocked
 // environment (exit 10-12, 14, 15, 21, 22) goes straight to that notice. A done film with a downgrade, open
 // look items or no image tool blocks once so the reply says so.
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
+import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 
 export const MOTION_MAX_BLOCKS = 2;
 export const MOTION_DISCIPLINE = "lit-typographic-motion";
@@ -43,10 +43,9 @@ const readTurn = (cwd) => {
 
 const writeTurn = (cwd, state) => {
   const target = motionTurnPath(cwd);
-  mkdirSync(join(target, ".."), { recursive: true });
-  ensureStateDirIgnored(target);
+  requireStateDir(join(target, ".."));
   const tmp = `${target}.tmp`;
-  writeFileSync(tmp, JSON.stringify(state));
+  writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
   return state;
 };

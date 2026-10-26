@@ -8,10 +8,10 @@
 // anything the hook cannot read are not clean. The block
 // counter is the loop brake: at most INTERFACE_PROBE_MAX_BLOCKS blocks per turn, then the stop
 // passes with a warning. Any unreadable state fails SAFE (allow).
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, isAbsolute, join } from "node:path";
 
-import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
+import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 
 export const INTERFACE_PROBE_MAX_BLOCKS = 2;
 // start-work is left out: its prompt turn must stay side-effect-free, and the plan rows it runs
@@ -40,10 +40,9 @@ const readTurn = (cwd) => {
 
 const writeTurn = (cwd, state) => {
   const target = interfaceProbeTurnPath(cwd);
-  mkdirSync(join(target, ".."), { recursive: true });
-  ensureStateDirIgnored(target);
+  requireStateDir(join(target, ".."));
   const tmp = `${target}.tmp`;
-  writeFileSync(tmp, JSON.stringify(state));
+  writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
   return state;
 };

@@ -241,7 +241,7 @@ export function scanStage(stageDir) {
  * The request router for one stage run. Returns { kind: "file", file, type } | { kind: "body", body,
  * type } | { kind: "blocked", reason } | { kind: "missing" }, and records every refusal.
  */
-export function stageRouter({ stageDir, faces, style = null }) {
+export function stageRouter({ stageDir, faces, style = null, threeDir = THREE_DIR }) {
   const root = realpathSync(stageDir);
   const css = fontsCss(faces);
   const byRoute = new Map(faces.map((f) => [f.route, f.file]));
@@ -266,9 +266,19 @@ export function stageRouter({ stageDir, faces, style = null }) {
     if (pathname === "/lit/loop-kit.js") return { kind: "file", file: LOOP_KIT_FILE, type: CONTENT_TYPES[".js"] };
     if (pathname === "/lit/fonts.css") return { kind: "body", body: css, type: CONTENT_TYPES[".css"] };
     if (pathname.startsWith("/lit/three/")) {
+      // A backslash is a separator on Windows, so it is refused with `..`; the realpath must stay inside
+      // the vendored folder, so a link out of it is refused too.
       const rel = pathname.slice("/lit/three/".length);
-      const file = path.join(THREE_DIR, rel);
-      if (rel.split("/").includes("..") || !rel.endsWith(".js") || !existsSync(file)) {
+      let file = null;
+      if (!rel.includes("\\") && !rel.split("/").includes("..") && rel.endsWith(".js")) {
+        try {
+          const real = realpathSync(path.join(threeDir, rel));
+          if (inside(realpathSync(threeDir), real) && statSync(real).isFile()) file = real;
+        } catch {
+          // Not there.
+        }
+      }
+      if (!file) {
         missing.push({ url, reason: "not a vendored three.js file" });
         return { kind: "missing" };
       }

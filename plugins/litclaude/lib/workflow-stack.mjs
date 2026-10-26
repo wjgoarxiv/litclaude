@@ -10,12 +10,12 @@
 // card reads it back through its own guarded read. Frames keep skills, stages and counts only;
 // never a prompt, a command or a path other than a project-relative plan name.
 
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readSync, renameSync, writeFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { ignitionFileName } from "./mod/state.mjs";
 import { DISCIPLINE_ENTRY, REVIEW_LANES, STAGE_UNITS, VERDICT_STATES, normalizeStage } from "./mod/workflow.mjs";
-import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
+import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 
 export const MAX_FRAMES = 3;
 export const MAX_HISTORY = 20;
@@ -234,10 +234,9 @@ export const readStack = (cwd, sessionId) => {
 /** Writes the whole stack through a temporary file; a link at the destination is replaced, never followed. */
 export const writeStack = (cwd, sessionId, stack) => {
   const path = stackPath(cwd, sessionId);
-  mkdirSync(dirname(path), { recursive: true });
-  ensureStateDirIgnored(path);
+  requireStateDir(dirname(path));
   const staging = `${path}.${process.pid}.tmp`;
-  writeFileSync(staging, `${JSON.stringify(stack)}\n`, { flag: "w" });
+  writeFileSync(staging, `${JSON.stringify(stack)}\n`, { flag: STATE_WRITE_FLAG });
   renameSync(staging, path);
   return stack;
 };

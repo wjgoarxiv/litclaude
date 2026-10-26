@@ -105,9 +105,9 @@ const plansIn = (root, budget, redact, local) => {
       plan: `plans/${entry.name}`,
       local,
       changedMs: mtimeOf(join(root, "plans", entry.name)),
-      rows: rows.map((row) => ({ checked: row.checked, title: redact(clipToWidth(row.text, NAME_MAX)) })),
-      current: redact(clipToWidth(open[0].text, NAME_MAX)),
-      progress: progressOf(done, rows.length, open.map((row) => redact(clipToWidth(row.text, NAME_MAX)))),
+      rows: rows.map((row) => ({ checked: row.checked, title: clipToWidth(redact(row.text), NAME_MAX) })),
+      current: clipToWidth(redact(open[0].text), NAME_MAX),
+      progress: progressOf(done, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX))),
     }];
   });
 };
@@ -116,11 +116,11 @@ const litgoalOf = (root, budget, redact) => {
   const goals = readJson(join(root, ".litclaude", "litgoal", "goals.json"), budget);
   if (!goals || !Array.isArray(goals.criteria)) return null;
   const passed = goals.criteria.filter((criterion) => criterion?.status === "passed");
-  const remaining = goals.criteria.filter((criterion) => criterion?.status !== "passed").map((criterion) => redact(clipToWidth(String(criterion?.description ?? criterion?.id ?? "unknown"), NAME_MAX)));
+  const remaining = goals.criteria.filter((criterion) => criterion?.status !== "passed").map((criterion) => clipToWidth(redact(String(criterion?.description ?? criterion?.id ?? "unknown")), NAME_MAX));
   return {
     worktree: redact(root),
     status: typeof goals.status === "string" ? goals.status : "unknown",
-    objective: redact(clipToWidth(String(goals.objective ?? "unknown").split("\n")[0], 120)),
+    objective: clipToWidth(redact(String(goals.objective ?? "unknown").split("\n")[0]), 120),
     progress: progressOf(passed.length, goals.criteria.length, remaining),
   };
 };
@@ -129,7 +129,7 @@ const handoffsOf = (root, budget, redact) => (entries(root) ?? [])
   .filter((entry) => entry.isFile() && /^HANDOFF.*\.md$/u.test(entry.name))
   .map((entry) => {
     const text = readSmallFile(join(root, entry.name), budget) ?? "";
-    const headings = text.split("\n").slice(0, 40).filter((line) => /^#{1,3} /u.test(line)).map((line) => redact(clipToWidth(line, 100)));
+    const headings = text.split("\n").slice(0, 40).filter((line) => /^#{1,3} /u.test(line)).map((line) => clipToWidth(redact(line), 100));
     return { worktree: redact(root), file: entry.name, headings };
   });
 
@@ -140,7 +140,7 @@ const commitsOf = (root, sinceMs, now, exec, redact) => {
     const out = exec("git", ["log", `--since=${since}`, "--max-count=20", "--format=%H%x09%cI%x09%s"], { cwd: root, timeout: GIT_TIMEOUT_MS });
     return out.split("\n").filter(Boolean).map((line) => {
       const [hash, at, ...subject] = line.split("\t");
-      return { worktree: redact(root), branch: redact(branch), hash: hash.slice(0, 7), at, atMs: Date.parse(at), subject: redact(clipToWidth(subject.join("\t"), 100)) };
+      return { worktree: redact(root), branch: redact(branch), hash: hash.slice(0, 7), at, atMs: Date.parse(at), subject: clipToWidth(redact(subject.join("\t")), 100) };
     });
   } catch {
     return null;
@@ -163,7 +163,7 @@ const stacksOf = (root, budget, redact) => {
       role: frame.role === "spine" ? "spine" : "side",
       status: frame.status === "paused" ? "paused" : "active",
       at: typeof frame.at === "string" ? frame.at : "unknown",
-      progress: progressOf(frame.n, frame.total, Array.isArray(frame.remaining) ? frame.remaining.map((name) => redact(clipToWidth(String(name), NAME_MAX))) : undefined),
+      progress: progressOf(frame.n, frame.total, Array.isArray(frame.remaining) ? frame.remaining.map((name) => clipToWidth(redact(String(name)), NAME_MAX)) : undefined),
     }));
   });
 };
@@ -178,8 +178,8 @@ const startWorkOf = (root, budget, redact) => {
   const rows = planText === null ? [] : parsePlanTaskRows(planText);
   const open = rows.filter((row) => !row.checked);
   const progress = rows.length
-    ? progressOf(rows.length - open.length, rows.length, open.map((row) => redact(clipToWidth(row.text, NAME_MAX))))
-    : progressOf(work.progress?.checked, work.progress?.total, work.progress?.next_task ? [redact(clipToWidth(work.progress.next_task, NAME_MAX))] : undefined);
+    ? progressOf(rows.length - open.length, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX)))
+    : progressOf(work.progress?.checked, work.progress?.total, work.progress?.next_task ? [clipToWidth(redact(work.progress.next_task), NAME_MAX)] : undefined);
   return [{
     worktree: redact(root),
     workId: work.work_id,
@@ -196,7 +196,7 @@ const herdrOf = (env, exec, redact) => {
   if (env.HERDR_ENV !== "1") return { status: "unknown", agents: [] };
   try {
     const out = exec("herdr", ["agent", "list"], { timeout: HERDR_TIMEOUT_MS });
-    return { status: "ok", agents: out.split("\n").filter((line) => line.trim()).slice(0, 20).map((line) => redact(clipToWidth(line.trim(), 120))) };
+    return { status: "ok", agents: out.split("\n").filter((line) => line.trim()).slice(0, 20).map((line) => clipToWidth(redact(line.trim()), 120)) };
   } catch {
     return { status: "unknown", agents: [] };
   }
@@ -230,6 +230,7 @@ export const collectRewind = ({
   const listed = here ? null : worktreesOf(start, exec);
   const roots = [...new Set([start, ...(here ? [] : listed ?? [stateRoot])])];
 
+  const rootSet = new Set(roots.map((root) => resolve(root).normalize("NFC")));
   const transcripts = findTranscripts(env.CLAUDE_CONFIG_DIR || join(home, ".claude"), roots);
   const sessions = [];
   for (const file of transcripts.files) {
@@ -237,7 +238,10 @@ export const collectRewind = ({
     const lines = readTranscriptLines(file, budget);
     const session = lines ? sessionRecord(lines, { redact, now }) : null;
     if (!session || (session.lastMs !== null && now - session.lastMs > sinceMs)) continue;
-    if (here && session.cwd && resolve(session.cwd).normalize("NFC") !== start.normalize("NFC")) continue;
+    // Claude's folder slug maps every non-alphanumeric to `-`, so `client_a` and `client-a` share one
+    // folder; a session counts only when the cwd it recorded is one of the folders asked about.
+    const recorded = session.cwd ? resolve(session.cwd).normalize("NFC") : null;
+    if (here ? recorded && recorded !== start.normalize("NFC") : !recorded || !rootSet.has(recorded)) continue;
     sessions.push(session);
   }
 

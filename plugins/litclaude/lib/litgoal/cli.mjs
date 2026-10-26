@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { ensureStateDirIgnored } from "../project-state-root.mjs";
+import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
 import { appendLitgoalLedger } from "./ledger.mjs";
 import {
   litgoalBriefPath,
@@ -193,9 +193,8 @@ const createGoals = (cwd, args) => {
       updatedAt: timestamp,
     };
 
-    mkdirSync(dirname(litgoalBriefPath(cwd)), { recursive: true });
-    ensureStateDirIgnored(litgoalBriefPath(cwd));
-    writeFileSync(litgoalBriefPath(cwd), `${brief}\n`);
+    requireStateDir(dirname(litgoalBriefPath(cwd)));
+    writeFileSync(litgoalBriefPath(cwd), `${brief}\n`, { flag: STATE_WRITE_FLAG });
     writeLitgoalState(litgoalGoalsPath(cwd), state);
     // Fresh autoloop run -> reset the durable iteration counter so prior caps don't carry over.
     if (autoloop) resetAutoloopState(cwd, Date.parse(timestamp) || Date.now());

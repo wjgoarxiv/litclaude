@@ -4,7 +4,9 @@
 // run folder. Zero dependencies: Node built-ins plus git and pdftotext when they are on PATH.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { isIP, isIPv4, isIPv6 } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -158,18 +160,18 @@ export const detectLicence = (text) => {
   return { spdx: "NOASSERTION", evidence: "no licence text found" };
 };
 
-const PROHIBITION = /\b(?:do not|don't|may not|must not)\s+(?:copy|reproduce|adapt|redistribute|reuse|republish|repost)\b|\bno part of this (?:work|publication|book|guide|document|course)\b|\b(?:confidential|internal use only|not for (?:re)?distribution|source[- ]available|proprietary)\b/iu;
-// Reuse terms count only on lines about rights. An article that tells its readers "do not copy the
-// reference's layout" is giving advice about its subject, not setting terms for itself.
-const RIGHTS_LINE = /copyright|©|\(c\)\s*\d{4}|licen[cs]e|all rights|permission|terms of (?:use|service)|reproduc|redistribut|republish|derivative|confidential|proprietary|source[- ]available|no part of this/iu;
-const rightsLines = (text) => String(text).split("\n").filter((line) => RIGHTS_LINE.test(line)).join("\n");
+// A prohibition counts on any line, before any licence identifier: a bare "You must not adapt this
+// code." sets terms as surely as a copyright notice, and a human pause costs less than a missed
+// restriction. A checklist label is not a term: an article's own template line "DO NOT COPY: the
+// hero layout" gives advice about its subject, so a prohibition followed by a colon is skipped.
+const PROHIBITION = /\b(?:do not|don't|may not|must not)\s+(?:copy|reproduce|adapt|redistribute|reuse|republish|repost)\b(?!\s*:)|\bno part of this (?:work|publication|book|guide|document|course)\b|\b(?:confidential|internal use only|not for (?:re)?distribution|source[- ]available|proprietary)\b/iu;
 const PERMISSIVE = new Set(["MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "Zlib", "0BSD", "Unlicense", "CC0-1.0", "BSL-1.0", "Python-2.0"]);
 
 // Ideas, methods and procedures are not protected expression, so every class may give up mechanisms.
 // The class decides only whether the target ships a credit line and how strictly the build is fenced.
 export const decideLicence = (spdx, { text } = {}) => {
   const id = String(spdx ?? "NOASSERTION").trim();
-  const terms = text ? rightsLines(text) : "";
+  const terms = text ? String(text) : "";
   if (terms && PROHIBITION.test(terms)) {
     return { decision: "needs-review", class: "restricted-terms", reason: `the source states reuse terms ("${PROHIBITION.exec(terms)[0]}"); a person decides ideas-only or no-go` };
   }
@@ -551,12 +553,82 @@ export const buildImplementerBrief = (run) => {
 // ---------------------------------------------------------------------------------------------
 // Capture
 
-const fetchBytes = async (url) => {
-  const response = await fetch(url, { headers: { "user-agent": "litclaude-lit-hijack/1 (+capture)" }, redirect: "follow", signal: AbortSignal.timeout(30_000) });
-  if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length > FETCH_LIMIT) throw new Error(`${url} is larger than ${FETCH_LIMIT} bytes`);
-  return { buffer, type: response.headers.get("content-type") ?? "", finalUrl: response.url };
+// A capture follows redirects by hand: every hop must be https and name a public host, so a public
+// page cannot bounce the fetch into loopback, the cloud metadata address or the local network. The
+// body is counted as it streams and dropped past the cap, whatever length the server declared.
+const FETCH_HOPS = 5;
+const privateV4 = (ip) => {
+  const [a, b] = ip.split(".").map(Number);
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19));
+};
+export const isPrivateAddress = (address) => {
+  const ip = String(address).replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isIPv4(ip)) return privateV4(ip);
+  if (!isIPv6(ip)) return false;
+  const mapped = /^(?:0*:)*:?ffff:(?:(\d+\.\d+\.\d+\.\d+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/u.exec(ip);
+  if (mapped) {
+    if (mapped[1]) return privateV4(mapped[1]);
+    const [high, low] = [mapped[2], mapped[3]].map((part) => Number.parseInt(part, 16));
+    return privateV4(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+  }
+  return ip === "::" || ip === "::1" || /^f[cd]/u.test(ip) || /^fe[89ab]/u.test(ip) || /^ff/u.test(ip);
+};
+const checkHop = async (href, lookup) => {
+  const url = new URL(href);
+  if (url.protocol !== "https:") throw new Error(`refusing ${url.protocol} ${href}: captures fetch https only`);
+  const host = url.hostname.replace(/^\[|\]$/gu, "");
+  if (host === "localhost" || host.endsWith(".localhost") || isPrivateAddress(host)) throw new Error(`refusing ${href}: a loopback, link-local or private host`);
+  if (!isIP(host) && lookup) {
+    const addresses = await lookup(host, { all: true });
+    if (addresses.some(({ address }) => isPrivateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
+  }
+  return url.href;
+};
+const readCapped = async (response, url, limit) => {
+  const declared = Number(response.headers.get("content-length"));
+  const tooLarge = () => new Error(`${url} is larger than ${limit} bytes`);
+  if (Number.isFinite(declared) && declared > limit) {
+    await response.body?.cancel?.();
+    throw tooLarge();
+  }
+  if (!response.body?.getReader) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > limit) throw tooLarge();
+    return buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return Buffer.concat(chunks, total);
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+};
+
+/** Fetches a public https URL; `fetchImpl` and `lookup` are injectable for tests. */
+export const fetchBytes = async (url, { fetchImpl = fetch, lookup = fetchImpl === fetch ? dnsLookup : null, limit = FETCH_LIMIT } = {}) => {
+  let current = await checkHop(url, lookup);
+  const signal = AbortSignal.timeout(30_000);
+  for (let hop = 0; hop <= FETCH_HOPS; hop += 1) {
+    const response = await fetchImpl(current, { headers: { "user-agent": "litclaude-lit-hijack/1 (+capture)" }, redirect: "manual", signal });
+    const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
+    if (location) {
+      await response.body?.cancel?.();
+      current = await checkHop(new URL(location, current).href, lookup);
+      continue;
+    }
+    if (!response.ok) throw new Error(`${current} answered HTTP ${response.status}`);
+    const buffer = await readCapped(response, current, limit);
+    return { buffer, type: response.headers.get("content-type") ?? "", finalUrl: current };
+  }
+  throw new Error(`${url} redirected more than ${FETCH_HOPS} times`);
 };
 
 const guessKind = (input) => {
@@ -607,7 +679,7 @@ export const captureSource = async (run, input, options = {}) => {
   if (kind === "x" || kind === "x-post" || kind === "x-article") {
     const statusId = parseXStatusUrl(input);
     if (!statusId) throw new Error(`${input} is not an x.com or twitter.com status URL`);
-    const { buffer } = await fetchBytes(`https://api.fxtwitter.com/status/${statusId}`);
+    const { buffer } = await fetchBytes(`https://api.fxtwitter.com/status/${statusId}`, options.fetch);
     const json = JSON.parse(buffer.toString("utf8"));
     if (json.code !== 200) throw new Error(`fxtwitter answered code ${json.code} (${json.message ?? "no message"}) for ${input}`);
     const { markdown, meta } = fxtwitterToMarkdown(json);
@@ -633,7 +705,7 @@ export const captureSource = async (run, input, options = {}) => {
     if (match[4]) entry.subpath = match[4].slice(1);
     entry.files.push({ path: relative(run, repoDir), commit });
   } else if (kind === "web") {
-    const { buffer, type, finalUrl } = await fetchBytes(input);
+    const { buffer, type, finalUrl } = await fetchBytes(input, options.fetch);
     if (/pdf/iu.test(type) || buffer.subarray(0, 5).toString("latin1") === "%PDF-") return captureSource(run, input, { ...options, kind: "pdf" });
     const html = buffer.toString("utf8");
     writeFileSync(join(dir, "raw.html"), buffer);
@@ -649,7 +721,7 @@ export const captureSource = async (run, input, options = {}) => {
     if (licenceLink) licence = { ...detectLicence(licenceLink[1]), evidence: `rel=license ${licenceLink[1]}` };
     entry.files.push(fileEntry(run, join(dir, "content.md")), fileEntry(run, join(dir, "raw.html")));
   } else if (kind === "pdf") {
-    const buffer = /^https?:\/\//iu.test(input) ? (await fetchBytes(input)).buffer : readFileSync(input);
+    const buffer = /^https?:\/\//iu.test(input) ? (await fetchBytes(input, options.fetch)).buffer : readFileSync(input);
     if (buffer.subarray(0, 5).toString("latin1") !== "%PDF-") throw new Error(`${input} is not a PDF: its bytes do not start with %PDF-`);
     const pdfPath = join(dir, "source.pdf");
     writeFileSync(pdfPath, buffer);

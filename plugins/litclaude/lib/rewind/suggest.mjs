@@ -2,10 +2,12 @@
 // last three days, say once a day that `lit adhd` briefs them all on one screen. It looks only at
 // this folder's own transcript folder (no scan of other projects) and stats file times, never
 // contents, so it stays cheap on every session start. A marker under `.litclaude/adhd/` keeps it
-// to one nudge per calendar day per project.
-import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+// to one nudge per calendar day per project. A symlinked `.litclaude`, folder or marker (a cloned
+// repository can carry one) is never followed: the nudge is then skipped, not written elsewhere.
+import { lstatSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { prepareStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
 import { projectSlug } from "./transcripts.mjs";
 
 export const RECENT_MS = 3 * 24 * 60 * 60 * 1000;
@@ -40,12 +42,15 @@ export const adhdSuggestion = ({ cwd, sessionId, configDir, stateRoot, now = Dat
   if (count === 0) return null;
   const dir = join(stateRoot, ".litclaude", "adhd");
   const marker = join(dir, "suggested.json");
+  if (!prepareStateDir(dir)) return null;
   try {
+    if (lstatSync(marker).isSymbolicLink()) return null;
     if (JSON.parse(readFileSync(marker, "utf8")).day === dayOf(now)) return null;
   } catch {
     // No marker yet, or an unreadable one: suggest and rewrite it.
   }
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(marker, `${JSON.stringify({ day: dayOf(now) })}\n`);
+  const staging = `${marker}.${process.pid}.tmp`;
+  writeFileSync(staging, `${JSON.stringify({ day: dayOf(now) })}\n`, { flag: STATE_WRITE_FLAG });
+  renameSync(staging, marker);
   return `${count} other recent ${count === 1 ? "session" : "sessions"} here · type \`lit adhd\` for a one-screen brief of where each stands`;
 };

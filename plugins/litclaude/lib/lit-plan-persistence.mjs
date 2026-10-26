@@ -3,10 +3,10 @@
 // `plans/*.md` newer than the prompt carries at least one `- [ ] N.` task row. The
 // block counter is the loop brake: at most LIT_PLAN_MAX_BLOCKS blocks per session,
 // after which the stop passes with a warning. Any unreadable state fails SAFE (allow).
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { ensureStateDirIgnored, resolveProjectStateRoot } from "./project-state-root.mjs";
+import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { findProjectRoot } from "./rules/discovery.mjs";
 
 export const LIT_PLAN_MAX_BLOCKS = 2;
@@ -37,10 +37,9 @@ const readTurn = (cwd) => {
 
 const writeTurn = (cwd, state) => {
   const target = litPlanTurnPath(cwd);
-  mkdirSync(join(target, ".."), { recursive: true });
-  ensureStateDirIgnored(target);
+  requireStateDir(join(target, ".."));
   const tmp = `${target}.tmp`;
-  writeFileSync(tmp, JSON.stringify(state));
+  writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
   return state;
 };
