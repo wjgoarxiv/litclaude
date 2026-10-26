@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.41 - 2026-10-27
+
+- The LIT card now changes its look with the work. lit-adhd and lit-rewind draw the rainbow rewind
+  look whichever way you start them (bare `lit adhd`, `/lit-adhd`, `/litclaude:lit-adhd` or the
+  Skill tool). review-work splits the border into its five lanes with a `REVIEW n/5` count, each
+  lane turning its own colour on a pass and red on a fail. When Claude is waiting on you the border
+  breathes amber with `YOUR TURN`, and it settles back after your first keystroke. A finished plan,
+  goal, five-lane review or real publish plays one short ember burst. The looks never flash more
+  than three times a second, hold their width, stay still with motion off, and draw plain text
+  under `NO_COLOR`.
+- Background review lanes now report back. Their verdicts are read from each lane's final report,
+  lanes that finish at the same moment no longer overwrite each other, and the review look stays
+  on while a lane is still running, even in a later turn.
+- Teammates that are done and waiting for their next message show as `idle`, no longer as
+  `blocked` with a "quiet for … wake it?" warning.
+- After `/exit` or `/clear`, the ended session no longer lingers on the next session's card.
+- Fixed a card the host refused to draw when a skill fired before the session had started.
+- Security: lit-hijack captures and lit-typographic-motion asset fetches now connect to the exact
+  address the redirect check approved, so a name cannot resolve to a private address between the
+  check and the connection.
+
 ## 1.0.40 - 2026-10-26
 
 - Security: LitClaude never writes its state files through a symlink. A cloned repository can carry
