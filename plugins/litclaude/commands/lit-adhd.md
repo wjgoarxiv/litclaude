@@ -88,14 +88,18 @@ collector's own next-step record under `.litclaude/adhd/`, which a following
 
 Procedure:
 
-- Run `litclaude-ai rewind --json` once (or `node <skill-root>/scripts/rewind.mjs
-  --json` when the bin is not on PATH). Pass `--here`, `--since <7d|12h|30m>` or
-  `--max <n>` only when the user asked for them.
-- Compose the brief from that JSON alone, in the five parts `Skill(lit-adhd)`
-  defines: summary line, session cards, roadmap, paused work, one next step.
-- Copy every progress gauge verbatim (`[▉▉▉░░] 3/5`, or `[???] k/?` when the
-  total is unknown) with the remaining items named under it.
-- A source that reads `unknown` stays `unknown`; never fill it from memory.
+- Run `litclaude-ai rewind --brief --lang <ko|en>` once, `ko` for a Korean
+  prompt (or `node <skill-root>/scripts/rewind.mjs --brief --lang <ko|en>` when
+  the bin is not on PATH or rejects `--brief`). Pass `--here`,
+  `--since <7d|12h|30m>` or `--max <n>` only when the user asked for them.
+- Print the brief it draws as the reply, exactly as drawn: the headline, one
+  card per live session grouped by worktree and branch, the ended-session
+  table, the roadmap timeline, the boxed next step and the word to type, as
+  `Skill(lit-adhd)` defines.
+- A gauge (`[▉▉▉░░] 3/5`) appears only when both numbers are recorded; an
+  unknown total shows the known facts in words. Never draw or estimate one.
+- A source the collector could not read is named once at the end; never fill
+  it from memory.
 - If the collector fails, reply `BLOCKED:` with its reason and stop.
 
 Output routing: the language of the user's prompt by default; `--en` forces

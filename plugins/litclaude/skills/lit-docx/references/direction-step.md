@@ -12,10 +12,14 @@ near-black ink and declares at most one accent, which the converter puts on at m
 kinds (a title rule and a callout rule, for instance). The build never picks a colour, a coloured
 cover, a figure tile or a tinted box; those choices are not on the card because they no longer exist.
 
-The step takes a few minutes of reading and needs no conversation. Close the brief, rank the candidates
-for the document type, let the source reorder them, write a direction card, then say the choice
-and two alternatives in the reply. The skill picks the tonality itself. It never falls back to a
-silent default, and under a bare `lit` request it asks nothing at all.
+The step takes a few minutes of reading. Close the brief, rank the candidates for the document type,
+let the source reorder them, then ask the user to choose with one `AskUserQuestion` call (SKILL.md,
+step 2): the ranked tonality first, the two alternatives, a compare option, and the format
+(tonality, publisher manuscript or the user's Word template). Write the direction card from the
+answer, then say the choice and two alternatives in the reply. The question is skipped when the
+brief already names the look or hands it over, and in a non-interactive run the ranked pick is
+taken and said so in one line. The skill never falls back to a silent default, and under a bare
+`lit` request it asks nothing at all.
 
 ## 1. Close the brief
 

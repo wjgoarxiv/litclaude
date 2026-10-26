@@ -20,7 +20,7 @@
 // Text is set in a monospace face and placed by counted cells (Hangul and emoji as two), so the
 // layout does not depend on measuring a font the drawing cannot see.
 
-import { gauge } from "../rewind/gauge.mjs";
+import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { TIMINGS, barCells, gradientAt, lookOf, rainbowAt } from "./motion.mjs";
 
@@ -88,10 +88,12 @@ const run = (x, y, pieces) => {
 };
 
 // A filled pill holding `label`, its left edge at `x`. `sweep` lays the moving light over it.
-const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = null, breathPeak = 0.85 }) => {
+// `veil` lays white over a rainbow fill so the dark ink keeps its contrast on every hue.
+const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = null, breathPeak = 0.85, veil = false }) => {
   const w = widthOf(label) + 16;
   const top = y - PILL_H + 6;
   const parts = [`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${fill}"/>`];
+  if (veil) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="#ffffff" opacity="0.3"/>`);
   if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" ${loop(TIMINGS.breath, BREATH_PHASE)}/></rect>`);
   if (sweep) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="url(#lit-sweep)"/>`);
   parts.push(text(x + 8, y, label, { fill: ink, bold }));
@@ -111,15 +113,18 @@ const indicatorOf = (model, accent) => {
   return { label: "LIVE ●", fill: accent };
 };
 
-const topRow = (model, accent, animate) => {
+// The rewind look draws the LIT pill and a `REWIND <<` indicator in the turning rainbow.
+const topRow = (model, accent, animate, rewind = false) => {
   const { width, pad } = SVG_CARD;
   const y = ROW_Y[0];
-  const brand = pill(pad, y, "🔥 LIT", { fill: C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
-  const indicator = indicatorOf(model, accent);
+  const brand = rewind
+    ? pill(pad, y, "🔥 LIT", { fill: "url(#lit-rainbow)", ink: C.ink, veil: true })
+    : pill(pad, y, "🔥 LIT", { fill: C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
+  const indicator = rewind && !model.completion ? { label: "REWIND <<", fill: "url(#lit-rainbow)" } : indicatorOf(model, accent);
   const right = text(width - pad, y, indicator.label, { fill: indicator.fill, bold: !indicator.plain, anchor: "end" });
   const room = width - pad - widthOf(indicator.label) - 16 - brand.end - widthOf(" · ");
   const name = truncateToWidth(model.title ?? "ready", Math.max(4, Math.floor(room / SVG_CARD.cell)));
-  const title = run(brand.end + 4, y, [[" · ", { fill: C.dim }], [name, model.idle ? { fill: C.dim } : { fill: accent, bold: true }]]);
+  const title = run(brand.end + 4, y, [[" · ", { fill: C.dim }], [name, model.idle && !rewind ? { fill: C.dim } : { fill: accent, bold: true }]]);
   return brand.markup + title.markup + right;
 };
 
@@ -298,7 +303,7 @@ const detailRowSvg = (model, accent, animate) => {
 const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
 
 // Skill chips, or the notice or the finish while one is up, or the hint while nothing has fired.
-const middleRow = (model, accent, animate, shift = 0) => {
+const middleRow = (model, accent, animate, shift = 0, rewind = false) => {
   const { width, pad } = SVG_CARD;
   const y = ROW_Y[3] + shift;
   const room = width - pad;
@@ -328,11 +333,31 @@ const middleRow = (model, accent, animate, shift = 0) => {
       x = null;
       return;
     }
-    const drawn = pill(x, y, label, { fill: current ? accent : C.muted, ink: current ? C.ink : C.mutedText, bold: current, sweep: current && animate.sweep });
+    const tinted = rewind && lookOf(chip.id) === "rewind";
+    const drawn = tinted
+      ? pill(x, y, label, { fill: "url(#lit-rainbow)", ink: C.ink, veil: true, sweep: animate.sweep })
+      : pill(x, y, label, { fill: current ? accent : C.muted, ink: current ? C.ink : C.mutedText, bold: current, sweep: current && animate.sweep });
     out.push(drawn.markup);
     x = drawn.end + 8;
   });
+  if (rewind && animate.sweep && x !== null) out.push(sparksSvg(x, width - pad, y));
+  if (model.away && x !== null && x + widthOf("back? type lit adhd to catch up") <= room) out.push(run(x, y, [["back? type ", { fill: C.dim }], ["lit adhd", { fill: accent }], [" to catch up", { fill: C.dim }]]).markup);
   return out.join("");
+};
+
+// The rewind look's sparks: ASCII stars drifting right to left through the room the chips leave,
+// each fading in and out on its own slow loop (no faster than TIMINGS.sparks / 4 per twinkle).
+const SPARK_SEEDS = Object.freeze([[0.08, 1.0, "*"], [0.22, 1.3, "+"], [0.37, 0.8, "."], [0.51, 1.1, "*"], [0.66, 0.9, "'"], [0.79, 1.4, "+"], [0.93, 0.7, "*"]]);
+const sparksSvg = (from, to, y) => {
+  const span = to - from;
+  if (span < 60) return "";
+  return SPARK_SEEDS.map(([start, speed, glyph], i) => {
+    const x = from + start * span;
+    const dur = Math.round(TIMINGS.sparks / speed);
+    return `<text class="lit-spark" x="${x.toFixed(1)}" y="${y}" fill="${rainbowAt(start)}" opacity="0.8">${esc(glyph)}`
+      + `<animateTransform attributeName="transform" type="translate" values="0 0;${(-start * span).toFixed(1)} 0" ${loop(dur, 0)}/>`
+      + `<animate attributeName="opacity" values="0.3;0.9;0.3" ${loop(Math.round(TIMINGS.sparks / 2), i / SPARK_SEEDS.length)}/></text>`;
+  }).join("");
 };
 
 // ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main, after a warning when one is up.
@@ -374,16 +399,26 @@ const THREAD_FILL = Object.freeze({ running: ["●", C.green], paused: ["|", C.d
 const TASK_MARK = Object.freeze({ shell: "$", monitor: "~" });
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
-// A gauge whose count is a lane's finished steps moves on every tool call it makes, and each new
-// drawing restarts the card's animations; past ten the drawing counts steps by tens.
-const threadGauge = ({ done, total, steps }) => (steps && total === null && done >= 10 ? `[???] ${Math.floor(done / 10) * 10}+/?` : gauge(done, total));
+// What a thread with no total says instead of a gauge. Each new drawing restarts the card's
+// animations, so the drawing leaves out the last step (it changes on every tool call) and counts
+// steps by tens past ten.
+const threadFacts = ({ steps, elapsedMs, state }) => knownFacts({ steps: Number.isInteger(steps) && steps >= 10 ? Math.floor(steps / 10) * 10 : steps, elapsedMs, state })
+  .replace(/^(\d+0) steps/u, (all, n) => (steps >= 10 ? `${n}+ steps` : all));
+const PULSE = "━━━━━";
+// The indeterminate pulse over a thread with no total: a light that slides along its track, or a
+// still track with motion off.
+const pulseSvg = (x, y, animate, fill) => {
+  const w = widthOf(PULSE);
+  if (!animate) return "";
+  return `<rect x="${x.toFixed(1)}" y="${y - 8}" width="${(w / 3).toFixed(1)}" height="4" rx="2" fill="${fill}" opacity="0.9"><animate attributeName="x" values="${x.toFixed(1)};${(x + (w * 2) / 3).toFixed(1)};${x.toFixed(1)}" ${loop(TIMINGS.flow * 2, 0.25)}/></rect>`;
+};
 
 /**
  * The thread rows (view.mjs threadsOf), as the terminal card lays them out (frame.mjs threadRows):
  * the stack parent first with each child under it, lanes and background tasks under a fork line
  * when two or more run, other sessions last, `+N more` on the last row. Returns the markup.
  */
-const threadRowsSvg = (model) => {
+const threadRowsSvg = (model, { animate = false, rewind = false } = {}) => {
   const { width, pad } = SVG_CARD;
   const { chain, lanes, others, laneCount = 0, taskCount = 0, more } = model.threads;
   const lines = [];
@@ -414,13 +449,18 @@ const threadRowsSvg = (model) => {
     const [stateMark, color] = THREAD_FILL[thread.state] ?? THREAD_FILL.running;
     const mark = thread.task ? TASK_MARK[thread.task] ?? "$" : stateMark;
     const name = truncateToWidth(thread.name, nameCells);
+    const drawn = gauge(thread.done, thread.total);
+    const facts = drawn ? null : threadFacts(thread);
+    const progress = drawn
+      ? [[` ${drawn}`, { fill: C.white }], [` ${thread.state}`, { fill: color }]]
+      : [[" ", {}], [PULSE, { fill: rewind ? "url(#lit-rainbow)" : C.rail, pulse: true }], [" ", {}],
+        ...(facts.startsWith(thread.state) ? [[facts, { fill: color }]] : [[thread.state, { fill: color }], [` · ${facts}`, { fill: C.dim }]])];
     const pieces = [
       [line.lead, { fill: C.dim }],
       [`${mark} `, { fill: color, bold: true }],
       [name + " ".repeat(Math.max(0, nameCells - textWidth(name))), { fill: C.white, bold: thread.active }],
       ...(stageCells ? [[` ${truncateToWidth(thread.stage ?? "", stageCells).padEnd(stageCells)}`, { fill: C.dim }]] : []),
-      [` ${threadGauge(thread)}`, { fill: C.white }],
-      [` ${thread.state}`, { fill: color }],
+      ...progress,
       ...(thread.session ? [[` · other session ${thread.session}`, { fill: C.dim }]] : []),
     ];
     // Pieces past the room are cut from the right, as the terminal card clips its rows.
@@ -436,6 +476,8 @@ const threadRowsSvg = (model) => {
       used += cells;
     }
     out.push(run(pad, y, kept).markup);
+    const before = kept.findIndex(([, style]) => style.pulse);
+    if (before >= 0) out.push(pulseSvg(pad + kept.slice(0, before).reduce((sum, [body]) => sum + widthOf(body), 0), y, animate, rewind ? "#ffffff" : C.white));
   });
   return out.join("");
 };
@@ -461,7 +503,7 @@ const rainbowDefs = (animate) => {
 
 /** What the card says, for a reader that cannot see the drawing. */
 export const svgCardAlt = (model) => {
-  const parts = [`LIT ${model.idle ? "idle" : "working"}`];
+  const parts = [`LIT ${model.rewind ? "rewind" : model.idle ? "idle" : "working"}`];
   if (model.title) parts.push(model.title);
   const flow = model.workflow;
   const current = PHASES.find((id) => model.phases[id] === "now");
@@ -474,7 +516,7 @@ export const svgCardAlt = (model) => {
   }
   if (model.step) parts.push(`running ${model.step.name}`);
   const threads = model.threads ? [...model.threads.chain, ...model.threads.lanes, ...model.threads.others] : [];
-  if (threads.length) parts.push(`threads ${threads.map((thread) => `${thread.name} ${gauge(thread.done, thread.total)} ${thread.state}`).join(", ")}${model.threads.more ? `, ${model.threads.more} more` : ""}`);
+  if (threads.length) parts.push(`threads ${threads.map((thread) => `${thread.name} ${gauge(thread.done, thread.total) ? `${gauge(thread.done, thread.total)} ${thread.state}` : threadFacts(thread)}`).join(", ")}${model.threads.more ? `, ${model.threads.more} more` : ""}`);
   if (model.skills.length) parts.push(`skills ${model.skills.map(({ id }) => id).join(", ")}`);
   const { context, rates } = model.figures;
   if (context !== null) parts.push(`context ${context}%`);
@@ -491,15 +533,15 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
   // The thread rows sit between the detail line and the chips; the card grows by their reserve.
   const shift = model.threads ? THREAD_ROW_H * model.threads.reserve : 0;
   const height = SVG_CARD.height + shift;
-  const working = !model.idle && motion !== "off";
+  const rewind = (model.rewind === true || (!model.idle && lookOf(model.discipline) === "rewind")) && model.warnings.length === 0;
+  const working = (!model.idle || rewind) && motion !== "off";
   const animate = { breath: working, sweep: working && motion === "full", comet: working && motion === "full" };
-  const rewind = !model.idle && model.warnings.length === 0 && lookOf(model.discipline) === "rewind";
   const edge = rewind ? "url(#lit-rainbow)" : borderColor(model, accent);
   const perimeter = 1000;
   const defs = (rewind ? rainbowDefs(animate.breath) : "") + (animate.sweep
     ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
     : "");
-  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle ? "1.5" : "2.5"}"${model.idle ? ' stroke-opacity="0.8"' : ""}>`
+  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle && !rewind ? "1.5" : "2.5"}"${model.idle && !rewind ? ' stroke-opacity="0.8"' : ""}>`
     + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
     + "</rect>";
   const comet = animate.comet
@@ -507,11 +549,11 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
       + `<defs><linearGradient id="lit-comet" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${C.orange}"/><stop offset="0.6" stop-color="${C.pink}"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>`
     : "";
   const body = [
-    topRow(model, accent, animate),
+    topRow(model, accent, animate, rewind),
     model.workflow ? mapRowSvg(model, accent, animate) : phaseRow(model, accent, animate),
     detailRowSvg(model, accent, animate),
-    model.threads ? threadRowsSvg(model) : "",
-    middleRow(model, accent, animate, shift),
+    model.threads ? threadRowsSvg(model, { animate: animate.sweep, rewind }) : "",
+    middleRow(model, accent, animate, shift, rewind),
     bottomRow(model, accent, shift),
   ].join("");
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${comet}${body}</svg>`;

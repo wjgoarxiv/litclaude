@@ -52,6 +52,7 @@ verdicts: [PASS, DEGRADED, FAIL, BLOCKED]
 - A continuation packet at the destination selected by the canonical handoff policy.
 - A concise route receipt naming `Skill(lit-handoff)`, the canonical source root, and whether an existing file was updated or replaced.
 - A final `PASS`, `DEGRADED:`, `FAIL`, or `BLOCKED:` status backed by live evidence.
+- One closing line for whoever resumes: this packet covers this session; `lit adhd` briefs every recent session of the repository on one screen, with its status, progress and one next step.
 
 ## #contract.output_channels
 

@@ -37,10 +37,11 @@ const chipsOf = (model, now, previous = null) => Object.fromEntries((model.skill
   return [chip.id, known];
 }));
 
-// The ambient loop runs while the card shows LitClaude at work, so motion itself says "active";
-// `at` is when the current run of work began, so the loop does not restart on every new model.
+// The ambient loop runs while the card shows LitClaude at work, so motion itself says "active",
+// and while the rewind look lingers after a brief; `at` is when the current run began, so the loop
+// does not restart on every new model.
 const ambientOf = (model, now, profile, previous = null) => {
-  const on = Boolean(profile.ambient) && model.visible && !model.idle;
+  const on = Boolean(profile.ambient) && model.visible && (!model.idle || model.rewind === true);
   return { on, at: on && previous?.on ? previous.at : now };
 };
 

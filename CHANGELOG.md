@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- No question-mark progress anywhere: a gauge is drawn only when both numbers are known. A thread
+  with no known total shows an indeterminate pulse and what is known instead (`12 steps · 4m ·
+  last: Edit README.md`, or `running 4m`), on the terminal card, the desktop card and in the brief.
+  A task the main loop assigns to a lane by owner now counts toward that lane.
+- `lit adhd` prints a brief drawn by `litclaude-ai rewind --brief`: a headline with who waits on
+  you and the next step, one card per live session grouped by branch and worktree (status badge,
+  goal, progress, what was done or what it is doing now, next), ended sessions as one table row
+  each, a roadmap of this worktree and recently changed plans (done ✓, now ▶, later ○) and one
+  recommended next step in a box, in Korean or English. When nothing can run on `go`, the box
+  still names a real step from the records instead of "no next step on record".
+- The psychedelic rewind card now lasts while you read the brief, not just while it is collected:
+  a `REWIND <<` indicator, the LIT pill, lit-adhd chip and phase labels drawn cell by cell through a
+  turning rainbow, a rainbow context bar, rainbow gauges and pulses, and
+  sparks on the desktop card too, inside the flash-safety floor and the motion setting. After a
+  break the idle card offers `lit adhd`, a new session in a repository with other recent sessions
+  suggests it once a day, and lit-handoff and lit-recap point to it.
+- lit-pptx, lit-docx, frontend-ui-ux, lit-schematic, lit-diagram-drawer, readme-studio and
+  lit-typographic-motion ask you to choose the design first, with their real presets and the
+  recommended one first. They skip the question when the prompt names the look or hands the choice
+  over, and a non-interactive run takes the recommended option and says so.
+
 ## 1.0.38 - 2026-10-26
 
 - New `lit-schematic` skill draws real equipment: detailed P&IDs with ISA-5.1 tags, routed

@@ -11,6 +11,7 @@ import { basename, join, resolve } from "node:path";
 
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { resolveProjectStateRoot } from "../project-state-root.mjs";
+import { renderBrief } from "./brief.mjs";
 import { aggregateProgress, clipToWidth, displayWidth, progressOf } from "./gauge.mjs";
 import { chooseNextStep, writeNextStep } from "./next-step.mjs";
 import { makeRedactor } from "./redact.mjs";
@@ -78,6 +79,16 @@ const worktreesOf = (cwd, exec) => {
   }
 };
 
+// A plan scaffold nobody filled in: a row that is still a `<placeholder>`, or every row the same.
+const isTemplate = (rows) => rows.some((row) => /<[^<>]{1,40}>/u.test(row.text)) || (rows.length > 1 && new Set(rows.map((row) => row.text.trim())).size === 1);
+const mtimeOf = (path) => {
+  try {
+    return lstatSync(path).mtimeMs;
+  } catch {
+    return null;
+  }
+};
+
 const plansIn = (root, budget, redact, local) => {
   const list = entries(join(root, "plans"));
   if (!list) return null;
@@ -85,7 +96,7 @@ const plansIn = (root, budget, redact, local) => {
     const text = readSmallFile(join(root, "plans", entry.name), budget);
     if (text === null) return [];
     const rows = parsePlanTaskRows(text);
-    if (!rows.length) return [];
+    if (!rows.length || isTemplate(rows)) return [];
     const open = rows.filter((row) => !row.checked);
     if (!open.length) return [];
     const done = rows.length - open.length;
@@ -93,6 +104,7 @@ const plansIn = (root, budget, redact, local) => {
       worktree: redact(root),
       plan: `plans/${entry.name}`,
       local,
+      changedMs: mtimeOf(join(root, "plans", entry.name)),
       rows: rows.map((row) => ({ checked: row.checked, title: redact(clipToWidth(row.text, NAME_MAX)) })),
       current: redact(clipToWidth(open[0].text, NAME_MAX)),
       progress: progressOf(done, rows.length, open.map((row) => redact(clipToWidth(row.text, NAME_MAX)))),
@@ -266,9 +278,12 @@ export const collectRewind = ({
   }
   sessions.sort((a, b) => statusRank[a.status] - statusRank[b.status] || (b.lastMs ?? 0) - (a.lastMs ?? 0));
 
-  // Every worktree's open plans are listed, this one's first, up to a short cap; the roadmap gauge
-  // counts this worktree only, since a sum over unrelated branches measures nothing.
-  const orderedPlans = [...(plans ?? [])].sort((a, b) => Number(b.local) - Number(a.local));
+  // This worktree's open plans and the ones another worktree touched inside the window are listed,
+  // this one's first, then the most recently changed, up to a short cap; a stale plan elsewhere is
+  // left out entirely. The roadmap gauge counts this worktree only, since a sum over unrelated
+  // branches measures nothing.
+  const recent = (plan) => plan.local || (plan.changedMs !== null && now - plan.changedMs <= sinceMs);
+  const orderedPlans = (plans ?? []).filter(recent).sort((a, b) => Number(b.local) - Number(a.local) || (b.changedMs ?? 0) - (a.changedMs ?? 0));
   const shownPlans = orderedPlans.slice(0, PLAN_LIMIT);
   const localGoals = (litgoal ?? []).filter((goal) => goal.local);
   const roadmapItems = [...orderedPlans.filter((plan) => plan.local).map((plan) => plan.progress), ...localGoals.map((goal) => goal.progress)];
@@ -296,7 +311,8 @@ export const collectRewind = ({
     roadmap: {
       plans: shownPlans,
       plansOmitted: orderedPlans.length - shownPlans.length,
-      litgoal: litgoal ?? [],
+      // Another worktree's finished objective is history, not roadmap.
+      litgoal: (litgoal ?? []).filter((goal) => goal.local || goal.status !== "complete"),
       progress: roadmapItems.length ? aggregateProgress(roadmapItems) : progressOf(null, null),
     },
     workflows: (workflows ?? []).map((frame) => ({ ...frame, self: Boolean(sessionId) && frame.sessionId === sessionId })),
@@ -333,37 +349,45 @@ const remainingLine = (names, width) => {
   return out;
 };
 
+// A gauge with its leading space, or nothing: an unknown total has no gauge to print.
+const shown = (progress) => (progress?.gauge ? ` ${progress.gauge}` : "");
+
 /** Plain-text rendering: every gauge with its remaining names under it, clipped to `width`. */
 export const renderRewind = (data, width = 100) => {
   const out = [];
   const push = (text) => out.push(line(text, width));
   push(`lit-adhd: ${data.summary.sessions} session(s), ${data.summary.waitingOnUser} waiting on you, ${data.summary.active} active`);
-  push(`roadmap here ${data.roadmap.progress.gauge}`);
+  push(`roadmap here${shown(data.roadmap.progress)}`);
   for (const plan of data.roadmap.plans) {
-    push(`  ${plan.local ? "" : `${basename(plan.worktree)}: `}${plan.plan} ${plan.progress.gauge} now: ${plan.current}`);
+    push(`  ${plan.local ? "" : `${basename(plan.worktree)}: `}${plan.plan}${shown(plan.progress)} now: ${plan.current}`);
     const left = remainingLine(plan.progress.remaining, width);
     if (left) push(`  ${left}`);
   }
   if (data.roadmap.plansOmitted) push(`  …(+${data.roadmap.plansOmitted} more open plans)`);
-  for (const goal of data.roadmap.litgoal) push(`  litgoal ${goal.progress.gauge} ${goal.objective}`);
+  for (const goal of data.roadmap.litgoal) push(`  litgoal${shown(goal.progress)} ${goal.objective}`);
   for (const session of data.sessions) {
-    push(`${session.id8} ${session.status} ${session.progress.gauge} ${session.title}`);
+    push(`${session.id8} ${session.status}${shown(session.progress)} ${session.title}`);
     const left = remainingLine(session.progress.remaining, width);
     if (left) push(left);
   }
-  for (const frame of data.workflows) push(`  ${frame.id8} ${frame.skill} ${frame.stage} ${frame.status} ${frame.progress.gauge}`);
+  for (const frame of data.workflows) push(`  ${frame.id8} ${frame.skill} ${frame.stage} ${frame.status}${shown(frame.progress)}`);
   push(`next: ${data.next.kind}${data.next.say ? ` (say "${data.next.say}")` : ""}`);
   const unknown = Object.entries(data.sources).filter(([, status]) => status !== "ok").map(([name]) => name);
   if (unknown.length) push(`unknown: ${unknown.join(", ")}`);
   return `${out.join("\n")}\n`;
 };
 
-/** `litclaude-ai rewind [--json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]`. */
+/**
+ * `litclaude-ai rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]`.
+ * `--brief` prints the Markdown brief the lit-adhd skill copies; `--json` the data under it.
+ */
 export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, stdout = process.stdout, stderr = process.stderr } = {}) => {
   const options = { cwd, env, here: false, since: DEFAULT_SINCE, max: DEFAULT_MAX, sessionId: env.CLAUDE_CODE_SESSION_ID || null };
   let json = false;
+  let brief = false;
+  let lang = "en";
   let width = Number(stdout.columns) || 100;
-  const usage = "Usage: litclaude-ai rewind [--json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
+  const usage = "Usage: litclaude-ai rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
   if (args.some((arg) => arg === "--help" || arg === "-h")) {
     stdout.write(`${usage}\n`);
     return 0;
@@ -371,6 +395,8 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--json") json = true;
+    else if (arg === "--brief") brief = true;
+    else if (arg === "--lang" && ["ko", "en"].includes(args[index + 1])) lang = args[++index];
     else if (arg === "--here") options.here = true;
     else if (arg === "--since" && parseSince(args[index + 1])) options.since = args[++index];
     else if (arg === "--max" && /^\d{1,2}$/u.test(args[index + 1] ?? "")) options.max = Number(args[++index]);
@@ -382,6 +408,6 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
     }
   }
   const data = collectRewind(options);
-  stdout.write(json ? `${JSON.stringify(data, null, 2)}\n` : renderRewind(data, width));
+  stdout.write(json ? `${JSON.stringify(data, null, 2)}\n` : brief ? renderBrief(data, { lang }) : renderRewind(data, width));
   return 0;
 };

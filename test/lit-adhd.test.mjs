@@ -51,7 +51,7 @@ const section = (text, heading) => {
   const next = text.indexOf("\n## ", start + heading.length);
   return text.slice(start, next === -1 ? undefined : next);
 };
-const GAUGE_RULE = [/\[▉▉▉░░\] 3\/5/u, /remaining items?/iu, /\[\?\?\?\] k\/\?/u];
+const GAUGE_RULE = [/\[▉▉▉░░\] 3\/5/u, /both numbers are (?:real|recorded)/iu, /known facts/iu];
 
 describe("lit-adhd routes", () => {
   it("every typed route activates lit-adhd with the read-only brief contract", () => withProject((cwd) => {
@@ -60,7 +60,7 @@ describe("lit-adhd routes", () => {
       assert.match(stripAnsi(parsed.systemMessage ?? ""), /lit-adhd/u, `${prompt} should ignite lit-adhd`);
       const context = parsed.hookSpecificOutput.additionalContext;
       assert.match(context, /Skill\(lit-adhd\)/u, prompt);
-      assert.match(context, /litclaude-ai rewind --json/u, prompt);
+      assert.match(context, /litclaude-ai rewind --brief/u, prompt);
       assert.match(context, /READ-ONLY/u, prompt);
       assert.doesNotMatch(context, /Skill\(lit-recap\)|Skill\(lit-loop\)/u, prompt);
     }
@@ -99,7 +99,7 @@ describe("lit-adhd routes", () => {
     for (const name of ["lit-adhd", "lit-rewind"]) {
       const text = read(join(plugin, "commands", `${name}.md`));
       assert.match(text, /Skill\(lit-adhd\)/u, name);
-      assert.match(text, /litclaude-ai rewind --json/u, name);
+      assert.match(text, /litclaude-ai rewind --brief/u, name);
       assert.doesNotMatch(text, /^user-invocable: false$/mu, `${name} is a live alias, not a redirect`);
     }
   });

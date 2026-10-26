@@ -148,6 +148,7 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/lib/rename-aliases.mjs', 'export const renameAliases = {};\n');
     write('plugins/litclaude/lib/secret-shapes.mjs', 'export const containsSecret = () => false;\n');
     write('plugins/litclaude/lib/plan-task-rows.mjs', 'export const parse = () => [];\n');
+    write('plugins/litclaude/lib/rewind/brief.mjs', 'export {};\n');
     write('plugins/litclaude/lib/rewind/collect.mjs', 'export {};\n');
     write('plugins/litclaude/lib/rewind/gauge.mjs', 'export {};\n');
     write('plugins/litclaude/lib/rewind/next-step.mjs', 'export {};\n');

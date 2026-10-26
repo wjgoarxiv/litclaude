@@ -356,9 +356,12 @@ requests are muted grey pills.
   the plan it works from (a saved lit-plan hands its plan to the lit-loop or start-work that
   follows), the open litgoal criteria for a loop, and for the frame on top the main loop's own
   TodoWrite or task list. A subagent: its own TodoWrite or task list, else the tool calls it has
-  finished over an unknown total (`[???] 7/?`; the desktop card counts those by tens past ten so
-  its drawing does not reload on every call). Only statuses are kept, never a todo's or a task's
-  text. A background task has no count (`[???] ?/?`). It ends with its task notification (read
+  finished, the last tool and how long it has run, beside an indeterminate pulse when no total
+  is known (`━━━━━ 7 steps · 4m · last: Edit README.md`; the desktop card counts steps by tens
+  past ten so its drawing does not reload on every call). A gauge is drawn only when both
+  numbers are known; no row ever shows a question-mark count. A task the main loop assigns to a
+  lane by `owner` counts toward that lane. Only statuses are kept, never a todo's or a task's
+  text. A background task shows the pulse and how long it has run. It ends with its task notification (read
   for the task's id and status only), a TaskStop, a monitor's own deadline, or after 12 hours
   with no ending seen. Its command is never shown.
 - The stage comes from the session's workflow stack when it has a fresh frame, and otherwise
@@ -837,11 +840,13 @@ headers by default, switches the body to English on `--en`, and emits the brief
 `lit adhd`, `lit rewind`, `lit-adhd`, `lit-rewind`, `$lit-adhd` and `$lit-rewind` load
 `/litclaude:lit-adhd` / `Skill(lit-adhd)` for a read-only brief across every recent session of
 the repository's worktrees. `lit-rewind` is a permanent alias with the same skill and discipline.
-The context tells the model to run `litclaude-ai rewind --json` once and compose only from it:
+The context tells the model to run `litclaude-ai rewind --brief` once and print the brief it draws:
 the collector reads transcripts, plans, litgoal, handoff headings, git log, workflow stacks,
 start-work state and herdr (with `HERDR_ENV=1`) under one byte budget, redacts secrets, and
-draws every progress gauge itself (`[▉▉▉░░] 3/5`, or `[???] k/?` for an unknown total) so the
-model copies them. A brief is read-only on the workflow stack. Near-miss words (`lit adhder`,
+draws the whole brief itself (`lib/rewind/brief.mjs`): a headline, one card per live session
+grouped by worktree and branch, one table row per ended session, a roadmap timeline scoped to this
+worktree and recently changed plans, and one boxed next step that is always a real one. A gauge (`[▉▉▉░░] 3/5`)
+appears only when both numbers are recorded; otherwise the card states the known facts. A brief is read-only on the workflow stack. Near-miss words (`lit adhder`,
 `lit rewinding`, bare `adhd`) and the slash forms do not activate the hook; `recap` stays with
 lit-recap.
 

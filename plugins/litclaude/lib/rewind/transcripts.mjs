@@ -163,6 +163,17 @@ const slashPrompt = (text) => {
   return args ? `${name} ${args}` : name;
 };
 const FILE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
+// What a tool call was about, in a few words: a file's base name, a shell call's own description,
+// a search pattern, a subagent's or skill's name. Never a command line or file contents.
+const actionTarget = (name, input) => {
+  const path = input?.file_path ?? input?.notebook_path ?? input?.path;
+  if (["Read", ...FILE_TOOLS].includes(name) && typeof path === "string") return path.split(/[\\/]/u).at(-1);
+  if (name === "Bash" && typeof input?.description === "string") return input.description;
+  if ((name === "Grep" || name === "Glob") && typeof input?.pattern === "string") return input.pattern;
+  if ((name === "Agent" || name === "Task") && typeof input?.description === "string") return input.description;
+  if (name === "Skill" && typeof input?.skill === "string") return input.skill;
+  return null;
+};
 const WAITING_TEXT = /[?？]\s*$|`?lit approve`?|`?lit deny`?|승인해\s*주|확인해\s*주|괜찮을까요|할까요/iu;
 
 /**
@@ -184,6 +195,7 @@ export const sessionRecord = (lines, { redact = (text) => text, now = Date.now()
   const tools = {};
   const files = [];
   let result = null;
+  let lastAction = null;
   for (const line of main) {
     if (line.type === "custom-title" && typeof line.customTitle === "string") customTitle = line.customTitle;
     if (line.type === "ai-title" && typeof line.aiTitle === "string") aiTitle = line.aiTitle;
@@ -207,6 +219,8 @@ export const sessionRecord = (lines, { redact = (text) => text, now = Date.now()
           tools[part.name] = (tools[part.name] ?? 0) + 1;
           const path = part.input?.file_path ?? part.input?.notebook_path;
           if (FILE_TOOLS.has(part.name) && typeof path === "string") files.push(path);
+          const target = actionTarget(part.name, part.input);
+          lastAction = { tool: part.name, ...(target ? { target } : {}) };
           lastEntry = { role: "tool" };
         }
       }
@@ -237,6 +251,7 @@ export const sessionRecord = (lines, { redact = (text) => text, now = Date.now()
     title: redact(clip(customTitle ?? aiTitle ?? prompts[0] ?? "unknown", 80)),
     asked: asked.length ? asked : ["unknown"],
     done: { tools, files: changed, commits: [] },
+    lastAction: lastAction ? { tool: lastAction.tool, ...(lastAction.target ? { target: redact(clip(lastAction.target, 60)) } : {}) } : null,
     result: result ? redact(clip(result, 240)) : "unknown",
     status,
     ...(waiting ? { waitingReason: "asked the user" } : {}),

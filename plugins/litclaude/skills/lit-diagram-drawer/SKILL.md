@@ -41,7 +41,7 @@ Claude Code lists this directory as a plugin skill, so `/litclaude:lit-diagram-d
 | Mode | Trigger | Completion boundary |
 | --- | --- | --- |
 | draft | Type and canvas are fixed by the brief, or the user delegated them | Verified HTML/SVG plus requested exports |
-| clarify | Type or size is open and the user is available | State the chosen type, canvas, and any simplification, then continue |
+| clarify | Type, canvas, theme or density is open and the user is available | Ask with `AskUserQuestion` (the design step below), state the chosen type, canvas, and any simplification, then continue |
 | import | The user supplied a draw.io, Mermaid, or Excalidraw file | Extract, redraw in a catalog type, record what was dropped |
 | export-unavailable | `scripts/doctor.mjs` reports no agent-browser 0.38.1+ or Chrome 154+ | `BLOCKED` for PNG only; hand back the user-run setup lines and keep the verified source |
 | review-only | The user asks for critique of an existing diagram | Run the verifiers and report; no edits |
@@ -49,6 +49,17 @@ Claude Code lists this directory as a plugin skill, so `/litclaude:lit-diagram-d
 ## #contract.procedure
 
 Resolve every helper from the directory that contains this installed `SKILL.md` (call it `SKILL_ROOT`) and run it by absolute path. Do not resolve scripts from the working directory or a different cached plugin version.
+
+### Choose the design first
+
+The user has the right to choose how the diagram looks. Before the content brief, the layout budget or any HTML, call the `AskUserQuestion` tool once with up to four questions; each puts the option your reading of the brief favours first with `(Recommended)`, adds a one-line description, and gives a `preview` with a small ASCII of the result.
+
+1. `Type` ("Which layout?"): asked only when two or more entries of `references/type-catalog.json` answer the reader's question, with the best two to four as options (for a request-path question, for instance `architecture`, `flowchart`, `swimlane` and `sequence`). Previews: boxes grouped in named zones; a diamond with two exits; owner lanes with hand-offs; lifelines with messages.
+2. `Canvas` ("Where will it be placed?"): `slide-16x9 (Recommended)` (1280 x 720), `slide-4x3` (960 x 720), `doc-inline` (960 x 600, a Word column), `doc-wide` (1200 x 675). `social-square` and `fit` stay reachable through Other.
+3. `Theme` ("Which variant?"): `light (Recommended)` (paper canvas, dark ink, a restrained warm accent), `dark` (dark paper, light ink), `full` (a title, context, key and takeaway around the same layout).
+4. `Density` ("How full?"): `Dense, about 8/10 (Recommended)` (named zones, sub-components, a role legend) or `Minimal, about 4/10` (one or two focal accents).
+
+The tool adds "Other" itself, so no Other option is written. Skip a question when the prompt already names its answer (a type, a canvas preset, light or dark, "minimal", a brand profile or an imported draw.io, Mermaid or Excalidraw file that fixes the layout) or the user hands the choice over ("알아서", "you choose", "just make it good"): take the Recommended option and say so in the reply. When `AskUserQuestion` is unavailable (a non-interactive `claude -p` run), pick the Recommended option of each question, say so in one line ("Non-interactive run: building the architecture layout on slide-16x9, light, the recommended options"), and continue.
 
 1. **Choose a type.** Match the reader's question to one entry in `references/type-catalog.json`. When behavior, state, enforcement, or risk is the point, pick a pattern from `references/semantic-patterns.md` first, then its nearest type.
 2. **Write a content brief.** Name the audience, purpose, facts that must stay exact, relationships, boundaries, size, theme, and outputs. When the user gave a brief with `participates in the labeled relationships below` lines and `A → B (label)` relationships, keep those names and labels verbatim. When the brief has a trust boundary, it lists every node once under `Trust boundary internal nodes:` or `Trust boundary external nodes:` (semicolon-separated); internal boxes sit fully inside the boundary rectangle and external boxes fully outside.

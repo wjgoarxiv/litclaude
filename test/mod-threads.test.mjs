@@ -49,7 +49,8 @@ test("three parallel lanes: three rows under a fork line, each with a gauge and 
   const [fork, ...lanes] = threadRows(card);
   assert.match(fork, /^│ ┬ 3 lanes in parallel/u);
   // A lane that keeps no list counts the steps it finished over a total nobody knows.
-  assert.match(lanes[0], /^│ ├─ ● explore +\[\?\?\?\] 0\/\? running/u);
+  // A lane that keeps no list has no total: a pulse and what is known, never a guessed gauge.
+  assert.match(lanes[0], /^│ ├─ ● explore +━{5} running +│$/u);
   assert.match(lanes[1], /^│ ├─ ● librarian/u);
   assert.match(lanes[2], /^│ └─ ● verifier/u);
 });
@@ -185,7 +186,7 @@ test("a lane's own TodoWrite or task list gives its k/n; with neither it counts 
   const rows = threadRows(draw(model));
   assert.match(rows[1], /├─ ● explore +\[▉▉░░\] 2\/4 running/u);
   assert.match(rows[2], /├─ ● librarian +\[▉░░\] 1\/3 running/u);
-  assert.match(rows[3], /└─ ● verifier +\[\?\?\?\] 3\/\? running/u);
+  assert.match(rows[3], /└─ ● verifier +━{5} running · 3 steps · last: Read/u);
   assert.ok(rows.every((row) => !/\?\/\?/u.test(row)), "no lane reads ?/?");
 });
 
@@ -207,13 +208,13 @@ test("a frame with no recorded count shows its plan's checkboxes, then the goal,
   stack.frames[1].plan = { done: 0, total: 5 };
   const snapshot = { ...idle(), ignition: { discipline: "lit-loop", at: NOW - 1000 }, workflow: { stack, record: stack.record } };
   let rows = threadRows(draw(buildBandModel({ snapshot, now: NOW, isWorking: true })));
-  assert.match(rows[0], /\| lit-plan +plan +\[\?\?\?\] \?\/\? paused/u, "a plan frame that names no plan has nothing to count");
+  assert.match(rows[0], /\| lit-plan +plan +━{5} paused \d+s/u, "a plan frame that names no plan has nothing to count");
   assert.match(rows[1], /└─ ● lit-loop +PIN +\[░░░░░\] 0\/5 running/u, "the loop counts the plan it took over");
   stack.frames[1].plan = null;
   const lists = noteLoopCall(EMPTY_LISTS, "main", { tool: "TodoWrite", todos: todos("completed", "pending", "pending") }, {});
   rows = threadRows(draw(buildBandModel({ snapshot, now: NOW, isWorking: true, lists })));
   assert.match(rows[1], /lit-loop +PIN +\[▉░░\] 1\/3 running/u, "the frame on top falls back to the main loop's todos");
-  assert.match(rows[0], /lit-plan .*\?\/\? paused/u, "a paused parent never takes the main loop's list");
+  assert.match(rows[0], /lit-plan .*━{5} paused/u, "a paused parent never takes the main loop's list");
 });
 
 test("a start-work frame counts its run's tasks and a saved plan's successor inherits the plan", () => {
@@ -287,7 +288,7 @@ test("background tasks are threads beside the lanes, under one fork line that co
   const rows = threadRows(draw(model));
   assert.equal(forkLabel(model.threads), "1 lane · 2 tasks in parallel");
   assert.match(rows[1], /^│ ┬ 1 lane · 2 tasks in parallel/u);
-  assert.match(rows[3], /├─ \$ dev server +shell +\[\?\?\?\] \?\/\? running/u);
+  assert.match(rows[3], /├─ \$ dev server +shell +━{5} running/u);
   assert.match(rows[4], /└─ ~ watch CI +monitor/u);
   const later = buildBandModel({ snapshot, now: NOW + 120_000, isWorking: true, tasks });
   assert.deepEqual(later.threads.lanes.map(({ name }) => name), ["dev server"], "a monitor past its deadline is gone");
@@ -310,7 +311,7 @@ test("a chain of frames never squeezes parallel lanes below three rows; tasks fo
 test("a wide card keeps lane names that differ only at the end apart", () => {
   const model = buildBandModel({ snapshot: { ...idle(), ignition: { discipline: "lit-loop", at: NOW - 1000 } }, now: NOW, isWorking: true, agents: agents(["Sleep drill agent 1", "Sleep drill agent 2", "Sleep drill agent 3"]) });
   const wide = threadRows(draw(model, 120)).slice(1);
-  wide.forEach((row, index) => assert.match(row, new RegExp(`● Sleep drill agent ${index + 1} +\\[`, "u")));
+  wide.forEach((row, index) => assert.match(row, new RegExp(`● Sleep drill agent ${index + 1} +━`, "u")));
   for (const row of draw(model, 60).rows) assert.equal(rowWidth(row), 60, rowText(row));
   const { alt, source } = composeSvgCard(model, { motion: "off" });
   assert.match(alt, /Sleep drill agent 3/u);
@@ -324,7 +325,7 @@ test("a teammate waiting for a message reads idle, not running", () => {
   assert.deepEqual(model.threads.lanes.map(({ state }) => state), ["idle", "running"]);
   const rows = threadRows(draw(model));
   assert.match(rows[2], /├─ - alpha .* idle/u);
-  assert.match(composeSvgCard(model, { motion: "off" }).alt, /alpha \[\?\?\?\] 0\/\? idle/u);
+  assert.match(composeSvgCard(model, { motion: "off" }).alt, /alpha idle/u);
 });
 
 test("a task notification ends the tasks it names as finished, and nothing else", () => {
@@ -443,5 +444,5 @@ test("the desktop card counts a lane's steps by tens past ten, so its drawing do
     drawn.push(composeSvgCard(model, { motion: "off" }).source);
   }
   assert.equal(new Set(drawn).size, 9 + 2, "steps 1-9 draw each, then 10+ and 20+ only");
-  assert.match(drawn.at(-1), /\[\?\?\?\] 20\+\/\?/u);
+  assert.match(drawn.at(-1), /20\+ steps/u);
 });

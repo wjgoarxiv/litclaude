@@ -111,7 +111,7 @@ test("the README demo film is an animated WebP that stays out of the package and
 const cardShots = {
   "idle.webp": "b51f0a0202fa944ecdab6699125e309823e02e73f65c9406c0fa29bbd1ccdfa4",
   "working.webp": "018f411330e022a13e5ac80fa824765423a9ec9e76afbf2366db1fe0e70c0f54",
-  "threads.webp": "f7f6289dca4255d57f76e000c2342999ea7a32251cce3839a31ad551b5400f33",
+  "threads.webp": "0d4ab9884bba469b44edd611531f8555d2c27c6f84209ea8035d1f3614c828ad",
   "after.webp": "20781c9423d37112edb87d3b40f7ab46f1b1d293e7da74794ef0a1f71bdd3bf8",
 };
 const cardQuotes = {

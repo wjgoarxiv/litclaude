@@ -8,8 +8,10 @@ would drift back to one look for every topic, which is the failure this whole de
 
 The step is short. It reads the brief and the source, ranks the candidate tonalities for the deck
 type, writes a direction card, says the choice and two alternatives in the reply, and records the
-card in the build log. It asks the user nothing unless the brief leaves the look open on purpose
-(then it renders a compare strip) or a dial has to move further than the skill may move it alone.
+card in the build log. The ranking only proposes: before the card is final it asks the user to choose
+the look and the slide frame with one `AskUserQuestion` call (SKILL.md, step 2), unless the brief
+already names them or hands the choice over. A brief that leaves the look open on purpose also gets a
+compare strip, and a dial that has to move further than the skill may move it alone is put to the user.
 
 ## 1. Close the brief
 

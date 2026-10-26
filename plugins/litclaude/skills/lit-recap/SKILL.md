@@ -48,6 +48,7 @@ verdicts: [PASS, FAIL, BLOCKED]
 - Skill-specific deliverable: plan, implementation, review, research synthesis, prose edit, recap, or QA verdict.
 - Internal evidence list with paths, commands, outputs, route traces, diagnostics, or artifacts.
 - Final or interim status using `PASS`, `FAIL`, `BLOCKED:`, or a clearly non-final progress note.
+- Other sessions or worktrees: point to `lit adhd`.
 
 ## #contract.output_channels
 

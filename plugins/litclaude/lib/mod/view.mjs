@@ -2,6 +2,7 @@
 // (skills.mjs) and what Claude Code reports live (subagents, context and rate-limit usage). Pure: the mod calls these on each refresh and hands the result to the
 // band's surface module, which only draws and animates it.
 
+import { lookOf } from "./motion.mjs";
 import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
 import { buildWorkflow } from "./workflow.mjs";
 
@@ -12,6 +13,13 @@ export const STALL_MS = 10 * 60 * 1000;
 export const AGENT_STALE_MS = 30 * 60 * 1000;
 // The context warning starts this many points before the auto-handoff percent.
 export const CONTEXT_LEAD = 5;
+
+// How long the rewind look stays after `lit adhd` was sent. The ignition keeps naming lit-adhd
+// until the next prompt, so the look lasts while the user reads the brief, but no longer than this.
+export const REWIND_LINGER_MS = 15 * 60 * 1000;
+
+// How long the card must have sat idle since its newest skill before it offers `lit adhd`.
+export const BREAK_MS = 30 * 60 * 1000;
 
 const LIVE_AGENT = new Set(["running", "pending", "waiting", "idle"]);
 const ENDED_AGENT = new Set(["completed", "failed", "killed"]);
@@ -97,14 +105,24 @@ const countOrNull = (value) => (Number.isInteger(value) && value >= 0 ? value : 
 
 // `lists` maps a loop (`main`, or a subagent's id) to what its tool calls say of its progress:
 // `steps`, the tool calls it finished; `todos`, the counts of its last TodoWrite; `tasks`, the
-// status of each task it created with TaskCreate (TaskUpdate moves them); `latest`, which of the two
-// lists it touched last. Only statuses are kept, never a todo's or a task's text.
+// status of each task it created with TaskCreate (TaskUpdate moves them, and may give one to a lane
+// by `owner`); `latest`, which of the two lists it touched last; `last`, its last finished step as a
+// tool name and at most a file's base name. Only statuses are kept, never a todo's or a task's text.
 export const EMPTY_LISTS = Object.freeze({});
 const LIST_CAP = 200;
 const LOOP_CAP = 40;
 const TASK_STATUS = new Set(["pending", "in_progress", "completed"]);
 
-const loopEntry = (lists, loop) => lists[loop] ?? { steps: 0, todos: null, tasks: {}, latest: null };
+const loopEntry = (lists, loop) => lists[loop] ?? { steps: 0, todos: null, tasks: {}, latest: null, last: null };
+const OWNER = /^[\w .:-]{1,40}$/u;
+// `Edit README.md`: the tool and the base name of the file it touched, nothing of its arguments.
+const lastStepOf = (call) => {
+  const tool = stepName(call?.tool);
+  if (!tool) return null;
+  const path = typeof call.file_path === "string" ? call.file_path : typeof call.notebook_path === "string" ? call.notebook_path : null;
+  const base = path ? path.split(/[\\/]/u).pop().replace(/[^\w .@+-]/gu, "").slice(0, 28) : "";
+  return base ? `${tool} ${base}` : tool;
+};
 
 /**
  * Folds one finished tool call of `loop` into `lists`: every call counts a step, a TodoWrite
@@ -116,6 +134,7 @@ export const noteLoopCall = (lists, loop, call, result) => {
   const next = { ...lists };
   const entry = { ...loopEntry(lists, loop) };
   entry.steps += 1;
+  entry.last = lastStepOf(call) ?? entry.last ?? null;
   if (call?.tool === "TodoWrite" && Array.isArray(call.todos)) {
     const todos = call.todos.slice(0, LIST_CAP);
     entry.todos = { done: todos.filter((todo) => todo?.status === "completed").length, total: todos.length };
@@ -123,13 +142,16 @@ export const noteLoopCall = (lists, loop, call, result) => {
   } else if (call?.tool === "TaskCreate" && typeof result?.task?.id === "string") {
     entry.tasks = { ...entry.tasks, [result.task.id.slice(0, 64)]: { status: "pending", seen: true } };
     entry.latest = "tasks";
-  } else if (call?.tool === "TaskUpdate" && typeof call.taskId === "string" && (TASK_STATUS.has(call.status) || call.status === "deleted")) {
+  } else if (call?.tool === "TaskUpdate" && typeof call.taskId === "string" && (TASK_STATUS.has(call.status) || call.status === "deleted" || typeof call.owner === "string")) {
     const id = call.taskId.slice(0, 64);
     const owner = Object.keys(next).find((key) => key !== loop && next[key].tasks?.[id]);
     const target = owner ? { ...next[owner] } : entry;
     const tasks = { ...target.tasks };
     if (call.status === "deleted") delete tasks[id];
-    else tasks[id] = { status: call.status, seen: tasks[id]?.seen ?? false };
+    else if (TASK_STATUS.has(call.status) || tasks[id]) {
+      const assignee = typeof call.owner === "string" && OWNER.test(call.owner.trim()) ? call.owner.trim() : tasks[id]?.owner;
+      tasks[id] = { status: TASK_STATUS.has(call.status) ? call.status : tasks[id].status, seen: tasks[id]?.seen ?? false, ...(assignee ? { owner: assignee } : {}) };
+    }
     target.tasks = Object.fromEntries(Object.entries(tasks).slice(-LIST_CAP));
     target.latest = "tasks";
     if (owner) next[owner] = target;
@@ -149,6 +171,13 @@ export const listProgress = (entry) => {
   const fromTasks = tasks.length ? { done: tasks.filter(({ status }) => status === "completed").length, total: tasks.every(({ seen }) => seen) ? tasks.length : null } : null;
   if (entry.latest === "tasks" && fromTasks) return fromTasks;
   return entry.todos ?? fromTasks;
+};
+
+// The tasks any loop's list gave to `owner` by name, as `{ done, total }`, or null when none did.
+const ownedProgress = (lists, owner) => {
+  if (!owner) return null;
+  const owned = Object.values(lists).flatMap((entry) => Object.values(entry?.tasks ?? {})).filter((task) => task.owner === owner);
+  return owned.length ? { done: owned.filter(({ status }) => status === "completed").length, total: owned.length } : null;
 };
 
 // `tasks` maps a background task's id to `{ id, kind, name, at, until }`: a shell a Bash call left
@@ -207,8 +236,11 @@ const frameCount = (frame, snapshot, mainList) => {
   return mainList ?? { done: countOrNull(record?.n), total: null };
 };
 
-const frameThread = (frame, index, snapshot, active, mainList = null) => {
+// A thread with no total carries what is known instead: its finished steps, how long it has run
+// and its last step (knownFacts in rewind/gauge.mjs words them).
+const frameThread = (frame, index, snapshot, active, mainList = null, now = null, mainEntry = null) => {
   const { done, total } = frameCount(frame, snapshot, active ? mainList : null);
+  const started = Number.isFinite(frame.at) ? frame.at : frame.record?.at;
   return {
     key: `frame-${index}`,
     name: frame.skill ?? frame.record?.family ?? "work",
@@ -217,11 +249,15 @@ const frameThread = (frame, index, snapshot, active, mainList = null) => {
     total,
     state: frame.record?.done ? "done" : frame.status === "paused" ? "paused" : frame.skill === "start-work" && snapshot.work?.status === "paused" ? "blocked" : "running",
     active,
+    steps: active && mainEntry ? mainEntry.steps : null,
+    last: active && mainEntry ? mainEntry.last ?? null : null,
+    elapsedMs: Number.isFinite(now) && Number.isFinite(started) ? Math.max(0, now - started) : null,
   };
 };
 
-// A lane's k/n: its own todo or task list, else the steps it has finished over an unknown total.
-const laneCount = (entry) => listProgress(entry) ?? { done: entry?.steps ?? 0, total: null, steps: true };
+// A lane's k/n: its own todo or task list, then the tasks a loop gave it by name; else no total,
+// with the steps it has finished and its last one.
+const laneCount = (entry, lists, name) => listProgress(entry) ?? ownedProgress(lists, name) ?? { done: null, total: null, steps: entry?.steps ?? 0, last: entry?.last ?? null };
 
 /**
  * The live threads, or null while there is at most one: `{ chain, lanes, others, laneCount,
@@ -235,20 +271,21 @@ const laneCount = (entry) => listProgress(entry) ?? { done: entry?.steps ?? 0, t
 const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
   const frames = snapshot.workflow?.stack?.frames ?? [];
   const mainList = listProgress(lists.main);
-  const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList));
+  const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList, now, lists.main));
   const laneThreads = lanes.map((lane, index) => ({
     key: `lane-${lane.id ?? index}`,
     name: lane.name,
     stage: null,
-    ...laneCount(lane.id ? lists[lane.id] : null),
+    ...laneCount(lane.id ? lists[lane.id] : null, lists, lane.name),
     state: lane.status === "stalled" ? "blocked" : lane.status === "idle" ? "idle" : "running",
     active: false,
+    elapsedMs: Number.isFinite(lane.elapsedMs) ? lane.elapsedMs : null,
   }));
-  const taskThreads = tasks.map((task) => ({ key: `task-${task.id}`, name: task.name, stage: task.kind, done: null, total: null, state: "running", active: false, task: task.kind }));
+  const taskThreads = tasks.map((task) => ({ key: `task-${task.id}`, name: task.name, stage: task.kind, done: null, total: null, state: "running", active: false, task: task.kind, elapsedMs: Number.isFinite(task.at) ? Math.max(0, now - task.at) : null }));
   const parallel = [...laneThreads, ...taskThreads];
   const others = (snapshot.workflow?.others ?? [])
     .filter((other) => Number.isFinite(other.at) && now - other.at <= OTHER_SESSION_MS && other.frames?.length)
-    .map((other) => ({ ...frameThread(other.frames.at(-1), 0, {}, false), key: `session-${other.id8}`, session: other.id8 }));
+    .map((other) => ({ ...frameThread(other.frames.at(-1), 0, {}, false, null, now), key: `session-${other.id8}`, session: other.id8 }));
   const total = chain.length + parallel.length + others.length;
   if (total < 2) return null;
   const room = Math.max(PARALLEL_ROWS, THREAD_ROWS - chain.length);
@@ -382,10 +419,13 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const lit = skills.some(({ state }) => state === "current");
   const workflow = buildWorkflow({ snapshot, skills, completion, now });
   const title = discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline;
-  const visible = band === "off" ? false : band === "always" || active || lit || notice !== null || completion !== null || warnings.length > 0;
+  const rewind = lookOf(discipline) === "rewind" && Number.isFinite(snapshot.ignition?.at) && now - snapshot.ignition.at < REWIND_LINGER_MS;
+  const visible = band === "off" ? false : band === "always" || active || lit || rewind || notice !== null || completion !== null || warnings.length > 0;
   return {
     visible,
     idle: !active && !lit,
+    rewind,
+    away: !active && !lit && !rewind && skills.length > 0 && now - Math.max(...skills.map(({ at }) => (Number.isFinite(at) ? at : now))) >= BREAK_MS,
     discipline,
     title: workflow?.paused ? crumbOf(workflow.paused) : title,
     phases,

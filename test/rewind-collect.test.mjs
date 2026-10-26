@@ -3,7 +3,7 @@
 // redacted records; every other source reads `ok` or `unknown`; the next step follows its fixed
 // priority; gauges are drawn by code (D9) and never guess a total.
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -58,12 +58,12 @@ test("gauges: one cell per item up to ten, scaled above, unknown totals never gu
   assert.equal(gauge(1, 40), "[▉░░░░░░░░░] 1/40");
   assert.equal(gauge(39, 40), "[▉▉▉▉▉▉▉▉▉░] 39/40");
   assert.equal(gauge(40, 40), "[▉▉▉▉▉▉▉▉▉▉] 40/40");
-  assert.equal(gauge(2, null), "[???] 2/?");
-  assert.equal(gauge(null, null), "[???] ?/?");
+  assert.equal(gauge(2, null), null);
+  assert.equal(gauge(null, null), null);
   assert.deepEqual(progressOf(2, null).remaining, ["unknown"]);
   assert.deepEqual(progressOf(3, 3).remaining, []);
   assert.equal(aggregateProgress([progressOf(1, 2), progressOf(2, 3)]).gauge, "[▉▉▉░░] 3/5");
-  assert.equal(aggregateProgress([progressOf(1, 2), progressOf(2, null)]).gauge, "[???] 3/?");
+  assert.equal(aggregateProgress([progressOf(1, 2), progressOf(2, null)]).gauge, null);
 });
 
 test("display width counts Hangul as two columns and clips at 60, 80 and 100", () => {
@@ -170,7 +170,7 @@ test("missing sources read unknown and an empty HOME still returns a brief", () 
   for (const name of ["transcripts", "litgoal", "plans", "handoffs", "git", "workflowStack", "startWork", "herdr"]) {
     assert.equal(data.sources[name], "unknown", name);
   }
-  assert.equal(data.roadmap.progress.gauge, "[???] ?/?");
+  assert.equal(data.roadmap.progress.gauge, null);
   assert.equal(data.next.kind, "none");
   assert.match(renderRewind(data), /unknown: transcripts/u);
 });
@@ -292,7 +292,15 @@ test("open plans list this worktree first under a cap, and the roadmap gauge cou
   mkdirSync(join(other, "plans"), { recursive: true });
   mkdirSync(join(repo, "plans"));
   writeFileSync(join(repo, "plans", "zz-local.md"), "- [x] a\n- [ ] b\n");
-  for (let index = 0; index < 10; index += 1) writeFileSync(join(other, "plans", `p${index}.md`), "- [ ] x\n- [ ] y\n- [ ] z\n");
+  for (let index = 0; index < 10; index += 1) {
+    const path = join(other, "plans", `p${index}.md`);
+    writeFileSync(path, "- [ ] x\n- [ ] y\n- [ ] z\n");
+    utimesSync(path, new Date(NOW - (index + 1) * 60_000), new Date(NOW - (index + 1) * 60_000));
+  }
+  // Another worktree's stale plan and an unfilled scaffold are left out, not counted.
+  writeFileSync(join(other, "plans", "old.md"), "- [ ] stale\n");
+  utimesSync(join(other, "plans", "old.md"), new Date(NOW - 30 * 86_400_000), new Date(NOW - 30 * 86_400_000));
+  writeFileSync(join(other, "plans", "template.md"), "- [ ] 1. <title>\n- [ ] 2. <title>\n");
   const exec = (file, args) => {
     if (args[0] === "worktree") return `worktree ${repo}\n\nworktree ${other}\n`;
     throw new Error("no log");
@@ -304,5 +312,6 @@ test("open plans list this worktree first under a cap, and the roadmap gauge cou
   assert.equal(data.roadmap.progress.gauge, "[▉░] 1/2");
   assert.equal(data.next.kind, "start-plan");
   assert.match(renderRewind(data, 80), /…\(\+3 more open plans\)/u);
-  assert.match(renderRewind(data, 80), /far: plans\/p0\.md/u);
+  assert.match(renderRewind(data, 80), /far: plans\/p0\.md/u, "the most recently changed plan elsewhere comes first");
+  assert.ok(data.roadmap.plans.every((plan) => !["plans/old.md", "plans/template.md"].includes(plan.plan)));
 });

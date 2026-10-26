@@ -32,7 +32,7 @@
 // and move by colour alone (a colour change on `─` or `━` repaints), and the live step's spinner
 // and clock are ASCII.
 
-import { gauge } from "../rewind/gauge.mjs";
+import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { barCells, gradientAt, lerpColor, lookOf, rainbowAt } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
@@ -128,6 +128,19 @@ const pill = (body, fill, glyphs) => (glyphs.capLeft
   ? [span(glyphs.capLeft, { fg: fill }), ...body, span(glyphs.capRight, { fg: fill })]
   : [span(" ", { bg: fill }), ...body, span(" ", { bg: fill })]);
 
+// The rewind look's pills: each cell a step further round the hue wheel, lightened so the dark ink
+// keeps its contrast, with each cap in the colour of the cell beside it.
+const RAINBOW_SPREAD = 0.35;
+const rainbowCell = (rainbow, at) => lerpColor(rainbow(at), "#ffffff", 0.3);
+const rainbowPill = (text, rainbow, from, glyphs, bold = true) => {
+  const chars = [...text];
+  const at = (i) => from + (chars.length <= 1 ? 0 : (i / (chars.length - 1)) * RAINBOW_SPREAD);
+  const body = chars.map((ch, i) => span(ch, { fg: PILL.ink, bg: rainbowCell(rainbow, at(i)), bold }));
+  return glyphs.capLeft
+    ? [span(glyphs.capLeft, { fg: rainbowCell(rainbow, at(0)) }), ...body, span(glyphs.capRight, { fg: rainbowCell(rainbow, at(chars.length - 1)) })]
+    : [span(" ", { bg: rainbowCell(rainbow, at(0)) }), ...body, span(" ", { bg: rainbowCell(rainbow, at(chars.length - 1)) })];
+};
+
 const inkOf = (accent) => ({ done: lerpColor(accent, PALETTE.dim, 0.45), now: accent, todo: PALETTE.dim, warn: PALETTE.amber });
 
 // Colour of one phase in this frame: the crossfade from its previous state, then the amber mix for
@@ -204,14 +217,20 @@ const cometOn = (sample, edge, width, look = null) => {
 };
 
 // While LitClaude works the brand pill breathes from its pink toward the flame orange and back.
-const brandSpans = (sample, glyphs) => {
+// The rewind look turns it through the rainbow instead, lightened so its dark ink stays readable.
+const brandSpans = (sample, glyphs, rainbow = null) => {
   const reveal = revealText("🔥 LIT", sample.pills[0]);
   if (reveal === null) return [];
+  if (rainbow) return rainbowPill(reveal, rainbow, 0, glyphs);
   const fill = sample.ambient ? lerpColor(PILL.brand, PALETTE.orange, 0.85 * sample.ambient.breath) : PILL.brand;
   return pill(litText(reveal, { fg: PILL.ink, bg: fill, bold: true }, sample.completion?.shimmer ?? null), fill, glyphs);
 };
-const indicatorSpans = (model, sample, glyphs, accent) => {
+// `REWIND <<` while the rewind look is on, each letter a step further round the hue wheel, lightened
+// to keep 4.5:1 on the card; the letters stay put and only their colours move.
+const rewindSpans = (rainbow) => [..."REWIND <<"].map((ch, i) => span(ch, { fg: lerpColor(rainbow(i / 9), "#ffffff", 0.4), bold: true }));
+const indicatorSpans = (model, sample, glyphs, accent, rainbow = null) => {
   if (sample.completion) return [span(`DONE ${glyphs.done}`, { fg: PALETTE.green, bold: true })];
+  if (rainbow) return rewindSpans(rainbow);
   if (model.idle) return [span("idle", { fg: PALETTE.dim })];
   const flow = model.workflow;
   if (flow && flow.current >= 0) {
@@ -228,11 +247,11 @@ const indicatorSpans = (model, sample, glyphs, accent) => {
 
 // ╭─ [🔥 LIT] · <discipline> ──── <PHASE ●> ─╮. On a narrow card the phase indicator goes first,
 // then the discipline shortens, then it goes too.
-const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint }) => {
-  const brand = brandSpans(sample, glyphs);
-  const right = indicatorSpans(model, sample, glyphs, accent);
+const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rainbow }) => {
+  const brand = brandSpans(sample, glyphs, rainbow);
+  const right = indicatorSpans(model, sample, glyphs, accent, rainbow);
   const name = model.title ?? "ready";
-  const nameStyle = model.idle ? { fg: PALETTE.dim } : { fg: accent, bold: true };
+  const nameStyle = model.idle && !rainbow ? { fg: PALETTE.dim } : { fg: accent, bold: true };
   const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle)] : []);
   const fixed = textWidth("╭─ ") + rowWidth(brand) + 1 + 1;
   const withRight = fixed + rowWidth(title(name)) + 1 + rowWidth(right) + textWidth(" ─╮");
@@ -298,12 +317,14 @@ const phaseTrack = (model, sample, { glyphs, accent, rail, short, rainbow }) => 
     const shown = revealText(state === "now" ? label : `${state === "done" ? "●" : "○"} ${label}`, sample.pills[index + 1]);
     if (shown === null) return;
     if (out.length) out.push(span(` ${glyphs.rail.repeat(rail)} `, { fg: rainbow ? rainbow(index / PHASES.length) : sample.phases[PHASES[index - 1]].to === "done" ? ink.done : PILL.rail }));
-    if (state === "now") {
+    if (state === "now" && rainbow) {
+      out.push(...rainbowPill(shown.slice(0, label.length).padEnd(label.length), rainbow, index / PHASES.length, glyphs));
+    } else if (state === "now") {
       const fill = model.idle ? lerpColor(phaseColor(id, sample, ink), PILL.muted, 0.5) : phaseColor(id, sample, ink);
       const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
       out.push(...pill(litText(shown.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs));
     } else {
-      out.push(span(warned(id, sample) ? shown.replace(/^[●○]/u, glyphs.warn) : shown, { fg: phaseColor(id, sample, ink) }));
+      out.push(span(warned(id, sample) ? shown.replace(/^[●○]/u, glyphs.warn) : shown, { fg: rainbow && !warned(id, sample) ? rainbow(index / PHASES.length + 0.15) : phaseColor(id, sample, ink), bold: Boolean(rainbow) }));
     }
   });
   return out;
@@ -532,10 +553,43 @@ const THREAD_NAME = Object.freeze({ mid: PALETTE.white, last: "#d8e0e8" });
  *   └─ ● lit-loop RED   [▉░░░] 1/4 running
  *      ┬ 2 lanes · 1 task in parallel
  *      ├─ ● executor    [▉▉░] 2/3 running
- *      ├─ ● reviewer    [???] 7/? running
- *      └─ $ dev server shell [???] ?/? running
+ *      ├─ ● reviewer    ━━━━━ running · 7 steps · 2m · last: Read a.mjs
+ *      └─ $ dev server shell ━━━━━ running 4m
+ *
+ * A thread with two real numbers draws its gauge. One without a total never draws a guess: an
+ * indeterminate pulse (fixed `━` cells whose light moves by colour while the card animates) and
+ * what is known in words. The rewind look turns the gauge cells and the pulse through its rainbow.
  */
-const threadRows = (model, { inner, glyphs }) => {
+const PULSE_CELLS = 5;
+const pulseSpans = (sample, rainbow, index) => {
+  const ambient = sample.ambient;
+  const at = ambient?.flow ?? (ambient ? ambient.breath : null);
+  const head = at === null ? -1 : Math.floor(((at + index * 0.17) % 1) * PULSE_CELLS);
+  return Array.from({ length: PULSE_CELLS }, (_, cell) => {
+    const base = rainbow ? rainbow(cell / PULSE_CELLS + index * 0.1) : PILL.rail;
+    return span("━", { fg: cell === head ? lerpColor(base, "#ffffff", rainbow ? 0.45 : 0.7) : rainbow ? lerpColor(base, PALETTE.faint, 0.35) : base });
+  });
+};
+const gaugeSpans = (text, rainbow, index) => {
+  if (!rainbow) return [span(text, { fg: PALETTE.white })];
+  const [, cells, count] = /^\[([▉░]+)\](.*)$/u.exec(text);
+  return [
+    span("[", { fg: PALETTE.white }),
+    ...[...cells].map((cell, i) => span(cell, { fg: cell === "▉" ? rainbow(i / cells.length + index * 0.1) : PALETTE.dim })),
+    span(`]${count}`, { fg: PALETTE.white }),
+  ];
+};
+const progressSpans = (thread, sample, rainbow, index, color) => {
+  const drawn = gauge(thread.done, thread.total);
+  if (drawn) return [span(" "), ...gaugeSpans(drawn, rainbow, index), span(` ${thread.state}`, { fg: color })];
+  const facts = knownFacts({ steps: thread.steps, elapsedMs: thread.elapsedMs, last: thread.last, state: thread.state });
+  const words = facts.startsWith(thread.state)
+    ? [span(facts, { fg: color })]
+    : [span(thread.state, { fg: color }), span(` · ${facts}`, { fg: PALETTE.dim })];
+  return [span(" "), ...pulseSpans(sample, rainbow, index), span(" "), ...words];
+};
+
+const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
   const { chain, lanes, others, more, reserve } = model.threads;
   const lines = [];
   chain.forEach((thread, index) => lines.push({ thread, lead: index === 0 ? "" : `${"   ".repeat(index - 1)}└─ `, last: true }));
@@ -571,8 +625,7 @@ const threadRows = (model, { inner, glyphs }) => {
         span(`${glyph} `, { fg: color }),
         span(name + " ".repeat(Math.max(0, nameWidth - textWidth(name))), { fg: line.last ? THREAD_NAME.last : THREAD_NAME.mid, bold: thread.active }),
         ...(stageWidth ? [span(` ${(thread.stage ?? "").slice(0, stageWidth).padEnd(stageWidth)}`, { fg: PALETTE.dim })] : []),
-        span(` ${gauge(thread.done, thread.total)}`, { fg: PALETTE.white }),
-        span(` ${thread.state}`, { fg: color }),
+        ...progressSpans(thread, sample, rainbow, index, color),
         ...(thread.session ? [span(` · other session ${thread.session}`, { fg: PALETTE.dim })] : []),
       ];
     }
@@ -622,6 +675,13 @@ const sparkled = (row, inner, sample, rainbow) => {
   return fitRow([...row, span(" "), ...sky], inner);
 };
 
+// After a break the idle card offers the cross-session brief, in the longest form that fits.
+const AWAY_HINTS = Object.freeze([[" · back? type ", "lit adhd", " to catch up"], [" · back? ", "lit adhd", ""], [" ", "lit adhd", ""]]);
+const awayHint = (room, accent) => {
+  const hint = AWAY_HINTS.find((parts) => textWidth(parts.join("")) <= room);
+  return hint ? [span(hint[0], { fg: PALETTE.dim }), span(hint[1], { fg: accent }), ...(hint[2] ? [span(hint[2], { fg: PALETTE.dim })] : [])] : [];
+};
+
 const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const chips = model.skills;
   if (chips.length === 0) {
@@ -638,7 +698,9 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   let shown = 0;
   for (const chip of chips) {
     // While LitClaude works the light that crosses the active phase crosses this request's chips too.
-    const entry = chipSpans(chip, sample.chips?.[chip.id], glyphs, accent, model.idle ? null : sample.ambient?.sweep ?? null);
+    const entry = rainbow && lookOf(chip.id) === "rewind"
+      ? rainbowPill(`${chip.state === "current" ? glyphs.bolt : glyphs.recentBolt} ${chip.id}`, rainbow, 0.5, glyphs)
+      : chipSpans(chip, sample.chips?.[chip.id], glyphs, accent, model.idle ? null : sample.ambient?.sweep ?? null);
     const gap = row.length ? [span(" ")] : [];
     const rest = chips.length - shown - 1;
     const reserve = rest > 0 ? 1 + rowWidth(mutedPill(`+${rest}`, glyphs)) : 0;
@@ -647,6 +709,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
     shown += 1;
   }
   if (shown < chips.length) row.push(...(row.length ? [span(" ")] : []), ...mutedPill(`+${chips.length - shown}`, glyphs));
+  if (model.away) return fitRow([...row, ...awayHint(inner - rowWidth(row), accent)], inner);
   return sparkled(row, inner, sample, rainbow);
 };
 
@@ -690,7 +753,7 @@ const levelColor = (percent) => (percent >= 90 ? HUD.red : percent >= 70 ? HUD.y
 
 // ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ───╯, or a warning first when one is up. The branch goes
 // first on a narrow card, then the weekly window, the five-hour one and the context bar.
-const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint }) => {
+const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rainbow }) => {
   const { context, rates, git } = model.figures;
   const warning = model.warnings[0];
   const segments = [];
@@ -699,9 +762,13 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint })
     segments.push(segment("warning", 0, [span(`${warning.tone === "red" ? glyphs.fail : "⚠"} ${warning.subject}`, { fg: color, bold: true }), span(` ${warning.text}`, { fg: color })], " · "));
   }
   if (context !== null) {
-    segments.push(segment("ctx", 1, [span("ctx ", { fg: PALETTE.dim }), span(`${context}%`, { fg: accent })], " · "));
+    segments.push(segment("ctx", 1, [span("ctx ", { fg: PALETTE.dim }), span(`${context}%`, { fg: rainbow ? rainbow(0.8) : accent, bold: Boolean(rainbow) })], " · "));
     const filled = Math.max(0, Math.min(5, Math.round(context / 20)));
-    segments.push(segment("ctxbar", 2, [span("▰".repeat(filled), { fg: accent }), span("▱".repeat(5 - filled), { fg: HUD.empty })], " "));
+    // The rewind look turns every cell of the bar, filled or not, so even 0% shows the colour.
+    const cells = rainbow
+      ? [...Array(5)].map((_, i) => span(i < filled ? "▰" : "▱", { fg: i < filled ? rainbow(i / 5) : lerpColor(rainbow(i / 5), HUD.empty, 0.5) }))
+      : [span("▰".repeat(filled), { fg: accent }), span("▱".repeat(5 - filled), { fg: HUD.empty })];
+    segments.push(segment("ctxbar", 2, cells, " "));
   }
   rates.forEach((rate, index) => segments.push(segment(`rate-${rate.label}`, 3 + index * 0.5, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · ")));
   if (git) segments.push(segment("git", 4, [span(`${glyphs.branch} `, { fg: PALETTE.dim }), span(git, { fg: accent })], " · "));
@@ -736,7 +803,7 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
   const edge = edgeColor(model, sample, accent);
   // The rewind look's rainbow turns with the ambient hue (still at 0 with motion off). A warning
   // keeps the border its warning colour; the rails stay rainbow.
-  const look = model.idle ? null : lookOf(model.discipline);
+  const look = model.rewind ? "rewind" : model.idle ? null : lookOf(model.discipline);
   const hue = sample.ambient?.hue ?? 0;
   const rainbow = look === "rewind" ? (position) => rainbowAt(position + hue) : null;
   const painted = rainbow && model.warnings.length === 0;
@@ -755,7 +822,7 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
       topEdge(model, sample, options),
       side(model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options), 1),
       side(detailRow(model, sample, options), 2),
-      ...(model.threads ? threadRows(model, options).map((row) => side(row, 2)) : []),
+      ...(model.threads ? threadRows(model, sample, options).map((row) => side(row, 2)) : []),
       side(middle, 3),
       bottomEdge(model, sample, options),
     ],

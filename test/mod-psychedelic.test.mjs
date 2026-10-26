@@ -142,7 +142,7 @@ test("the rewind look is drawn: rainbow border and rails, sparks in the skills r
   assert.ok(sampled.some((frame) => /<</u.test(rowText(frame.rows[4]))), "the rewind comet runs on the bottom rule");
   const heads = sampled.map((frame) => rowText(frame.rows[4]).indexOf("<<")).filter((x) => x >= 0);
   assert.ok(heads.length >= 2 && heads.some((x, i) => i > 0 && x < heads[i - 1]), "the sweep travels right to left");
-  assert.ok(sampled.every((frame) => !/<</u.test(rowText(frame.rows[0]))), "only the bottom rule carries the sweep");
+  assert.ok(sampled.every((frame) => !/<</u.test(rowText(frame.rows[0]).replace("REWIND <<", ""))), "only the bottom rule carries the sweep; the top edge names REWIND <<");
   const chipsRows = sampled.map((frame) => rowText(frame.rows[3]));
   assert.ok(chipsRows.some((row) => /[.*+'] *│$/u.test(row) || /[.*+']/u.test(row.split("lit-plan")[1] ?? "")), "sparks drift in the spare cells");
   assert.ok(new Set(chipsRows).size >= 3, "the sparks move");

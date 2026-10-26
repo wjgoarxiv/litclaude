@@ -23,9 +23,74 @@ npx @litfamily/litclaude@latest install   # 그다음 Claude Code 세션을 새�
 lit src/dates.js의 날짜 파싱 버그를 테스트와 함께 고쳐줘
 ```
 
-<p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
+<p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="#이런-걸-만들-수-있어요">작업 예시</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
 <!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="영상은 LIT 마크, LitClaude, The lit workflow for Claude Code가 적힌 제목 화면으로 시작해 LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션으로 넘어가며, 단계마다 번호가 붙은 두 줄 자막이 나옵니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답합니다. 프롬프트 위 LIT 카드는 ready에서 lit-loop으로 바뀌고, PIN, RED, GREEN, VERIFY, REVIEW, RECORD로 이어지는 작업 지도를 그리며 PIN에 불을 켭니다. Claude가 셸로 새 테스트를 덧붙여 돌리자 테스트가 실패하고 지도가 RED로 넘어갑니다. greet.js를 고치는 동안 카드의 실시간 단계 줄에는 지금 도는 도구와 걸린 시간이 Bash · 0:00처럼 나옵니다. 명령이 끝나면 테스트가 통과하고, 지도는 GREEN에 체크를 하고 VERIFY에 불을 켭니다. 실시간 단계 줄이 비고 카드는 idle로 돌아가며, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
+
+## 이런 걸 만들 수 있어요
+
+아래 그림은 모두 LitClaude가 실제로 만든 결과입니다. 그림 밑에 프롬프트가 있으면 Claude Code 세션에서 그 요청으로 만든 것이고(긴 요청은 …로 줄였습니다), 없으면 스킬의 엔진이 스킬에 함께 들어 있는 예시로 만든 것입니다. 꾸며 낸 시안은 하나도 없으니, LitClaude를 설치하고 같은 줄을 넣으면 같은 종류의 결과가 나옵니다. 무언가를 만드는 스킬은 기본적으로 꽉 찬 결과를 노리고, 차분하게나 미니멀하게라고 말하면 덜어 냅니다.
+
+### 그리기
+
+장비, 시스템, 데이터를 각각 그 규칙을 아는 스킬이 그립니다. P&ID에는 ISA-5.1 태그와 표제란이, 컷어웨이에는 재질별 색이, 아키텍처에는 번호 붙은 흐름이, 논문 그림에는 오차 띠가 들어갑니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/pid-column.webp" width="400" alt="증류탑 탑정부 P&amp;ID. 증류탑, 셸앤튜브 응축기, 환류 드럼, 환류 펌프 두 대, ISA 계기 기호가 있고 오른쪽에 범례, 아래에 표제란이 있다." /><br /><b>lit-schematic</b> · A3 한 장짜리 P&amp;ID<br /><code>lit draw a detailed P&amp;ID of a distillation column overhead section on one A3 sheet: shell-and-tube overhead condenser, reflux drum, duty and standby reflux pumps, LIC to FIC cascade …</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/cutaway-reactor.webp" width="400" alt="재킷 교반 회분 반응기의 등각 컷어웨이. 위에 모터가 있고 잘린 강철 동체 안으로 파란 액체, 임펠러, 코일이 보이며 초록 다리가 콘크리트 받침 위에 서 있다. 양옆에 한국어 지시선이 달려 있다." /><br /><b>lit-schematic</b> · 등각 컷어웨이<br /><code>lit-schematic 교반식 재킷 회분 반응기(jacketed stirred batch reactor)의 등각 단면 사시도를 그려줘</code></td></tr>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/architecture.webp" width="400" alt="음식 배달 플랫폼 아키텍처 다이어그램. 클라이언트 앱, API 게이트웨이, 주문·결제·배차·위치 추적 서비스, Kafka, PostgreSQL, Redis가 다섯 가지 색의 번호 붙은 흐름으로 이어지고 범례가 붙어 있다." /><br /><b>lit-diagram-drawer</b> · 시스템 아키텍처<br /><code>lit-diagram-drawer 음식 배달 플랫폼의 시스템 아키텍처 다이어그램을 그려줘</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/isotherm-figure.webp" width="400" alt="두 패널 그림. (a)는 273, 298, 323 K에서 압력에 따른 CO2 흡착량으로 반복 측정 점, Langmuir 맞춤선, 확대 삽입 그림이 있고, (b)는 흡착량에 따른 등량 흡착열과 95% 구간 띠다." /><br /><b>lit-scientific-visualization</b> · 두 패널 논문 그림<br /><code>/litclaude:lit-scientific-visualization 현재 폴더의 data.csv(세 온도에서 측정한 CO2 흡착 등온선, 반복 2회)를 논문용 그림으로 만들어줘</code></td></tr>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/optics-bench.webp" width="400" alt="등각으로 그린 광학 벤치. He-Ne 레이저, 빔 익스팬더, 미러 두 개, 빔 스플리터, 렌즈, 시료, 광검출기 두 개와 주황색 빔 경로에 지시선 이름이 붙어 있다." /><br /><b>lit-schematic</b> · 실험 장치도<br /><code>lit 레이저 광학 벤치 실험 장치를 저널 double column 그림 한 장으로 그려줘 …</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/cutaway-loop.webp" width="400" alt="교반 오토클레이브 컷어웨이 애니메이션. 부품이 조립되고 임펠러가 돌며 냉각수가 내부 코일을 따라 흐른다." /><br /><b>lit-schematic</b> · 컷어웨이 루프 영상<br /><code>lit … 오토클레이브 컷어웨이를 짧은 루프 모션 영상으로 만들어줘: 분해된 부품이 조립되고, 임펠러가 돌고, 냉각수가 코일을 따라 흐르게</code></td></tr>
+</table>
+
+### 발표하기
+
+스타일을 말하거나, 열세 가지 가운데 lit-pptx가 고르게 둡니다. 차트와 KPI 줄은 PowerPoint에서 바로 고칠 수 있고, Pretendard가 들어 있으며, 넘침·대비·빈 슬라이드 검사를 통과한 덱만 나옵니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-newsroom.webp" width="400" alt="뉴스룸 스타일 10장 덱의 한눈 보기. 검은 마스트헤드 띠, 주황색 데이터 계열, 막대·선 차트와 큰 숫자가 보인다." /><br /><b>lit-pptx</b> · 뉴스룸, 10장<br /><code>lit 우리 구 주민에게 보여줄 2026년 대중교통 이용 데이터 브리핑 발표자료 10장, 뉴스룸 스타일로</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-neo.webp" width="400" alt="네오 브루탈리즘 피칭 덱 10장의 한눈 보기. 파랑·노랑 블록, 두꺼운 외곽선, 딱딱한 그림자, 크고 굵은 숫자." /><br /><b>lit-pptx</b> · 네오 브루탈리즘 피칭<br /><code>lit 신규 서비스 투자 피칭 덱 10장, 네오 브루탈리즘 스타일로. 글자와 숫자는 크고 굵게</code></td></tr>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-themes.webp" width="400" alt="같은 덱을 열세 가지 톤으로 그린 격자. 톤마다 한 줄씩, 밝은 종이 스타일부터 어두운 night, 청록 테마까지." /><br /><b>lit-pptx</b> · 한 덱, 열세 가지 톤<br /><sub>같은 예시 덱을 엔진이 열세 가지 톤으로 모두 그린 것입니다. paper, newsroom부터 riso, night, ledger까지.</sub></td></tr>
+</table>
+
+### 쓰기
+
+lit-docx는 계속 고쳐 쓸 수 있는 Word 파일을 만듭니다. 표지, 근거가 붙은 핵심 수치, 숫자가 오른쪽 정렬된 표, 결정 상자를 넣고, 건네기 전에 페이지를 렌더링해 직접 봅니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-report.webp" width="400" alt="한국어 운영 결과 보고서 세 쪽. 첫 쪽에 핵심 수치 세 개와 승인 요청 상자가 있고, 이어지는 쪽에는 괘선 표와 번호 붙은 절이 있다." /><br /><b>lit-docx</b> · 한국어 보고서, Report 톤<br /><sub>스킬에 들어 있는 예시 <code>references/examples/01-report-ko.md</code>를 스킬의 변환기로 만든 결과이며, 레이아웃 검사를 통과했습니다.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-mix.webp" width="400" alt="영어 분기 고객 지원 보고서와 한국어 시범 사업 제안서의 페이지. 표지 처리가 서로 다르다." /><br /><b>lit-docx</b> · 영어 보고서와 제안서<br /><sub>들어 있는 예시 두 개를 더 변환했습니다. <code>07-report-en.md</code>(Report), <code>04-proposal-ko.md</code>(Proposal).</sub></td></tr>
+</table>
+
+### 만들기
+
+frontend-ui-ux는 마크업을 쓰기 전에 하우스 스타일부터 정하고, 페이지를 만든 뒤 여러 폭에서 열어 자기 스크린샷을 검토합니다. readme-studio는 프로젝트 표지를 같은 방식으로 만듭니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/ui-dashboard.webp" width="400" alt="Coldline 운영 대시보드. 정시율 91.7%, 온도 이탈 5건, 운행 트럭, 배송 완료의 수치 카드 네 장과 지금 표시가 있는 계획 대비 배송 막대 차트, 온도 이탈 목록이 있다." /><br /><b>frontend-ui-ux</b> · 운영 대시보드<br /><code>Build the operations dashboard for Coldline, a regional delivery company that runs a fleet of refrigerated trucks. …</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/ui-landing-neo.webp" width="400" alt="라벤더 바탕의 Ledgerline 랜딩 페이지. 아주 큰 검은 제목, 노란 버튼, 두꺼운 외곽선과 딱딱한 그림자를 두른 청구서 카드와 예산 카드." /><br /><b>frontend-ui-ux</b> · 랜딩 페이지, 네오 브루탈리즘<br /><code>Build the marketing landing page for Ledgerline … Make it neo-brutalism: loud, friendly, bold outlines and hard shadows.</code></td></tr>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/ui-landing-brutalist.webp" width="400" alt="사양서처럼 만든 Ledgerline 랜딩 페이지. 격자 배경, 대문자로 쌓은 제목, 예산 115% 초과를 보여 주는 프로젝트 모니터 패널." /><br /><b>frontend-ui-ux</b> · 랜딩 페이지, 컴퓨테이셔널 브루탈리즘<br /><code>Build the marketing landing page for Ledgerline … Make it retro-futurist computational brutalism: raw, mechanical, like an instrument or a spec sheet.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/readme-cover.webp" width="400" alt="예시 프로젝트 hydrate-kit의 어두운 README 표지. 라벨 줄, 외곽선으로 바꾼 큰 제목, 주황 줄, 부제가 흐린 반응기 그림 위에 있고 오른쪽에 픽셀 노트 모티프가 있다." /><br /><b>readme-studio</b> · README 표지<br /><sub>스킬의 HyperFrames 표지 템플릿에 스킬의 글꼴 도구로 모든 글자를 외곽선으로 바꿔 넣은, 예시 프로젝트용 표지입니다.</sub></td></tr>
+</table>
+
+### 영상 만들기
+
+lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레임 단위로 렌더링한 뒤 깜빡임, 가독성, 루프 이음매를 검사합니다. 아래 프롬프트에는 도구 이름도, 빽빽하게 채워 달라는 말도 없습니다. 겹겹의 화면, 색, 소리는 기본값에서 나왔습니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/film-hero.webp" width="400" alt="영상의 포스터 프레임. 어두운 청록 키보드 들판 위에 빛나는 불꽃 키캡, LitClaude 글자, PROMPT, PLAN, WORK 2/2, REVIEW, DONE 단계 막대가 있다." /><br /><b>lit-typographic-motion</b> · 13초 히어로 영상, 포스터<br /><code>lit LitClaude 히어로 영상 13초짜리 만들어줘. LIT 불꽃 키가 주인공으로, 프롬프트 → 계획 → 작업 → 리뷰 → 완료로 lit-loop가 돌아가는 세계를 고퀄리티 3D로 보여줘.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/film-frames.webp" width="400" alt="히어로 영상의 프레임 열두 장. 키캡에 불이 들어오고 단계마다 한국어 자막이 나오며 마지막 줄에서 LitClaude 제목에 도착한다." /><br /><b>lit-typographic-motion</b> · 같은 영상의 프레임<br /><sub>그 영상의 프레임 열두 장입니다. 어두운 도입부부터 LitClaude 제목까지.</sub></td></tr>
+</table>
+
+### 흐름 놓치지 않기
+
+워크플로 두 개와 도우미 세 개가 함께 돌면 LIT 카드가 프롬프트 아래에 그 흐름을 줄로 그립니다. 정신없던 하루 끝에 <code>lit adhd</code>를 치면 무엇을 물었고, 무엇이 끝났고, 무엇이 멈춰 있고, 다음은 무엇인지 한 장으로 정리해 줍니다. 이어서 <code>go</code>를 치면 열려 있는 계획 하나를 이어서 시작합니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/card/threads.webp" width="400" alt="스레드 줄이 보이는 LIT 카드. GREEN 2/5에서 멈춘 lit-loop, 그 아래 3/6으로 도는 start-work, executor, librarian-researcher, lit-verifier 레인으로 갈라지는 줄이 있다." /><br /><b>LIT card</b> · 스레드 줄<br /><sub>카드 렌더러가 직접 그린 화면입니다. GREEN에서 멈춘 lit-loop 아래로 start-work가 돌고, 레인 세 개가 나란히 움직입니다.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/adhd-brief.webp" width="400" alt="lit-adhd 브리핑이 뜬 터미널. 세션 네 개와 다음 단계를 담은 첫 줄, 세션마다 마지막 요청과 끝낸 일, 커밋을 적은 카드, 커밋 두 개와 0/6인 clamp 계획이 있는 로드맵, 상자에 담긴 추천 다음 단계가 나오고 아래에 무지개색 REWIND 카드가 있다." /><br /><b>lit-adhd</b> · 정리 브리핑<br /><code>lit adhd</code></td></tr>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/adhd-go.webp" width="400" alt="go를 친 뒤의 터미널. start-work가 열린 clamp 계획을 실행하고 테스트가 통과하며 카드에는 review 단계의 start-work가 보인다." /><br /><b>lit-adhd</b> · go로 이어 가기<br /><code>go</code></td></tr>
+</table>
+
+### 남의 기법 배워 오기
+
+글, 게시물, PDF, 저장소를 <code>lit hijack</code>에 주고 내 스킬 이름을 적으면 됩니다. 출처마다 어디서 왔고 라이선스가 무엇을 허락하는지 적고, 자기 말로 사양을 쓴 뒤 격리된 곳에서 구현합니다. 같은 미공개 프롬프트로 이전 스킬과 새 스킬을 돌려 보고, 마지막에 이식 보고서를 남깁니다.
+
+<table>
+<tr><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-report.webp" width="400" alt="이식 보고서. 가져온 기법 다섯 개와 비교 결과(새 스킬 2/2, 이전 스킬 0/2), 이유를 단 남긴 기법 여섯 개, 출처를 아이디어만으로 표시한 출처 표, 노출·출처 표기·재검토 절이 있다." /><br /><b>lit-hijack</b> · 이식 보고서<br /><code>lit hijack https://x.com/… into .claude/skills/promo-brief</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-ab.webp" width="400" alt="프로모 브리프 네 개를 나란히 놓은 한눈 보기. 이전 스킬 두 개, 새 스킬 두 개이며 새 브리프에는 핵심 한 줄, 실제 자료, 시간 붙은 장면, 거절 조건 절이 있다." /><br /><b>lit-hijack</b> · 이전 스킬과 새 스킬<br /><sub>증거 화면입니다. 같은 프롬프트로 이전 스킬 두 번, 새 스킬 두 번을 돌려 나란히 놓았습니다. 이전 브리프는 없는 제품 기능을 지어내고, 새 브리프는 대신 묻습니다.</sub></td></tr>
+</table>
 
 ## 왜 LitClaude인가요
 
@@ -179,11 +244,12 @@ Claude가 일하는 동안 카드는 가만히 있지 않습니다. LIT 알약�
 그러면 카드가 지도 아래에 그 하나하나에 줄을 내어 주고, 서로 어떻게 엮여 있는지에 맞춰 들여
 씁니다. 끼어들기 전에 돌던 루프는 단계와 진행 수를 그대로 지닌 채 일시정지로 남고, 그 자리를
 이어받은 start-work는 그 아래에 매달립니다. 동시에 도는 서브에이전트와 백그라운드 작업은 갈래
-줄에서 뻗어 나오고, 저마다 자기 진행을 보여 주는 작은 게이지를 답니다. 줄이 넷을 넘으면 마지막
+줄에서 뻗어 나오고, 저마다 자기 진행을 보여 주는 작은 게이지를 답니다. 전체 개수를 아직 모르는
+줄에는 게이지 대신 짧은 펄스가 흐릅니다. 줄이 넷을 넘으면 마지막
 줄이 몇 개가 더 있는지 알려 줍니다. start-work가 끝난 뒤 `lit continue`를 입력하면 루프가 멈췄던
 진행 수에서 다시 이어집니다.
 
-<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="스레드 줄이 붙은 LIT 카드. 위쪽 테두리에 LIT · lit-loop || > start-work, 오른쪽에 GREEN ||가 있습니다. 지도에서는 PIN과 RED가 체크로 끝나 있고 GREEN 2/5가 일시정지 상태이며, 세부 줄에는 start-work · back: lit continue가 있고 오른쪽에 ●●● 3 lanes와 Bash · 0:04가 보입니다. 그 아래 lit-loop GREEN [▉▉░░░] 2/5 paused 줄이 있고, 그 밑에 └─ ● start-work work [▉▉▉░░░] 3/6 running이 매달려 있습니다. 갈래 줄 ┬ 3 lanes · 1 task in parallel에서 executor [▉▉░░] 2/4 running, librarian-researcher [▉░] 1/2 running, lit-verifier [???] 0/? running이 뻗어 나오고 오른쪽에 +1 more가 있습니다. skills 줄에는 start-work, lit-loop, lit-plan이 있고, 아래쪽 테두리에는 ctx 24%, 5h 22%, 1w 54%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="스레드 줄이 붙은 LIT 카드. 위쪽 테두리에 LIT · lit-loop || > start-work, 오른쪽에 GREEN ||가 있습니다. 지도에서는 PIN과 RED가 체크로 끝나 있고 GREEN 2/5가 일시정지 상태이며, 세부 줄에는 start-work · back: lit continue가 있고 오른쪽에 ●●● 3 lanes와 Bash · 0:04가 보입니다. 그 아래 lit-loop GREEN [▉▉░░░] 2/5 paused 줄이 있고, 그 밑에 └─ ● start-work work [▉▉▉░░░] 3/6 running이 매달려 있습니다. 갈래 줄 ┬ 3 lanes · 1 task in parallel에서 executor [▉▉░░] 2/4 running, librarian-researcher [▉░] 1/2 running, lit-verifier running이 뻗어 나오고 오른쪽에 +1 more가 있습니다. lit-verifier는 전체 개수를 아직 몰라서 칸 대신 짧은 펄스 줄이 흐릅니다. skills 줄에는 start-work, lit-loop, lit-plan이 있고, 아래쪽 테두리에는 ctx 24%, 5h 22%, 1w 54%, 브랜치 main이 보입니다." /></p>
 
 턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 지도는 작업이 도달한 단계를 그대로 보여 주고,
 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에 무엇이 돌았는지 계속 알 수 있습니다.

@@ -1,6 +1,6 @@
 ---
 name: lit-typographic-motion
-description: Film director for a finished short film from a one-line request, made the same way every time — a treatment first (idea, audience, beats as shots, a drawn subject, copy, sound) in one of four house styles chosen by fixed rules, then a storyboard board round the user can see before the full render; the stage path for films that show things (a model-authored HTML/SVG/Canvas/WebGL page on a scaffold, captured frame by frame by the bundled deterministic renderer, 16:9 or 9:16) or the type path for films whose words are the film (kinetic type, lyric or quote video, title sequence, through the bundled WebGL2 type engine), with an original layered score, look rounds and a QA gate (flash audit, legibility, style, layout zones, empty frames, determinism, sound). Cover mode makes a silent, seamless README cover loop. Not for editing, trimming or captioning existing footage, a video embedded in a web page, a thumbnail, or slides.
+description: Film director for a finished short film from a one-line request, made the same way every time — a treatment first (idea, audience, beats as shots, a drawn subject, copy, sound) in one of four house styles the user picks or fixed rules choose, then a storyboard board round the user can see before the full render; the stage path for films that show things (a model-authored page captured frame by frame, 16:9 or 9:16) or the type path for films whose words are the film (kinetic type, lyric or quote video, title sequence, through the bundled WebGL2 type engine), with an original layered score, look rounds and a QA gate (flash audit, legibility, determinism, sound). Cover mode makes a silent, seamless README cover loop. Not for editing, trimming or captioning existing footage, a video embedded in a web page, a thumbnail, or slides.
 ---
 
 ## #contract.activation
@@ -17,9 +17,9 @@ host: Claude Code
 verdicts: [PASS, FAIL, BLOCKED]
 ```
 
-This skill is a film director with a house studio. Every film starts with a treatment in a house style, is built on the same scaffold and shown as a storyboard before the full render. Films that are the words themselves take the type path; every other film takes the stage path. A README cover loop is not a film: it takes cover mode (`references/cover.md`).
+This skill is a film director with a house studio: treatment, scaffold, storyboard, full render. Films whose words are the film take the type path, the rest the stage path; a README cover loop takes cover mode (`references/cover.md`).
 
-The UserPromptSubmit hook activates it for a prompt that starts with the token `lit-typographic-motion`, or for a bare `lit` prompt that asks to make something and names a film: a compound (모션그래픽, 키네틱 타이포, 가사 영상, 타이틀 시퀀스, motion graphics, kinetic type, lyric video, title sequence) or a bare 영상 / 비디오 / video / clip. It does not fire for the requests routed elsewhere below, a script, thumbnail or summary about a video, or a bare 모션 / motion / 인트로 / intro.
+The UserPromptSubmit hook activates it for a prompt starting with `lit-typographic-motion`, or a bare `lit` prompt that asks to make a film (motion graphics, kinetic type, lyric video, title sequence, 모션그래픽, 영상, video, clip). It does not fire for the routes below, a script, thumbnail or summary about a video, or a bare 모션 / motion / intro.
 
 | Request | Route |
 | --- | --- |
@@ -38,7 +38,7 @@ The UserPromptSubmit hook activates it for a prompt that starts with the token `
 | No words, subject or facts | Invent a concrete example subject and its copy; list every invention and label it in the reply. |
 | Style, format, length, genre | Fixed by rules from the request (`references/studio.md`, `references/treatment.md`); the validator refuses any other. |
 | An audio file | `sound.mode: supplied` with its `file`; always muxed. |
-| Output directory | A new `motion-<slug>` folder in the user's working directory. Never the installed plugin. |
+| Output directory | A new `motion-<slug>` folder in the working directory, never the installed plugin. |
 
 ## #contract.mode_matrix
 
@@ -73,6 +73,10 @@ node "$SKILL_ROOT/scripts/motion.mjs" cover --out <dir> --round <N>
 
 Every frame and track passes through these renderers. A film encoded by hand with ffmpeg, Python, a raster flipbook or a screen recording is not the deliverable. Cover mode replaces steps 1-6 with `references/cover.md`.
 
+### Choose the design first
+
+The user has the right to choose the look. Before `treatment.json`, call `AskUserQuestion` once with `Path` (type path or stage, at 16:9 only), `Style` (swiss-signal, tidal, terminalcore, paper), `Format` (16:9, 9:16) and `Register`; the rules' pick first as `(Recommended)`, each with an ASCII `preview`. Add the picks to `treatment.request`. Skip what the prompt already names, or all on "알아서" / "you choose". Non-interactive (`claude -p`): take the Recommended option and say so in one line.
+
 1. **Treatment.** Load `references/treatment.md`; a product link runs `assets` first (real logo, images, words; unreachable: ask the user). Write `<dir>/treatment.json`: story and turn, protagonist, the arc's beats as shots, subject, devices, product, type, a score with events, copy; `style`, `format`, `durationSec`, `genre`, `fps` by its rules. Maximal by default (`register: rich`, a layered `world`); minimal only when asked.
 2. **Studio and path.** Load `references/studio.md` (styles, shots, scaffold, board, house file). Stage path: `references/stage.md` (a 3D subject: `references/depth.md`). Type path: `references/brief-schema.md`, `references/style-bibles.md`, `references/type-craft.md`, `references/craft-loop.md` (`references/engine-contract.md`, `references/runtime.md` for internals). Both: `references/look.md`, `references/sound.md`.
 3. **Build.** Stage path: run `scaffold`, then draw each shot's subject in its `DRAW` function. Type path: write `brief.json` without a `style` (the treatment's style decides).
@@ -103,7 +107,7 @@ artifact_genre: client_deliverable
 limitations_channel: reply
 ```
 
-Reader mode is the default. The film carries its own copy only: no request text, brief title, file name, internal term, engine credit, method note or watermark on screen. The reply keeps the activation line where it is; below it no second banner and no emoji. Plain words, no internal names: one line on the defaults chosen (the style by name); a label on every invention and on generated sound; one plain line on what was checked; where the storyboard and the copy live and the one command that re-renders; any downgraded or open item. Technical and audit detail appears only when asked; gate output, render receipts and evidence paths stay internal. A material failure or risk stays visible in the reply.
+Reader mode is the default. The film carries its own copy only: no request text, file name, internal term, credit or watermark on screen. Below the activation line, no second banner and no emoji. In plain words: the style chosen, by name; a label on every invention and on generated sound; one line on what was checked; where the storyboard and copy live and the one command that re-renders; any downgraded or open item. Technical and audit detail appears only when asked; gate output, render receipts and evidence paths stay internal. A material failure or risk stays visible in the reply.
 
 ## #contract.evidence
 
@@ -132,7 +136,7 @@ Never raise a gate number, never weaken the flash audit, never ship a withheld e
 ## #contract.anti_patterns
 
 - Restating the request as the idea or the copy, or a film that only names its subject without showing it.
-- A style, format or length the rules did not choose; colours, faces or sizes off the style.
+- A style, format or length neither the user nor the rules chose; colours, faces or sizes off the style.
 - Printing the request, a file name or an internal term (path, preset, gate, beat, treatment) on screen.
 - Shortening the film, dropping a beat or the subject, locking the camera, switching sound to none or stage to type to pass a check.
 - Claiming done from an exit code alone, or looking at frames without recording the look round.
