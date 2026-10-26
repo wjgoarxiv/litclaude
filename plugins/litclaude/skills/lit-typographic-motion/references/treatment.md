@@ -157,7 +157,8 @@ node scripts/motion.mjs assets --out <dir> --url <the link from the request>
 ```
 
 It reaches only `https` pages, on every redirect too: a hop to `localhost` or a loopback, link-local
-or private address is refused, and each body is counted as it streams. For a GitHub repository it
+or private address is refused, each connection goes to the address that check approved, and each
+body is counted as it streams. For a GitHub repository it
 reads the repository metadata, the owner avatar and the README with its images (badges skipped); for
 another site, its `og:image` and icons. Each raster is sniffed and decoded before it is kept,
 animated images are skipped, an SVG is cleaned of scripts, and the limits are 8 files, 4 MB a file

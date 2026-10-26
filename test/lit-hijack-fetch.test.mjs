@@ -1,4 +1,4 @@
-// LC-2, LC-7 and LC-9 (1.0.40 security review): a lit-hijack capture fetches https only and checks
+// LC-2, LC-7 and LC-9 (pre-release security review): a lit-hijack capture fetches https only and checks
 // every redirect hop, so a public page cannot bounce it into loopback, the metadata address or the
 // local network; the size cap is counted on the stream; and a reuse prohibition counts on any line.
 import assert from "node:assert/strict";

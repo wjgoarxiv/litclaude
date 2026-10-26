@@ -215,6 +215,8 @@ export const parseBoulder = (state, sessionId) => {
       nextTask: str(progress.next_task, 400),
       lanes: laneList(active.lanes),
       lastEvent: str(Array.isArray(active.events) ? active.events.at(-1)?.event : null, 60),
+      // A paused work waits at a typed boundary (start-work-lifecycle) until the user answers it.
+      awaiting: active.status === "paused" ? str(active.pending_boundary?.boundary_id, 120) : null,
     },
     completed,
   };
@@ -393,8 +395,9 @@ const withPlanCounts = async (io, stateRoot, frames) => {
 const OTHER_STACKS = 6;
 
 // The stacks other sessions of this project keep beside this one's, newest first and at most
-// OTHER_STACKS: `{ id8, at, frames }` each, `at` being the file's mtime. Links, this session's own
-// file and the unknown-session file are skipped; whether one is still live is the view's call.
+// OTHER_STACKS: `{ id8, at, ended, frames }` each, `at` being the file's mtime and `ended` set once
+// SessionEnd marked it. Links, this session's own file and the unknown-session file are skipped;
+// whether one is still live is the view's call.
 const readOtherStacks = async (io, stateRoot, sessionId) => {
   const own = new Set([ignitionFileName(sessionId), ignitionFileName(null)]);
   const files = (await listOf(io, joinPath(stateRoot, ".litclaude", "workflow-stack")))
@@ -406,7 +409,7 @@ const readOtherStacks = async (io, stateRoot, sessionId) => {
     const id = typeof raw?.sessionId === "string" ? raw.sessionId : null;
     const parsed = id ? parseWorkflowStack(raw, id) : null;
     if (parsed) await withPlanCounts(io, stateRoot, parsed.frames.slice(-1));
-    return parsed ? { id8: id.replace(/[^A-Za-z0-9]/gu, "").slice(0, 8), at: entry.mtimeMs, frames: parsed.frames } : null;
+    return parsed ? { id8: id.replace(/[^A-Za-z0-9]/gu, "").slice(0, 8), at: entry.mtimeMs, ended: typeof raw.endedAt === "string", frames: parsed.frames } : null;
   }));
   return read.filter(Boolean);
 };

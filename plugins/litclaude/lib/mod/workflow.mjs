@@ -258,6 +258,8 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
     const count = family !== "main" && countOf ? ` ${countOf.done}/${countOf.total}` : "";
     at.label = `|| ${at.label}${count}`;
     paused.count = countOf;
+    // The lanes stay with the paused map, undrawn, so the review finishing under the side still bursts.
+    paused.verdicts = verdicts;
     if (!next && goalIsOpen(snapshot.goal)) next = plainText(snapshot.goal.criteria.find(({ status }) => status !== "pass")?.description);
     return { family, stages, current, count: null, items: [`↳ ${paused.child}`, "back: lit continue"], verdicts: null, next, paused };
   }

@@ -38,7 +38,7 @@ verdicts: [PASS, FAIL, BLOCKED]
 | `PostToolUse` | conditional post-edit routing, dynamic rule injection, and document humanizer check | Names only the checks the edit earned and only the rules whose globs matched. It rechecks successfully created DOCX/PPTX/PDF files when a supported tool or successful Bash output supplies a path; findings ask for revision without claiming rollback or completion. |
 | `Stop` | lit-plan and interface-probe gates, start-work continuation, then litgoal autoloop gate | Root-session and progress-bound; no unbounded loop. |
 | `SubagentStart` / `SubagentStop` | lane identity observation | Records the root session, child lane, and Claude-owned worktree without emitting child continuation. |
-| `SessionEnd` | root-session receipt | Records the observed end and emits no continuation. |
+| `SessionEnd` | root-session receipt | Records the observed end, marks the session's workflow stack `endedAt` so other sessions' cards drop its row, and emits no continuation. |
 
 ## #contract.procedure
 
@@ -341,7 +341,7 @@ requests are muted grey pills.
   fresh session) keeps the old `PLAN ━━ WORK ━━ REVIEW` track there.
 - When more than one thread is live (the session's stack frames, its running subagents, its
   background shells and monitors, and another session of this project whose stack moved in the
-  last 15 minutes), rows under the detail row list them, one each: name, stage, a `[▉▉░░] k/n`
+  last 15 minutes and whose SessionEnd has not marked it ended), rows under the detail row list them, one each: name, stage, a `[▉▉░░] k/n`
   gauge and `running`, `paused`, `blocked`, `idle` (a teammate waiting for a message) or
   `done`. A child hangs under its paused parent with `└─`, parallel lanes and tasks sit under a fork line (`┬ 3 lanes in parallel`,
   `┬ 2 lanes · 1 task in parallel`) with `├─`/`└─`, a background task is marked `$` (shell) or
@@ -384,9 +384,14 @@ requests are muted grey pills.
   start-work plan is edited (`work 1/2`), and steps a lit-loop criterion to RED when a test
   file is written, GREEN when the code changes after it, VERIFY when the tests run and RECORD
   when `litgoal record-evidence` runs. For review-work, PreToolUse marks a lane running when a
-  prompt titled `Review lane: <lane>.` is spawned, and the lane's `verdict:` line, read by
-  PostToolUse for a foreground reviewer and by SubagentStop for a background one, marks it
-  passed or failed. The card names the lanes `goal`, `quality`, `security`, `qa` and `context`
+  prompt titled `Review lane: <lane>.` is spawned (or, at the review stage, when the Agent
+  description names a lane), and the lane's `verdict:` line, read by PostToolUse for a
+  foreground reviewer and by SubagentStop for a background one, marks it passed or failed. A
+  background lane ends with no last message at SubagentStop, so the hook reads its verdict from
+  the `SubagentHandback` call at the end of its transcript (re-reading for up to 3 s, since the
+  host can flush that entry just after the stop), and takes the lane from the prompt's first
+  line when the prompt has no `Review lane:` title and that lane is already marked. Each stack
+  move holds the stack's lock, so lanes that stop together keep every verdict. The card names the lanes `goal`, `quality`, `security`, `qa` and `context`
   (review-work's scope/diff, package/payload, security/provenance, tests/evidence and
   real-surface/docs lanes); five passes finish the review. The hooks keep only the stage, the
   lane, the counts and a project-relative plan name, never another path, a command or a prompt. The model can still refine the top frame
@@ -413,12 +418,15 @@ requests are muted grey pills.
   auto-handoff fired. The completion moment takes it when the last task is checked, the work
   completes or the goal is met: a light passes over the brand, embers scatter, and `COMPLETE`
   shows for about a second.
-- Amber or red when something needs attention: a lane quiet for more than 10 minutes turns the
-  border amber and puts `⚠ <lane> quiet for 12m` on the bottom edge; a failed interface probe
+- Amber or red when something needs attention: a running, pending or waiting lane quiet for more
+  than 10 minutes turns the border amber, draws its row `! … blocked` and puts `⚠ <lane> quiet for
+  12m` on the bottom edge. A teammate the host lists as idle has finished its turn and waits for a
+  message, so it is never called quiet: its row reads `- <name> ━━━━━ idle · 3 steps · last:
+  SendMessage`, dim, with a still pulse and no clock. A failed interface probe
   turns it red. Otherwise the border is a calm, dim accent while idle and the full accent while
   LIT is active, a step above the accent and breathing brighter toward white every 2.4 s.
 - Running lanes show on the map row's right as a dot each, the count and the longest lane's clock
-  (`●● 2 lanes 1:07`). While they run a light walks across the dots (they breathe under
+  (`●● 2 lanes 1:07`); an idle teammate's dot is dim and adds no time to the clock. While they run a light walks across the dots (they breathe under
   `subtle`), so the card moves while the main turn waits for them.
 
 A toast in the top-right corner says when the LIT status really changes: a discipline starts or
@@ -501,6 +509,25 @@ Unknown values fall back to the default. The fields are plain strings with no `o
 purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and
 that would take every LitClaude hook down with it. Nerd glyphs reach only the terminal; the
 desktop app and the other surfaces always get the basic set.
+
+The card takes one of four looks (`lib/mod/looks.mjs`), checked in this order. **done**: when a
+plan's tasks are all checked, a litgoal goal is met, review-work's five lanes have all passed, or a
+main-loop `npm publish` (not `--dry-run`) succeeds, the chips row plays one 1.2 s spray of rainbow
+embers and `DONE ✓`, then settles; it never loops. **YOUR TURN**: while the session waits on you
+(the last answer's final paragraph ends in a question mark, a line reports `BLOCKED:`, an
+`AskUserQuestion` is on screen, or a start-work boundary is open), the border breathes amber over
+2.4 s and the corner reads `YOUR TURN`; the first key you type, a recalled or undone draft, or the
+next turn ends it. **review**: while review-work runs (`lit review`, `/review-work`,
+`/litclaude:review-work` or the Skill tool), the top and bottom rules split into its five lanes in
+the map's order (goal, quality, security, qa, context): a lane is dim until its reviewer reports,
+a darker shade of its colour while it runs, its own colour once it passes and red once it fails,
+and the corner counts the lanes that reported (`REVIEW 2/5`). The look holds into later turns
+while a lane is still running, since background lanes report in the turns their notifications
+start. **rewind**: lit-adhd and lit-rewind
+by any route, as above. No look flips more than a quarter of the card's brightness more than three
+times a second; with `motion` off or reduced motion each look is one still frame, and with
+`NO_COLOR` set the card keeps its labels and draws no colour (basic glyphs, no motion). The desktop
+drawing shows the labels of these looks, not the lane segments or the embers.
 
 The icons on `nerd` (the rounded pill caps U+E0B6 and U+E0B4, the chip bolt and the branch mark)
 come from a Nerd Font. `litclaude-ai install

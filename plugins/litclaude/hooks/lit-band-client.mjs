@@ -49,6 +49,6 @@ export default function LitBand(props, surface) {
   if (surface.state?.live !== holder) surface.setState({ live: holder, now: holder.now });
 
   if (!model.visible && interval() === null) return empty();
-  const frame = composeBand(model, sampleTimeline(holder.timeline, holder.now, profile), { columns: props.columns, glyphs: props.glyphs, accent: props.accent });
+  const frame = composeBand(model, sampleTimeline(holder.timeline, holder.now, profile), { columns: props.columns, glyphs: props.glyphs, accent: props.accent, color: props.color !== false });
   return renderBand(surface.elements, frame);
 }

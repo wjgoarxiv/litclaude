@@ -22,7 +22,8 @@
 
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { TIMINGS, barCells, gradientAt, lookOf, rainbowAt } from "./motion.mjs";
+import { LOOKS, lookOf } from "./looks.mjs";
+import { TIMINGS, barCells, gradientAt, rainbowAt } from "./motion.mjs";
 
 const C = Object.freeze({
   bg: "#0d1117",
@@ -102,6 +103,8 @@ const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = nul
 
 const indicatorOf = (model, accent) => {
   if (model.completion) return { label: "DONE ✓", fill: C.green };
+  if (model.look === "turn") return { label: LOOKS.turn.label, fill: C.amber };
+  if (model.look === "review") return { label: `${LOOKS.review.label} ${model.workflow.verdicts.filter(({ state }) => state === "pass" || state === "fail").length}/${model.workflow.verdicts.length}`, fill: accent };
   if (model.idle) return { label: "idle", fill: C.dim, plain: true };
   const flow = model.workflow;
   if (flow?.paused && flow.current >= 0) return { label: `${flow.stages[flow.current].id.toUpperCase()} ||`, fill: C.dim };

@@ -1,4 +1,4 @@
-// LC-1 and LC-8 (1.0.40 security review): a cloned repository can carry `.litclaude`, a folder
+// LC-1 and LC-8 (pre-release security review): a cloned repository can carry `.litclaude`, a folder
 // below it or a state file as a symlink. No state write may follow one: the SessionStart marker,
 // next-step, workflow-stack and ledger writers refuse instead of writing outside the project.
 import assert from "node:assert/strict";

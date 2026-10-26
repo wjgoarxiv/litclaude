@@ -1,4 +1,4 @@
-// LC-4 and LC-5 (1.0.40 security review), and control characters: the lit-adhd collector redacts
+// LC-4 and LC-5 (pre-release security review), and control characters: the lit-adhd collector redacts
 // before it clips, catches URL-form, webhook-named, JSON-colon and format-character-split secrets,
 // keeps another folder's transcripts out when the two share Claude's project slug, and lets no
 // terminal escape sequence from a commit subject or plan row reach the printed brief.

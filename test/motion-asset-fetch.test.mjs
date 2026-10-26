@@ -1,4 +1,4 @@
-// LC-3, LC-6 and LC-7 (1.0.40 security review): lit-typographic-motion's asset fetch checks every
+// LC-3, LC-6 and LC-7 (pre-release security review): lit-typographic-motion's asset fetch checks every
 // redirect hop and counts bodies on the stream, and the stage's /lit/three/ route serves only real
 // files inside the vendored folder.
 import assert from "node:assert/strict";

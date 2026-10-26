@@ -75,7 +75,8 @@ title, the author and date from the page's metadata, and a `rel=license` link if
 Every fetch is https only, on the first request and on each redirect. Redirects are followed one
 hop at a time, at most five, and a hop to `localhost`, a loopback, link-local or private address, or
 a name that resolves to one is refused, so a public page cannot bounce the capture into the cloud
-metadata service or the local network. The body is counted while it streams and dropped past 20 MiB,
+metadata service or the local network. The connection goes to the address the check approved, so a
+name that answers again with a private address cannot move it. The body is counted while it streams and dropped past 20 MiB,
 whatever length the server declares. For an `http://` page, ask the user for a saved copy and capture
 it with `--kind file --url <url>`.
 

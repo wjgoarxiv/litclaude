@@ -163,7 +163,7 @@ test("every row of every frame fits the card width from 20 to 200 columns", () =
 });
 
 test("a warning turns the border amber or red and takes the bottom edge", () => {
-  const stalled = buildBandModel({ snapshot: lit(), agents: [{ id: "a1", status: "idle", name: "demo-gif" }], activity: { last: { a1: NOW - 12 * 60_000 }, first: {} }, now: NOW, usage });
+  const stalled = buildBandModel({ snapshot: lit(), agents: [{ id: "a1", status: "running", name: "demo-gif" }], activity: { last: { a1: NOW - 12 * 60_000 }, first: {} }, now: NOW, usage });
   const frame = draw(stalled, 80);
   assert.equal(frame.border, "#ffaf3c");
   assert.match(texts(frame)[4], /^╰─ ⚠ demo-gif quiet for 12m/u);
@@ -871,7 +871,7 @@ const FAMILY_CASES = [
   {
     name: "main · review",
     snapshot: { ignition: { discipline: "review-work", at: NOW - 5000 }, workflow: recorded({ family: "main", stage: "review", verdicts: { goal: "pass", tests: "fail", security: "running" } }) },
-    top: /REVIEW ● ─╮$/u,
+    top: /REVIEW 2\/5 ─╮$/u,
     map: /^│ interview ✓ ━━ plan ✓ ━━ work ✓ ━━ {2}review {2}━━ done · +│$/u,
     detail: /^│ └ goal ✓ quality · security ● qa ✗ context · +│$/u,
     svg: ["goal ✓", "qa ✗", "security ●", "context ·"],

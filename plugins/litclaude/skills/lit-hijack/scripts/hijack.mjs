@@ -6,8 +6,10 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { request as httpsRequest } from "node:https";
 import { isIP, isIPv4, isIPv6 } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
 export const LEDGER_SCHEMA = "litclaude.hijack-ledger.v1";
@@ -556,6 +558,8 @@ export const buildImplementerBrief = (run) => {
 // A capture follows redirects by hand: every hop must be https and name a public host, so a public
 // page cannot bounce the fetch into loopback, the cloud metadata address or the local network. The
 // body is counted as it streams and dropped past the cap, whatever length the server declared.
+// The connection goes to the address the check approved, so a name that answers again with a
+// private address (DNS rebinding) cannot move it; TLS still checks the certificate for the name.
 const FETCH_HOPS = 5;
 const privateV4 = (ip) => {
   const [a, b] = ip.split(".").map(Number);
@@ -579,12 +583,31 @@ const checkHop = async (href, lookup) => {
   if (url.protocol !== "https:") throw new Error(`refusing ${url.protocol} ${href}: captures fetch https only`);
   const host = url.hostname.replace(/^\[|\]$/gu, "");
   if (host === "localhost" || host.endsWith(".localhost") || isPrivateAddress(host)) throw new Error(`refusing ${href}: a loopback, link-local or private host`);
-  if (!isIP(host) && lookup) {
-    const addresses = await lookup(host, { all: true });
-    if (addresses.some(({ address }) => isPrivateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
-  }
-  return url.href;
+  if (isIP(host)) return { href: url.href, address: host, family: isIP(host) };
+  if (!lookup) return { href: url.href, address: null, family: 0 };
+  const addresses = await lookup(host, { all: true });
+  if (addresses.length === 0) throw new Error(`refusing ${href}: ${host} does not resolve`);
+  if (addresses.some(({ address }) => isPrivateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
+  return { href: url.href, address: addresses[0].address, family: addresses[0].family };
 };
+// node:https with a lookup that answers only with the approved address, read back as a Response.
+const pinnedFetch = (request) => (href, { headers, signal }, { address, family }) => new Promise((resolveResponse, reject) => {
+  const pin = (_host, options, callback) => (options?.all ? callback(null, [{ address, family }]) : callback(null, address, family));
+  const req = request(href, { headers, signal, lookup: pin }, (res) => {
+    const answer = new Headers();
+    for (const [name, value] of Object.entries(res.headers)) for (const item of [value].flat()) if (item !== undefined) answer.append(name, String(item));
+    const empty = [204, 205, 304].includes(res.statusCode);
+    if (empty) res.resume();
+    try {
+      resolveResponse(new Response(empty ? null : Readable.toWeb(res), { status: res.statusCode, headers: answer }));
+    } catch (error) {
+      res.destroy();
+      reject(error);
+    }
+  });
+  req.on("error", reject);
+  req.end();
+});
 const readCapped = async (response, url, limit) => {
   const declared = Number(response.headers.get("content-length"));
   const tooLarge = () => new Error(`${url} is larger than ${limit} bytes`);
@@ -612,16 +635,21 @@ const readCapped = async (response, url, limit) => {
   }
 };
 
-/** Fetches a public https URL; `fetchImpl` and `lookup` are injectable for tests. */
-export const fetchBytes = async (url, { fetchImpl = fetch, lookup = fetchImpl === fetch ? dnsLookup : null, limit = FETCH_LIMIT } = {}) => {
-  let current = await checkHop(url, lookup);
+/**
+ * Fetches a public https URL over a connection pinned to the checked address. `fetchImpl` (a
+ * fetch-shaped stub, unpinned), `request` (node:https's) and `lookup` are injectable for tests.
+ */
+export const fetchBytes = async (url, { fetchImpl = null, request = httpsRequest, lookup = fetchImpl ? null : dnsLookup, limit = FETCH_LIMIT } = {}) => {
+  const send = fetchImpl ? (href, init) => fetchImpl(href, init) : pinnedFetch(request);
+  let hop = await checkHop(url, lookup);
   const signal = AbortSignal.timeout(30_000);
-  for (let hop = 0; hop <= FETCH_HOPS; hop += 1) {
-    const response = await fetchImpl(current, { headers: { "user-agent": "litclaude-lit-hijack/1 (+capture)" }, redirect: "manual", signal });
+  for (let count = 0; count <= FETCH_HOPS; count += 1) {
+    const current = hop.href;
+    const response = await send(current, { headers: { "user-agent": "litclaude-lit-hijack/1 (+capture)" }, redirect: "manual", signal }, hop);
     const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
     if (location) {
       await response.body?.cancel?.();
-      current = await checkHop(new URL(location, current).href, lookup);
+      hop = await checkHop(new URL(location, current).href, lookup);
       continue;
     }
     if (!response.ok) throw new Error(`${current} answered HTTP ${response.status}`);

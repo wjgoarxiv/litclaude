@@ -10,7 +10,7 @@ import { clearActivation, hasActivated, readActivation, recordActivation } from 
 import { parsePlanTaskRows } from "../lib/plan-task-rows.mjs";
 import { DISCIPLINE_ENTRY } from "../lib/mod/workflow.mjs";
 import { stackPath } from "../lib/workflow-stack.mjs";
-import { continueWorkflowStack, observeWorkflowPostTool, observeWorkflowPreTool, observeWorkflowSubagentStop, planRefOf, startWorkflowStage } from "../lib/workflow-stage.mjs";
+import { continueWorkflowStack, endWorkflowStack, observeWorkflowPostTool, observeWorkflowPreTool, observeWorkflowSubagentStop, planRefOf, startWorkflowStage } from "../lib/workflow-stage.mjs";
 import { renameAliases, renameNote } from "../lib/rename-aliases.mjs";
 import { hasInterfaceModeWord, interfaceMode } from "../lib/interface-mode.mjs";
 import { transcriptHasContextPressure } from "../lib/context-pressure.mjs";
@@ -536,6 +536,10 @@ const isExactBareScientificVisualization = (prompt) => /^\s*lit-scientific-visua
 // resolves back to the command and the adapter never loads. A prompt that starts with the typed slash
 // command gets the same bodies as the exact-bare route; a mention later in a prompt stays inert.
 const isTypedScientificVisualizationCommand = (prompt) => /^\s*\/litclaude:lit-scientific-visualization(?=$|\s)/u.test(prompt);
+// The host expands a typed `/lit-adhd`, `/lit-rewind` or `/review-work` itself, so no trigger routes
+// it, but the LIT card keys those skills' looks (lib/mod/looks.mjs) on the ignition record: the
+// record names the typed command's discipline.
+const typedLookCommand = (prompt) => /^\s*\/(?:litclaude:)?(lit-adhd|lit-rewind|review-work)(?=$|\s)/u.exec(prompt)?.[1] ?? null;
 
 const handoffContext = ({ typed = false } = {}) => {
   let canonicalBody;
@@ -1725,7 +1729,7 @@ switch (eventName) {
             ? "lit-handoff"
             : exactBareScientificVisualization
               ? "lit-scientific-visualization"
-              : effectiveDiscipline ?? null,
+              : effectiveDiscipline ?? typedLookCommand(prompt),
       });
     } catch {
       // A HUD record is cosmetic; an unwritable home never alters the prompt hook.
@@ -2034,6 +2038,11 @@ switch (eventName) {
       recordStartWorkSessionEnd(lifecycleRootFor(cwd, input.session_id), input);
     } catch {
       // SessionEnd is observational and emits no continuation.
+    }
+    try {
+      endWorkflowStack(typeof input.cwd === "string" ? input.cwd : process.cwd(), input.session_id);
+    } catch {
+      // The ended mark only folds this session's row from other cards.
     }
     break;
   }

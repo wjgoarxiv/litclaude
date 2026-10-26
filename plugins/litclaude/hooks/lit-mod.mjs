@@ -42,8 +42,11 @@ import {
   noteSpawn,
   noteSpawnActivity,
   noteSpawnEnded,
+  releaseFinish,
   spinnerSuffix,
   trackAgents,
+  waitingReason,
+  workflowFinish,
 } from "../lib/mod/view.mjs";
 
 const PANE = "lit-evidence";
@@ -85,7 +88,9 @@ const createLive = (options) => ({
   evidenceTab: "goal",
   ledger: [],
   celebrated: new Set(),
-  accent: undefined,
+  // The default accent until session.start reads the settings: the host refuses a Client prop
+  // that is undefined, and a skill can fire before session.start has run.
+  accent: accentFromSettings(null, undefined),
   git: null,
   fired: [],
   settledAt: 0,
@@ -97,6 +102,9 @@ const createLive = (options) => ({
   turnNotified: false,
   lists: EMPTY_LISTS,
   tasks: EMPTY_TASKS,
+  waiting: null,
+  answeredBoundary: null,
+  noColor: false,
 });
 
 const stateIo = ($) => ({
@@ -142,6 +150,21 @@ function drawnKey(live, model) {
     : JSON.stringify(withSvg ? stillModel(model) : model))).join("\n");
 }
 
+// What the session waits on the user for: the last answer's question or BLOCKED report, an
+// AskUserQuestion on screen, or a start-work boundary the user has not answered since it appeared.
+function waitingOf(live) {
+  const boundary = live.snapshot?.work?.awaiting ?? null;
+  return live.waiting ?? (boundary && boundary !== live.answeredBoundary ? { reason: "boundary" } : null);
+}
+
+// The user is answering: YOUR TURN ends now, and a boundary on screen stays answered.
+async function endWaiting($, live, redraw = true) {
+  if (!waitingOf(live)) return;
+  live.waiting = null;
+  live.answeredBoundary = live.snapshot?.work?.awaiting ?? live.answeredBoundary;
+  if (redraw) await rebuild($, live);
+}
+
 async function rebuild($, live) {
   const now = await $.clock.now();
   const previous = live.model;
@@ -161,6 +184,8 @@ async function rebuild($, live) {
     step: live.step,
     lists: live.lists,
     tasks: live.tasks,
+    turnStartedAt: live.turnStartedAt,
+    waiting: waitingOf(live),
     // The thread rows stay reserved while threads are live, so the card does not shrink between repaints.
     threadReserve: previous?.threads?.reserve ?? 0,
   });
@@ -267,7 +292,12 @@ async function refresh($, live, options) {
     noteIgnition(live, fresh.ignition, now);
     const finish = detectCompletion(before, fresh);
     if (finish) celebrate($, live, finish, options);
-    const next = await rebuild($, live);
+    let next = await rebuild($, live);
+    const reviewed = workflowFinish(previousModel, next);
+    if (reviewed) {
+      celebrate($, live, { ...reviewed, id: `${reviewed.id}:${now}` }, options);
+      next = await rebuild($, live);
+    }
     const raised = diffNotices(before, fresh, previousModel, next);
     if (raised.length > 0) {
       raiseToasts($, live, raised.map(noticeEntry), now);
@@ -309,6 +339,8 @@ export const register = (on, options) => {
     live.settledAt = await $.clock.now();
     const hostSettings = await $.settings.read().catch(() => null);
     live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
+    // NO_COLOR (no-color.org): set and not empty, the card draws no colour and does not move.
+    live.noColor = Boolean(await $.env.get("NO_COLOR"));
     live.reducedMotion = hostSettings?.prefersReducedMotion === true;
     live.motion = effectiveMotion(live.motion, hostSettings);
     await $.command.register({ name: PANE, description: "Show LitClaude goal criteria, evidence, lanes and gates in a pane" });
@@ -320,6 +352,7 @@ export const register = (on, options) => {
   });
 
   on("turn.start", async ($, e, next) => {
+    if (typeof e.agentId !== "string") await endWaiting($, live, false);
     live.isWorking = true;
     live.mainToolCalls = 0;
     live.turnStartedAt = await $.clock.now();
@@ -345,8 +378,11 @@ export const register = (on, options) => {
       live.turnNotified = true;
       notifyFinish($, options, `LIT turn finished · ${live.model.title ?? "LitClaude"} · ${formatDuration(took)}`);
     }
-    // The request is over: its chips dim to the recent list until a skill fires again.
+    // The request is over: its chips dim to the recent list until a skill fires again. An answer
+    // that asks the user something or reports BLOCKED leaves the card on YOUR TURN.
     live.settledAt = now;
+    const reason = e.isAborted ? null : waitingReason(e.answer);
+    live.waiting = reason ? { reason } : null;
     refreshSoon($, live, options);
     return next(e);
   });
@@ -366,6 +402,9 @@ export const register = (on, options) => {
     // The live step: the main loop's tool by name and since when, nothing else of the call.
     const step = typeof e.agentId === "string" ? null : { name: e.tool, at: await $.clock.now() };
     if (step) live.mainToolCalls += 1;
+    // A question to the user is on screen until its call returns.
+    const asking = step !== null && e.tool === "AskUserQuestion";
+    if (asking) live.waiting = { reason: "question" };
     if (step) {
       live.step = step;
       await rebuild($, live);
@@ -374,6 +413,7 @@ export const register = (on, options) => {
     try {
       result = await next(e);
     } finally {
+      if (asking && live.waiting?.reason === "question") live.waiting = null;
       if (step && live.step === step) live.step = live.isWorking ? { name: "thinking", at: await $.clock.now() } : null;
       if (typeof e.agentId === "string") {
         const now = await $.clock.now();
@@ -381,9 +421,26 @@ export const register = (on, options) => {
         live.spawned = noteSpawnActivity(live.spawned, e.agentId, now, -1);
       }
     }
-    noteToolOutcome(live, e, result, await $.clock.now());
+    const now = await $.clock.now();
+    noteToolOutcome(live, e, result, now);
+    const release = releaseFinish(e, result);
+    if (release) {
+      celebrate($, live, { ...release, id: `${release.id}:${now}` }, options);
+      await rebuild($, live);
+    }
     refreshSoon($, live, options);
     return result;
+  }).catch(($, e, next) => next(e));
+
+  // The user typing, or recalling or undoing a draft, answers YOUR TURN.
+  on("prompt.edit", async ($, e, next) => {
+    await endWaiting($, live);
+    return next(e);
+  }).catch(($, e, next) => next(e));
+
+  on("prompt.change", async ($, e, next) => {
+    if (e.origin?.kind === "history" || e.origin?.kind === "undo") await endWaiting($, live);
+    return next(e);
   }).catch(($, e, next) => next(e));
 
   // A background task's notification ends its thread row: its text is read for ids alone.
@@ -437,8 +494,9 @@ export const register = (on, options) => {
 
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const settings = normalizeModSettings(options);
-    const motion = effectiveMotion(settings.motion, { prefersReducedMotion: live.reducedMotion });
-    const glyphs = resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present);
+    const motion = live.noColor ? "off" : effectiveMotion(settings.motion, { prefersReducedMotion: live.reducedMotion });
+    const glyphs = live.noColor ? "basic" : resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present);
+    const color = !live.noColor;
     const model = live.model;
     if (!model || settings.band === "off" || e.props.hasSurvey || (!model.visible && !live.exiting)) return next(e);
     const elements = $.ui.resolve(e);
@@ -453,9 +511,9 @@ export const register = (on, options) => {
         drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
       }
     } else if (elements.Client && !live.clientFailed) {
-      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent } });
+      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
     } else if (model.visible) {
-      drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent }));
+      drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent, color }));
     }
     const below = await next(e);
     if (!drawn) return below;

@@ -14,13 +14,14 @@
 // only which stage, which lane and how many; never a path, a command or a prompt.
 
 import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 import { DISCIPLINE_ENTRY, STAGE_UNITS, VERDICT_STATES, WORKFLOW_FAMILIES, WORKFLOW_FRESH_MS, normalizeStage, reviewLaneOf } from "./mod/workflow.mjs";
-import { resolveProjectStateRoot } from "./project-state-root.mjs";
+import { requireStateDir, resolveProjectStateRoot } from "./project-state-root.mjs";
 import { appendLitgoalLedger } from "./litgoal/ledger.mjs";
 import { litgoalGoalsPath, litgoalLedgerPath } from "./litgoal/paths.mjs";
 import { readLitgoalState } from "./litgoal/state.mjs";
+import { acquireOwnerLock, OwnerLockError, releaseOwnerLock } from "./owner-lock.mjs";
 import { readPlanProgress } from "./start-work-lifecycle.mjs";
 import { applyStackEvent, readStack, stackPath, writeStack } from "./workflow-stack.mjs";
 
@@ -59,11 +60,43 @@ const logStackTransitions = (cwd, transitions) => {
   }
 };
 
-const applyAndWrite = (cwd, sessionId, event, now = new Date()) => {
+// Hooks run as separate processes, and five background reviewers can stop within the same second:
+// each move reads, applies and writes under the stack's lock, so one never drops another's verdict.
+// A lock held past the timeout leaves the move unlocked rather than lost.
+const withStackLock = (cwd, sessionId, body) => {
+  const lockDir = `${stackPath(cwd, sessionId)}.lock`;
+  requireStateDir(dirname(lockDir));
+  let owner = null;
+  try {
+    owner = acquireOwnerLock(lockDir, { timeoutMs: 2_000, staleMs: 30_000 });
+  } catch (error) {
+    if (!(error instanceof OwnerLockError)) throw error;
+  }
+  try {
+    return body();
+  } finally {
+    if (owner) releaseOwnerLock(lockDir, owner);
+  }
+};
+
+const applyAndWrite = (cwd, sessionId, event, now = new Date()) => withStackLock(cwd, sessionId, () => {
   const { stack, transitions } = applyStackEvent(readStack(cwd, sessionId), event, now);
   writeStack(cwd, sessionId, stack);
   logStackTransitions(cwd, transitions);
   return { stack, transitions };
+});
+
+/**
+ * SessionEnd: marks the session's stack `endedAt`, so other sessions' cards drop its row at once
+ * instead of after the stack goes quiet. The next move of a resumed session writes the stack anew,
+ * without the mark. A session with no frames writes nothing.
+ */
+export const endWorkflowStack = (cwd, sessionId, now = new Date()) => {
+  if (typeof sessionId !== "string" || !sessionId) return;
+  withStackLock(cwd, sessionId, () => {
+    const stack = readStack(cwd, sessionId);
+    if (stack.frames.length) writeStack(cwd, sessionId, { ...stack, endedAt: now.toISOString() });
+  });
 };
 
 /**
@@ -409,40 +442,89 @@ export const observeWorkflowPostTool = (cwd, input, { filePaths = [], lifecycleR
   return moved;
 };
 
-// The prompt a reviewer was given: the first user message in the head of its transcript.
-const transcriptPrompt = (path, bytes = 65_536) => {
+// `bytes` of a reviewer's transcript from `at` ("head" or "tail"), or "" when it is not a file.
+const readTranscript = (path, bytes, at) => {
   if (typeof path !== "string" || !path.endsWith(".jsonl")) return "";
   let fd;
-  let head = "";
   try {
-    if (!lstatSync(path).isFile()) return "";
+    const info = lstatSync(path);
+    if (!info.isFile()) return "";
     fd = openSync(path, "r");
-    const buffer = Buffer.alloc(bytes);
-    head = buffer.subarray(0, readSync(fd, buffer, 0, bytes, 0)).toString("utf8");
+    const start = at === "tail" ? Math.max(0, info.size - bytes) : 0;
+    const buffer = Buffer.alloc(Math.min(bytes, info.size));
+    return buffer.subarray(0, readSync(fd, buffer, 0, buffer.length, start)).toString("utf8");
   } catch {
     return "";
   } finally {
     if (fd !== undefined) closeSync(fd);
   }
-  for (const line of head.split("\n").slice(0, 20)) {
-    try {
-      const entry = JSON.parse(line);
-      const message = entry?.message;
-      if (entry?.type === "user" || message?.role === "user") return resultText(message?.content ?? message);
-    } catch {
-      // A line cut off at the end of the head, or not an entry at all.
-    }
+};
+
+const entryOf = (line) => {
+  try {
+    return JSON.parse(line);
+  } catch {
+    return null; // A line cut off at either end of the read, or not an entry at all.
+  }
+};
+
+// The prompt a reviewer was given: the first user message in the head of its transcript.
+const transcriptPrompt = (path) => {
+  for (const line of readTranscript(path, 65_536, "head").split("\n").slice(0, 20)) {
+    const entry = entryOf(line);
+    if (entry?.type === "user" || entry?.message?.role === "user") return resultText(entry.message?.content ?? entry.message);
   }
   return "";
 };
 
-/** SubagentStop: a reviewer's verdict, from its last message, for the lane its prompt named. */
+// A reviewer's final report from the end of its transcript: the message of its `SubagentHandback`
+// call (how a background agent reports), or the text of a last assistant message that calls no
+// tool. "" while the last assistant entry is still mid-work or not on disk yet.
+const transcriptReport = (path) => {
+  const lines = readTranscript(path, 262_144, "tail").split("\n");
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = entryOf(lines[index]);
+    const content = entry?.type === "assistant" || entry?.message?.role === "assistant" ? entry.message?.content : undefined;
+    if (!Array.isArray(content)) continue;
+    const handback = content.findLast((block) => block?.type === "tool_use" && block.name === "SubagentHandback");
+    if (handback) return typeof handback.input?.message === "string" ? handback.input.message : "";
+    if (content.some((block) => block?.type === "tool_use")) return "";
+    return content.filter((block) => block?.type === "text").map((block) => block.text).join("\n");
+  }
+  return "";
+};
+
+// The host can run SubagentStop before it flushes the lane's last entries to the transcript, so a
+// lane's report is read again for a short while until it is on disk.
+const REPORT_WAIT_MS = 3_000;
+const REPORT_POLL_MS = 100;
+const awaitReport = (path) => {
+  const deadline = Date.now() + REPORT_WAIT_MS;
+  for (;;) {
+    const report = transcriptReport(path);
+    if (report || Date.now() >= deadline) return report;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, REPORT_POLL_MS);
+  }
+};
+
+/**
+ * SubagentStop: a reviewer's verdict for the lane its prompt names: a `Review lane:` title, else
+ * (for a lane review-work already marked) the prompt's first line, which is how the model headed a
+ * background lane's prompt on the host. The verdict is the last message's, else the transcript's
+ * final report.
+ */
 export const observeWorkflowSubagentStop = (cwd, input) => {
   const sessionId = typeof input?.session_id === "string" ? input.session_id : null;
-  const verdict = verdictFrom(input?.last_assistant_message);
-  if (!sessionId || !verdict) return null;
-  const lane = laneFromTitle(transcriptPrompt(input.agent_transcript_path));
-  return lane ? markLane(cwd, sessionId, currentRecord(cwd, sessionId), lane, verdict) : null;
+  if (!sessionId) return null;
+  const prompt = transcriptPrompt(input.agent_transcript_path);
+  let lane = laneFromTitle(prompt);
+  if (!lane) {
+    const heading = reviewLaneOf(prompt.trimStart().split("\n", 1)[0]);
+    lane = heading && nearestRecord(cwd, sessionId, "main", "review")?.verdicts?.[heading] ? heading : null;
+  }
+  if (!lane) return null;
+  const verdict = verdictFrom(input.last_assistant_message) ?? verdictFrom(awaitReport(input.agent_transcript_path));
+  return verdict ? markLane(cwd, sessionId, currentRecord(cwd, sessionId), lane, verdict) : null;
 };
 
 const USAGE = `Usage: litclaude-ai workflow-stage <family> <stage> [--n N] [--total M] [--unit ${STAGE_UNITS.join("|")}] [--verdict <name>=${VERDICT_STATES.join("|")}]... [--session <id>] [--json]

@@ -2,14 +2,15 @@
 // (skills.mjs) and what Claude Code reports live (subagents, context and rate-limit usage). Pure: the mod calls these on each refresh and hands the result to the
 // band's surface module, which only draws and animates it.
 
-import { lookOf } from "./motion.mjs";
+import { lookOf } from "./looks.mjs";
 import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
-import { buildWorkflow } from "./workflow.mjs";
+import { REVIEW_LANES, buildWorkflow } from "./workflow.mjs";
 
 export const STALL_MS = 10 * 60 * 1000;
 // An agent the host does not list, quiet this long with no call in flight, no longer counts as
 // running: a crashed loop or a lost report must not hold the card at work for the rest of the
-// session. One the host lists as live stays, however quiet; it is marked stalled instead.
+// session. One the host lists as live stays, however quiet; it is marked stalled instead, unless
+// the host lists it idle: a teammate that finished its turn and waits for a message is not stuck.
 export const AGENT_STALE_MS = 30 * 60 * 1000;
 // The context warning starts this many points before the auto-handoff percent.
 export const CONTEXT_LEAD = 5;
@@ -22,6 +23,7 @@ export const REWIND_LINGER_MS = 15 * 60 * 1000;
 export const BREAK_MS = 30 * 60 * 1000;
 
 const LIVE_AGENT = new Set(["running", "pending", "waiting", "idle"]);
+const STALLABLE_AGENT = new Set(["running", "pending", "waiting"]);
 const ENDED_AGENT = new Set(["completed", "failed", "killed"]);
 const NONTERMINAL_GOAL = new Set(["active", "blocked", "review_blocked", "needs_user_decision"]);
 const WORK_DISCIPLINES = new Set(["lit-loop", "litwork", "litgoal", "start-work", "native-workflow"]);
@@ -89,7 +91,7 @@ export const mergeSpawned = (listed, spawned, now) => {
 
 export const stalledLanes = (agents, activity, now, thresholdMs = STALL_MS) =>
   agents
-    .filter((agent) => LIVE_AGENT.has(agent.status) && Number.isFinite(activity.last[agent.id]) && now - activity.last[agent.id] > thresholdMs)
+    .filter((agent) => STALLABLE_AGENT.has(agent.status) && Number.isFinite(activity.last[agent.id]) && now - activity.last[agent.id] > thresholdMs)
     .map((agent) => ({ id: agent.id, name: laneName(agent), quietMs: now - activity.last[agent.id] }));
 
 export const laneName = (agent) => String(agent.name || agent.description || agent.type || "agent").slice(0, 40);
@@ -98,7 +100,8 @@ export const laneName = (agent) => String(agent.name || agent.description || age
 // leaves PARALLEL_ROWS for the lanes and tasks under it.
 export const THREAD_ROWS = 4;
 const PARALLEL_ROWS = 3;
-// Another session of this project counts as live while its stack was written this recently.
+// Another session of this project counts as live while its stack was written this recently and
+// SessionEnd has not marked it ended.
 export const OTHER_SESSION_MS = 15 * 60 * 1000;
 
 const countOrNull = (value) => (Number.isInteger(value) && value >= 0 ? value : null);
@@ -284,7 +287,7 @@ const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
   const taskThreads = tasks.map((task) => ({ key: `task-${task.id}`, name: task.name, stage: task.kind, done: null, total: null, state: "running", active: false, task: task.kind, elapsedMs: Number.isFinite(task.at) ? Math.max(0, now - task.at) : null }));
   const parallel = [...laneThreads, ...taskThreads];
   const others = (snapshot.workflow?.others ?? [])
-    .filter((other) => Number.isFinite(other.at) && now - other.at <= OTHER_SESSION_MS && other.frames?.length)
+    .filter((other) => !other.ended && Number.isFinite(other.at) && now - other.at <= OTHER_SESSION_MS && other.frames?.length)
     .map((other) => ({ ...frameThread(other.frames.at(-1), 0, {}, false, null, now), key: `session-${other.id8}`, session: other.id8 }));
   const total = chain.length + parallel.length + others.length;
   if (total < 2) return null;
@@ -388,9 +391,10 @@ export const stepName = (tool) => {
  * lit (the idle title), `git` the branch and `step` the live step (`{ name, at }`, the tool the
  * main loop runs and since when). `threadReserve` is the previous model's `threads.reserve`,
  * `lists` the loops' todo and task counts (noteLoopCall) and `tasks` the background tasks
- * (noteBackgroundTask).
+ * (noteBackgroundTask). `turnStartedAt` is when the main loop's current turn began, `waiting`
+ * what the session waits on the user for (`{ reason }`, null while it does not).
  */
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS }) => {
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS, turnStartedAt = null, waiting = null }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -404,7 +408,8 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
       id: agent.id,
       name: laneName(agent),
       status: stalledIds.has(agent.id) ? "stalled" : agent.status,
-      elapsedMs: Number.isFinite(activity.first[agent.id]) ? now - activity.first[agent.id] : null,
+      // An idle teammate's clock would count time it spent waiting, so it shows none.
+      elapsedMs: agent.status !== "idle" && Number.isFinite(activity.first[agent.id]) ? now - activity.first[agent.id] : null,
     }))
     : boulderLanes.slice(0, 6).map((lane) => ({ name: lane.type, status: "running", elapsedMs: Number.isFinite(lane.startedAt) ? now - lane.startedAt : null }));
   const goal = snapshot.goal;
@@ -419,12 +424,15 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const lit = skills.some(({ state }) => state === "current");
   const workflow = buildWorkflow({ snapshot, skills, completion, now });
   const title = discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline;
-  const rewind = lookOf(discipline) === "rewind" && Number.isFinite(snapshot.ignition?.at) && now - snapshot.ignition.at < REWIND_LINGER_MS;
-  const visible = band === "off" ? false : band === "always" || active || lit || rewind || notice !== null || completion !== null || warnings.length > 0;
+  const look = selectLook({ snapshot, discipline, skills, workflow, completion, waiting, now, turnStartedAt });
+  const rewind = look === "rewind";
+  const visible = band === "off" ? false : band === "always" || active || lit || look !== null || notice !== null || completion !== null || warnings.length > 0;
   return {
     visible,
     idle: !active && !lit,
+    look,
     rewind,
+    waiting: waiting?.reason ?? null,
     away: !active && !lit && !rewind && skills.length > 0 && now - Math.max(...skills.map(({ at }) => (Number.isFinite(at) ? at : now))) >= BREAK_MS,
     discipline,
     title: workflow?.paused ? crumbOf(workflow.paused) : title,
@@ -445,6 +453,24 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
     notice,
     completion,
   };
+};
+
+// The card's look (looks.mjs): a finish, then the session waiting on the user, then the look of the
+// newest look-bearing skill this request ran. A Skill tool load never reaches the prompt hook, so a
+// firing in this turn counts as the ignited discipline does; the next turn's start ends the one, the
+// next prompt's ignition the other. The review look draws only the lanes review-work has open, and
+// holds while a lane is still running: background lanes report in the turns their notifications start.
+const selectLook = ({ snapshot, discipline, skills, workflow, completion, waiting, now, turnStartedAt }) => {
+  if (completion) return "done";
+  if (waiting) return "turn";
+  const fired = Number.isFinite(turnStartedAt) ? skills.filter(({ id, at }) => lookOf(id) && at >= turnStartedAt) : [];
+  const ignited = lookOf(discipline) && Number.isFinite(snapshot.ignition?.at) ? [{ id: discipline, at: snapshot.ignition.at }] : [];
+  const newest = [...fired, ...ignited].filter(({ at }) => now - at < REWIND_LINGER_MS).sort((a, b) => b.at - a.at)[0];
+  const look = newest ? lookOf(newest.id) : null;
+  const lanesOpen = workflow?.current >= 0 && workflow.verdicts?.length === REVIEW_LANES.length;
+  if (look === "review") return lanesOpen ? "review" : null;
+  if (!look && lanesOpen && workflow.verdicts.some(({ state }) => state === "running")) return "review";
+  return look;
 };
 
 // `lit-loop || > lit-brainstorm`, or `lit-loop || > … > lit-brainstorm` with a side between them.
@@ -509,6 +535,49 @@ export const detectCompletion = (previous, next) => {
     return { id: `goal:${goal.createdAt ?? goal.objective}`, detail: `goal met · ${passed}/${goal.criteria.length} criteria` };
   }
   return null;
+};
+
+// Fenced code is quoted material, not the answer's own words.
+const FENCE = /^\s*(```|~~~)/u;
+
+/**
+ * Why a main-loop answer leaves the session waiting on the user: `blocked` when a line reports
+ * `BLOCKED:`, `question` when its last paragraph ends in a question mark, else null.
+ */
+export const waitingReason = (answer) => {
+  let fenced = false;
+  const lines = String(answer ?? "").split(/\r?\n/u).filter((line) => {
+    if (FENCE.test(line)) {
+      fenced = !fenced;
+      return false;
+    }
+    return !fenced;
+  });
+  if (lines.some((line) => /^\s*(?:[-*>]\s*)?\**BLOCKED\**:/u.test(line))) return "blocked";
+  const last = lines.join("\n").trim().split(/\n\s*\n/u).at(-1) ?? "";
+  return /[?？]["')\]*_`]*$/u.test(last.trim()) ? "question" : null;
+};
+
+/**
+ * The review finishing, by comparing the previous model with this one: every lane had not passed and
+ * now the main map is done. Plan and goal finishes come from the durable state (detectCompletion).
+ */
+export const workflowFinish = (previous, next) => {
+  const before = previous?.workflow;
+  const after = next?.workflow;
+  if (!before || !after || before.family !== "main" || after.family !== "main") return null;
+  const open = before.verdicts ?? before.paused?.verdicts;
+  const lanes = open?.length === REVIEW_LANES.length ? open : null;
+  if (!lanes || before.current < 0 || lanes.every(({ state }) => state === "pass") || after.current !== -1) return null;
+  return { id: "review", detail: `review · ${REVIEW_LANES.length}/${REVIEW_LANES.length} lanes passed` };
+};
+
+/** A release the main loop published: a successful `npm publish` that was not a dry run. */
+export const releaseFinish = (e, outcome) => {
+  if (typeof e?.agentId === "string" || e?.tool !== "Bash" || typeof e.command !== "string") return null;
+  if (!/^\s*npm\s+publish\b/u.test(e.command) || /(?:^|\s)--dry-run\b/u.test(e.command)) return null;
+  if (!outcome || outcome.isError || outcome.deny !== undefined) return null;
+  return { id: `release:${e.command.trim()}`, detail: "released" };
 };
 
 /** The evidence pane: goal criteria, blockers, the litgoal timeline, lanes and gates. */

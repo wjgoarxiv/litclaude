@@ -8,8 +8,10 @@
 import { createHash } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { request as httpsRequest } from "node:https";
 import { isIP, isIPv4, isIPv6 } from "node:net";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { EXIT } from "../core/constants.mjs";
 import { BlockedError } from "./chrome.mjs";
 import { rasterInfo } from "./stage-serve.mjs";
@@ -84,6 +86,8 @@ export function pageFacts(html, base) {
 // Every hop, the first request and each redirect, must be https to a public host: a product page
 // or README image must not bounce the fetch into loopback, the cloud metadata address or the local
 // network. Bodies are counted as they stream, so a missing or false content-length cannot buffer more.
+// The request connects to the address the check approved, so a name that answers again with a
+// private address (DNS rebinding) cannot move it; TLS still checks the certificate for the name.
 const MAX_HOPS = 5;
 const privateV4 = (ip) => {
   const [a, b] = ip.split(".").map(Number);
@@ -107,11 +111,32 @@ async function checkHop(href, lookup) {
   if (url.protocol !== "https:") throw new Error(`refusing ${url.protocol} ${href}: assets are fetched over https only`);
   const host = url.hostname.replace(/^\[|\]$/gu, "");
   if (host === "localhost" || host.endsWith(".localhost") || privateAddress(host)) throw new Error(`refusing ${href}: a loopback, link-local or private host`);
-  if (!isIP(host) && lookup) {
-    const addresses = await lookup(host, { all: true });
-    if (addresses.some(({ address }) => privateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
-  }
-  return url.href;
+  if (isIP(host)) return { href: url.href, address: host, family: isIP(host) };
+  if (!lookup) return { href: url.href, address: null, family: 0 };
+  const addresses = await lookup(host, { all: true });
+  if (addresses.length === 0) throw new Error(`refusing ${href}: ${host} does not resolve`);
+  if (addresses.some(({ address }) => privateAddress(address))) throw new Error(`refusing ${href}: ${host} resolves to a private address`);
+  return { href: url.href, address: addresses[0].address, family: addresses[0].family };
+}
+// node:https with a lookup that answers only with the approved address, read back as a Response.
+function pinnedFetch(request) {
+  return (href, { headers, signal }, { address, family }) => new Promise((resolve, reject) => {
+    const pin = (_host, options, callback) => (options?.all ? callback(null, [{ address, family }]) : callback(null, address, family));
+    const req = request(href, { headers, signal, lookup: pin }, (res) => {
+      const answer = new Headers();
+      for (const [name, value] of Object.entries(res.headers)) for (const item of [value].flat()) if (item !== undefined) answer.append(name, String(item));
+      const empty = [204, 205, 304].includes(res.statusCode);
+      if (empty) res.resume();
+      try {
+        resolve(new Response(empty ? null : Readable.toWeb(res), { status: res.statusCode, headers: answer }));
+      } catch (error) {
+        res.destroy();
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }
 async function readCapped(res, url, limit) {
   const declared = Number(res.headers.get("content-length"));
@@ -139,15 +164,16 @@ async function readCapped(res, url, limit) {
   }
 }
 
-async function get(fetchImpl, url, { accept, limit, lookup }) {
-  let current = await checkHop(url, lookup);
+async function get(send, url, { accept, limit, lookup }) {
+  let hop = await checkHop(url, lookup);
   const signal = AbortSignal.timeout(ASSET_LIMITS.timeoutMs);
-  for (let hop = 0; hop <= MAX_HOPS; hop += 1) {
-    const res = await fetchImpl(current, { headers: { accept, "user-agent": "lit-typographic-motion-assets" }, redirect: "manual", signal });
+  for (let count = 0; count <= MAX_HOPS; count += 1) {
+    const current = hop.href;
+    const res = await send(current, { headers: { accept, "user-agent": "lit-typographic-motion-assets" }, redirect: "manual", signal }, hop);
     const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
     if (location) {
       await res.body?.cancel?.();
-      current = await checkHop(new URL(location, current).href, lookup);
+      hop = await checkHop(new URL(location, current).href, lookup);
       continue;
     }
     if (!res.ok) throw new Error(`${res.status} from ${current}`);
@@ -162,10 +188,12 @@ function roleFor(url, fallback) {
 }
 
 /**
- * Fetch a product's assets into <out>. `fetchImpl` is injectable for tests. Returns { code, message,
- * product }; throws BlockedError 22 when nothing could be reached.
+ * Fetch a product's assets into <out> over connections pinned to each checked address. `fetchImpl` (a
+ * fetch-shaped stub, unpinned), `request` (node:https's) and `lookup` are injectable for tests.
+ * Returns { code, message, product }; throws BlockedError 22 when nothing could be reached.
  */
-export async function fetchAssets({ out, url, into = "stage", fetchImpl = globalThis.fetch, lookup = fetchImpl === globalThis.fetch ? dnsLookup : null, now = () => new Date() }) {
+export async function fetchAssets({ out, url, into = "stage", fetchImpl = null, request = httpsRequest, lookup = fetchImpl ? null : dnsLookup, now = () => new Date() }) {
+  const send = fetchImpl ? (href, init) => fetchImpl(href, init) : pinnedFetch(request);
   let link;
   try {
     link = new URL(url);
@@ -187,7 +215,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
     const [, owner, rname] = repo;
     name = rname;
     try {
-      const meta = JSON.parse((await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}`, { accept: "application/vnd.github+json", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8"));
+      const meta = JSON.parse((await get(send, `https://api.github.com/repos/${owner}/${rname}`, { accept: "application/vnd.github+json", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8"));
       Object.assign(words, { name: meta.name ?? rname, description: meta.description ?? null, homepage: meta.homepage || null, topics: meta.topics ?? [] });
       name = meta.name ?? rname;
       if (meta.owner?.avatar_url) candidates.push({ url: meta.owner.avatar_url, role: "icon", note: "owner avatar" });
@@ -195,7 +223,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
       problems.push(`repository: ${error.message}`);
     }
     try {
-      const readme = (await get(fetchImpl, `https://api.github.com/repos/${owner}/${rname}/readme`, { accept: "application/vnd.github.raw", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
+      const readme = (await get(send, `https://api.github.com/repos/${owner}/${rname}/readme`, { accept: "application/vnd.github.raw", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
       writeFileSync(path.join(wordsDir, "README.md"), readme);
       words.readme = "product/README.md";
       const images = readmeImages(readme, `https://raw.githubusercontent.com/${owner}/${rname}/HEAD/`).map((u) => ({ url: u.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\//u, "https://raw.githubusercontent.com/$1/"), role: "readme-image" }));
@@ -205,7 +233,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
     }
   } else {
     try {
-      const html = (await get(fetchImpl, link.href, { accept: "text/html", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
+      const html = (await get(send, link.href, { accept: "text/html", limit: ASSET_LIMITS.pageBytes, lookup })).toString("utf8");
       const facts = pageFacts(html, link.href);
       Object.assign(words, { title: facts.title, description: facts.description });
       if (facts.title) name = facts.title.split(/\s[|·—–-]\s/u)[0].trim() || name;
@@ -221,7 +249,7 @@ export async function fetchAssets({ out, url, into = "stage", fetchImpl = global
   for (const c of candidates) {
     if (assets.length >= ASSET_LIMITS.files) break;
     try {
-      const buf = await get(fetchImpl, c.url, { accept: "image/*", limit: ASSET_LIMITS.fileBytes, lookup });
+      const buf = await get(send, c.url, { accept: "image/*", limit: ASSET_LIMITS.fileBytes, lookup });
       const kind = sniffImage(buf);
       if (!kind) throw new Error("not an image");
       if (kind === "svg" && !cleanSvg(buf.toString("utf8"))) throw new Error("an SVG with script or outside links");

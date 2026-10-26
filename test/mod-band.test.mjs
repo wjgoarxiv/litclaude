@@ -86,7 +86,7 @@ test("a lane quiet past the threshold is stalled, and activity resets the clock"
   assert.equal(changed.last.a1, NOW, "a status change counts as activity");
   assert.equal(changed.first.a1, 0);
   assert.deepEqual(trackAgents(changed, [], { a1: "idle" }, NOW), { last: {}, first: {} }, "agents that left are forgotten");
-  const stalled = buildBandModel({ snapshot: working(), agents: [agent("a1", "idle", "demo-gif")], activity: { last: { a1: NOW - 12 * 60_000 }, first: { a1: NOW - 20 * 60_000 } }, now: NOW });
+  const stalled = buildBandModel({ snapshot: working(), agents: [agent("a1", "running", "demo-gif")], activity: { last: { a1: NOW - 12 * 60_000 }, first: { a1: NOW - 20 * 60_000 } }, now: NOW });
   assert.equal(stalled.warnings[0].subject, "demo-gif");
   assert.equal(stalled.warnings[0].text, "quiet for 12m");
   assert.equal(stalled.lanes.list[0].status, "stalled");

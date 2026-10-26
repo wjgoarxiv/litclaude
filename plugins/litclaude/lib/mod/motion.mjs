@@ -54,9 +54,8 @@ export const motionProfile = (mode) => {
 
 // The rewind look (plans/lit-adhd.md D7): while lit-adhd runs, the card's border and rails take a
 // cycling rainbow, ASCII sparks drift through the skills row and a `<<` comet sweeps the bottom rule
-// right to left. It is keyed on the ignition discipline alone; every other discipline keeps its look.
-const REWIND = new Set(["lit-adhd", "lit-rewind"]);
-export const lookOf = (discipline) => (REWIND.has(discipline) ? "rewind" : null);
+// right to left. Which skill brings which look lives in looks.mjs.
+export { lookOf } from "./looks.mjs";
 
 export const clamp01 = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x);
 

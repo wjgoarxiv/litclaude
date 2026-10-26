@@ -38,10 +38,10 @@ const chipsOf = (model, now, previous = null) => Object.fromEntries((model.skill
 }));
 
 // The ambient loop runs while the card shows LitClaude at work, so motion itself says "active",
-// and while the rewind look lingers after a brief; `at` is when the current run began, so the loop
-// does not restart on every new model.
+// while the rewind look lingers after a brief and while YOUR TURN breathes; `at` is when the current
+// run began, so the loop does not restart on every new model.
 const ambientOf = (model, now, profile, previous = null) => {
-  const on = Boolean(profile.ambient) && model.visible && (!model.idle || model.rewind === true);
+  const on = Boolean(profile.ambient) && model.visible && (!model.idle || model.rewind === true || model.look === "turn");
   return { on, at: on && previous?.on ? previous.at : now };
 };
 
