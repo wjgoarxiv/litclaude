@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.39 - 2026-10-26
 
 - No question-mark progress anywhere: a gauge is drawn only when both numbers are known. A thread
   with no known total shows an indeterminate pulse and what is known instead (`12 steps · 4m ·
@@ -22,6 +22,9 @@
   lit-typographic-motion ask you to choose the design first, with their real presets and the
   recommended one first. They skip the question when the prompt names the look or hands the choice
   over, and a non-interactive run takes the recommended option and says so.
+- The GitHub READMEs open with a "What you can make" gallery: real outputs grouped by job (draw,
+  present, write, build, film, keep track, learn from others), each with the skill that made it
+  and, where a session made it, the prompt that was typed.
 
 ## 1.0.38 - 2026-10-26
 
