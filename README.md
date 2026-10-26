@@ -183,6 +183,17 @@ orange and back, a light passes over the stage it is in and over the skill chip,
 travels along the map toward the next stage, and a spark runs along the top edge and back along
 the bottom. A glance is enough to tell that LitClaude is still at work.
 
+Real work rarely runs one thing at a time. Say a lit-loop is halfway through when you type
+`/litclaude:start-work`, Claude sends three subagents out in parallel, and a dev server keeps
+running in the background. The card then gives each of them a row under the map, nested the
+way they belong together. The loop you interrupted stays on the card as paused, with its stage
+and count kept, and the start-work run that took over hangs under it. Parallel subagents and
+background tasks branch off a fork line, each with a small gauge of its own progress, and past
+four rows the last one says how many more there are. When the start-work run is done,
+`lit continue` brings the loop back at the count where it stopped:
+
+<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="The LIT card with thread rows. The top edge reads LIT · lit-loop || > start-work with GREEN || on the right, the map shows PIN and RED checked and GREEN 2/5 paused, the detail row reads start-work · back: lit continue with ●●● 3 lanes and Bash · 0:04 on the right. Below it the row lit-loop GREEN [▉▉░░░] 2/5 paused, and under it └─ ● start-work work [▉▉▉░░░] 3/6 running. A fork line ┬ 3 lanes · 1 task in parallel leads to executor [▉▉░░] 2/4 running, librarian-researcher [▉░] 1/2 running and lit-verifier [???] 0/? running, with +1 more on the right. The skills row holds start-work, lit-loop and lit-plan, and the bottom edge shows ctx 24%, 5h 22%, 1w 54% and the branch main." /></p>
+
 When the turn ends, the card goes back to idle and stops moving. The map keeps where the work got to,
 and the chip turns grey and stays as a recent skill, so you can still see what ran last:
 
@@ -262,8 +273,10 @@ Fix the date parsing bug in src/dates.js and add a test that fails without the f
 ### Plan first, then build
 
 For a larger change, `lit plan` writes a plan with numbered tasks and a yes-or-no check for
-each one, and edits nothing yet. Once you approve it, `/litclaude:start-work` runs it task by
-task and ticks a box only after its checks pass.
+each one, and edits nothing yet. Read it, and when it looks right, type `/litclaude:start-work`
+with the plan file. Typing the command is the approval, so there is no goal line to paste first.
+It runs the plan task by task and ticks a box only after its checks pass. With a single open
+plan, the command alone is enough.
 
 ```text
 lit plan Add CSV export to the reports page, with tests.
@@ -296,6 +309,11 @@ Ask for slides or a report and end the prompt with `lit`: you get an editable `.
 with native charts or a styled `.docx` document, set in Pretendard and checked page by page
 as rendered. `lit-humanizer` rewrites stiff English or Korean prose and keeps the facts.
 
+The skills that make things aim for a full result by default: decks, diagrams, schematics,
+figures, interfaces and films come out dense and dressed, with several accent colours and a
+signature detail. If you want something quieter, say so (calm, minimal, quiet) and they hold
+back.
+
 ```text
 팀 워크숍 발표자료 만들어줘 lit
 write a two-page project proposal for the new onboarding flow lit
@@ -314,11 +332,39 @@ lit draw a P&ID of the high-pressure hydrate reactor loop
 lit 논문용 실험 장치 모식도 그려줘
 ```
 
+### Bring in a technique you read about
+
+You read a thread, an article or a repository that does something your own skill does not, and
+you want that know-how without copying their text. `lit hijack` takes the sources and the
+target, records where each one came from, checks its licence and drops what may not be used,
+and finds what your skill lacks, with file and line evidence. It then writes a spec in its own
+words, has it built through `lit plan` and start-work, and proves the change by running the
+same prompt against the old and the new version. The report says what was taken, what was left
+and why.
+
+```text
+lit hijack https://x.com/… and docs/paper.pdf into my lit-pptx skill
+```
+
 ### Carry work into the next session
 
 `handoff` writes a continuation file with the goal, what was checked and what is left.
 Automatic handoff can write it for you before Claude Code compacts a long session; it stays
 off until you pick a percent with `lit-handoff auto on 60`.
+
+### Where was I?
+
+After a day of several windows, worktrees and interruptions, `lit adhd` (or its alias `lit
+rewind`) reads every recent Claude Code session of this repository and gives you one screen:
+what each session was asked, what it did and whether it waits on you, how far the roadmap and
+each open plan have come, with progress gauges, the work that is paused, and one next step. It
+changes nothing. If that step is what you want, type `go` in the same session within half an
+hour, and Claude takes it.
+
+```text
+lit adhd
+go
+```
 
 [All routes](./docs/guide.md#what-to-type) and [all skills, with a picture of each](./docs/skills.md).
 

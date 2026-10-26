@@ -55,6 +55,9 @@ Then open the file and try the three actions yourself. That is how you find out 
 | `lit research <question>` | Cited public-source research |
 | `handoff` | A continuation file for the next session |
 | `<make slides …> lit`, `<write a report …> lit` | Editable `.pptx` and `.docx` files |
+| `lit draw a P&ID …`, `lit 장치도 그려줘` | A checked equipment drawing as SVG, PDF and PNG |
+| `lit hijack <sources> into <skill>` | Someone's published technique, ported into your own skill and proven |
+| `lit adhd` (or `lit rewind`), then `go` | Where every recent session stands, and one next step |
 
 ## Check, update and remove
 

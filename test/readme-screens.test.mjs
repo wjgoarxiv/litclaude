@@ -106,19 +106,22 @@ test("the README demo film is an animated WebP that stays out of the package and
   for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /demo\.(?:gif|webp)/u, `${card} does not embed the demo film`);
 });
 
-// The LIT card in its three states, cropped from one recorded Claude Code session; both READMEs show it.
+// The LIT card in its three states, cropped from one recorded Claude Code session, plus the thread rows
+// drawn by the card's own renderer; both READMEs show them.
 const cardShots = {
   "idle.webp": "b51f0a0202fa944ecdab6699125e309823e02e73f65c9406c0fa29bbd1ccdfa4",
   "working.webp": "018f411330e022a13e5ac80fa824765423a9ec9e76afbf2366db1fe0e70c0f54",
+  "threads.webp": "f7f6289dca4255d57f76e000c2342999ea7a32251cce3839a31ad551b5400f33",
   "after.webp": "20781c9423d37112edb87d3b40f7ab46f1b1d293e7da74794ef0a1f71bdd3bf8",
 };
 const cardQuotes = {
   idle: ["LIT · ready", "type lit &lt;task&gt; to start one", "1w"],
   working: ["LIT · start-work", "WORK ●", "work 1/2", "task 1/2", "thinking", "1w"],
+  threads: ["lit-loop || > start-work", "2/5 paused", "└─ ● start-work", "┬ 3 lanes · 1 task in parallel", "+1 more", "lit continue"],
   after: ["idle", "review-work", "done", "complete", "1w"],
 };
 
-test("both READMEs show the LIT card in its idle, working and after states", () => {
+test("both READMEs show the LIT card in its idle, working, threads and after states", () => {
   const cardRoot = new URL("docs/assets/card/", root);
   assert.deepEqual(readdirSync(cardRoot).sort(), Object.keys(cardShots).sort());
   for (const [name, expected] of Object.entries(cardShots)) {
@@ -134,7 +137,7 @@ test("both READMEs show the LIT card in its idle, working and after states", () 
     const start = content.indexOf(heading);
     const section = content.slice(start, content.indexOf("\n## ", start + 4));
     const pictures = [...section.matchAll(/<img src="\.\/docs\/assets\/card\/([\w-]+)\.webp" width="960" alt="([^"]{60,})" \/>/gu)];
-    assert.deepEqual(pictures.map((m) => m[1]), ["idle", "working", "after"], `${readme} shows the three states in order`);
+    assert.deepEqual(pictures.map((m) => m[1]), ["idle", "working", "threads", "after"], `${readme} shows the four pictures in order`);
     for (const [, name, alt] of pictures) {
       for (const quote of cardQuotes[name]) {
         assert.ok(alt.includes(quote), `${readme}: alt of ${name} must quote "${quote}"`);
