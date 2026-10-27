@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.42 - 2026-10-27
+
+- While one session runs start-work, other sessions of the same project can now look around: herdr
+  reads (`herdr pane list`, `agent read` and the like) and plain grep pipelines are allowed. Edits
+  and other changes stay refused, and the owner session's own rules are unchanged.
+- start-work now finds its run in a git worktree. It stops at the worktree's own git root instead
+  of climbing to the main checkout or a folder above it, where an old run record could answer
+  "plan file does not exist".
+- lit-plan ends a saved plan with a one-word `go`: type `go` within 30 minutes to start the work.
+  When a todo names a folder outside the project, lit-plan asks for its `Scope roots:` line before
+  the plan is saved, so the run does not stop halfway for that access.
+- The LIT card tells running, idle and ended sessions apart from hook events. Other sessions are
+  listed running first, then idle. A finished start-work shows its check for a minute and then
+  leaves the card. Claude Code sessions in other herdr panes of the project appear as
+  `<skill> · <pane>` rows, also when that is the only other row.
+- When a newer LitClaude is installed than the one a session loaded, the card says
+  `restart to <version>` instead of drawing `[???] ?/?`. A task list with no known total no longer
+  prints a question mark.
+- lit-adhd opens with three lines: done so far, doing now and next. A finished plan counts as done,
+  a session that finished its run reads done (one that waits reads idle), and the next step no
+  longer repeats a step that already happened. Plans are read before transcripts and held to the
+  same time window, a skipped plan is reported, and the `Next` section of `HANDOFF.md` is used when
+  nothing else names a next step. The recommended-step box no longer prints a stray `text` label.
+- Prompt routes ignore the body of a `<cross-session-message>`, so a message from another session
+  no longer starts a skill here.
+
 ## 1.0.41 - 2026-10-27
 
 - The LIT card now changes its look with the work. lit-adhd and lit-rewind draw the rainbow rewind
