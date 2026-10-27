@@ -17,7 +17,8 @@ const WORDS = {
     active: (n) => `${n} active`,
     next: "next",
     window: (since, trees) => `last ${since} · ${trees} ${trees === 1 ? "worktree" : "worktrees"}`,
-    badge: { "waiting-on-user": "🟠 **WAITING ON YOU**", active: "🟢 **ACTIVE**", ended: "⚪ ended", unknown: "⚫ unknown" },
+    badge: { "waiting-on-user": "🟠 **WAITING ON YOU**", active: "🟢 **ACTIVE**", idle: "💤 idle", done: "✅ done", ended: "⚪ ended", unknown: "⚫ unknown" },
+    runDone: (plan) => `start-work finished ${plan}`,
     reason: { "asked the user": "it asked you something", "paused workflow": "paused workflow", "start-work boundary": "start-work needs approval" },
     ago: (text) => `${text} ago`,
     justNow: "just now",
@@ -63,13 +64,16 @@ const WORDS = {
       plan: ({ plan, item }) => `Next in ${plan}: ${item}`,
       check: ({ id8, goal, where, doing }) => `Check on ${id8} in ${where} (${goal})${doing ? `, now ${doing}` : ""}`,
       pickUp: ({ id8, goal, where }) => `Pick up ${id8} in ${where}: ${goal}`,
+      review: ({ id8, where, plan }) => `Review what ${id8} finished in ${where}: ${plan}`,
       start: () => "No session or plan in this window: say what to start",
     },
     goLine: (say) => `Type **\`${say}\`** to continue.`,
     noGo: "Nothing runs on its own here: open that session, or say what to do.",
     unknownSources: (list) => `Not read: ${list}.`,
     older: "Older sessions were not read (read budget used up).",
+    plansSkipped: (n) => `${n} ${n === 1 ? "plan was" : "plans were"} not read (read budget used up).`,
     noSessions: "No Claude Code session records in this window.",
+    opener: { done: "Done so far", doing: "Doing now", next: "Next", nothingDone: "nothing finished in this window", nothingRunning: "nothing running", type: (say) => `(type ${say})`, finishedRun: (plan) => `${plan} (start-work complete)` },
   },
   ko: {
     sessions: (n) => `세션 ${n}개`,
@@ -77,7 +81,8 @@ const WORDS = {
     active: (n) => `진행 중 ${n}`,
     next: "다음",
     window: (since, trees) => `최근 ${since} · 워크트리 ${trees}개`,
-    badge: { "waiting-on-user": "🟠 **나를 기다림**", active: "🟢 **진행 중**", ended: "⚪ 끝남", unknown: "⚫ 모름" },
+    badge: { "waiting-on-user": "🟠 **나를 기다림**", active: "🟢 **진행 중**", idle: "💤 쉬는 중", done: "✅ 완료", ended: "⚪ 끝남", unknown: "⚫ 모름" },
+    runDone: (plan) => `${plan} start-work 완료`,
     reason: { "asked the user": "질문에 답을 기다림", "paused workflow": "멈춘 워크플로", "start-work boundary": "start-work 승인 대기" },
     ago: (text) => `${text} 전`,
     justNow: "방금",
@@ -123,12 +128,15 @@ const WORDS = {
       plan: ({ plan, item }) => `${plan} 다음 항목: ${item}`,
       check: ({ id8, goal, where, doing }) => `${where}의 ${id8} 확인 (${goal})${doing ? `, 지금 ${doing}` : ""}`,
       pickUp: ({ id8, goal, where }) => `${where}의 ${id8} 이어받기: ${goal}`,
+      review: ({ id8, where, plan }) => `${where}의 ${id8}가 끝낸 ${plan} 검토하기`,
       start: () => "이 기간에 세션·계획이 없습니다. 시작할 일을 말해 주세요",
     },
     goLine: (say) => `**\`${say}\`** 라고 입력하면 이어갑니다.`,
     noGo: "저절로 실행되는 단계는 아닙니다. 그 세션을 열거나 할 일을 말해 주세요.",
     unknownSources: (list) => `읽지 못함: ${list}.`,
     older: "오래된 세션은 읽지 않았습니다(읽기 예산 소진).",
+    plansSkipped: (n) => `계획 ${n}개는 읽지 못했습니다(읽기 예산 소진).`,
+    opener: { done: "지금까지", doing: "지금", next: "다음", nothingDone: "이 기간에 끝낸 일 없음", nothingRunning: "실행 중인 일 없음", type: (say) => `(${say} 입력)`, finishedRun: (plan) => `${plan} (start-work 완료)` },
     noSessions: "이 기간의 Claude Code 세션 기록이 없습니다.",
   },
 };
@@ -212,6 +220,8 @@ const nextOf = (session, data, w) => {
   const work = (data.startWork ?? []).find((item) => item.id8 === session.id8);
   const plan = work ? (data.roadmap?.plans ?? []).find((item) => item.plan === work.plan) : null;
   if (plan && plan.current) return w.planNow(code(plan.plan), plain(plan.current));
+  // A finished or idle session's last tool call is history, never its next step.
+  if (session.status === "done") return session.finishedPlan ? w.runDone(code(session.finishedPlan)) : w.nothing;
   if (session.status === "active") {
     if (frames.length) return `${frames.at(-1).skill} · ${frames.at(-1).stage}`;
     const doing = actionOf(session);
@@ -276,8 +286,11 @@ const suggestion = (data, w) => {
   if (plan) return w.suggest.plan({ plan: plan.local ? plan.plan : `${basename(String(plan.worktree))}/${plan.plan}`, item: clipToWidth(bare(plan.current), 60) });
   const active = sessions.find((session) => session.status === "active" && !session.self);
   if (active) return w.suggest.check({ id8: active.id8, goal: goal(active), where: where(active), doing: actionOf(active, bare) });
-  const ended = sessions.find((session) => session.status === "ended" && !session.self);
-  if (ended) return w.suggest.pickUp({ id8: ended.id8, goal: goal(ended), where: where(ended) });
+  // Otherwise the newest listed session that is not running: review what a done one finished, or pick
+  // up an idle or ended one. Only an empty window says there is nothing.
+  const settled = sessions.find((session) => ["done", "idle", "ended"].includes(session.status) && !session.self);
+  if (settled?.status === "done") return w.suggest.review({ id8: settled.id8, where: where(settled), plan: settled.finishedPlan ? bare(settled.finishedPlan) : goal(settled) });
+  if (settled) return w.suggest.pickUp({ id8: settled.id8, goal: goal(settled), where: where(settled) });
   return w.suggest.start();
 };
 
@@ -311,7 +324,7 @@ const roadmapLines = (data, w) => {
 const box = (title, body) => {
   const width = Math.max(displayWidth(title) + 2, ...body.map((line) => displayWidth(line))) + 2;
   const pad = (line) => `${line}${" ".repeat(Math.max(0, width - 2 - displayWidth(line)))}`;
-  return ["```text", `╭─ ${title} ${"─".repeat(Math.max(1, width - displayWidth(title) - 3))}╮`, ...body.map((line) => `│ ${pad(line)} │`), `╰${"─".repeat(width)}╯`, "```"].join("\n");
+  return ["```", `╭─ ${title} ${"─".repeat(Math.max(1, width - displayWidth(title) - 3))}╮`, ...body.map((line) => `│ ${pad(line)} │`), `╰${"─".repeat(width)}╯`, "```"].join("\n");
 };
 
 // Wraps a step to the box at word breaks, three lines at most, the last one clipped.
@@ -333,13 +346,50 @@ const stepText = (next, w) => {
   return bare(describe({ skill: target.skill, stage: target.stage, plan: target.plan, action: target.action, root: target.root }));
 };
 
+// The three lines that open the brief, from records only. Done: this worktree's newest commits in
+// the window (two at most), then its completed start-work runs and its plans with every row ticked
+// (three items at most), else its finished litgoal. Doing: this session's top frame, else its
+// running start-work, else the newest active session's title. Next: the step and the word to type.
+const openerLines = (data, step, w) => {
+  const local = data.scope?.worktrees?.[0];
+  const subjects = (data.commits ?? []).filter((commit) => commit.worktree === local).slice(0, 2).map((commit) => plain(commit.subject));
+  const runs = (data.finished?.runs ?? []).filter((run) => run.worktree === local);
+  const runPlans = new Set(runs.map((run) => run.plan));
+  const finished = [
+    ...runs.map((run) => w.opener.finishedRun(code(run.plan))),
+    ...(data.finished?.plans ?? []).filter((plan) => plan.worktree === local && !runPlans.has(plan.plan)).map((plan) => `${code(plan.plan)}${plan.gauge ? ` ${code(plan.gauge)}` : ""}`),
+  ];
+  const items = [...subjects, ...[...new Set(finished)]].slice(0, 3);
+  const finishedGoal = (data.roadmap?.litgoal ?? []).find((goal) => goal.local && goal.status === "complete");
+  const done = items.length ? items.join("; ") : finishedGoal ? plain(finishedGoal.objective) : w.opener.nothingDone;
+  const sessions = data.sessions ?? [];
+  const selfId = sessions.find((session) => session.self)?.id8 ?? null;
+  const frame = (data.workflows ?? []).filter((item) => item.self || (selfId && item.id8 === selfId)).at(-1);
+  const work = (data.startWork ?? []).find((item) => item.self && item.status === "active");
+  const active = sessions.find((session) => session.status === "active");
+  const gaugeOf = (progress) => (progress?.gauge ? code(progress.gauge) : null);
+  const doing = frame
+    ? [frame.skill, frame.stage, gaugeOf(frame.progress)].filter((part) => part && part !== "unknown").join(" · ")
+    : work
+      ? ["start-work", work.plan, gaugeOf(work.progress)].filter(Boolean).join(" · ")
+      : active ? plain(clipToWidth(goalOf(active), 80)) : w.opener.nothingRunning;
+  const say = data.next?.say ?? null;
+  return [
+    `${w.opener.done}: ${done}  `,
+    `${w.opener.doing}: ${doing}  `,
+    `${w.opener.next}: ${plain(step)}${say ? ` ${w.opener.type(say)}` : ""}`,
+  ];
+};
+
 /** The brief as Markdown. `lang` is `ko` or `en`; `now` the clock the relative times use. */
 export const renderBrief = (data, { lang = "en", now = Date.parse(data.generatedAt) || Date.now(), width = 72 } = {}) => {
   const w = WORDS[lang] ?? WORDS.en;
   const sessions = data.sessions ?? [];
   const summary = data.summary ?? { sessions: sessions.length, waitingOnUser: 0, active: 0 };
-  const step = data.next?.kind && data.next.kind !== "none" ? stepText(data.next, w) : bare(suggestion(data, w));
-  const out = [];
+  // With no step for `go`, this worktree's HANDOFF.md Next item comes before the generic suggestion.
+  const handoffNext = (data.handoffs ?? []).find((handoff) => handoff.local && handoff.next)?.next ?? null;
+  const step = data.next?.kind && data.next.kind !== "none" ? stepText(data.next, w) : bare(handoffNext ?? suggestion(data, w));
+  const out = [...openerLines(data, step, w), ""];
   out.push(`## 🧭 ${[w.sessions(summary.sessions), w.waiting(summary.waitingOnUser), w.active(summary.active)].join(" · ")} · ${w.next}: ${plain(step)}`);
   out.push(`*${w.window(data.scope?.since ?? "7d", (data.scope?.worktrees ?? []).length || 1)}*`);
   if (!sessions.length) out.push("", w.noSessions);
@@ -367,7 +417,11 @@ export const renderBrief = (data, { lang = "en", now = Date.parse(data.generated
   out.push("", box(w.recommended, body));
   out.push("", say ? w.goLine(say) : w.noGo);
   const unknown = Object.entries(data.sources ?? {}).filter(([, status]) => status !== "ok").map(([name]) => name);
-  const notes = [unknown.length ? w.unknownSources(unknown.join(", ")) : null, data.budget?.exhausted ? w.older : null].filter(Boolean);
+  const notes = [
+    unknown.length ? w.unknownSources(unknown.join(", ")) : null,
+    data.budget?.exhausted ? w.older : null,
+    data.roadmap?.plansSkipped > 0 ? w.plansSkipped(data.roadmap.plansSkipped) : null,
+  ].filter(Boolean);
   if (notes.length) out.push("", `*${notes.join(" ")}*`);
   return `${out.join("\n")}\n`;
 };

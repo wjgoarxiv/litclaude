@@ -1,20 +1,25 @@
 # lit-adhd status taxonomy
 
 The collector assigns every session exactly one status. The brief renders it in the user's language
-with the words below and never invents a fifth.
+with the words below and never invents another.
 
 | Status | Set when | English | 한국어 |
 | --- | --- | --- | --- |
 | `waiting-on-user` | The last transcript entry is the assistant asking something (a closing `?`, `lit approve`, `확인해 주세요`, `할까요`…), or the session holds a paused workflow frame or a start-work boundary | waiting on you | 나를 기다림 |
 | `active` | A transcript write within the last 15 minutes and not waiting | active | 진행 중 |
-| `ended` | Quiet for longer than 15 minutes | ended | 끝남 |
+| `done` | Its start-work run completed inside the window (boulder history) and its liveness record shows no activity after that | done | 완료 |
+| `idle` | Another session whose newest liveness record is `idle`, at least as new as its last transcript line | idle | 쉬는 중 |
+| `ended` | Quiet for longer than 15 minutes, or its newest liveness record is `ended` | ended | 끝남 |
 | `unknown` | The transcript held no timestamp | unknown | 모름 |
+
+The session running the brief is always `active`, and a `waiting-on-user` session keeps that status
+whatever its liveness record says.
 
 `waitingReason` says why a session waits: `asked the user`, `paused workflow` or
 `start-work boundary`. Name it in the card's status cell when present: `waiting on you (paused
 workflow)` / `나를 기다림 (멈춘 워크플로)`.
 
-Order in the brief: waiting sessions first, then active, ended and unknown; newest first inside each group.
+Order in the brief: waiting sessions first, then active, then idle and done, then ended and unknown; newest first inside each group.
 
 ## Sources
 

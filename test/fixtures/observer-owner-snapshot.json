@@ -1,0 +1,74 @@
+{
+  "cd /private/tmp && herdr agent read lane-xfilm --source recent-unwrapped --lines 60 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -12 | cut -c1-130": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr pane read w2B:p61 --source visible --lines 30 | grep -E 'LIT|running|paused|\\?/\\?|━' | tail -15": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "grep -rlF '?/?' /Users/woojin/.litclaude /Users/woojin/.claude/plugins --include=*.mjs": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent read lane-plan1042 --source recent-unwrapped --lines 40 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -14 | cut -c1-150": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "for a in lane-tidy lane-xfilm; do echo \"== $a $(herdr agent get $a | python3 -c 'import sys,json;print(json.load(sys.stdin)[\"result\"][\"agent\"][\"agent_status\"])')\"; herdr agent read $a --source recent-unwrapped --lines 60 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -10 | cut -c1-130; done": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr tab create --workspace w2B --cwd /Users/woojin/Desktop/02_Areas/01_Codes_automation/27_LITFAMILY/.worktrees/litclaude-lane-feedback --label plan-1042 --no-focus": {
+    "decision": "deny",
+    "reason": "Bash relocation flags are not authorized. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "echo test": {
+    "decision": "deny",
+    "reason": "unclassified mutating Bash command. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "R=/Users/woojin/Desktop/02_Areas/01_Codes_automation/27_LITFAMILY/.worktrees/litclaude-release-1.0.41/plugins/litclaude; ls $R/lib/rewind/ $R/skills/lit-adhd $R/skills/lit-adhd/* ; wc -l $R/lib/rewind/*.mjs; grep -rln \"lit-adhd\\|rewind\" $R/hooks $R/tests $R/test 2>/dev/null | head -30": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent prompt lane-xfilm \"lit approve\"": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent prompt lane-plan1042 \"/litclaude:start-work plans/litclaude-1042.md\"": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent send-keys x enter": {
+    "decision": "deny",
+    "reason": "unclassified mutating Bash command. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr pane run x": {
+    "decision": "deny",
+    "reason": "unclassified mutating Bash command. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "cd /tmp && rm -f a": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "grep x a > out": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent read x | sh": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "grep \"$(id)\" a": {
+    "decision": "deny",
+    "reason": "unverified path-bearing Bash argument. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr agent read x --output=out.txt": {
+    "decision": "deny",
+    "reason": "unclassified mutating Bash command. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  },
+  "herdr pane read w2B:p61 --send-keys=enter": {
+    "decision": "deny",
+    "reason": "unclassified mutating Bash command. This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project (the private temp folder is write-only) and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply."
+  }
+}

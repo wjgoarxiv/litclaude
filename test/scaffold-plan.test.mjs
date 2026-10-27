@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -551,6 +551,50 @@ describe("scaffold-plan — pre-handoff structural self-check", () => {
     const result = checkPlanStructure(fencedOnly);
     assert.equal(result.ok, false);
     assert.ok(result.problems.some((problem) => /missing section: ## Success criteria/u.test(problem)));
+  });
+
+  // plans/litclaude-1042.md todo 4 (A3): a todo that names a folder outside the project needs a
+  // Scope roots line, so the lane never stops to ask for it.
+  describe("absolute todo paths outside the project", () => {
+    const withDirs = (fn) => {
+      const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-scope-project-")));
+      const outside = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-scope-outside-")));
+      try {
+        fn(project, outside);
+      } finally {
+        rmSync(project, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true });
+      }
+    };
+    const naming = (text) => filledPlan().replace("- [ ] 1. real title", `- [ ] 1. real title, ${text}`);
+    const scopeProblems = (plan, project) => checkPlanStructure(plan, project).problems.filter((problem) => /outside the project/u.test(problem));
+
+    it("names an uncovered folder with the exact line to paste, and passes once the line is there", () => withDirs((project, outside) => {
+      const plan = naming(`reading \`${outside}/data.csv\` and ${outside}/notes.txt.`);
+      const problems = scopeProblems(plan, project);
+      assert.equal(problems.length, 1, problems.join("\n"));
+      assert.match(problems[0], new RegExp(`add: Scope roots: ${outside.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} \\(read\\)$`, "u"));
+      assert.deepEqual(scopeProblems(`Scope roots: ${outside} (read)\n\n${plan}`, project), []);
+    }));
+
+    it("ignores in-project paths, fenced paths, quoted commands and covered paths", () => withDirs((project, outside) => {
+      const plan = naming([
+        `writing ${project}/src/a.mjs,`,
+        `running \`cd ${outside} && grep -rn x .\`,`,
+        `under ${outside}/deeper/still.`,
+      ].join(" ")).replace("## Final verification wave", `\`\`\`sh\nls ${outside}/fenced\n\`\`\`\n\n## Final verification wave`);
+      assert.deepEqual(scopeProblems(`Scope roots: ${outside} (read, write)\n${plan}`, project), []);
+      assert.deepEqual(scopeProblems(plan.replace(`under ${outside}/deeper/still.`, ""), project), [], "fence and quoted command alone");
+    }));
+
+    it("asks for a narrower folder instead of suggesting the home folder or a top-level one", () => withDirs((project) => {
+      for (const path of [homedir(), "/usr/litclaude-missing-folder/x.txt"]) {
+        const problems = scopeProblems(naming(`reading ${path} first.`), project);
+        assert.equal(problems.length, 1, path);
+        assert.match(problems[0], /name a narrower existing folder/u, path);
+        assert.doesNotMatch(problems[0], /Scope roots: \S+ \(read\)/u, path);
+      }
+    }));
   });
 });
 

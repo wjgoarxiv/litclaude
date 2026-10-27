@@ -57,7 +57,7 @@ with the language.
   - ○ later · 12. go continues
   - ○ later · 13. card
 
-```text
+```
 ╭─ RECOMMENDED NEXT STEP ──────────────╮
 │ Resume the paused lit-loop at verify │
 │ type: lit continue                   │
@@ -104,7 +104,7 @@ Type **`lit continue`** to continue.
   - ○ 이후 · 12. go continues
   - ○ 이후 · 13. card
 
-```text
+```
 ╭─ 추천하는 다음 단계 ───────────╮
 │ 멈춘 lit-loop(verify) 이어가기 │
 │ 입력: lit continue             │

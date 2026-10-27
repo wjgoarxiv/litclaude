@@ -12,12 +12,12 @@ import { CARD_MAX, composeBand, rowText, rowWidth } from "../plugins/litclaude/l
 import { TIMINGS, lerpColor, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
 import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
-import { readGitBranch, readLitSnapshot } from "../plugins/litclaude/lib/mod/state.mjs";
+import { parseWorkflowStack, readGitBranch, readLitSnapshot, readPluginVersions } from "../plugins/litclaude/lib/mod/state.mjs";
 import { parseStageRecord } from "../plugins/litclaude/lib/mod/workflow.mjs";
 import { recordWorkflowStage, runWorkflowStageCli, startWorkflowStage } from "../plugins/litclaude/lib/workflow-stage.mjs";
 import { readStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
 import { advanceTimeline, ambientActive, createTimeline, sampleTimeline, settledSample, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
-import { AGENT_STALE_MS, STALL_MS, buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
+import { AGENT_STALE_MS, EMPTY_TASKS, STALL_MS, buildBandModel, noteBackgroundTask } from "../plugins/litclaude/lib/mod/view.mjs";
 import { SVG_CARD, composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
 import { TOAST_GAP_MS, gateToast, mergeToasts, statusChanges, statusOf } from "../plugins/litclaude/lib/mod/toasts.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
@@ -1402,4 +1402,85 @@ test("the border glows brighter and breathes while LIT is active, and stays calm
   const svg = composeSvgCard(svgModel(), { motion: "full", accent: CYAN }).source;
   assert.match(svg, /rx="14" fill="[^"]+" stroke="#5fd7ff" stroke-width="2.5">/u, "the desktop card's border is heavier while active");
   assert.match(svg, /attributeName="stroke-opacity" values="0.85;1;0.85"/u, "and breathes high");
+});
+
+// plans/litclaude-1042.md todo 7 (C5): a newer LitClaude installed than the one loaded asks for a
+// restart on both cards; nothing else (equal, older, unknown) draws the chip.
+test("the card says restart to <installed> only when the installed version is newer", () => {
+  const withVersions = (loaded, installed) => buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage, git: "main", versions: { loaded, installed } });
+  const newer = withVersions("2.3.4", "2.3.5");
+  assert.equal(newer.restart, "2.3.5");
+  assert.match(texts(draw(newer, 100))[0], /restart to 2\.3\.5/u);
+  assert.match(composeSvgCard(newer, { motion: "off", accent: CYAN }).source, />restart to 2\.3\.5</u);
+  for (const [loaded, installed] of [["2.3.5", "2.3.5"], ["2.3.5", "2.3.4"], ["2.3.4", null], [null, "2.3.5"], ["2.3.9", "2.3.10-beta"], ["2.3.4", "garbage"]]) {
+    const model = withVersions(loaded, installed);
+    assert.equal(model.restart, ["2.3.9", "2.3.10-beta"].includes(loaded) ? "2.3.10-beta" : null, `${loaded} -> ${installed}`);
+  }
+  assert.equal(withVersions("2.3.9", "2.3.10").restart, "2.3.10", "compared as numbers, not text");
+  for (const columns of [60, 100]) for (const row of draw(newer, columns).rows) assert.equal(rowWidth(row), columns);
+});
+
+test("the versions come from this plugin's manifest and Claude Code's install record, user scope first", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "litclaude-versions-"));
+  try {
+    const io = {
+      read: async (path) => readFileSync(path, "utf8"),
+      stat: async (path) => {
+        try {
+          const s = statSync(path);
+          return { kind: s.isFile() ? "file" : "dir", size: s.size, mtimeMs: s.mtimeMs, isLink: lstatSync(path).isSymbolicLink() };
+        } catch {
+          return null;
+        }
+      },
+    };
+    const pluginJson = join(dir, "plugin.json");
+    const installedFile = join(dir, "installed_plugins.json");
+    writeFileSync(pluginJson, JSON.stringify({ name: "litclaude", version: "2.3.4" }));
+    writeFileSync(installedFile, JSON.stringify({ version: 2, plugins: {
+      "context7@x": [{ scope: "user", version: "9.9.9" }],
+      "litclaude@litclaude-ai": [{ scope: "project", version: "2.3.0" }, { scope: "user", version: "2.3.5" }],
+    } }));
+    assert.deepEqual(await readPluginVersions(io, { pluginJson, installedFile }), { loaded: "2.3.4", installed: "2.3.5" });
+    writeFileSync(installedFile, "{ not json");
+    assert.deepEqual(await readPluginVersions(io, { pluginJson, installedFile }), { loaded: "2.3.4", installed: null });
+    assert.equal(buildBandModel({ snapshot: lit(), now: NOW, versions: { loaded: "2.3.4", installed: null } }).restart, null, "a malformed install file draws no chip");
+    assert.deepEqual(await readPluginVersions(io, { pluginJson: join(dir, "missing.json"), installedFile: join(dir, "missing2.json") }), { loaded: null, installed: null });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("no thread row on either card ever draws a question mark for an unknown total", () => {
+  const tasks = noteBackgroundTask(noteBackgroundTask(EMPTY_TASKS, { id: "bash1", kind: "shell", name: "full test suite", at: NOW - 60_000 }), { id: "mon1", kind: "monitor", name: "baseline exit line", at: NOW - 30_000, until: NOW + 60_000 });
+  for (const discipline of ["lit-loop", "review-work", "lit-adhd", "start-work", "lit-plan"]) {
+    const frames = [{ skill: discipline, family: "main", stage: "work", role: "spine", status: "active", verdicts: {}, at: new Date(NOW - 2000).toISOString() }];
+    const stack = parseWorkflowStack({ version: 1, sessionId: "s-1", frames, history: [] }, "s-1");
+    const otherFrames = parseWorkflowStack({ version: 1, sessionId: "s-2", frames: [{ ...frames[0], skill: "lit-docx" }], history: [] }, "s-2").frames;
+    const snapshot = {
+      ...idle(),
+      ignition: { discipline, at: NOW - 1000 },
+      workflow: {
+        stack, record: stack.record, sessionId: "s-1",
+        others: [{ sessionId: "s-2", id8: "s2", at: NOW - 5000, frames: otherFrames, liveness: null }],
+        liveness: { "s-3": { state: "alive", at: NOW - 3000, herdrPane: "w2B:p8K" } },
+      },
+    };
+    // The card keeps four thread rows, so lanes and tasks are drawn in one model, herdr lanes and
+    // other sessions in another.
+    const models = [
+      buildBandModel({ snapshot: { ...snapshot, workflow: { ...snapshot.workflow, others: [], liveness: {} } }, now: NOW, isWorking: true, agents: [{ id: "a1", name: "explore", type: "executor", status: "running" }], tasks }),
+      buildBandModel({ snapshot, now: NOW, isWorking: true }),
+    ];
+    const drawn = models.flatMap(({ threads }) => [...threads.chain, ...threads.lanes, ...threads.herdrLanes, ...threads.others]);
+    assert.deepEqual([...new Set(drawn.map(({ task, session, name }) => task ?? (session ? "other" : name.includes(" · ") ? "herdr" : "frame-or-lane")))].sort(), ["frame-or-lane", "herdr", "monitor", "other", "shell"], discipline);
+    assert.ok(drawn.every(({ total }) => total === null), discipline);
+    for (const model of models) {
+      assert.equal(model.threads.more, 0, discipline);
+      for (const row of texts(draw(model, 100)).slice(3, -2)) assert.doesNotMatch(row, /\?/u, `${discipline}: ${row}`);
+      const svg = composeSvgCard(model, { motion: "off", accent: CYAN });
+      assert.doesNotMatch(svg.alt, /\?/u, discipline);
+      assert.doesNotMatch(svg.source.replace(/<\?xml[^>]*\?>/u, ""), />[^<]*\?[^<]*</u, discipline);
+    }
+  }
 });

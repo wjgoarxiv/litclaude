@@ -89,11 +89,18 @@ fresh Claude Code session execute without re-solving the architecture.
 This skill is **planning-only**. You must not implement, must not edit files for
 product changes, and must not run mutating commands. Do not call any start-work
 tool from inside planning mode. Close the saved plan with one step: tell the
-user to type `/litclaude:start-work plans/<slug>.md`; typing it approves this plan and runs it,
-so no second confirm reply and no `/goal` line is needed. The hook starts the work
+user to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
+typing it approves this plan and runs it, so no second confirm reply and no `/goal` line is needed. The
+Stop hook saves the plan as this session's next step once the plan file is written, which is
+what lets the one word `go` start it. The hook starts the work
 with grants derived from the project; a plan that needs more names it on a line
 such as `Scope roots: <path> (read)`, and anything else outside the
-project pauses until the user answers `lit approve` or `lit deny`.
+project pauses until the user answers `lit approve` or `lit deny`. Every absolute
+path a todo names outside the project must sit under such a line: `scaffold-plan.mjs
+--check` and the Stop hook list each uncovered one with the exact line to paste
+(`Scope roots: <existing folder> (read)`), and the Stop hook blocks until it is there.
+Widen `(read)` by hand when a lane must write in that folder. A command quoted in
+backticks is data and is not read for paths.
 
 ## Planning Contract
 

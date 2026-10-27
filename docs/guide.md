@@ -557,6 +557,11 @@ When several things run at once (a paused plan under a loop, parallel subagents,
 shell or monitor, another session of the same project), the card adds one row per thread with
 its stage, a `[▉▉░░] k/n` gauge and its state, nested under its parent, up to four rows plus
 `+N more`. [hooks.md](hooks.md) lists where each count comes from.
+Other sessions are told apart by their last hook event: a running one is listed first, an idle
+one after it, and an ended one leaves the card. A Claude Code session running in a herdr pane
+of the same project draws as a lane row named `<skill> · <pane>`. A finished start-work keeps
+its ✓ for one minute, then its row clears. When the installed LitClaude is newer than the one
+this session loaded, the card's top edge says `restart to <version>`.
 
 Two separate settings decide how the HUD looks: whether your terminal background is dark
 or light, and how many colors the terminal can show.

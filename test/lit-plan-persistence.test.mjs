@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -59,6 +59,47 @@ const checkboxPlan = (slug) => [
   "- [ ] 2. verify it renders",
   "",
 ].join("\n");
+
+// plans/litclaude-1042.md todo 4 (A3): a saved plan whose todos name an uncovered outside folder
+// blocks the stop with the Scope roots line to paste, inside the same two-block cap.
+describe("lit-plan Stop gate asks for Scope roots lines", () => {
+  const withOutside = (fn) => {
+    const cwd = makeWorkspace();
+    const outside = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-lit-plan-outside-")));
+    try {
+      fn(cwd, outside);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  };
+  const writeNamingPlan = (cwd, outside, scopeLine = "") => {
+    mkdirSync(join(cwd, "plans"), { recursive: true });
+    writeFileSync(join(cwd, "plans", "outside.md"), `# outside\n\n${scopeLine}\n\n## Todos\n\n- [ ] 1. load ${outside}/data.csv into the report\n`);
+  };
+
+  const SID = "session-plan-scope";
+
+  it("blocks with the exact line, then allows once the plan carries it", () => withOutside((cwd, outside) => {
+    submitLitPlanPrompt(cwd, SID);
+    writeNamingPlan(cwd, outside);
+    const blocked = stop(cwd, SID);
+    assert.equal(blocked?.decision, "block");
+    assert.ok(blocked.reason.includes(`Scope roots: ${outside} (read)`), blocked.reason);
+    writeNamingPlan(cwd, outside, `Scope roots: ${outside} (read)`);
+    assert.equal(stop(cwd, SID, true)?.decision, undefined);
+  }));
+
+  it("keeps the two-block cap: the third stop warns and allows", () => withOutside((cwd, outside) => {
+    submitLitPlanPrompt(cwd, SID);
+    writeNamingPlan(cwd, outside);
+    assert.equal(stop(cwd, SID)?.decision, "block");
+    assert.equal(stop(cwd, SID, true)?.decision, "block");
+    const third = stop(cwd, SID, true);
+    assert.equal(third?.decision, undefined);
+    assert.match(third?.systemMessage ?? "", /Scope roots/u);
+  }));
+});
 
 describe("lit-plan persistence contract", () => {
   it("tells the model to write plans/<slug>.md through scaffold-plan.mjs before the turn ends", () => {

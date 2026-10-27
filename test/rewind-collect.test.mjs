@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 
+import { renderBrief } from "../plugins/litclaude/lib/rewind/brief.mjs";
 import { collectRewind, parseSince, renderRewind, runRewindCli } from "../plugins/litclaude/lib/rewind/collect.mjs";
 import { aggregateProgress, clipToWidth, displayWidth, gauge, progressOf } from "../plugins/litclaude/lib/rewind/gauge.mjs";
 import { chooseNextStep, nextStepPath } from "../plugins/litclaude/lib/rewind/next-step.mjs";
@@ -314,4 +315,141 @@ test("open plans list this worktree first under a cap, and the roadmap gauge cou
   assert.match(renderRewind(data, 80), /…\(\+3 more open plans\)/u);
   assert.match(renderRewind(data, 80), /far: plans\/p0\.md/u, "the most recently changed plan elsewhere comes first");
   assert.ok(data.roadmap.plans.every((plan) => !["plans/old.md", "plans/template.md"].includes(plan.plan)));
+});
+
+// plans/litclaude-1042.md todo 8 (E2, E3): every plan is held to the window, plans are read before
+// transcripts can spend the read budget, and a plan the budget did skip is counted, not dropped.
+test("(a) a local plan last changed 9 days ago is not listed and is not the next step", () => {
+  const { repo, env } = fixture();
+  mkdirSync(join(repo, "plans"));
+  writeFileSync(join(repo, "plans", "stale.md"), "- [ ] 1. old work\n");
+  utimesSync(join(repo, "plans", "stale.md"), new Date(NOW - 9 * 86_400_000), new Date(NOW - 9 * 86_400_000));
+  const data = collectRewind({ cwd: repo, env, now: NOW, exec: noGit, since: "7d" });
+  assert.deepEqual(data.roadmap.plans, []);
+  assert.notEqual(data.next.kind, "start-plan");
+});
+
+const bigTranscripts = (configDir, repo, count) => {
+  const filler = `${JSON.stringify(assistantLine("big", [{ type: "text", text: "y".repeat(900) }], 2))}\n`;
+  for (let index = 0; index < count; index += 1) {
+    const id = `big${String(index).padStart(5, "0")}`;
+    writeTranscript(configDir, repo, id, [JSON.stringify(userLine(id, repo, "big one", 2)), ...Array(Math.ceil((1024 * 1024) / filler.length)).fill(filler.trim())]);
+  }
+};
+
+test("(b) plans are read even when transcripts would use up the read budget", () => {
+  const { repo, env, configDir } = fixture();
+  mkdirSync(join(repo, "plans"));
+  writeFileSync(join(repo, "plans", "fresh.md"), "- [x] 1. done\n- [ ] 2. next\n");
+  // Each transcript costs its head and tail, 320 KiB, so 30 of them pass the 8 MiB budget.
+  bigTranscripts(configDir, repo, 30);
+  const data = collectRewind({ cwd: repo, env, now: NOW, exec: noGit, max: 50 });
+  assert.equal(data.budget.exhausted, true, "the transcripts did use the budget up");
+  assert.deepEqual(data.roadmap.plans.map(({ plan }) => plan), ["plans/fresh.md"]);
+  assert.equal(data.roadmap.plansSkipped, 0);
+});
+
+test("this worktree's HANDOFF.md gives its first Next item; another worktree's and a file without one give none", () => {
+  const { repo, env } = fixture();
+  const other = join(repo, "..", "far");
+  mkdirSync(other, { recursive: true });
+  writeFileSync(join(repo, "HANDOFF.md"), "# Handoff\n\n## Done\n\n- shipped\n\n## Next Steps\n\n1. Re-run the gates\n2. Then the docs\n");
+  writeFileSync(join(other, "HANDOFF.md"), "# Elsewhere\n\n## Next\n\n- not this worktree's\n");
+  const exec = (file, args) => {
+    if (args[0] === "worktree") return `worktree ${repo}\n\nworktree ${other}\n`;
+    throw new Error("no log");
+  };
+  const handoffs = collectRewind({ cwd: repo, env, now: NOW, exec }).handoffs;
+  assert.deepEqual(handoffs.map(({ local, next }) => ({ local, next })), [{ local: true, next: "Re-run the gates" }, { local: false, next: null }]);
+  writeFileSync(join(repo, "HANDOFF.md"), "# Handoff\n\n## Done\n\n- shipped\n");
+  assert.equal(collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true }).handoffs[0].next, null);
+});
+
+// Host QA round 3 (2026-10-27, host/b-lit-adhd.ansi): A had finished its start-work over a 2/2 plan
+// and gone idle, yet the brief labelled it ACTIVE, recommended "Check on A, now Bash “Mark the
+// start-work run complete”", and opened with "Done so far: nothing finished in this window".
+const roundThree = ({ completedRun = true } = {}) => {
+  const { repo, env, configDir } = fixture();
+  const A = "38960b3c-aaaa-bbbb-cccc-000000000001";
+  const B = "cde57584-aaaa-bbbb-cccc-000000000002";
+  mkdirSync(join(repo, ".litclaude", "liveness"), { recursive: true });
+  mkdirSync(join(repo, "plans"));
+  writeFileSync(join(repo, "plans", "qa-tiny2.md"), "# QA\n\n## Todos\n\n- [x] 1. write c.txt\n- [x] 2. write d.txt\n");
+  utimesSync(join(repo, "plans", "qa-tiny2.md"), new Date(NOW - 12 * 60_000), new Date(NOW - 12 * 60_000));
+  writeTranscript(configDir, repo, A, [
+    userLine(A, repo, "/litclaude:start-work plans/qa-tiny2.md", 30),
+    assistantLine(A, [{ type: "tool_use", id: "t1", name: "Write", input: { file_path: join(repo, "c.txt"), content: "c" } }], 20),
+    assistantLine(A, [{ type: "tool_use", id: "t2", name: "Bash", input: { command: "litclaude-ai start-work complete", description: "Mark the start-work run complete" } }], 11),
+    assistantLine(A, [{ type: "text", text: "Both rows are done and the run is complete." }], 11),
+  ]);
+  writeTranscript(configDir, repo, B, [
+    userLine(B, repo, "lit adhd", 1),
+    assistantLine(B, [{ type: "tool_use", id: "t3", name: "Bash", input: { command: "litclaude-ai rewind --brief", description: "Generate cross-session brief" } }], 0),
+  ]);
+  writeFileSync(join(repo, ".litclaude", "liveness", `${A}.json`), JSON.stringify({ version: 1, sessionId: A, state: "idle", at: iso(11), herdrPane: "w2B:p9G" }));
+  writeFileSync(join(repo, ".litclaude", "liveness", `${B}.json`), JSON.stringify({ version: 1, sessionId: B, state: "idle", at: iso(3), herdrPane: "w2B:p9H" }));
+  if (completedRun) {
+    writeFileSync(join(repo, ".litclaude", "boulder.json"), JSON.stringify({
+      schema_version: 3,
+      active_work_id: null,
+      works: { "work-qa": { work_id: "work-qa", status: "completed", plan_name: "qa-tiny2.md", root_session_id: A, session_ids: [A] } },
+      history: [{ work_id: "work-qa", status: "completed", plan: join(repo, "plans", "qa-tiny2.md"), terminal_at: iso(11) }],
+    }));
+  }
+  return { data: collectRewind({ cwd: repo, env, now: NOW, exec: noGit, sessionId: B, record: false }), A, B };
+};
+
+test("(round 3) a session whose run completed reads done, not ACTIVE, and never repeats its finished step", () => {
+  const { data } = roundThree();
+  const a = data.sessions.find((session) => session.id8 === "38960b3c");
+  const b = data.sessions.find((session) => session.self);
+  assert.equal(a.status, "done");
+  assert.equal(b.status, "active", "this session is running the brief, whatever its last Stop wrote");
+  assert.equal(data.summary.active, 1);
+  for (const lang of ["en", "ko"]) {
+    const text = renderBrief(data, { lang, now: NOW });
+    assert.doesNotMatch(text, /Mark the start-work run complete/u, lang);
+    assert.match(text.split("\n").find((line) => line.startsWith("## 🧭")), lang === "en" ? / 1 active /u : / 진행 중 1 /u, lang);
+  }
+  const en = renderBrief(data, { lang: "en", now: NOW });
+  const card = en.split("\n\n").find((block) => block.startsWith("> ") && block.includes("38960b3c"));
+  assert.match(card, /^> ✅ done · `38960b3c`/u);
+  assert.match(card, /▶ Next: start-work finished `plans\/qa-tiny2\.md`/u);
+  assert.equal(en.split("\n")[0].trimEnd(), "Done so far: `plans/qa-tiny2.md` (start-work complete)");
+  assert.equal(renderBrief(data, { lang: "ko", now: NOW }).split("\n")[0].trimEnd(), "지금까지: `plans/qa-tiny2.md` (start-work 완료)");
+});
+
+test("(round 3) with sessions listed but none active, the step points at the newest one, never 'no session'", () => {
+  const { data } = roundThree();
+  for (const [lang, empty, review] of [
+    ["en", /No session or plan in this window/u, /next: Review what 38960b3c finished in repo: `?plans\/qa-tiny2\.md`?$/u],
+    ["ko", /이 기간에 세션·계획이 없습니다/u, /다음: repo의 38960b3c가 끝낸 `?plans\/qa-tiny2\.md`?/u],
+  ]) {
+    const text = renderBrief(data, { lang, now: NOW });
+    assert.doesNotMatch(text, empty, lang);
+    assert.match(text.split("\n").find((line) => line.startsWith("## 🧭")), review, lang);
+  }
+});
+
+test("(round 3) an idle liveness record labels the session idle, and a k/k plan counts as done so far", () => {
+  const { data } = roundThree({ completedRun: false });
+  const a = data.sessions.find((session) => session.id8 === "38960b3c");
+  assert.equal(a.status, "idle");
+  assert.equal(data.summary.active, 1);
+  const en = renderBrief(data, { lang: "en", now: NOW });
+  assert.doesNotMatch(en, /Mark the start-work run complete/u);
+  assert.match(en.split("\n\n").find((block) => block.startsWith("> ") && block.includes("38960b3c")), /^> 💤 idle · `38960b3c`/u);
+  assert.equal(en.split("\n")[0].trimEnd(), "Done so far: `plans/qa-tiny2.md` `[▉▉] 2/2`");
+  assert.deepEqual(data.roadmap.plans, [], "a finished plan is not on the roadmap of open work");
+});
+
+test("(c) a plan the budget skipped is counted and named in the brief's notes", () => {
+  const { repo, env } = fixture();
+  mkdirSync(join(repo, "plans"));
+  const filler = `${"x".repeat(1023)}\n`.repeat(1024);
+  for (let index = 0; index < 9; index += 1) writeFileSync(join(repo, "plans", `p${index}.md`), `- [ ] 1. item ${index}\n${filler}`);
+  const data = collectRewind({ cwd: repo, env, now: NOW, exec: noGit });
+  assert.ok(data.roadmap.plansSkipped >= 1, `${data.roadmap.plansSkipped}`);
+  assert.match(renderBrief(data, { lang: "en", now: NOW }), new RegExp(`${data.roadmap.plansSkipped} plans? (?:was|were) not read`, "u"));
+  assert.match(renderBrief(data, { lang: "ko", now: NOW }), new RegExp(`계획 ${data.roadmap.plansSkipped}개는 읽지 못했습니다`, "u"));
 });

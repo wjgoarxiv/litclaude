@@ -11,6 +11,9 @@ for (const name of Object.keys(process.env)) {
   if (name.startsWith("LITCLAUDE_AUTO_HANDOFF")) delete process.env[name];
 }
 process.env.LITCLAUDE_NO_UPDATE_CHECK ??= "1";
+// A suite run inside a herdr pane would stamp that pane on every fixture session's liveness
+// record, turning other-session rows into herdr lane rows; tests that need a pane set it themselves.
+delete process.env.HERDR_PANE_ID;
 // The prompt hook remembers, per session id, which discipline it already activated. Tests reuse
 // fixed session ids, so each test process gets its own record directory and a rerun starts clean.
 if (!process.env.LITCLAUDE_ACTIVATION_STATE_ROOT) {

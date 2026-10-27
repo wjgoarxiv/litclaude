@@ -29,6 +29,7 @@ import { realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { describeScopePath, uncoveredScopePaths } from "../lib/plan-scope-roots.mjs";
 import { parsePlanTaskRows, planLinesOutsideFences } from "../lib/plan-task-rows.mjs";
 import { ensureStateDirIgnored, resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { readRegularStable, samePathIdentity } from "../lib/secure-path-read.mjs";
@@ -950,7 +951,7 @@ export async function scaffold(cwd, { slug, intent, reset = false, force = false
  * UNCHECKED at this point. `scripts/audit-plan-checkboxes.mjs` is the different,
  * post-completion audit that requires them checked.
  */
-export function checkPlanStructure(text) {
+export function checkPlanStructure(text, projectRoot = null) {
   const problems = [];
   const lines = text.split(/\r?\n/u);
   const visibleLines = planLinesOutsideFences(text);
@@ -1008,6 +1009,11 @@ export function checkPlanStructure(text) {
     problems.push("unfilled <fill ...> placeholders remain — the plan is not decision-complete");
   }
 
+  // A folder outside the project that a todo names is granted up front, never asked for mid-run.
+  if (projectRoot) {
+    for (const entry of uncoveredScopePaths(text, projectRoot)) problems.push(describeScopePath(entry));
+  }
+
   return { ok: problems.length === 0, problems };
 }
 
@@ -1019,7 +1025,7 @@ async function runCheck(checkPath, cwd) {
     throw new Error(`refused: --check cannot safely read ${checkPath}: ${read.failure}`);
   }
   const text = read.bytes.toString("utf8");
-  const { ok, problems } = checkPlanStructure(text);
+  const { ok, problems } = checkPlanStructure(text, cwd);
   if (ok) {
     process.stdout.write(`PLAN_STRUCTURE_PASS: ${checkPath}\n`);
     return 0;

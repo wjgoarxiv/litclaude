@@ -103,6 +103,9 @@ const PARALLEL_ROWS = 3;
 // Another session of this project counts as live while its stack was written this recently and
 // SessionEnd has not marked it ended.
 export const OTHER_SESSION_MS = 15 * 60 * 1000;
+// A finished start-work (or any thread marked done) keeps its check mark this long after it
+// finished, then leaves the card.
+export const DONE_LINGER_MS = 60_000;
 
 const countOrNull = (value) => (Number.isInteger(value) && value >= 0 ? value : null);
 
@@ -241,21 +244,58 @@ const frameCount = (frame, snapshot, mainList) => {
 
 // A thread with no total carries what is known instead: its finished steps, how long it has run
 // and its last step (knownFacts in rewind/gauge.mjs words them).
+// A frame is finished when its record says so, or when it is a start-work, not paused, whose plan has
+// every row checked; a paused one at k/k still waits (for a review to hand back, say). `doneAt` is
+// when: the plan file's last change, else the record's or the frame's time.
 const frameThread = (frame, index, snapshot, active, mainList = null, now = null, mainEntry = null) => {
   const { done, total } = frameCount(frame, snapshot, active ? mainList : null);
   const started = Number.isFinite(frame.at) ? frame.at : frame.record?.at;
+  const finished = Boolean(frame.record?.done) || (frame.skill === "start-work" && frame.status !== "paused" && total > 0 && done === total);
+  const doneAt = [frame.planAt, frame.record?.at, started].find(Number.isFinite) ?? null;
   return {
     key: `frame-${index}`,
     name: frame.skill ?? frame.record?.family ?? "work",
     stage: frame.record?.step ?? frame.record?.stage ?? null,
     done,
     total,
-    state: frame.record?.done ? "done" : frame.status === "paused" ? "paused" : frame.skill === "start-work" && snapshot.work?.status === "paused" ? "blocked" : "running",
+    state: finished ? "done" : frame.status === "paused" ? "paused" : frame.skill === "start-work" && snapshot.work?.status === "paused" ? "blocked" : "running",
+    doneAt: finished ? doneAt : null,
     active,
     steps: active && mainEntry ? mainEntry.steps : null,
     last: active && mainEntry ? mainEntry.last ?? null : null,
     elapsedMs: Number.isFinite(now) && Number.isFinite(started) ? Math.max(0, now - started) : null,
   };
+};
+const lingering = (thread, now) => thread.state !== "done" || !Number.isFinite(thread.doneAt) || now - thread.doneAt <= DONE_LINGER_MS;
+
+// Another session's row: its liveness record says running (`alive`), `idle` or `ended` (hidden);
+// without one, a stack written within OTHER_SESSION_MS and not marked ended counts as running.
+// A stack that moved after the record (a resumed session's first tool call) outranks it.
+const otherState = (thread, liveness) => (liveness?.state === "idle" && thread.state === "running" ? "idle" : thread.state);
+const currentLiveness = (liveness, stackAt) => (liveness && !(Number.isFinite(stackAt) && stackAt > liveness.at) ? liveness : null);
+const seenAt = (other) => Math.max(Number.isFinite(other.at) ? other.at : -Infinity, Number.isFinite(other.liveness?.at) ? other.liveness.at : -Infinity);
+// Running first, then idle, then the rest (paused, done), each newest first.
+const STATE_ORDER = { running: 0, idle: 1 };
+const runningFirst = (a, b) => (STATE_ORDER[a.state] ?? 2) - (STATE_ORDER[b.state] ?? 2) || b.seenAt - a.seenAt;
+
+// herdr lanes of this project: sessions whose hooks ran in a herdr pane (their liveness record keeps
+// the pane id), drawn as lanes named `<top skill or claude> · <pane>`. This session, and any session
+// in this session's own pane, are never listed.
+const herdrLanesOf = (snapshot, others, now) => {
+  const liveness = snapshot.workflow?.liveness ?? {};
+  const self = snapshot.workflow?.sessionId ?? null;
+  const ownPane = self ? liveness[self]?.herdrPane ?? null : null;
+  return Object.entries(liveness)
+    .filter(([id, entry]) => id !== self && entry.herdrPane && entry.herdrPane !== ownPane)
+    .map(([id, entry]) => {
+      const other = others.find((candidate) => candidate.sessionId === id);
+      const live = currentLiveness(entry, other?.at);
+      if (live?.state === "ended" || (!live && other?.ended) || now - Math.max(entry.at, other?.at ?? -Infinity) > OTHER_SESSION_MS) return null;
+      const top = other?.frames?.length ? frameThread(other.frames.at(-1), 0, {}, false, null, now) : { name: "claude", stage: null, done: null, total: null, state: "running", doneAt: null, active: false, elapsedMs: null };
+      return { ...top, key: `herdr-${entry.herdrPane}`, sessionId: id, name: `${top.name} · ${entry.herdrPane}`, state: otherState(top, live), seenAt: Math.max(entry.at, other?.at ?? -Infinity) };
+    })
+    .filter((thread) => thread && lingering(thread, now))
+    .sort(runningFirst);
 };
 
 // A lane's k/n: its own todo or task list, then the tasks a loop gave it by name; else no total,
@@ -274,7 +314,8 @@ const laneCount = (entry, lists, name) => listProgress(entry) ?? ownedProgress(l
 const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
   const frames = snapshot.workflow?.stack?.frames ?? [];
   const mainList = listProgress(lists.main);
-  const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList, now, lists.main));
+  const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList, now, lists.main))
+    .filter((thread) => lingering(thread, now));
   const laneThreads = lanes.map((lane, index) => ({
     key: `lane-${lane.id ?? index}`,
     name: lane.name,
@@ -286,23 +327,36 @@ const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
   }));
   const taskThreads = tasks.map((task) => ({ key: `task-${task.id}`, name: task.name, stage: task.kind, done: null, total: null, state: "running", active: false, task: task.kind, elapsedMs: Number.isFinite(task.at) ? Math.max(0, now - task.at) : null }));
   const parallel = [...laneThreads, ...taskThreads];
+  const herdrLanes = herdrLanesOf(snapshot, snapshot.workflow?.others ?? [], now);
+  const inHerdr = new Set(herdrLanes.map(({ sessionId }) => sessionId));
   const others = (snapshot.workflow?.others ?? [])
-    .filter((other) => !other.ended && Number.isFinite(other.at) && now - other.at <= OTHER_SESSION_MS && other.frames?.length)
-    .map((other) => ({ ...frameThread(other.frames.at(-1), 0, {}, false, null, now), key: `session-${other.id8}`, session: other.id8 }));
-  const total = chain.length + parallel.length + others.length;
-  if (total < 2) return null;
+    .filter((other) => {
+      const live = currentLiveness(other.liveness, other.at);
+      return (live ? live.state !== "ended" : !other.ended) && !inHerdr.has(other.sessionId) && now - seenAt(other) <= OTHER_SESSION_MS && other.frames?.length;
+    })
+    .map((other) => {
+      const thread = frameThread(other.frames.at(-1), 0, {}, false, null, now);
+      return { ...thread, key: `session-${other.id8}`, session: other.id8, state: otherState(thread, currentLiveness(other.liveness, other.at)), seenAt: seenAt(other) };
+    })
+    .filter((thread) => lingering(thread, now))
+    .sort(runningFirst);
+  const total = chain.length + parallel.length + herdrLanes.length + others.length;
+  // A lone own thread keeps the plain card; a herdr lane or another session always gets its row.
+  if (total < 2 && herdrLanes.length + others.length === 0) return null;
   const room = Math.max(PARALLEL_ROWS, THREAD_ROWS - chain.length);
   const keptLanes = parallel.slice(0, room);
-  const keptOthers = others.slice(0, Math.max(0, room - keptLanes.length));
+  const keptHerdr = herdrLanes.slice(0, Math.max(0, room - keptLanes.length));
+  const keptOthers = others.slice(0, Math.max(0, room - keptLanes.length - keptHerdr.length));
   const fork = parallel.length >= 2 ? 1 : 0;
-  const needed = chain.length + keptLanes.length + keptOthers.length + fork;
+  const needed = chain.length + keptLanes.length + keptHerdr.length + keptOthers.length + fork;
   return {
     chain,
     lanes: keptLanes,
+    herdrLanes: keptHerdr,
     others: keptOthers,
     laneCount: laneThreads.length,
     taskCount: taskThreads.length,
-    more: total - chain.length - keptLanes.length - keptOthers.length,
+    more: total - chain.length - keptLanes.length - keptHerdr.length - keptOthers.length,
     reserve: Math.max(needed, Number.isInteger(threadReserve) ? threadReserve : 0),
   };
 };
@@ -394,7 +448,19 @@ export const stepName = (tool) => {
  * (noteBackgroundTask). `turnStartedAt` is when the main loop's current turn began, `waiting`
  * what the session waits on the user for (`{ reason }`, null while it does not).
  */
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS, turnStartedAt = null, waiting = null }) => {
+const versionParts = (version) => {
+  const match = typeof version === "string" ? /^(\d+)\.(\d+)\.(\d+)/u.exec(version) : null;
+  return match ? match.slice(1, 4).map(Number) : null;
+};
+/** The installed version when it is newer than the loaded one by `major.minor.patch`, else null. */
+export const restartVersion = ({ loaded = null, installed = null } = {}) => {
+  const [have, want] = [versionParts(loaded), versionParts(installed)];
+  if (!have || !want) return null;
+  const order = want.map((part, i) => part - have[i]).find((diff) => diff !== 0) ?? 0;
+  return order > 0 ? installed.slice(0, 40) : null;
+};
+
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS, turnStartedAt = null, waiting = null, versions = null }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -430,6 +496,7 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   return {
     visible,
     idle: !active && !lit,
+    restart: restartVersion(versions ?? undefined),
     look,
     rewind,
     waiting: waiting?.reason ?? null,

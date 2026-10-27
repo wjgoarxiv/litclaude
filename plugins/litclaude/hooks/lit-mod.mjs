@@ -22,7 +22,7 @@ import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyph
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
-import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot } from "../lib/mod/state.mjs";
+import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot, readPluginVersions } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
 import {
   EMPTY_ACTIVITY,
@@ -105,7 +105,25 @@ const createLive = (options) => ({
   waiting: null,
   answeredBoundary: null,
   noColor: false,
+  // The loaded and installed LitClaude versions (restart chip), and when the installed one was read.
+  versions: null,
+  versionPaths: null,
+  versionsAt: Number.NEGATIVE_INFINITY,
 });
+
+// This plugin's own manifest, beside the hooks folder; null when the mod was not loaded from a file.
+const OWN_MANIFEST = (() => {
+  const url = new URL("../.claude-plugin/plugin.json", import.meta.url);
+  return url.protocol === "file:" ? decodeURIComponent(url.pathname) : null;
+})();
+const VERSION_RECHECK_MS = 60_000;
+
+// The installed version is read again at most once a minute; an unreadable file only hides the chip.
+async function readVersions($, live, now) {
+  if (!live.versionPaths || now - live.versionsAt < VERSION_RECHECK_MS) return;
+  live.versionsAt = now;
+  live.versions = await readPluginVersions(stateIo($), live.versionPaths).catch(() => null);
+}
 
 const stateIo = ($) => ({
   stat: (path) => $.fs.stat(path, { resolve: true }),
@@ -186,6 +204,7 @@ async function rebuild($, live) {
     tasks: live.tasks,
     turnStartedAt: live.turnStartedAt,
     waiting: waitingOf(live),
+    versions: live.versions,
     // The thread rows stay reserved while threads are live, so the card does not shrink between repaints.
     threadReserve: previous?.threads?.reserve ?? 0,
   });
@@ -283,6 +302,7 @@ async function refresh($, live, options) {
     const listed = await $.agent.list().catch(() => []);
     live.usage = await $.session.usage().catch(() => live.usage);
     const now = await $.clock.now();
+    await readVersions($, live, now);
     ({ agents: live.agents, spawned: live.spawned } = mergeSpawned(listed, live.spawned, now));
     live.activity = trackAgents(live.activity, live.agents, live.statusById, now);
     live.statusById = Object.fromEntries(live.agents.map((agent) => [agent.id, agent.status]));
@@ -337,6 +357,8 @@ export const register = (on, options) => {
       LOCALAPPDATA: await $.env.get("LOCALAPPDATA"),
     });
     live.settledAt = await $.clock.now();
+    const configDir = (await $.env.get("CLAUDE_CONFIG_DIR"))?.trim() || ((await $.env.get("HOME")) ? `${await $.env.get("HOME")}/.claude` : null);
+    live.versionPaths = OWN_MANIFEST && configDir ? { pluginJson: OWN_MANIFEST, installedFile: `${configDir}/plugins/installed_plugins.json` } : null;
     const hostSettings = await $.settings.read().catch(() => null);
     live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
     // NO_COLOR (no-color.org): set and not empty, the card draws no colour and does not move.

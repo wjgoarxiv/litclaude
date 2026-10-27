@@ -124,8 +124,12 @@ const topRow = (model, accent, animate, rewind = false) => {
     ? pill(pad, y, "🔥 LIT", { fill: "url(#lit-rainbow)", ink: C.ink, veil: true })
     : pill(pad, y, "🔥 LIT", { fill: C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
   const indicator = rewind && !model.completion ? { label: "REWIND <<", fill: "url(#lit-rainbow)" } : indicatorOf(model, accent);
-  const right = text(width - pad, y, indicator.label, { fill: indicator.fill, bold: !indicator.plain, anchor: "end" });
-  const room = width - pad - widthOf(indicator.label) - 16 - brand.end - widthOf(" · ");
+  // A newer LitClaude installed than the one loaded: `restart to <version>` left of the indicator.
+  const chip = model.restart ? `restart to ${model.restart}` : null;
+  const chipEnd = width - pad - widthOf(indicator.label) - 16;
+  const right = text(width - pad, y, indicator.label, { fill: indicator.fill, bold: !indicator.plain, anchor: "end" })
+    + (chip ? text(chipEnd, y, chip, { fill: C.amber, anchor: "end" }) : "");
+  const room = width - pad - widthOf(indicator.label) - 16 - (chip ? widthOf(chip) + 16 : 0) - brand.end - widthOf(" · ");
   const name = truncateToWidth(model.title ?? "ready", Math.max(4, Math.floor(room / SVG_CARD.cell)));
   const title = run(brand.end + 4, y, [[" · ", { fill: C.dim }], [name, model.idle && !rewind ? { fill: C.dim } : { fill: accent, bold: true }]]);
   return brand.markup + title.markup + right;
@@ -423,7 +427,7 @@ const pulseSvg = (x, y, animate, fill) => {
  */
 const threadRowsSvg = (model, { animate = false, rewind = false } = {}) => {
   const { width, pad } = SVG_CARD;
-  const { chain, lanes, others, laneCount = 0, taskCount = 0, more } = model.threads;
+  const { chain, lanes, herdrLanes = [], others, laneCount = 0, taskCount = 0, more } = model.threads;
   const lines = [];
   chain.forEach((thread, index) => lines.push({ thread, lead: index === 0 ? "" : `${"   ".repeat(index - 1)}└─ ` }));
   const under = "   ".repeat(Math.max(0, chain.length - 1));
@@ -434,6 +438,7 @@ const threadRowsSvg = (model, { animate = false, rewind = false } = {}) => {
   } else {
     lanes.forEach((thread) => lines.push({ thread, lead: chain.length ? `${under}└─ ` : "" }));
   }
+  herdrLanes.forEach((thread) => lines.push({ thread, lead: "" }));
   others.forEach((thread) => lines.push({ thread, lead: "" }));
   const threads = lines.filter(({ thread }) => thread).map(({ thread }) => thread);
   const nameCells = Math.min(28, Math.max(...threads.map(({ name }) => textWidth(name))));
@@ -518,7 +523,7 @@ export const svgCardAlt = (model) => {
     parts.push(`phase ${LABELS[current]}`);
   }
   if (model.step) parts.push(`running ${model.step.name}`);
-  const threads = model.threads ? [...model.threads.chain, ...model.threads.lanes, ...model.threads.others] : [];
+  const threads = model.threads ? [...model.threads.chain, ...model.threads.lanes, ...(model.threads.herdrLanes ?? []), ...model.threads.others] : [];
   if (threads.length) parts.push(`threads ${threads.map((thread) => `${thread.name} ${gauge(thread.done, thread.total) ? `${gauge(thread.done, thread.total)} ${thread.state}` : threadFacts(thread)}`).join(", ")}${model.threads.more ? `, ${model.threads.more} more` : ""}`);
   if (model.skills.length) parts.push(`skills ${model.skills.map(({ id }) => id).join(", ")}`);
   const { context, rates } = model.figures;

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "R1",
+    "command": "cd /private/tmp && herdr agent read lane-xfilm --source recent-unwrapped --lines 60 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -12 | cut -c1-130",
+    "expect": "allow",
+    "why": "cd then a herdr agent read with read-only pipe filters"
+  },
+  {
+    "id": "R2",
+    "command": "herdr pane read w2B:p61 --source visible --lines 30 | grep -E 'LIT|running|paused|\\?/\\?|━' | tail -15",
+    "expect": "allow",
+    "why": "herdr pane read with a single-quoted grep filter"
+  },
+  {
+    "id": "R3",
+    "command": "grep -rlF '?/?' /Users/woojin/.litclaude /Users/woojin/.claude/plugins --include=*.mjs",
+    "expect": "allow",
+    "why": "grep read over plain path operands"
+  },
+  {
+    "id": "R4",
+    "command": "herdr agent read lane-plan1042 --source recent-unwrapped --lines 40 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -14 | cut -c1-150",
+    "expect": "allow",
+    "why": "herdr agent read with read-only pipe filters"
+  },
+  {
+    "id": "N1",
+    "command": "for a in lane-tidy lane-xfilm; do echo \"== $a $(herdr agent get $a | python3 -c 'import sys,json;print(json.load(sys.stdin)[\"result\"][\"agent\"][\"agent_status\"])')\"; herdr agent read $a --source recent-unwrapped --lines 60 | grep -v '^\\s*$' | grep -v '^─\\|INSERT\\|^│\\|^╭\\|^╰' | tail -10 | cut -c1-130; done",
+    "expect": "deny",
+    "why": "shell loop with ;, $( ) and a python3 interpreter"
+  },
+  {
+    "id": "N2",
+    "command": "herdr tab create --workspace w2B --cwd /Users/woojin/Desktop/02_Areas/01_Codes_automation/27_LITFAMILY/.worktrees/litclaude-lane-feedback --label plan-1042 --no-focus",
+    "expect": "deny",
+    "why": "herdr tab create is not one of the six read verbs"
+  },
+  {
+    "id": "N3",
+    "command": "echo test",
+    "expect": "deny",
+    "why": "echo is outside the observer list"
+  },
+  {
+    "id": "N4",
+    "command": "R=/Users/woojin/Desktop/02_Areas/01_Codes_automation/27_LITFAMILY/.worktrees/litclaude-release-1.0.41/plugins/litclaude; ls $R/lib/rewind/ $R/skills/lit-adhd $R/skills/lit-adhd/* ; wc -l $R/lib/rewind/*.mjs; grep -rln \"lit-adhd\\|rewind\" $R/hooks $R/tests $R/test 2>/dev/null | head -30",
+    "expect": "deny",
+    "why": "variable assignment, ; and $ expansion"
+  },
+  {
+    "id": "B1",
+    "command": "herdr agent prompt lane-xfilm \"lit approve\"",
+    "expect": "deny",
+    "why": "bang-command request: herdr agent prompt sends keys to another lane"
+  },
+  {
+    "id": "B2",
+    "command": "herdr agent prompt lane-plan1042 \"/litclaude:start-work plans/litclaude-1042.md\"",
+    "expect": "deny",
+    "why": "bang-command request: herdr agent prompt sends keys to another lane"
+  }
+]

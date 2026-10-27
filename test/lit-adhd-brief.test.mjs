@@ -39,10 +39,47 @@ const data = () => ({
   budget: { exhausted: false },
 });
 
+const headlineOf = (text) => text.split("\n").find((line) => line.startsWith("## 🧭"));
+
+// plans/litclaude-1042.md todo 9 (E1): three lines drawn from records open the brief, before the
+// headline: what got done, what runs now, and the next step with the word to type.
+test("three lines open the brief: done so far, doing now, next", () => {
+  const lines = renderBrief(data(), { lang: "en", now: NOW }).split("\n").slice(0, 3).map((line) => line.trimEnd());
+  assert.deepEqual(lines, [
+    "Done so far: fix(deck): hero spacing",
+    "Doing now: lit-loop · RED · `[▉░░░] 1/4`",
+    "Next: Resume the paused lit-loop at RED (type lit continue)",
+  ]);
+  const ko = renderBrief(data(), { lang: "ko", now: NOW }).split("\n").slice(0, 3).map((line) => line.trimEnd());
+  assert.deepEqual(ko, [
+    "지금까지: fix(deck): hero spacing",
+    "지금: lit-loop · RED · `[▉░░░] 1/4`",
+    "다음: 멈춘 lit-loop(RED) 이어가기 (lit continue 입력)",
+  ]);
+  const quiet = renderBrief({ ...data(), commits: [], workflows: [], sessions: [data().sessions[2]], next: { kind: "start-plan", target: { plan: "plans/deck.md" }, say: "go", command: "/litclaude:start-work plans/deck.md" } }, { lang: "en", now: NOW }).split("\n");
+  assert.equal(quiet[0].trimEnd(), "Done so far: nothing finished in this window");
+  assert.equal(quiet[1].trimEnd(), "Doing now: nothing running");
+  assert.equal(quiet[2].trimEnd(), "Next: Start plans/deck.md with start-work (type go)");
+});
+
+// plans/litclaude-1042.md todo 9 (E4): with no step for `go`, this worktree's HANDOFF.md Next section
+// gives the step, ahead of the generic suggestion, and it carries no word to type.
+test("with no step on record, the first Next item of this worktree's HANDOFF.md is the step", () => {
+  const handoff = { ...data(), next: { kind: "none", target: null }, handoffs: [{ worktree: "~/repo", file: "HANDOFF.md", headings: [], next: "Re-run the gates", local: true }] };
+  const text = renderBrief(handoff, { lang: "en", now: NOW });
+  assert.equal(text.split("\n")[2].trimEnd(), "Next: Re-run the gates");
+  assert.match(headlineOf(text), /next: Re-run the gates$/u);
+  assert.match(text.split(/```\n(?=╭)/u)[1], /│ Re-run the gates +│/u);
+  assert.doesNotMatch(text, /^Type \*\*/mu, "a HANDOFF step offers no go word");
+  const elsewhere = renderBrief({ ...handoff, handoffs: [{ ...handoff.handoffs[0], local: false }] }, { lang: "en", now: NOW });
+  assert.match(headlineOf(elsewhere), /next: Answer aaaa1111/u, "another worktree's HANDOFF is not this worktree's step");
+});
+
 test("headline first: sessions, who waits on you, and the next step, in one line", () => {
   const lines = renderBrief(data(), { lang: "en", now: NOW }).split("\n");
-  assert.equal(lines[0], "## 🧭 3 sessions · 1 waits on you · 1 active · next: Resume the paused lit-loop at RED");
-  const ko = renderBrief(data(), { lang: "ko", now: NOW }).split("\n")[0];
+  assert.equal(headlineOf(lines.join("\n")), "## 🧭 3 sessions · 1 waits on you · 1 active · next: Resume the paused lit-loop at RED");
+  assert.equal(lines[4], headlineOf(lines.join("\n")), "after the three opening lines and a blank line");
+  const ko = headlineOf(renderBrief(data(), { lang: "ko", now: NOW }));
   assert.equal(ko, "## 🧭 세션 3개 · 나를 기다리는 것 1 · 진행 중 1 · 다음: 멈춘 lit-loop(RED) 이어가기");
 });
 
@@ -91,8 +128,8 @@ test("an active session without edits says which tools it used and what it is do
 
 test("with nothing for go to run, the brief still recommends a real step, never 'No next step on record'", () => {
   const none = (patch) => renderBrief({ ...data(), next: { kind: "none", target: null }, ...patch(data()) }, { lang: "en", now: NOW });
-  const headline = (text) => text.split("\n")[0];
-  const boxed = (text) => text.split("```text\n")[1].split("\n```")[0];
+  const headline = headlineOf;
+  const boxed = (text) => text.split(/```\n(?=╭)/u)[1].split("\n```")[0];
   // 1. a session that waits on the user
   let text = none(() => ({}));
   assert.match(headline(text), /next: Answer aaaa1111 in repo: “Should I shrink the hero title or split the slide\?”/u);
@@ -129,7 +166,7 @@ test("roadmap timeline: done ✓ with dates, now ▶ with its gauge, later ○",
 test("one recommended next step in a box whose edges line up, then the word to type", () => {
   for (const lang of ["en", "ko"]) {
     const text = renderBrief(data(), { lang, now: NOW });
-    const box = text.split("```text\n")[1].split("\n```")[0].split("\n");
+    const box = text.split(/```\n(?=╭)/u)[1].split("\n```")[0].split("\n");
     assert.match(box[0], lang === "en" ? /^╭─ RECOMMENDED NEXT STEP ─+╮$/u : /^╭─ 추천하는 다음 단계 ─+╮$/u);
     assert.ok(box.some((line) => line.includes(lang === "en" ? "type: lit continue" : "입력: lit continue")));
     assert.equal(new Set(box.map(displayWidth)).size, 1, `${lang}: every box row is as wide:\n${box.join("\n")}`);
@@ -147,7 +184,7 @@ test("never cryptic: no ? run, no null, and an unknown source is named once", ()
   const empty = renderBrief({ ...data(), sessions: [], summary: { sessions: 0, waitingOnUser: 0, active: 0 }, roadmap: { plans: [], plansOmitted: 0, litgoal: [], progress: progressOf(null, null) }, commits: [], workflows: [], next: { kind: "none", target: null } }, { lang: "en", now: NOW });
   assert.doesNotMatch(empty, PLACEHOLDER);
   assert.match(empty, /No Claude Code session records in this window\./u);
-  assert.match(empty.split("\n")[0], /next: No session or plan in this window: say what to start/u);
+  assert.match(headlineOf(empty), /next: No session or plan in this window: say what to start/u);
 });
 
 test("data stays data: backticks, emphasis and tags in a title cannot restyle the brief", () => {
@@ -169,7 +206,7 @@ test("the CLI prints the brief with --brief and --lang", () => {
     const stdout = { write: (chunk) => { out += chunk; }, columns: 100 };
     const code = runRewindCli(["--brief", "--lang", "ko", "--here"], root, { env: { HOME: root, CLAUDE_CONFIG_DIR: join(root, "claude") }, stdout, stderr: stdout });
     assert.equal(code, 0);
-    assert.match(out, /^## 🧭 세션 0개/u);
+    assert.match(out, /^지금까지: .+\n지금: .+\n다음: .+\n\n## 🧭 세션 0개/u);
     assert.match(out, /추천하는 다음 단계/u);
     assert.doesNotMatch(out, PLACEHOLDER);
   } finally {
@@ -186,4 +223,14 @@ test("a transcript's last tool call becomes its last action: a description or a 
   assert.deepEqual(edit.lastAction, { tool: "Edit", target: "frame.mjs" });
   const bare = sessionRecord([prompt, line({ command: "ls" })], { now: NOW });
   assert.deepEqual(bare.lastAction, { tool: "Bash" }, "no description: the tool name alone");
+});
+
+// Host round 4: the Claude Code TUI prints a fence's language tag as its own line above the box, so the
+// RECOMMENDED NEXT STEP box sits in a plain, untagged fence.
+test("the next-step box opens with a plain fence, never a tagged one", () => {
+  for (const lang of ["en", "ko"]) {
+    const text = renderBrief(data(), { lang, now: NOW });
+    assert.doesNotMatch(text, /^```\S/mu, `${lang}: no fence carries a language tag`);
+    assert.match(text, /^```\n╭─ /mu, `${lang}: the box opens in a plain fence`);
+  }
 });

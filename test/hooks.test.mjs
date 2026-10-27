@@ -1050,6 +1050,28 @@ describe("Claude hook runner", () => {
     assert.match(JSON.parse(leading.stdout).hookSpecificOutput.additionalContext, /Skill\(frontend-ui-ux\)/u);
   });
 
+  // plans/litclaude-1042.md todo 12: on 2026-10-27 a teammate session's message, delivered inside a
+  // `<cross-session-message>` wrapper, named lit-adhd test files and fired the lit-adhd route. A
+  // closed wrapper is someone else's text, inert for routing like a task notification.
+  it("ignores lit routes named only inside a closed cross-session message", () => {
+    const body = "Done: node --test test/lit-adhd.test.mjs passes; lit-adhd brief opener is next. lit plan it if you want.";
+    for (const prompt of [
+      `<cross-session-message>${body}</cross-session-message>`,
+      `<cross-session-message from="lane-xfilm" session="20bf7db1">\n${body}\n</cross-session-message>`,
+    ]) {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.systemMessage, undefined, prompt);
+      assertNoWorkflowActivationContext(parsed.hookSpecificOutput.additionalContext, prompt);
+    }
+    const outside = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: `<cross-session-message>${body}</cross-session-message>\nlit adhd`, cwd: root });
+    assert.equal(outside.status, 0, outside.stderr);
+    assert.match(JSON.parse(outside.stdout).hookSpecificOutput.additionalContext, /Skill\(lit-adhd\)/u, "the user's own words outside the wrapper still route");
+    const unclosed = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "<cross-session-message> lit adhd", cwd: root });
+    assert.match(JSON.parse(unclosed.stdout).hookSpecificOutput.additionalContext, /Skill\(lit-adhd\)/u, "an unclosed wrapper hides nothing");
+  });
+
   it("treats closed tilde fences as inert without hiding outside or unclosed route text", () => {
     for (const prompt of [
       "~~~text\ndesign a new settings page UI\n~~~",
@@ -1294,25 +1316,33 @@ describe("Claude hook runner", () => {
   });
 
   it("names lit-commit before a commit or history operation, and stays silent otherwise", () => {
-    const advisory = runHook("pre-tool-use", {
-      hook_event_name: "PreToolUse",
-      tool_name: "Bash",
-      tool_input: { command: "git rebase -i HEAD~3" },
-    });
-    assert.equal(advisory.status, 0, advisory.stderr);
-    const parsed = JSON.parse(advisory.stdout);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /Skill\(lit-commit\)/u);
-    // Advisory, never a block: a git operation is not by itself a reason to deny the tool.
-    assert.equal(parsed.hookSpecificOutput.permissionDecision, undefined);
+    // A folder of its own: a start-work running in the repository would refuse the call first.
+    const temp = mkdtempSync(join(tmpdir(), "litclaude-lit-commit-advisory-"));
+    try {
+      const advisory = runHook("pre-tool-use", {
+        hook_event_name: "PreToolUse",
+        tool_name: "Bash",
+        tool_input: { command: "git rebase -i HEAD~3" },
+        cwd: temp,
+      });
+      assert.equal(advisory.status, 0, advisory.stderr);
+      const parsed = JSON.parse(advisory.stdout);
+      assert.match(parsed.hookSpecificOutput.additionalContext, /Skill\(lit-commit\)/u);
+      // Advisory, never a block: a git operation is not by itself a reason to deny the tool.
+      assert.equal(parsed.hookSpecificOutput.permissionDecision, undefined);
 
-    // Read-only inspection needs no guidance, so it must produce nothing at all.
-    const quiet = runHook("pre-tool-use", {
-      hook_event_name: "PreToolUse",
-      tool_name: "Bash",
-      tool_input: { command: "git status --short" },
-    });
-    assert.equal(quiet.status, 0, quiet.stderr);
-    assert.equal(quiet.stdout.trim(), "");
+      // Read-only inspection needs no guidance, so it must produce nothing at all.
+      const quiet = runHook("pre-tool-use", {
+        hook_event_name: "PreToolUse",
+        tool_name: "Bash",
+        tool_input: { command: "git status --short" },
+        cwd: temp,
+      });
+      assert.equal(quiet.status, 0, quiet.stderr);
+      assert.equal(quiet.stdout.trim(), "");
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
   });
 
   it("stays silent when a docs-only edit matches no skill condition", () => {

@@ -384,11 +384,18 @@ export const countPlanTasks = (text) => {
   return rows.length ? { done: rows.filter(({ checked }) => checked).length, total: rows.length } : null;
 };
 
-// Each frame that names a plan gets that plan's checkbox counts, read once per plan under the cap.
+// Each frame that names a plan gets that plan's checkbox counts, read once per plan under the cap,
+// and `planAt`, the plan file's last change (when a finished plan's row was checked off).
 const withPlanCounts = async (io, stateRoot, frames) => {
   const refs = [...new Set(frames.map(({ planRef }) => planRef).filter(Boolean))];
-  const counts = new Map(await Promise.all(refs.map(async (ref) => [ref, countPlanTasks(await readGuarded(io, stateRoot, ref, STATE_CAPS.goals))])));
-  for (const frame of frames) frame.plan = frame.planRef ? counts.get(frame.planRef) ?? null : null;
+  const read = new Map(await Promise.all(refs.map(async (ref) => [ref, {
+    counts: countPlanTasks(await readGuarded(io, stateRoot, ref, STATE_CAPS.goals)),
+    at: num((await statOf(io, joinPath(stateRoot, ref)))?.mtimeMs),
+  }])));
+  for (const frame of frames) {
+    frame.plan = frame.planRef ? read.get(frame.planRef)?.counts ?? null : null;
+    frame.planAt = frame.planRef ? read.get(frame.planRef)?.at ?? null : null;
+  }
   return frames;
 };
 
@@ -409,9 +416,30 @@ const readOtherStacks = async (io, stateRoot, sessionId) => {
     const id = typeof raw?.sessionId === "string" ? raw.sessionId : null;
     const parsed = id ? parseWorkflowStack(raw, id) : null;
     if (parsed) await withPlanCounts(io, stateRoot, parsed.frames.slice(-1));
-    return parsed ? { id8: id.replace(/[^A-Za-z0-9]/gu, "").slice(0, 8), at: entry.mtimeMs, ended: typeof raw.endedAt === "string", frames: parsed.frames } : null;
+    return parsed ? { sessionId: id, id8: id.replace(/[^A-Za-z0-9]/gu, "").slice(0, 8), at: entry.mtimeMs, ended: typeof raw.endedAt === "string", frames: parsed.frames } : null;
   }));
   return read.filter(Boolean);
+};
+
+const LIVENESS_FILES = 12;
+const LIVENESS_STATES = new Set(["alive", "idle", "ended"]);
+
+// The newest liveness records the hooks wrote (session-liveness.mjs), keyed by full session id:
+// `{ state, at, herdrPane }`. Links and malformed records are skipped.
+const readLiveness = async (io, stateRoot) => {
+  const files = (await listOf(io, joinPath(stateRoot, ".litclaude", "liveness")))
+    .filter((entry) => entry?.kind === "file" && !entry.isLink && /^[A-Za-z0-9._-]+\.json$/u.test(entry.name))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .slice(0, LIVENESS_FILES);
+  const records = await Promise.all(files.map((entry) => readGuardedJson(io, stateRoot, joinPath(".litclaude", "liveness", entry.name), STATE_CAPS.small)));
+  const liveness = {};
+  for (const record of records) {
+    const id = str(record?.sessionId, 160);
+    if (!id || !LIVENESS_STATES.has(record.state) || time(record.at) === null || Object.hasOwn(liveness, id)) continue;
+    const pane = typeof record.herdrPane === "string" && /^[A-Za-z0-9:_-]{1,32}$/u.test(record.herdrPane) ? record.herdrPane : null;
+    liveness[id] = { state: record.state, at: time(record.at), herdrPane: pane };
+  }
+  return liveness;
 };
 
 const readWorkflowSources = async (io, stateRoot, sessionId) => {
@@ -428,7 +456,8 @@ const readWorkflowSources = async (io, stateRoot, sessionId) => {
     await withPlanCounts(io, stateRoot, stack.frames);
     if (stack.record) stack.record.plan = stack.frames[stack.owner].plan;
   }
-  const others = await readOtherStacks(io, stateRoot, sessionId);
+  const [stacks, liveness] = await Promise.all([readOtherStacks(io, stateRoot, sessionId), readLiveness(io, stateRoot)]);
+  const others = stacks.map((other) => ({ ...other, liveness: liveness[other.sessionId] ?? null }));
   // A record written before the stack existed, read only while this session has no stack.
   const legacy = stack ? null : await readGuardedJson(io, stateRoot, ".litclaude/workflow-stage.json", STATE_CAPS.small);
   const interviewFile = newestFile(interviews, /^[A-Za-z0-9._-]+-state\.json$/u);
@@ -448,6 +477,8 @@ const readWorkflowSources = async (io, stateRoot, sessionId) => {
     record: stack?.record ?? parseStageRecord(legacy, sessionId),
     stack,
     others,
+    liveness,
+    sessionId: typeof sessionId === "string" ? sessionId : null,
     interview: interview ? parseInterviewState(interview, interviewFile.mtimeMs) : null,
     draft: draft === null ? null : parseDraftStatus(draft, draftFile.name.replace(/\.md$/u, ""), draftFile.mtimeMs),
     research,
@@ -486,6 +517,37 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     handoff: parseAutoHandoff(handoffSettings, handoffSession, env),
     workflow,
   };
+};
+
+/**
+ * The LitClaude version Claude Code installed, from its `installed_plugins.json` record: the
+ * `litclaude@…` entry, user scope first. Anything unreadable or malformed gives null.
+ */
+export const installedVersionOf = (record) => {
+  const plugins = record?.plugins;
+  if (!plugins || typeof plugins !== "object" || Array.isArray(plugins)) return null;
+  const entries = Object.entries(plugins)
+    .filter(([key, list]) => key.startsWith("litclaude@") && Array.isArray(list))
+    .flatMap(([, list]) => list)
+    .filter((entry) => entry && typeof entry === "object" && typeof entry.version === "string");
+  return str((entries.find(({ scope }) => scope === "user") ?? entries[0])?.version, 40);
+};
+
+const readJsonAt = async (io, path, cap) => {
+  if (typeof path !== "string" || !path) return null;
+  try {
+    const text = await readSmall(io, path, cap);
+    const value = text === null ? null : JSON.parse(text);
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+/** `{ loaded, installed }`: this plugin's own manifest version and the one installed, or null each. */
+export const readPluginVersions = async (io, { pluginJson, installedFile }) => {
+  const [plugin, installed] = await Promise.all([readJsonAt(io, pluginJson, STATE_CAPS.small), readJsonAt(io, installedFile, STATE_CAPS.goals)]);
+  return { loaded: str(plugin?.version, 40), installed: installedVersionOf(installed) };
 };
 
 const readSmall = async (io, path, cap) => {

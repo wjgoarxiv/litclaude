@@ -119,6 +119,14 @@ work/revision values, and generic agent CLI calls do not resume. Forbidden
 release, registry, host-config, destructive VCS, commit, push, publish, tag, and
 version-bump boundaries are blocked rather than paused.
 
+Another session in the same project may watch a running work without changing it:
+reads, searches, `herdr agent read|get|list`, `herdr pane read|list` and
+`herdr tab list`, and `cd <dir> && …` chains of grep or rg reads, each with up to
+four read-only pipe filters (`grep`, `rg`, `head`, `tail`, `cut`, `wc`, `sort`,
+`uniq`). Everything else it sends, including other herdr verbs, redirects, `;`,
+`$` and loops, is refused with the work's name and how to take it over. The
+owner session's own guard is unchanged.
+
 The official `PreToolUse` route performs this check before native tool
 execution. An allow result emits no hook output and preserves Claude's normal
 permission flow; a deny uses `permissionDecision: deny`. `PostToolUse` never

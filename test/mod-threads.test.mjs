@@ -104,6 +104,101 @@ test("another live session of this project shows as one row, marked as another s
   assert.match(rows[1], /^│ ● start-work +work +\[▉░░\] 1\/3 running · other session 22222222/u);
 });
 
+// plans/litclaude-1042.md todo 6 (C2-C4): a finished start-work clears after a minute, other
+// sessions list running first and hide once ended, and herdr lanes of this project draw as lanes.
+const OTHER = "22222222-aaaa-bbbb-cccc-000000000002";
+const otherWith = (frames, extra = {}) => ({ sessionId: OTHER, id8: "22222222", at: NOW - 60_000, frames: stackOf(frames).frames, liveness: null, ...extra });
+const finishedPlan = (frames, planAt) => frames.map((entry) => Object.assign(entry, { plan: { done: 7, total: 7 }, planAt }));
+const modelRows = (snapshot, extra = {}) => {
+  const card = draw(buildBandModel({ snapshot, now: NOW, isWorking: true, ...extra }));
+  for (const row of card.rows) assert.equal(rowWidth(row), 100, rowText(row));
+  return threadRows(card);
+};
+
+test("(a) another session's finished start-work shows done for a minute, then leaves", () => {
+  for (const [age, shown] of [[30_000, true], [61_000, false]]) {
+    const snapshot = snapshotWith([frame("lit-loop", "loop", "GREEN", { n: 2, total: 4 })]);
+    snapshot.workflow.others = [otherWith([frame("start-work", "main", "work")])];
+    finishedPlan(snapshot.workflow.others[0].frames, NOW - age);
+    const row = modelRows(snapshot).find((text) => text.includes("22222222"));
+    if (shown) assert.match(row ?? "", /start-work .*7\/7 done/u, `${age} ms`);
+    else assert.equal(row, undefined, `${age} ms: ${modelRows(snapshot).join("\n")}`);
+  }
+});
+
+test("(b) this session's finished start-work shows done for a minute, then leaves the chain", () => {
+  for (const [age, shown] of [[59_000, true], [61_000, false]]) {
+    const frames = [frame("start-work", "main", "work")];
+    const snapshot = snapshotWith(frames);
+    finishedPlan(snapshot.workflow.stack.frames, NOW - age);
+    const model = buildBandModel({ snapshot, now: NOW, isWorking: true, agents: agents(["reviewer"]) });
+    const chain = model.threads?.chain ?? [];
+    assert.equal(chain.some((thread) => thread.name === "start-work" && thread.state === "done"), shown, `${age} ms`);
+  }
+});
+
+test("(c) other sessions list running first, then idle, newest first within each", () => {
+  const snapshot = snapshotWith([frame("lit-loop", "loop", "GREEN", { n: 2, total: 4 })]);
+  const idleOne = otherWith([frame("lit-plan", "main", "plan")], { sessionId: "33333333-x", id8: "33333333", at: NOW - 10_000, liveness: { state: "idle", at: NOW - 10_000, herdrPane: null } });
+  const running = otherWith([frame("lit-docx", "main", "work")], { sessionId: "44444444-x", id8: "44444444", at: NOW - 90_000, liveness: { state: "alive", at: NOW - 90_000, herdrPane: null } });
+  const paused = otherWith([frame("lit-loop", "loop", "RED", { status: "paused" })], { sessionId: "55555555-x", id8: "55555555", at: NOW - 5000, liveness: { state: "alive", at: NOW - 5000, herdrPane: null } });
+  snapshot.workflow.others = [paused, idleOne, running];
+  const rows = modelRows(snapshot).filter((text) => /other session/u.test(text));
+  assert.match(rows[0], /lit-docx .*running .*44444444/u);
+  assert.match(rows[1], /lit-plan .*idle .*33333333/u);
+  assert.match(rows[2], /lit-loop .*paused .*55555555/u, "a newer paused session still comes after idle ones");
+});
+
+test("(d) an ended session's row leaves at once, even with a fresh stack", () => {
+  const snapshot = snapshotWith([frame("lit-loop", "loop", "GREEN", { n: 2, total: 4 })]);
+  snapshot.workflow.others = [otherWith([frame("review-work", "review", "review")], { at: NOW - 1000, liveness: { state: "ended", at: NOW - 1000, herdrPane: null } })];
+  assert.equal(modelRows(snapshot).find((text) => text.includes("22222222")), undefined);
+});
+
+test("(e) herdr lanes of this project draw as lane rows before other sessions; this pane never", () => {
+  const snapshot = snapshotWith([frame("lit-loop", "loop", "GREEN", { n: 2, total: 4 })]);
+  snapshot.workflow.sessionId = SID;
+  snapshot.workflow.others = [
+    otherWith([frame("start-work", "main", "work", { n: 1, total: 3 })]),
+    otherWith([frame("lit-plan", "main", "plan")], { sessionId: "55555555-x", id8: "55555555", liveness: { state: "alive", at: NOW - 5000, herdrPane: null } }),
+  ];
+  snapshot.workflow.liveness = {
+    [SID]: { state: "alive", at: NOW - 1000, herdrPane: "w2B:p1A" },
+    [OTHER]: { state: "alive", at: NOW - 2000, herdrPane: "w2B:p8K" },
+    "66666666-x": { state: "idle", at: NOW - 3000, herdrPane: "w2B:p9Z" },
+    "77777777-x": { state: "alive", at: NOW - 4000, herdrPane: "w2B:p1A" },
+  };
+  snapshot.workflow.others[0].liveness = snapshot.workflow.liveness[OTHER];
+  const rows = modelRows(snapshot);
+  const at = (pattern) => rows.findIndex((text) => pattern.test(text));
+  assert.match(rows[at(/w2B:p8K/u)], /^│ ● start-work · w2B:p8K +work +\[▉░░\] 1\/3 running +│$/u);
+  assert.match(rows[at(/w2B:p9Z/u)], /^│ - claude · w2B:p9Z .*idle/u);
+  assert.ok(at(/w2B:p8K/u) < at(/other session 55555555/u), rows.join("\n"));
+  assert.equal(at(/w2B:p1A/u), -1, "this session's own pane is never listed");
+  assert.equal(at(/other session 22222222/u), -1, "a herdr lane is not listed twice");
+});
+
+// Real-host QA 2026-10-27 (todo 11): the thread block was hidden while it held fewer than two rows,
+// so one herdr lane or one other session never showed: B's card never showed A's running start-work,
+// and A's card dropped B's idle lane once A's own finished start-work row cleared.
+test("(f) one herdr lane or one other session shows the thread block; a lone own frame still does not", () => {
+  const lone = buildBandModel({ snapshot: snapshotWith([frame("lit-loop", "loop", "RED", { n: 1, total: 4 })]), now: NOW, isWorking: true });
+  assert.equal(lone.threads, null, "a lone own frame keeps today's five-row card");
+
+  const noStack = { ...idle(), workflow: { sessionId: SID, others: [otherWith([frame("start-work", "main", "work", { n: 2, total: 5 })])], liveness: {} } };
+  assert.match(modelRows(noStack).join("\n"), /● start-work +work +\[▉▉░░░\] 2\/5 running · other session 22222222/u, "B's card shows A's start-work");
+
+  const herdrOnly = { ...idle(), workflow: { sessionId: SID, others: [], liveness: { [OTHER]: { state: "idle", at: NOW - 5000, herdrPane: "w2B:p9H" } } } };
+  assert.match(modelRows(herdrOnly).join("\n"), /- claude · w2B:p9H .*idle/u, "a lone herdr lane shows");
+
+  const afterLinger = snapshotWith([frame("start-work", "main", "work")]);
+  finishedPlan(afterLinger.workflow.stack.frames, NOW - 61_000);
+  afterLinger.workflow.sessionId = SID;
+  afterLinger.workflow.others = [];
+  afterLinger.workflow.liveness = { [OTHER]: { state: "idle", at: NOW - 5000, herdrPane: "w2B:p9H" } };
+  assert.match(modelRows(afterLinger).join("\n"), /- claude · w2B:p9H .*idle/u, "A keeps B's lane after its own row clears");
+});
+
 // In Claude Code a row whose only change is a non-ASCII glyph keeps the old glyph (frame.mjs), so a
 // thread row may change a glyph only together with an ASCII cell's text or colour.
 const asciiKey = (row) => JSON.stringify(row.flatMap((part) => [...part.text].map((ch) => (ch.codePointAt(0) < 128 ? [ch, part.fg ?? null, part.bg ?? null] : ["#", part.bg ?? null]))));

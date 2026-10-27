@@ -20,6 +20,7 @@ import {
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { SCOPE_LINE } from "./plan-scope-roots.mjs";
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
@@ -1378,9 +1379,156 @@ const planRoute = (root, work) => {
   return path.startsWith("..") || isAbsolute(path) ? work.active_plan : path;
 };
 
+// Words and operators of a command another session sends to watch the work. Single quotes hold
+// data verbatim. Outside them only path-like characters pass (`*` and `?` mark the word as a glob);
+// `|`, ` && ` and `2>&1` must stand alone between spaces. Anything else (`;`, `||`, `$`, a backtick,
+// a double quote, a backslash, a redirect, a newline) refuses the whole command.
+const OBSERVATION_CHAR = /[\p{L}\p{N}_.\/@+,:=%-]/u;
+const observationTokens = (command) => {
+  const tokens = [];
+  const chars = [...command];
+  let word = null;
+  const standalone = (index, text) => word === null && chars.slice(index, index + text.length).join("") === text
+    && (index + text.length === chars.length || /[ \t]/u.test(chars[index + text.length]));
+  for (let index = 0; index < chars.length; index += 1) {
+    const ch = chars[index];
+    if (ch === " " || ch === "\t") {
+      if (word) tokens.push(word);
+      word = null;
+    } else if (ch === "'") {
+      const end = chars.indexOf("'", index + 1);
+      if (end < 0) return null;
+      word ??= { text: "", quoted: false, glob: false };
+      word.text += chars.slice(index + 1, end).join("");
+      word.quoted = true;
+      index = end;
+    } else if (standalone(index, "&&") || standalone(index, "2>&1")) {
+      const op = standalone(index, "&&") ? "&&" : "2>&1";
+      tokens.push({ op });
+      index += op.length - 1;
+    } else if (standalone(index, "|")) {
+      tokens.push({ op: "|" });
+    } else if (OBSERVATION_CHAR.test(ch) || ch === "*" || ch === "?") {
+      word ??= { text: "", quoted: false, glob: false };
+      word.text += ch;
+      if (ch === "*" || ch === "?") word.glob = true;
+    } else {
+      return null;
+    }
+  }
+  if (word) tokens.push(word);
+  return tokens;
+};
+
+const plainWord = (word) => Boolean(word) && !word.op && !word.quoted && !word.glob;
+// A word starting with `-` is a flag only when bare; quoted, the tool would still read it as one.
+const flagWord = (word, pattern) => plainWord(word) && pattern.test(word.text);
+const dataWord = (word) => Boolean(word) && !word.op && !word.glob && !word.text.startsWith("-");
+
+const HERDR_READS = Object.freeze({ agent: ["read", "get", "list"], pane: ["read", "list"], tab: ["list"] });
+// Only the flags a read needs: a flag herdr may add later (an output file, keys to send) is refused.
+const HERDR_READ_FLAG = /^--(?:source|lines|workspace|tab|json)(?:=[\w.:-]+)?$/u;
+const HERDR_ID = /^[A-Za-z0-9][\w.:-]*$/u;
+const observeHerdr = ([noun, verb, ...rest]) => plainWord(noun) && plainWord(verb)
+  && Object.hasOwn(HERDR_READS, noun.text) && HERDR_READS[noun.text].includes(verb.text)
+  && rest.every((word) => plainWord(word) && (HERDR_READ_FLAG.test(word.text) || HERDR_ID.test(word.text)));
+
+// grep or rg over existing paths: bare flags from a closed set, the include/exclude globs, one
+// pattern, then plain path operands. Flags that read a pattern file or run a preprocessor are absent.
+const observeSearch = (args, cwd) => {
+  let pattern = false;
+  for (const word of args) {
+    if (word.op) return false;
+    if (word.text.startsWith("-")) {
+      if (flagWord(word, /^-[rRlLnicvwxoEFHhsqZ]+$/u)) continue;
+      if (!word.quoted && /^--(?:include|exclude|exclude-dir)=[\w.*?-]+$/u.test(word.text)) continue;
+      return false;
+    }
+    if (word.glob) return false;
+    if (!pattern) pattern = true;
+    else if (word.quoted || !PLAIN_PATH_WORD.test(word.text) || !existsSync(resolve(cwd, word.text))) return false;
+  }
+  return pattern;
+};
+
+const LIST_WORD = /^[\d,-]+$/u;
+const observeFilter = ([head, ...args]) => {
+  if (!plainWord(head)) return false;
+  switch (head.text) {
+    case "grep":
+    case "rg":
+      return args.every((word) => flagWord(word, /^-[vinEFcwxoh]+$/u) || dataWord(word))
+        && args.filter((word) => !word.text.startsWith("-")).length === 1;
+    case "head":
+    case "tail":
+      for (let index = 0; index < args.length; index += 1) {
+        if (flagWord(args[index], /^-n$/u) && flagWord(args[index + 1], /^\d+$/u)) index += 1;
+        else if (!flagWord(args[index], /^-(?:\d+|q)$/u)) return false;
+      }
+      return true;
+    case "cut":
+      for (let index = 0; index < args.length; index += 1) {
+        if (flagWord(args[index], /^-c[\d,-]+$/u)) continue;
+        if (flagWord(args[index], /^-[cf]$/u) && flagWord(args[index + 1], LIST_WORD)) index += 1;
+        else if (flagWord(args[index], /^-d$/u) && args[index + 1] && !args[index + 1].op && !args[index + 1].glob && [...args[index + 1].text].length === 1) index += 1;
+        else return false;
+      }
+      return true;
+    case "wc":
+      return args.every((word) => flagWord(word, /^-[lwcm]+$/u));
+    case "sort":
+      return args.every((word) => flagWord(word, /^-[unrbf]+$/u));
+    case "uniq":
+      return args.every((word) => flagWord(word, /^-[cdu]+$/u));
+    default:
+      return false;
+  }
+};
+
+// What another session may run to watch a running work without changing it: up to four segments
+// joined by ` && `, each a `cd <dir>`, a herdr read (agent read|get|list, pane read|list, tab list)
+// or a grep/rg read, each followed by up to four read-only pipe filters. Only otherSessionDecision
+// calls this; the owner's guard keeps classifyBash.
+export const classifyObservation = (command, cwd) => {
+  if (typeof command !== "string" || command.length === 0 || command.length > 32_768) return false;
+  if (forbiddenShellPattern.test(command)) return false;
+  const tokens = observationTokens(command.trim());
+  if (!tokens?.length) return false;
+  const segments = [[]];
+  for (const token of tokens) {
+    if (token.op === "&&") segments.push([]);
+    else if (token.op !== "2>&1") segments.at(-1).push(token);
+  }
+  if (segments.length > MAX_CHAIN_SEGMENTS) return false;
+  let here = cwd;
+  for (const segment of segments) {
+    const parts = [[]];
+    for (const token of segment) {
+      if (token.op === "|") parts.push([]);
+      else parts.at(-1).push(token);
+    }
+    const [[head, ...args], ...filters] = parts;
+    if (!plainWord(head) || filters.length > 4 || filters.some((filter) => !observeFilter(filter))) return false;
+    if (head.text === "cd") {
+      if (filters.length || args.length !== 1 || !plainWord(args[0])) return false;
+      const moved = classifyCd(`cd ${args[0].text}`, here);
+      if (!moved || moved.denied) return false;
+      here = moved.cd;
+    } else if (head.text === "herdr") {
+      if (!observeHerdr(args)) return false;
+    } else if (head.text === "grep" || head.text === "rg") {
+      if (!observeSearch(args, here)) return false;
+    } else {
+      return false;
+    }
+  }
+  return true;
+};
+
 // Another session in the project of a running work: reading, searching, read-only shell, loading a
-// skill, a read-type agent and the status call pass with a note; anything that changes files is
-// refused with the work, its age and the ways out. The owner's work never pauses for it.
+// skill, a read-type agent, the status call and an observation command pass with a note; anything
+// that changes files is refused with the work, its age and the ways out. The owner's work never
+// pauses for it.
 const STATUS_CALL = /^(?:litclaude-ai|litclaude)[ \t]+start-work[ \t]+status(?:[ \t]+--json)?$/u;
 const READ_ACTIONS = new Set(["read", "vcs-read"]);
 const otherSessionDecision = (root, work, input, now) => {
@@ -1393,6 +1541,14 @@ const otherSessionDecision = (root, work, input, now) => {
       const classified = classifyToolAuthority(executionRoot, input);
       reads = !classified.denied && !classified.control
         && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+    } catch {
+      reads = false;
+    }
+  }
+  if (!reads && toolName === "Bash") {
+    try {
+      const cwd = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : root, "tool cwd");
+      reads = classifyObservation(input?.tool_input?.command, cwd);
     } catch {
       reads = false;
     }
@@ -1682,9 +1838,6 @@ export const openPlans = (root) => {
     }
   }).map((name) => `plans/${name}`);
 };
-
-// `Scope roots: <path> (<action>, <action>)` lines in the plan widen the grants it starts with.
-const SCOPE_LINE = /^Scope roots?:[ \t]*(\S+)[ \t]*\(([a-z, -]+)\)[ \t]*$/gmu;
 
 const derivedGrants = (root, plan, workId) => {
   const grants = ["read", "write", "execute", "test", "package", "vcs-read"].map((action) => ({ action, root, issuedBy: "user-invocation" }));

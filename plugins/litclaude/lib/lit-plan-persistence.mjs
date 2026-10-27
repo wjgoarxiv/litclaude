@@ -6,11 +6,13 @@
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { describeScopePath, uncoveredScopePaths } from "./plan-scope-roots.mjs";
 import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { findProjectRoot } from "./rules/discovery.mjs";
 
 export const LIT_PLAN_MAX_BLOCKS = 2;
 export const LIT_PLAN_BLOCK_REASON = "lit-plan must persist plans/<slug>.md (run scaffold-plan.mjs) before finishing";
+export const LIT_PLAN_SCOPE_REASON = "lit-plan must grant the outside folders its todos name with Scope roots lines before finishing";
 
 // Filesystem mtime granularity can lag the wall clock the hook sampled.
 const MTIME_TOLERANCE_MS = 1000;
@@ -106,6 +108,7 @@ export const evaluateLitPlanStop = ({ cwd, sessionId, now = Date.now() }) => {
   }
 
   let detail;
+  let scope = null;
   if (!newest) {
     detail = "no file under plans/ was written this turn";
   } else {
@@ -115,8 +118,14 @@ export const evaluateLitPlanStop = ({ cwd, sessionId, now = Date.now() }) => {
     } catch {
       text = "";
     }
-    if (TASK_ROW.test(text)) return { action: "allow", why: "plan-persisted", planPath: newest.absolutePath };
-    detail = `plans/${newest.name} has no checkbox task rows (\`- [ ] N.\`)`;
+    if (TASK_ROW.test(text)) {
+      // A todo naming a folder outside the project needs its Scope roots line before the work starts.
+      const uncovered = uncoveredScopePaths(text, cwd);
+      if (uncovered.length === 0) return { action: "allow", why: "plan-persisted", planPath: newest.absolutePath };
+      scope = `plans/${newest.name}: ${uncovered.map(describeScopePath).join("; ")}`;
+    } else {
+      detail = `plans/${newest.name} has no checkbox task rows (\`- [ ] N.\`)`;
+    }
   }
 
   if (turn.blockCount >= LIT_PLAN_MAX_BLOCKS) {
@@ -125,10 +134,12 @@ export const evaluateLitPlanStop = ({ cwd, sessionId, now = Date.now() }) => {
     return {
       action: "warn",
       why: "capped",
-      systemMessage: `LitClaude lit-plan: no persisted plans/<slug>.md with task rows after ${LIT_PLAN_MAX_BLOCKS} blocks (${detail}); allowing the stop. Run scaffold-plan.mjs before /start-work.`,
+      systemMessage: scope
+        ? `LitClaude lit-plan: Scope roots lines still missing after ${LIT_PLAN_MAX_BLOCKS} blocks (${scope}); allowing the stop.`
+        : `LitClaude lit-plan: no persisted plans/<slug>.md with task rows after ${LIT_PLAN_MAX_BLOCKS} blocks (${detail}); allowing the stop. Run scaffold-plan.mjs before /start-work.`,
     };
   }
 
   writeTurn(cwd, { ...turn, blockCount: turn.blockCount + 1, lastBlockAt: now });
-  return { action: "block", reason: `${LIT_PLAN_BLOCK_REASON}: ${detail}` };
+  return { action: "block", reason: scope ? `${LIT_PLAN_SCOPE_REASON}: ${scope}` : `${LIT_PLAN_BLOCK_REASON}: ${detail}` };
 };

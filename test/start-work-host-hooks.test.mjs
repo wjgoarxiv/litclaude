@@ -601,6 +601,64 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  // A linked worktree nested in a folder that runs its own start-work, whose main checkout keeps an
+  // old lifecycle with no running work: neither one governs it, so its plan starts in its own root.
+  const nestedLane = () => {
+    const umbrella = fixtureRoot();
+    const main = fixtureRoot();
+    initialize(umbrella);
+    const worktree = join(umbrella, ".worktrees", "lane");
+    mkdirSync(join(main, ".git", "worktrees", "lane"), { recursive: true });
+    mkdirSync(join(worktree, "plans"), { recursive: true });
+    writeFileSync(join(worktree, ".git"), `gitdir: ${join(main, ".git", "worktrees", "lane")}\n`);
+    writeFileSync(join(worktree, "plans", "lane.md"), "# Lane\n\n## TODOs\n\n- [ ] 1. Ship the lane\n");
+    return { umbrella, main, worktree };
+  };
+
+  it("starts a typed plan in a linked worktree whose main checkout keeps an idle lifecycle", () => {
+    const { umbrella, main, worktree } = nestedLane();
+    try {
+      mkdirSync(join(main, ".litclaude"), { recursive: true });
+      writeFileSync(join(main, ".litclaude", "boulder.json"), `${JSON.stringify({ schema_version: 3, active_work_id: null, works: {} })}\n`);
+
+      const result = runHook("user-prompt-submit", worktree, {
+        session_id: "session-lane",
+        prompt_id: "prompt-lane",
+        prompt: "/litclaude:start-work plans/lane.md",
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, /does not exist|did not start/u);
+      const lane = JSON.parse(readFileSync(join(worktree, ".litclaude", "boulder.json"), "utf8"));
+      const work = lane.works[lane.active_work_id];
+      assert.equal(work.plan_name, "lane.md");
+      assert.equal(work.root_session_id, "session-lane");
+      const outer = parse(runCli(umbrella, ["status"])).state;
+      assert.equal(outer.active_work_id, "work-1");
+      assert.deepEqual(Object.keys(outer.works), ["work-1"]);
+    } finally {
+      rmSync(umbrella, { recursive: true, force: true });
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
+  it("never lets a start-work above a worktree's own git root govern that worktree's tools", () => {
+    const { umbrella, main, worktree } = nestedLane();
+    try {
+      const result = preTool(umbrella, "Write", { file_path: join(worktree, "change.txt"), content: "data" }, {
+        cwd: worktree,
+        session_id: "session-lane",
+        prompt_id: "prompt-lane-write",
+        tool_use_id: "tool-lane-write",
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, /belongs to another session|"deny"/u);
+      assert.equal(parse(runCli(umbrella, ["status"])).state.works["work-1"].status, "active");
+    } finally {
+      rmSync(umbrella, { recursive: true, force: true });
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
   it("uses nonce/PID lock ownership and prevents a stale predecessor from removing its successor", async () => {
     const root = fixtureRoot();
     try {

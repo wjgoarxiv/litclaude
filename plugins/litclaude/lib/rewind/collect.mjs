@@ -89,24 +89,30 @@ const mtimeOf = (path) => {
   }
 };
 
-const plansIn = (root, budget, redact, local) => {
+// A plan met after the read budget ran out is counted in `skipped.count`, so the brief can say so.
+const plansIn = (root, budget, redact, local, skipped = { count: 0 }) => {
   const list = entries(join(root, "plans"));
   if (!list) return null;
   return list.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => {
+    if (budget.used >= budget.limit) {
+      skipped.count += 1;
+      return [];
+    }
     const text = readSmallFile(join(root, "plans", entry.name), budget);
     if (text === null) return [];
     const rows = parsePlanTaskRows(text);
     if (!rows.length || isTemplate(rows)) return [];
     const open = rows.filter((row) => !row.checked);
-    if (!open.length) return [];
     const done = rows.length - open.length;
+    // A plan with every row ticked is kept, marked complete: it is finished work, not roadmap.
     return [{
       worktree: redact(root),
       plan: `plans/${entry.name}`,
       local,
+      complete: open.length === 0,
       changedMs: mtimeOf(join(root, "plans", entry.name)),
       rows: rows.map((row) => ({ checked: row.checked, title: clipToWidth(redact(row.text), NAME_MAX) })),
-      current: clipToWidth(redact(open[0].text), NAME_MAX),
+      current: open.length ? clipToWidth(redact(open[0].text), NAME_MAX) : null,
       progress: progressOf(done, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX))),
     }];
   });
@@ -125,12 +131,27 @@ const litgoalOf = (root, budget, redact) => {
   };
 };
 
-const handoffsOf = (root, budget, redact) => (entries(root) ?? [])
+// The first list item or line of text under a `## Next` or `## Next Steps` heading, without its marker.
+const handoffNext = (text) => {
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => /^#{1,6}\s+Next(?:\s+Steps)?\s*$/iu.test(line.trim()));
+  if (start < 0) return null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^#{1,6}\s/u.test(line.trim())) return null;
+    const item = line.trim().replace(/^(?:[-*+]|\d+[.)])\s+/u, "");
+    if (item) return item;
+  }
+  return null;
+};
+
+// Only this worktree's own HANDOFF files give a next step (`next`); another worktree's never does.
+const handoffsOf = (root, budget, redact, local = false) => (entries(root) ?? [])
   .filter((entry) => entry.isFile() && /^HANDOFF.*\.md$/u.test(entry.name))
   .map((entry) => {
     const text = readSmallFile(join(root, entry.name), budget) ?? "";
     const headings = text.split("\n").slice(0, 40).filter((line) => /^#{1,3} /u.test(line)).map((line) => clipToWidth(redact(line), 100));
-    return { worktree: redact(root), file: entry.name, headings };
+    const next = local ? handoffNext(text) : null;
+    return { worktree: redact(root), file: entry.name, headings, local, next: next ? clipToWidth(redact(next), 120) : null };
   });
 
 const commitsOf = (root, sinceMs, now, exec, redact) => {
@@ -192,6 +213,37 @@ const startWorkOf = (root, budget, redact) => {
   }];
 };
 
+// start-work runs this lifecycle completed, from its history: which plan, which session, and when.
+const completedRunsOf = (root, budget, redact) => {
+  const state = readJson(join(root, ".litclaude", "boulder.json"), budget);
+  if (!state || !Array.isArray(state.history)) return null;
+  return state.history.filter((entry) => entry?.status === "completed" && typeof entry.plan === "string").map((entry) => ({
+    worktree: redact(root),
+    plan: `plans/${basename(entry.plan)}`,
+    sessionId: state.works?.[entry.work_id]?.root_session_id ?? null,
+    atMs: Date.parse(entry.terminal_at),
+  })).filter((run) => Number.isFinite(run.atMs));
+};
+
+// Each session's last hook event (session-liveness.mjs): `alive`, `idle` or `ended`, newest first.
+const LIVENESS_FILES = 24;
+const livenessOf = (root, budget) => {
+  const directory = join(root, ".litclaude", "liveness");
+  const list = entries(directory);
+  if (!list) return null;
+  return list.filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => ({ entry, at: mtimeOf(join(directory, entry.name)) ?? 0 }))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, LIVENESS_FILES)
+    .flatMap(({ entry }) => {
+      const record = readJson(join(directory, entry.name), budget);
+      const atMs = Date.parse(record?.at);
+      return typeof record?.sessionId === "string" && ["alive", "idle", "ended"].includes(record.state) && Number.isFinite(atMs)
+        ? [{ sessionId: record.sessionId, state: record.state, atMs }]
+        : [];
+    });
+};
+
 const herdrOf = (env, exec, redact) => {
   if (env.HERDR_ENV !== "1") return { status: "unknown", agents: [] };
   try {
@@ -203,7 +255,10 @@ const herdrOf = (env, exec, redact) => {
 };
 
 const known = (list) => (list === null ? "unknown" : "ok");
-const statusRank = { "waiting-on-user": 0, active: 1, ended: 2, unknown: 3 };
+const statusRank = { "waiting-on-user": 0, active: 1, idle: 2, done: 2, ended: 3, unknown: 4 };
+// The Stop hook writes `idle` just after the turn's last transcript line, so a record this much older
+// than that line still describes it; anything older predates a newer prompt.
+const LIVENESS_SLACK_MS = 5000;
 
 /**
  * Collects the brief. Options: `cwd`, `here` (cwd only), `since` (`7d`), `max` (12), `sessionId`
@@ -230,6 +285,24 @@ export const collectRewind = ({
   const listed = here ? null : worktreesOf(start, exec);
   const roots = [...new Set([start, ...(here ? [] : listed ?? [stateRoot])])];
 
+  // The small records first: plans, litgoal, handoffs and stacks cost little, and the transcripts
+  // after them may use up the read budget.
+  const collectEach = (read) => {
+    const results = roots.map(read);
+    return results.every((value) => value === null) ? null : results.flatMap((value) => value ?? []);
+  };
+  const plansSkipped = { count: 0 };
+  const plans = collectEach((root) => plansIn(root, budget, redact, resolve(root) === stateRoot || resolve(root) === start, plansSkipped));
+  const litgoal = collectEach((root) => {
+    const goal = litgoalOf(root, budget, redact);
+    return goal ? [{ ...goal, local: resolve(root) === stateRoot || resolve(root) === start }] : null;
+  });
+  const handoffs = roots.flatMap((root) => handoffsOf(root, budget, redact, resolve(root) === start));
+  const workflows = collectEach((root) => stacksOf(root, budget, redact));
+  const startWork = collectEach((root) => startWorkOf(root, budget, redact));
+  const runs = collectEach((root) => completedRunsOf(root, budget, redact));
+  const liveness = collectEach((root) => livenessOf(root, budget));
+
   const rootSet = new Set(roots.map((root) => resolve(root).normalize("NFC")));
   const transcripts = findTranscripts(env.CLAUDE_CONFIG_DIR || join(home, ".claude"), roots);
   const sessions = [];
@@ -245,19 +318,7 @@ export const collectRewind = ({
     sessions.push(session);
   }
 
-  const collectEach = (read) => {
-    const results = roots.map(read);
-    return results.every((value) => value === null) ? null : results.flatMap((value) => value ?? []);
-  };
-  const plans = collectEach((root) => plansIn(root, budget, redact, resolve(root) === stateRoot || resolve(root) === start));
-  const litgoal = collectEach((root) => {
-    const goal = litgoalOf(root, budget, redact);
-    return goal ? [{ ...goal, local: resolve(root) === stateRoot || resolve(root) === start }] : null;
-  });
-  const handoffs = roots.flatMap((root) => handoffsOf(root, budget, redact));
   const commits = collectEach((root) => commitsOf(root, sinceMs, now, exec, redact));
-  const workflows = collectEach((root) => stacksOf(root, budget, redact));
-  const startWork = collectEach((root) => startWorkOf(root, budget, redact));
   const herdr = herdrOf(env, exec, redact);
 
   // A session waits on the user when it asked something, or holds a paused frame or boundary.
@@ -280,14 +341,33 @@ export const collectRewind = ({
       .slice(0, 5)
       .map(({ hash, subject }) => ({ hash, subject }));
   }
+  // A transcript only says when a session last moved. Its own hook record and its start-work run say
+  // more: a run it completed (and did not move past) makes it done; an idle or ended record at least
+  // as new as its last transcript line makes it idle or ended. This session is running the brief,
+  // whatever its last Stop wrote, and a session that asked the user something still waits.
+  const newestLiveness = new Map();
+  for (const record of liveness ?? []) {
+    if ((newestLiveness.get(record.sessionId)?.atMs ?? -Infinity) < record.atMs) newestLiveness.set(record.sessionId, record);
+  }
+  const recentRuns = (runs ?? []).filter((run) => now - run.atMs <= sinceMs).sort((a, b) => b.atMs - a.atMs);
+  for (const session of sessions) {
+    if ((sessionId && session.sessionId === sessionId) || session.status === "waiting-on-user") continue;
+    const live = newestLiveness.get(session.sessionId);
+    const run = recentRuns.find((item) => item.sessionId === session.sessionId);
+    if (run && !(live?.state === "alive" && live.atMs > run.atMs)) {
+      session.status = "done";
+      session.finishedPlan = run.plan;
+    } else if (live && live.state !== "alive" && live.atMs >= (session.lastMs ?? 0) - LIVENESS_SLACK_MS) {
+      session.status = live.state === "ended" ? "ended" : "idle";
+    }
+  }
   sessions.sort((a, b) => statusRank[a.status] - statusRank[b.status] || (b.lastMs ?? 0) - (a.lastMs ?? 0));
 
-  // This worktree's open plans and the ones another worktree touched inside the window are listed,
-  // this one's first, then the most recently changed, up to a short cap; a stale plan elsewhere is
-  // left out entirely. The roadmap gauge counts this worktree only, since a sum over unrelated
-  // branches measures nothing.
-  const recent = (plan) => plan.local || (plan.changedMs !== null && now - plan.changedMs <= sinceMs);
-  const orderedPlans = (plans ?? []).filter(recent).sort((a, b) => Number(b.local) - Number(a.local) || (b.changedMs ?? 0) - (a.changedMs ?? 0));
+  // Open plans changed inside the window are listed, this worktree's first, then the most recently
+  // changed, up to a short cap; a stale plan is left out, here or elsewhere. The roadmap gauge
+  // counts this worktree only, since a sum over unrelated branches measures nothing.
+  const recent = (plan) => plan.changedMs !== null && now - plan.changedMs <= sinceMs;
+  const orderedPlans = (plans ?? []).filter((plan) => !plan.complete && recent(plan)).sort((a, b) => Number(b.local) - Number(a.local) || (b.changedMs ?? 0) - (a.changedMs ?? 0));
   const shownPlans = orderedPlans.slice(0, PLAN_LIMIT);
   const localGoals = (litgoal ?? []).filter((goal) => goal.local);
   const roadmapItems = [...orderedPlans.filter((plan) => plan.local).map((plan) => plan.progress), ...localGoals.map((goal) => goal.progress)];
@@ -315,9 +395,15 @@ export const collectRewind = ({
     roadmap: {
       plans: shownPlans,
       plansOmitted: orderedPlans.length - shownPlans.length,
+      plansSkipped: plansSkipped.count,
       // Another worktree's finished objective is history, not roadmap.
       litgoal: (litgoal ?? []).filter((goal) => goal.local || goal.status !== "complete"),
       progress: roadmapItems.length ? aggregateProgress(roadmapItems) : progressOf(null, null),
+    },
+    // Finished inside the window: completed start-work runs and plans with every row ticked.
+    finished: {
+      runs: recentRuns.map(({ worktree, plan, atMs }) => ({ worktree, plan, at: new Date(atMs).toISOString() })),
+      plans: (plans ?? []).filter((plan) => plan.complete && recent(plan)).map(({ worktree, plan, local, progress }) => ({ worktree, plan, local, gauge: progress.gauge })),
     },
     workflows: (workflows ?? []).map((frame) => ({ ...frame, self: Boolean(sessionId) && frame.sessionId === sessionId })),
     startWork: startWork ?? [],
@@ -337,7 +423,10 @@ export const collectRewind = ({
     }
   }
   for (const frame of data.workflows) delete frame.sessionId;
-  for (const work of data.startWork) delete work.sessionId;
+  for (const work of data.startWork) {
+    work.self = Boolean(sessionId) && work.sessionId === sessionId;
+    delete work.sessionId;
+  }
   return data;
 };
 

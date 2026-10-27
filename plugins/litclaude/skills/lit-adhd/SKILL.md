@@ -46,18 +46,19 @@ verdicts: [PASS, FAIL, BLOCKED]
 
 ## #contract.outputs
 
-The collector draws the brief in Markdown (`lib/rewind/brief.mjs`), so its shape is the same every time and a tired reader finds each part where it was last time. It has five parts, in this order:
+The collector draws the brief in Markdown (`lib/rewind/brief.mjs`), so its shape is the same every time and a tired reader finds each part where it was last time. It opens with three lines, then has five parts, in this order:
 
+0. **Three opening lines**, from records only: `Done so far:` this worktree's newest commits in the window (two at most), then its completed start-work runs (`<plan> (start-work complete)`) and its plans with every row ticked (`<plan> [▉▉] 2/2`), three items at most, else its finished litgoal objective, else "nothing finished in this window"; `Doing now:` this session's top workflow frame (skill, stage, gauge), else its running start-work plan, else the newest active session's title, else "nothing running"; `Next:` the recommended step with the word to type in brackets (`(type go)`). In Korean: `지금까지:`, `지금:`, `다음: … (go 입력)`.
 1. **Headline.** One `## 🧭` line: sessions found, how many wait on the user, how many are active, and the next step in plain words: `세션 7개 · 나를 기다리는 것 1 · 진행 중 4 · 다음: 멈춘 lit-loop(verify) 이어가기` / `7 sessions · 1 waits on you · 4 active · next: Resume the paused lit-loop at verify`. A dim line under it gives the window and how many worktrees were read.
 2. **Live session cards, grouped by worktree and branch.** Sessions that wait on the user or are active come first: a `### 🌿 branch · worktree` heading per group, then one quoted card per session:
-   - a coloured status badge (🟠 waiting on you, 🟢 active, ⚪ ended, ⚫ unknown; see `references/status-taxonomy.md`) with the reason it waits, its `id8`, how long ago it last moved, and `this session` / `이 세션` for the current one;
+   - a coloured status badge (🟠 waiting on you, 🟢 active, 💤 idle, ✅ done, ⚪ ended, ⚫ unknown; see `references/status-taxonomy.md`) with the reason it waits, its `id8`, how long ago it last moved, and `this session` / `이 세션` for the current one;
    - the goal in bold, from the session's title, else its first ask;
    - its progress: a gauge with the next remaining items when both numbers are recorded, otherwise the known facts after ⏳ (how long it ran and its last ask);
    - ✅ what was done: edited files and commits, or, before any edit, the tools it used most;
-   - ▶ what is next for that session: answer the question it asked, resume its paused frame, approve its boundary, its plan's current item, or what it is doing now (its last tool call: `Bash “Run the gates”`).
+   - ▶ what is next for that session: answer the question it asked, resume its paused frame, approve its boundary, its plan's current item, or what it is doing now (its last tool call: `Bash “Run the gates”`, for an active session only). A done session names the plan its run finished; an idle or done session's last tool call is never offered as its next step.
 3. **Ended sessions, one table row each.** A `### ⚪ Ended · N` table (id, where, goal, ended, done), at most 8 rows and a count of the rest.
 4. **Roadmap timeline.** A `### 🗺️` heading with this worktree's roadmap gauge, then ✓ finished commits with their dates and branch, ▶ the current item of each open plan of this worktree and of plans another worktree changed inside the window (with its worktree name) with its gauge, ○ the items after it, then litgoal objectives. Stale plans elsewhere, unfilled plan scaffolds and another worktree's finished objectives are left out.
-5. **One recommended next step** in a box, from `next`, with the word to type (`go`, `lit continue` or `lit approve`), then one line: "Type `go` to continue." When nothing can run on `go`, the box still recommends a real step from the records (a session waiting on the user, a paused workflow, an open plan item, the latest active session, the latest ended one) and says that nothing runs on its own.
+5. **One recommended next step** in a box, from `next`, with the word to type (`go`, `lit continue` or `lit approve`), then one line: "Type `go` to continue." When nothing can run on `go`, the box still recommends a real step from the records: first the first item under `## Next` or `## Next Steps` in this worktree's own `HANDOFF*.md`, then a session waiting on the user, a paused workflow, an open plan item, the latest active session, then the newest listed session that is not running (review what a done one finished, or pick up an idle or ended one). Only a window with no session and no plan says there is nothing to start. It says that nothing runs on its own, and a HANDOFF step never carries a word to type.
 
 **Progress gauges (D9), required.** A gauge appears only when both numbers are real, in the form `[▉▉▉░░] 3/5` (filled `▉` done, light `░` remaining, then done/total). An unknown total has no gauge: the card states what is known in words instead. Never a question-mark gauge, never a guess, never an estimate, never a gauge of your own.
 
@@ -102,24 +103,27 @@ The collector (`plugins/litclaude/lib/rewind/collect.mjs`, served as `litclaude-
 | Source | What it gives | Missing reads |
 | --- | --- | --- |
 | Claude Code transcripts, `<config>/projects/<slug>/*.jsonl` | per session: title (custom, then AI, then first prompt), first and last ask, tools used, files changed, last assistant text, status | `transcripts: unknown` |
-| `plans/*.md` checkbox rows | open plans, current item, done/total, remaining names | `plans: unknown` |
+| `plans/*.md` checkbox rows | open plans changed inside the window (this worktree's too), current item, done/total, remaining names | `plans: unknown` |
 | `.litclaude/litgoal/goals.json` | objective and passed/total criteria | `litgoal: unknown` |
-| `HANDOFF*.md` | headings from the first 40 lines only | `handoffs: unknown` |
+| `HANDOFF*.md` | headings from the first 40 lines; for this worktree's own file only, the first item under `## Next` / `## Next Steps` | `handoffs: unknown` |
 | `git log --since` | commits in the window, matched to sessions by time and branch | `git: unknown` |
 | `.litclaude/workflow-stack/*.json` | running and paused disciplines with stage and k/n | `workflowStack: unknown` |
-| `.litclaude/boulder.json` | active start-work, its plan progress and any boundary waiting for approval | `startWork: unknown` |
+| `.litclaude/boulder.json` | active start-work, its plan progress and any boundary waiting for approval; completed runs from its history | `startWork: unknown` |
+| `.litclaude/liveness/*.json` | each session's last hook event (`alive`, `idle`, `ended`), written by PostToolUse, Stop and SessionEnd | the transcript time alone decides |
 | `herdr agent list` (only when `HERDR_ENV=1`) | agent panes | `herdr: unknown` |
 
-Transcripts are read head (64 KiB) and tail (256 KiB) only, under one 8 MiB budget for the whole run, through descriptors opened without following links; subagent transcripts and sidechain lines are skipped. The slug is the session's absolute cwd with every character outside `[A-Za-z0-9]` turned into `-`; a folder whose slug is missing is found by the `cwd` its newest transcript records. Every string is redacted before it leaves the collector: credential shapes, `NAME=value` with a secret-like name, URI userinfo, any current environment value of eight or more characters, and the home directory (shown as `~`).
+Plans, litgoal, handoffs, workflow stacks and start-work are read first, then transcripts, so a busy transcript folder never crowds out the plans; a plan met after the budget ran out is counted and the brief says how many were not read. Transcripts are read head (64 KiB) and tail (256 KiB) only, under one 8 MiB budget for the whole run, through descriptors opened without following links; subagent transcripts and sidechain lines are skipped. The slug is the session's absolute cwd with every character outside `[A-Za-z0-9]` turned into `-`; a folder whose slug is missing is found by the `cwd` its newest transcript records. Every string is redacted before it leaves the collector: credential shapes, `NAME=value` with a secret-like name, URI userinfo, any current environment value of eight or more characters, and the home directory (shown as `~`).
 
 ## Status taxonomy
 
 - `waiting-on-user`: the session's last word was the assistant asking something, or it holds a paused workflow frame or a start-work boundary awaiting `lit approve`.
 - `active`: written to within the last 15 minutes and not waiting.
-- `ended`: quiet for longer than that.
+- `done`: its start-work run completed in the window and it has not moved since.
+- `idle`: its last hook event was a Stop at least as new as its last transcript line (another session's only; this session is always active while it runs the brief).
+- `ended`: quiet for longer than 15 minutes, or its last hook event was SessionEnd.
 - `unknown`: the transcript held no timestamp.
 
-Sessions waiting on the user come first, then active ones, newest first.
+Sessions waiting on the user come first, then active ones, then idle and done ones, newest first.
 
 ## The next step
 
@@ -163,6 +167,9 @@ The colours move by hue at a steady lightness, so the card never flashes: at mos
 | The brief says no session records were found | No `projects/` folder under the Claude config dir | Print it as drawn; plans and goals still show |
 | The brief says older sessions were not read | The 8 MiB budget ran out | Print it as drawn |
 | A card shows ⏳ facts and no gauge | No stack, plan or start-work records a total for that session | Print it as drawn; do not estimate |
-| The box recommends a step with no word to type | `next.kind: none`; the step is drawn from the records | Print it as drawn; do not run it or invent another |
+| The box recommends a step with no word to type | `next.kind: none`; the step is drawn from the records (this worktree's HANDOFF.md Next item first) | Print it as drawn; do not run it or invent another |
+| The brief says N plans were not read | The read budget ran out before those plan files | Print it as drawn |
+| A plan you expected is missing | It was last changed before the window (`--since`, 7 days by default) | Print it as drawn; a wider `--since` lists it |
+| `Doing now: nothing running` | No frame, start-work or active session is on record | Print it as drawn |
 
 See `references/card-examples.md` for complete briefs in English and Korean and `references/status-taxonomy.md` for the status wording in both languages.

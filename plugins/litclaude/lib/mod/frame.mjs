@@ -256,13 +256,18 @@ const indicatorSpans = (model, sample, glyphs, accent, rainbow = null, look = nu
 
 // ╭─ [🔥 LIT] · <discipline> ──── <PHASE ●> ─╮. On a narrow card the phase indicator goes first,
 // then the discipline shortens, then it goes too.
+// A newer LitClaude installed than the one loaded adds `restart to <version>` before the
+// indicator, dropped first when the edge has no room for it.
 const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rainbow }) => {
   const brand = brandSpans(sample, glyphs, rainbow, look);
-  const right = indicatorSpans(model, sample, glyphs, accent, rainbow, look);
+  const indicator = indicatorSpans(model, sample, glyphs, accent, rainbow, look);
   const name = model.title ?? "ready";
   const nameStyle = model.idle && !rainbow ? { fg: PALETTE.dim } : { fg: accent, bold: true };
   const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle)] : []);
   const fixed = textWidth("╭─ ") + rowWidth(brand) + 1 + 1;
+  const fits = (spans) => fixed + rowWidth(title(name)) + 1 + rowWidth(spans) + textWidth(" ─╮") <= width;
+  const chip = model.restart ? [span(`restart to ${model.restart}`, { fg: PALETTE.amber }), span(" · ", { fg: PALETTE.dim }), ...indicator] : null;
+  const right = chip && fits(chip) ? chip : indicator;
   const withRight = fixed + rowWidth(title(name)) + 1 + rowWidth(right) + textWidth(" ─╮");
   const comet = cometOn(sample, "top", width, look);
   if (withRight <= width) return edgeRow("╭─ ", [...brand, ...title(name)], right, "─╮", width, edge, comet, paint[0]);
@@ -602,7 +607,7 @@ const progressSpans = (thread, sample, rainbow, index, color) => {
 };
 
 const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
-  const { chain, lanes, others, more, reserve } = model.threads;
+  const { chain, lanes, herdrLanes = [], others, more, reserve } = model.threads;
   const lines = [];
   chain.forEach((thread, index) => lines.push({ thread, lead: index === 0 ? "" : `${"   ".repeat(index - 1)}└─ `, last: true }));
   // Lanes and background tasks are children of the top frame, so they hang at its indent.
@@ -616,6 +621,8 @@ const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
   } else {
     lanes.forEach((thread) => lines.push({ thread, lead: chain.length ? `${under}└─ ` : "", last: true }));
   }
+  // herdr lanes of this project run beside this session, so they sit at the root, before other sessions.
+  herdrLanes.forEach((thread) => lines.push({ thread, lead: "", last: true }));
   others.forEach((thread) => lines.push({ thread, lead: "", last: true }));
   const rows = lines.map((line) => line.thread ?? null).filter(Boolean);
   // A wide card spends its room on names, so lanes that share a prefix stay apart.
