@@ -68,8 +68,8 @@ describe("shared LitFamily installer frame", () => {
       assert.match(result.stdout, /╰─ /u);
       assert.doesNotMatch(result.stdout, /\x1b\[/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -86,8 +86,8 @@ describe("shared LitFamily installer frame", () => {
         assert.equal(result.status, 0, result.stderr);
         assert.match(result.stdout, /Model selection: host-owned/u, JSON.stringify(extraEnv));
       } finally {
-        rmSync(home, { recursive: true, force: true });
-        rmSync(claudeHome, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
       }
     }
   });
@@ -112,8 +112,8 @@ describe("--yes non-interactive install", () => {
       assert.equal(settings.outputStyle, undefined, "--yes must not write an output style");
       assert.equal(settings.litclaude.permissionMode, "safe", "default permission mode must stay safe");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -132,8 +132,8 @@ describe("--yes non-interactive install", () => {
       assert.equal(settings.litclaude.permissionMode, "balanced");
       assert.equal(settings.outputStyle, "LitClaude — ELI5");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });
@@ -164,8 +164,8 @@ describe("uninstall clears the managed output style", () => {
       assert.equal(settings.outputStyle, undefined, "uninstall must clear the LitClaude-written outputStyle");
       assert.equal(settings.litclaude, undefined, "no LitClaude tracking keys may survive uninstall");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -195,8 +195,8 @@ describe("uninstall clears the managed output style", () => {
       assert.equal(settings.outputStyle, "My Custom Style", "external outputStyle must survive uninstall");
       assert.equal(settings.litclaude, undefined);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });
