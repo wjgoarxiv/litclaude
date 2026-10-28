@@ -59,7 +59,7 @@ const exitedProcessId = () => new Promise((resolvePid, reject) => {
   child.once("close", () => resolvePid(pid));
 });
 
-const lockContender = (lockDir, criticalPath) => new Promise((resolveRun) => {
+const lockContender = (lockDir, criticalPath, { timeoutMs = 2_000, holdMs = 75 } = {}) => new Promise((resolveRun) => {
   const source = `
     import { closeSync, openSync, rmSync } from "node:fs";
     import { acquireOwnerLock, releaseOwnerLock } from ${JSON.stringify(ownerLockUrl)};
@@ -67,11 +67,11 @@ const lockContender = (lockDir, criticalPath) => new Promise((resolveRun) => {
     let owner;
     let criticalFd;
     try {
-      owner = acquireOwnerLock(lockDir, { timeoutMs: 2_000, staleMs: 0 });
+      owner = acquireOwnerLock(lockDir, { timeoutMs: ${timeoutMs}, staleMs: 0 });
       criticalFd = openSync(criticalPath, "wx");
       closeSync(criticalFd);
       criticalFd = undefined;
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 75));
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, ${holdMs}));
       rmSync(criticalPath, { force: true });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -207,6 +207,23 @@ describe("reusable owner lock crash recovery", () => {
     for (const contender of contenders) assert.equal(contender.code, 0, contender.stderr);
     assert.equal(existsSync(lockDir), false);
     assert.equal(existsSync(criticalPath), false);
+  });
+
+  it("lets every contender that loses a stale takeover retry instead of failing", async () => {
+    const deadPid = await exitedProcessId();
+    for (let round = 0; round < 15; round += 1) {
+      const root = makeTemp("lit-owner-lock-crowd-");
+      const lockDir = join(root, "state.lock");
+      mkdirSync(lockDir, { recursive: true });
+      writeFileSync(join(lockDir, "owner.json"), `${JSON.stringify({
+        nonce: "dead-owner",
+        pid: deadPid,
+        acquired_at_ms: 0,
+      })}\n`);
+      const contenders = await Promise.all(Array.from({ length: 12 }, () => lockContender(lockDir, join(root, "critical"), { timeoutMs: 20_000, holdMs: 0 })));
+      for (const contender of contenders) assert.equal(contender.code, 0, contender.stderr);
+      assert.equal(existsSync(lockDir), false);
+    }
   });
 
   it("leaves an earlier live takeover claimant in place", async () => {

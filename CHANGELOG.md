@@ -21,6 +21,8 @@
   no longer refused as a version bump. `npm version patch` and every other real bump still are.
 - A plan task marked `BLOCKED: <reason>` no longer keeps start-work re-prompting. The run skips it,
   and when every open task is blocked it tells you once and lets the session stop.
+- When several processes take over an abandoned state lock at once, the ones that lose the race
+  now wait and try again instead of failing with `stale lock takeover failed`.
 
 ## 1.0.42 - 2026-10-27
 

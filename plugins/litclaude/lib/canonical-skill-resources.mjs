@@ -19,7 +19,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["lib/office_data.py", "0f4c2449622b6d59630e60508594d181279052c41918df4370e11a68df1ee239"],
     ["lib/office_runtime_bootstrap.py", "6b32ab8d9ae46963770310c559825c83aa6ff80752df7de497c6cf0148d9f48e"],
     ["lib/ooxml_integrity.py", "85e5cba28aa3b9f4f4c28f59c6118439a985fe4f29e25274ae63e9ef1edf15e3"],
-    ["lib/owner-lock.mjs", "2368724b7e48ce14c83121b529e4d491319201348c012b6141f137dd3451b65c"],
+    ["lib/owner-lock.mjs", "d70c57b603987f0865add60dad442489acb42541a8dedeb3fe254429f4bfa7b6"],
     ["lib/plan-task-rows.mjs", "ca45412631cdfa805102a42dbb3cfc9a43f6f1ecbcdabe1cc5059d2dcb5e58df"],
     ["lib/rename-aliases.mjs", "3ee93aec10d0dbe785c554ab3040173ee94fde27da1b440a54b0513e5d11a508"],
     ["lib/render_pages.py", "69e20951dff5af47cff074b699ad992f489f5ac14559a5c114e17aa4dbaa5db7"],

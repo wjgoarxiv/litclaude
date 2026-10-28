@@ -50,6 +50,15 @@ const assertLockDirectory = (lockDir, expected) => {
   return identity;
 };
 
+// A contender that loses a stale takeover finds the lock removed or replaced by the winner's
+// fresh directory. That is a lost race to retry, not a failure; a symlink still fails closed.
+const lockWasReplaced = (lockDir, expected) => {
+  const details = lstatSync(lockDir, { throwIfNoEntry: false });
+  if (!details) return true;
+  if (details.isSymbolicLink() || !details.isDirectory()) return false;
+  return !sameDirectory(directoryIdentity(details), expected);
+};
+
 // Destructive cleanup is commit-by-rename: once the checked path is moved to a private
 // quarantine, a pathname replacement cannot make us remove the replacement. Re-checking the
 // moved entry catches Linux inode reuse (ctime/birthtime differ even when dev+ino are forged).
@@ -304,7 +313,8 @@ export const acquireOwnerLock = (lockDir, { timeoutMs = 500, staleMs = 30_000 } 
             }
           }
         } catch (takeoverError) {
-          if (!["ENOENT", "EEXIST", "ENOTEMPTY"].includes(takeoverError?.code)) {
+          if (!["ENOENT", "EEXIST", "ENOTEMPTY"].includes(takeoverError?.code)
+            && !lockWasReplaced(lockDir, lockDirectory)) {
             throw new OwnerLockError("stale lock takeover failed", 65);
           }
         }
