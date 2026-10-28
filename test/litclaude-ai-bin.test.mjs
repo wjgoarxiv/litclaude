@@ -100,9 +100,9 @@ describe("litclaude-ai CLI", () => {
       assert.ok(result.stdout.startsWith(`${banner[0].trimEnd()}\n`), "Ignition B banner missing");
       assert.equal(lastOutputLine(result.stdout), packageJson.version);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
-      rmSync(prefix, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(prefix, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -134,8 +134,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stderr, /removes\s+only LitClaude-inserted entries/iu);
       assert.doesNotMatch(result.stderr, /Record a Claude-native LitClaude automation preference/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -160,7 +160,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(existsSync(join(root, ".litclaude", "litgoal")), false, "help must not create checkout state");
       assert.deepEqual(readdirSync(home), [], "help must not create home state");
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -188,7 +188,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(existsSync(join(root, ".litclaude", "litgoal")), false, "workflow-check must not create checkout state");
       assert.deepEqual(readdirSync(home), [], "workflow-check must not create home state");
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -214,7 +214,7 @@ describe("litclaude-ai CLI", () => {
 				["hostWorkflowsEnabled", "backgroundTasksEnabled", "toolConcurrencyAboveOne"],
 			);
 		} finally {
-			rmSync(home, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 		}
 	});
 
@@ -242,7 +242,7 @@ describe("litclaude-ai CLI", () => {
 			assert.equal(report.checks.backgroundTasksEnabled, false);
 			assert.deepEqual(report.capabilities.hostSettings.gates, ["disableWorkflows", "enableWorkflows", "disableAgentView"]);
 		} finally {
-			rmSync(home, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 		}
 	});
 
@@ -265,7 +265,7 @@ describe("litclaude-ai CLI", () => {
 			assert.equal(report.checks.hostSettingsReadable, false);
 			assert.equal(report.capabilities.hostSettings.reason, "malformed-json");
 		} finally {
-			rmSync(home, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 		}
 	});
 
@@ -292,7 +292,7 @@ describe("litclaude-ai CLI", () => {
 			assert.match(report.capabilities.hostSettings.sources[0], /managed-settings\.d\/20-workflows\.json$/u);
 			assert.equal(report.capabilities.hostSettings.remoteOrganizationPolicy, "not-locally-observable");
 		} finally {
-			rmSync(home, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 		}
 	});
 
@@ -312,7 +312,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(report.fetchVerdict.status, "blocked");
       assert.equal(report.claimGraph.sources[0].verdict, "blocked");
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -332,7 +332,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(report.status, "blocked");
       assert.equal(report.stopReason, "private-address");
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -350,7 +350,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(report.stopReason, "invalid-url");
       assert.doesNotMatch(result.stdout, /TypeError|at .*litclaude-ai/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -368,7 +368,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(report.stopReason, "credentials-in-url");
       assert.doesNotMatch(result.stdout, /secret/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -385,7 +385,7 @@ describe("litclaude-ai CLI", () => {
       const report = JSON.parse(result.stdout);
       assert.equal(report.stopReason, "private-address");
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -421,9 +421,9 @@ describe("litclaude-ai CLI", () => {
         assert.deepEqual(snapshot(), before, `${args.join(" ")} changed the install`);
       }
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
-      rmSync(userHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(userHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   };
 
@@ -471,7 +471,7 @@ describe("litclaude-ai CLI", () => {
         assert.deepEqual(readdirSync(cache), [], `${flag} must not touch the motion cache`);
       }
     } finally {
-      rmSync(cache, { recursive: true, force: true });
+      rmSync(cache, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -495,8 +495,8 @@ describe("litclaude-ai CLI", () => {
         assert.deepEqual(readdirSync(home), [], `${args.join(" ")} must not create install files`);
         assert.deepEqual(readdirSync(claudeHome), [], `${args.join(" ")} must not create Claude plugin files`);
       } finally {
-        rmSync(home, { recursive: true, force: true });
-        rmSync(claudeHome, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
       }
     }
   });
@@ -517,7 +517,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(report.error.exitCode, 64);
       assert.doesNotMatch(result.stdout, /at .*litclaude-ai|\{bad/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -539,8 +539,8 @@ describe("litclaude-ai CLI", () => {
       assert.deepEqual(readdirSync(home), [], "dry-run must not create install files");
       assert.deepEqual(readdirSync(claudeHome), [], "dry-run must not create Claude plugin files");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -558,8 +558,8 @@ describe("litclaude-ai CLI", () => {
       assert.deepEqual(readdirSync(home), [], "dry-run must not create install files");
       assert.deepEqual(readdirSync(claudeHome), [], "dry-run must not create Claude plugin files");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -578,8 +578,8 @@ describe("litclaude-ai CLI", () => {
       assert.deepEqual(readdirSync(home), [], "dry-run must not create install files");
       assert.deepEqual(readdirSync(claudeHome), [], "dry-run must not create Claude plugin files");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -595,8 +595,8 @@ describe("litclaude-ai CLI", () => {
       assert.doesNotMatch(result.stderr, /at .*litclaude-ai/u);
       assert.deepEqual(readdirSync(home), [], "invalid permission mode must not create install files");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -656,8 +656,8 @@ describe("litclaude-ai CLI", () => {
       assert.doesNotMatch(JSON.stringify(marketplace), new RegExp(`${"Lazy"}${"Codex"}`, "iu"));
       assert.doesNotMatch(JSON.stringify(marketplace), new RegExp(["code-yeong","yu"].join(""), "iu"));
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -685,8 +685,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(planner, /permissionMode:\s*plan/u);
       assert.match(executor, /permissionMode:\s*acceptEdits/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -737,8 +737,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.hudAccent, "gold");
       assert.match(settings.statusLine.command, /LITCLAUDE_HUD_ACCENT=gold/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -759,8 +759,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /Plugin payload/u);
       assert.match(result.stdout, /INSTALL_PASS/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -791,8 +791,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /Plugin\s+litclaude@litclaude-ai/u);
       assert.match(result.stdout, /Launch\s+claude/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -814,8 +814,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /╭─ INSTALL RECEIPT/u);
       assert.doesNotMatch(result.stdout, /\x1b\[/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -839,8 +839,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(readFileSync(blockedClaudeHome, "utf8"), "blocked\n");
       assert.deepEqual(readdirSync(home), []);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -878,8 +878,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(settings.statusLine.command, /LITCLAUDE_HUD_ACCENT=rose node ".+bin\/litclaude-hud\.js"/u);
       assert.equal(settings.statusLine.command, settings.litclaude.statusLineCommand);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -923,8 +923,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /\x1b\[0m \| O4\.8 │ ctx/u);
       assert.doesNotMatch(result.stdout, /\x1b\[38;2;[^\n]*O4\.8/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -957,8 +957,8 @@ describe("litclaude-ai CLI", () => {
       assert.doesNotMatch(result.stdout, /\x1b/u);
       assert.match(result.stdout, /HUD_COLOR_SELECTED: gray/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -980,8 +980,8 @@ describe("litclaude-ai CLI", () => {
       assert.doesNotMatch(result.stdout, /\x1b\[/u);
       assert.match(result.stdout, /INSTALL_PASS/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -999,8 +999,8 @@ describe("litclaude-ai CLI", () => {
       );
       assert.deepEqual(readdirSync(home), [], "dry-run uninstall must not create or remove product state");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1051,8 +1051,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.enabledPlugins["litclaude@litclaude-ai"], undefined);
       assert.equal(settings.extraKnownMarketplaces["litclaude-ai"], undefined);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1082,9 +1082,9 @@ describe("litclaude-ai CLI", () => {
       const settings = JSON.parse(readFileSync(join(claudeConfigDir, "settings.json"), "utf8"));
       assert.equal(settings.enabledPlugins["litclaude@litclaude-ai"], true);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
-      rmSync(claudeConfigDir, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeConfigDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1101,7 +1101,7 @@ describe("litclaude-ai CLI", () => {
       assert.notEqual(doctorResult.status, 0);
       assert.match(doctorResult.stderr, /litclaude install/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1121,8 +1121,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(doctorResult.stderr, /DOCTOR_FAIL: LitClaude install is missing skills\/debugging\/SKILL\.md/u);
       assert.doesNotMatch(doctorResult.stdout, /DOCTOR_PASS/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1146,8 +1146,8 @@ describe("litclaude-ai CLI", () => {
         assert.doesNotMatch(doctorResult.stdout, /DOCTOR_PASS/u);
       }
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1182,8 +1182,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(statSync(notifierDir, { bigint: true }).mtimeNs, notifierMtime);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /LitClaude update available/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1202,8 +1202,8 @@ describe("litclaude-ai CLI", () => {
       assert.doesNotMatch(result.stdout, /\bbunx\b/u);
       assert.deepEqual(readdirSync(home), [], "dry-run must not create install files");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1224,8 +1224,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /--help/u);
       assert.doesNotMatch(result.stdout, /\bbunx\b/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1283,8 +1283,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /Style 0-4 \[None \/ keep current\]:/u);
       assert.match(result.stdout, /OUTPUT_STYLE_SELECTED: off/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1315,8 +1315,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.outputStyleWrittenName, "LitClaude — ASD-STE100");
       assert.equal(settings.outputStyle, "LitClaude — ASD-STE100");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1358,8 +1358,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(second.stdout, /Style 0-4 \[ELI5 \(English\)\]:/u);
       assert.match(second.stdout, /OUTPUT_STYLE_SELECTED: eli5/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1381,8 +1381,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.outputStyleChoice, "eli5-ko");
       assert.equal(settings.litclaude.outputStyleWrittenName, "LitClaude — ELI5 (한국어)");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1412,8 +1412,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.outputStyleChoice, "eli5");
       assert.equal(settings.litclaude.outputStyleWrittenName, "LitClaude — ELI5");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1449,8 +1449,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.outputStyleChoice, "eli5", "tracking must reflect new pick");
       assert.equal(settings.litclaude.outputStyleWrittenName, "LitClaude — ELI5", "written name must reflect new pick");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1472,8 +1472,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.outputStyleChoice, undefined, "off must not write outputStyleChoice");
       assert.equal(settings.litclaude.outputStyleWrittenName, undefined, "off must not write outputStyleWrittenName");
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -1495,8 +1495,8 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.outputStyle, "LitClaude — ASD-STE100 (한국어)");
       assert.doesNotMatch(result.stdout, /Choose LitClaude output style/u);
     } finally {
-      rmSync(home, { recursive: true, force: true });
-      rmSync(claudeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });
