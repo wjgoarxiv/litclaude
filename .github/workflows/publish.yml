@@ -19,7 +19,7 @@ jobs:
   publish:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
-    timeout-minutes: 120
+    timeout-minutes: 330
     permissions:
       contents: read
       id-token: write
@@ -40,9 +40,6 @@ jobs:
 
       - name: ffmpeg for the motion and audio tests
         run: brew install ffmpeg
-
-      - name: Unit and integration tests
-        run: npm test
 
       - name: Validate plugin
         run: npm run validate:plugin
@@ -68,6 +65,12 @@ jobs:
       - name: Pack payload guard
         run: npm run pack:payload-guard
 
-      - name: Stage on npm
+      # The suite takes about two and a half hours here, so it runs once: as its own step on a dry run,
+      # or through prepublishOnly (scripts/prepublish-test-gate.mjs) inside npm stage publish.
+      - name: Unit and integration tests
+        if: ${{ !inputs.stage }}
+        run: npm test
+
+      - name: Stage on npm (runs the suite through prepublishOnly first)
         if: inputs.stage
         run: npm stage publish
