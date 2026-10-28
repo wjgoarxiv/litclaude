@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.0.43 - 2026-10-28
 
+- Releases are now built and published from GitHub Actions with npm provenance. The npm page shows a green check that links each version to this repository and the commit it was built from. The CI check still refuses publish tokens, pushes and tags in every workflow; only the hand-run `publish.yml` may request the OIDC token, and it can only stage a version that the maintainer then approves on npmjs.com.
 - `lit invite @<github-id>`, typed as the whole prompt, records who invited you and answers without
   a Claude turn; `lit invite` alone prints the line to share. The id is saved only in
   `~/.litclaude/invite.json` on this machine, the first inviter stays, and nothing is sent anywhere.
