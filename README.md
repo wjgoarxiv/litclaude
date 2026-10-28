@@ -288,6 +288,28 @@ npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs ba
 
 [Everything the card can show](./docs/hooks.md#the-lit-band-claude-code-mod).
 
+## Invite a friend
+
+LitFamily spreads by word of mouth, and an invite lets you say who showed you LitClaude. Type
+that person's GitHub id once, as the whole prompt:
+
+```text
+lit invite @octocat
+```
+
+LitClaude answers right away, without starting a Claude turn, and saves the name in
+`~/.litclaude/invite.json` on your machine. From then on the resting card wears the club look: a
+ring that runs from gold through rose to violet round the whole border, a slow gold glint along
+the top, `CLUB ✦` on a gold pill and a small `invited by @octocat` chip. Nothing is sent
+anywhere. If you want your friend to get the credit, post "invited by @octocat" in the
+[LitFamily Discussions](https://github.com/wjgoarxiv/litfamily/discussions); the wall of fame on
+the LitFamily page is gathered from there by hand.
+
+The first invite stays: another id later is not recorded, and LitClaude tells you so. Type
+`lit invite` alone to get the line to send your own friends. From a terminal,
+`npx @litfamily/litclaude@latest invite @octocat` does the same, and `config club off` brings
+back the plain card.
+
 ## Automatic handoff
 
 A long session fills Claude's context window, and when Claude Code compacts it, details of your
@@ -534,4 +556,5 @@ Claude Code users find it.
 To contribute, start with the [contributing guide](./CONTRIBUTING.md); questions go to
 [support](./SUPPORT.md), security reports follow [security](./SECURITY.md), and the
 [code of conduct](./CODE_OF_CONDUCT.md) applies to everyone. LitClaude is released under the
-[MIT license](./LICENSE).
+[MIT license](./LICENSE). The LitClaude and LitFamily names and logos are covered separately by the
+[trademark policy](./TRADEMARK.md): a fork is welcome under a name of its own.

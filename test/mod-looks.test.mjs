@@ -60,7 +60,7 @@ const withHook = (body) => {
 };
 
 test("the registry names every look and maps each skill to one", () => {
-  assert.deepEqual(Object.keys(LOOKS).sort(), ["done", "review", "rewind", "turn"]);
+  assert.deepEqual(Object.keys(LOOKS).sort(), ["club", "done", "review", "rewind", "turn"]);
   assert.equal(LOOK_BY_SKILL["lit-adhd"], "rewind");
   assert.equal(LOOK_BY_SKILL["lit-rewind"], "rewind");
   assert.equal(LOOK_BY_SKILL["review-work"], "review");

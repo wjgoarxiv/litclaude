@@ -180,6 +180,7 @@ compare it with the files as they are now, and then carry on.
 | `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | Read-only brief across your recent sessions of this repo: what each was asked, did and waits on, roadmap and progress gauges, one next step; say `go` to take it (`lit-rewind` is a permanent alias) |
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
 | `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
+| `lit invite @<github-id>`, `lit invite` | Say who invited you, as the whole prompt: LitClaude answers without a Claude turn, saves the id in `~/.litclaude/invite.json` on this machine only and gives the resting card the club look (`config club off` turns it off). Alone, it prints the line to share with friends. Also `litclaude-ai invite` |
 | `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
 | `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
 | `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic` |
@@ -657,6 +658,11 @@ still works:
 
 When `stop_hook_active` is `true`, the hook stays silent, so an old prompt never gets
 replayed.
+
+A task marked `BLOCKED: <reason>` (on its line or an indented line under it) waits for you: the
+run skips it, and when every open task is blocked it tells you once and stops. Remove the marker
+or reply to carry on. During a run the session may also read its own spilled tool output under
+`~/.claude/projects/<project>/<session>/tool-results/`; other sessions' folders stay out of reach.
 
 From chat, the hook starts the figure skill only on the exact bare `lit-scientific-visualization`
 prompt. It leaves the name alone when it is quoted, mixed into a sentence, slash-prefixed

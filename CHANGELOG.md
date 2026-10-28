@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- `lit invite @<github-id>`, typed as the whole prompt, records who invited you and answers without
+  a Claude turn; `lit invite` alone prints the line to share. The id is saved only in
+  `~/.litclaude/invite.json` on this machine, the first inviter stays, and nothing is sent anywhere.
+  The answer points to the LitFamily Discussions thread, where invites are counted by hand.
+  `litclaude-ai invite` does the same from a terminal.
+- An invited card wears the club look while it rests: a gold → rose → violet ring round all four
+  borders, sparkles at the title's corners, `CLUB ✦` on a gold-gradient pill and a quiet
+  `invited by @<id>` chip. Under full motion a slow gold glint crosses the top edge every few
+  seconds; otherwise the ring stands still. The new `club` card option
+  (`litclaude-ai config club off`) keeps the plain card.
+- Both READMEs link the new trademark policy for the LitClaude and LitFamily names.
+- During start-work, a session can read its own spilled tool output under
+  `~/.claude/projects/<project>/<session>/tool-results/`. Writing there, and reading another
+  session's folder, are still refused.
+- Read-only version commands such as `npm run check:version` and `npm view <package> version` are
+  no longer refused as a version bump. `npm version patch` and every other real bump still are.
+- A plan task marked `BLOCKED: <reason>` no longer keeps start-work re-prompting. The run skips it,
+  and when every open task is blocked it tells you once and lets the session stop.
+
 ## 1.0.42 - 2026-10-27
 
 - While one session runs start-work, other sessions of the same project can now look around: herdr

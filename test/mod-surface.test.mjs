@@ -44,8 +44,8 @@ test("hooks.json names the mod next to every settings hook, so one file serves o
 test("the band's options are plain strings: an options list would stop Claude Code 2.1.270 and older loading LitClaude", () => {
   const manifest = JSON.parse(read(join(pluginRoot, ".claude-plugin", "plugin.json")));
   const config = manifest.userConfig;
-  assert.deepEqual(Object.keys(config).sort(), ["band", "glyphs", "motion", "notify"]);
-  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off" });
+  assert.deepEqual(Object.keys(config).sort(), ["band", "club", "glyphs", "motion", "notify"]);
+  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off", club: "on" });
   for (const [key, field] of Object.entries(config)) {
     assert.equal(field.type, "string", key);
     assert.equal("options" in field, false, `${key} must not declare options`);

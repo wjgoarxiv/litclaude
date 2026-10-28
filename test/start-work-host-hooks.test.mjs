@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -1325,6 +1325,137 @@ describe("typed start-work is the approval", () => {
       assert.doesNotMatch(context, /BLOCKED/u);
       assert.equal(work(root)?.status, "active");
       assert.equal(work(root).plan_name, "p.md");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// plans/guard-fixes-1043.md: three false refusals or loops the port lanes met on 2026-10-27/28.
+describe("start-work guard fixes 1.0.43", () => {
+  const hookKey = (path) => path.replace(/[^A-Za-z0-9]/gu, "-");
+  const spillFor = (config, root, sessionId) => join(config, "projects", hookKey(root), sessionId, "tool-results");
+  const preToolIn = (config, root, toolName, toolInput, overrides = {}) => spawnSync(process.execPath, [hookPath, "pre-tool-use"], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({
+      cwd: root, hook_event_name: "pre-tool-use", session_id: "session-root", prompt_id: "prompt-tool",
+      tool_use_id: "tool-use-1", tool_name: toolName, tool_input: toolInput, ...overrides,
+    }),
+    env: { ...process.env, CLAUDE_CONFIG_DIR: config },
+  });
+
+  it("lets the root session read its own spill folder and nothing beside it", () => {
+    const config = fixtureRoot();
+    try {
+      const cases = [
+        ["Read", (root) => ({ file_path: join(spillFor(config, root, "session-root"), "out.txt") }), true],
+        ["Grep", (root) => ({ pattern: "x", path: spillFor(config, root, "session-root") }), true],
+        ["Write", (root) => ({ file_path: join(spillFor(config, root, "session-root"), "out.txt"), content: "x" }), false],
+        ["Read", (root) => ({ file_path: join(spillFor(config, root, "session-other"), "out.txt") }), false],
+        ["Read", (root) => ({ file_path: join(spillFor(config, root, "session-root"), "..", "..", "session-other", "tool-results", "out.txt") }), false],
+        ["Read", (root) => ({ file_path: join(spillFor(config, root, "session-root"), "link.txt") }), false],
+      ];
+      for (const [toolName, input, allowed] of cases) {
+        const root = fixtureRoot();
+        const outside = fixtureRoot();
+        try {
+          initialize(root);
+          for (const session of ["session-root", "session-other"]) {
+            mkdirSync(spillFor(config, root, session), { recursive: true });
+            writeFileSync(join(spillFor(config, root, session), "out.txt"), "spilled");
+          }
+          writeFileSync(join(outside, "secret.txt"), "outside");
+          symlinkSync(join(outside, "secret.txt"), join(spillFor(config, root, "session-root"), "link.txt"));
+          const toolInput = input(root);
+          const result = preToolIn(config, root, toolName, toolInput);
+          assert.equal(result.status, 0, result.stderr);
+          if (allowed) {
+            assert.equal(result.stdout, "", `${toolName} ${JSON.stringify(toolInput)}`);
+          } else {
+            assert.equal(parse(result).hookSpecificOutput.permissionDecision, "deny", `${toolName} ${JSON.stringify(toolInput)}`);
+          }
+        } finally {
+          rmSync(root, { recursive: true, force: true });
+          rmSync(outside, { recursive: true, force: true });
+        }
+      }
+    } finally {
+      rmSync(config, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses only real version bumps and lets read-only version commands through", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      for (const command of [
+        "npm version patch",
+        "npm --prefix p version minor",
+        "pnpm version 2.0.0",
+        "yarn version --new-version 1.2.3",
+        "npm version",
+        "npm verison patch",
+        "npm pkg set version=2.0.0",
+        "env CI=1 npm version major",
+        "npm view x version $(npm version patch)",
+        "npm view x version `yarn version --major`",
+        "npm exec -c npm version patch",
+        "npm -- version patch",
+        "npm --prefix run version patch",
+        "npm -w view version minor",
+        "NPM VERSION patch",
+        "npm publish",
+        "git push",
+      ]) {
+        const output = parse(preTool(root, "Bash", { command }, { prompt_id: "prompt-bump", tool_use_id: "tool-bump" }));
+        assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+        assert.match(output.hookSpecificOutput.permissionDecisionReason, /forbidden authority action/u, command);
+      }
+      const allowed = preTool(root, "Bash", { command: "npm run check:version" }, { prompt_id: "prompt-check", tool_use_id: "tool-check" });
+      assert.equal(allowed.status, 0, allowed.stderr);
+      assert.equal(allowed.stdout, "", "npm run check:version is script execution under the execute grant");
+      assert.equal(preTool(root, "Bash", { command: "npm test" }).stdout, "");
+      for (const command of ["npm view @litfamily/litclaude version", "node -p \"require('./package.json').version\""]) {
+        const result = preTool(root, "Bash", { command }, { prompt_id: "prompt-read", tool_use_id: "tool-read" });
+        assert.doesNotMatch(result.stdout, /forbidden authority action/u, command);
+      }
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops once with a notice when every remaining task is BLOCKED and continues with the first actionable one", () => {
+    const root = fixtureRoot();
+    const plan = join(root, "plans", "approved.md");
+    let prompt = 0;
+    const stop = () => runHook("stop", root, { session_id: "session-root", prompt_id: `prompt-blocked-${prompt += 1}`, stop_hook_active: false });
+    try {
+      initialize(root);
+      writeFileSync(plan, "# Approved\n\n- [x] Done already\n- [ ] Ask for the key\n  BLOCKED: waiting for the user's API key\n- [ ] Release BLOCKED: needs the user's approval\n");
+      const notice = stop();
+      assert.equal(notice.status, 0, notice.stderr);
+      const output = parse(notice);
+      assert.notEqual(output.decision, "block", "an all-blocked plan must not keep the session going");
+      assert.match(output.systemMessage, /Ask for the key/u);
+      assert.match(output.systemMessage, /Release/u);
+      assert.equal(stop().stdout, "", "the notice is shown once");
+
+      writeFileSync(plan, "# Approved\n\n- [x] Done already\n- [ ] Clear \u001b[2J screen BLOCKED: waiting\n");
+      assert.doesNotMatch(parse(stop()).systemMessage, /\u001b/u, "plan text reaches the terminal without control characters");
+
+      writeFileSync(plan, "# Approved\n\n- [x] Done already\n- [ ] Ask for the key\n- [ ] Release BLOCKED: needs the user's approval\n");
+      const resumed = parse(stop());
+      assert.equal(resumed.decision, "block");
+      assert.match(resumed.reason, /Ask for the key/u);
+
+      writeFileSync(plan, "# Approved\n\n- [ ] Release BLOCKED: needs the user's approval\n- [ ] Mention `BLOCKED:` in docs\n");
+      const mixed = parse(stop());
+      assert.equal(mixed.decision, "block");
+      assert.match(mixed.reason, /Mention/u, "inline code is not a BLOCKED marker");
+      assert.doesNotMatch(mixed.reason, /Release/u);
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active", "no pause, resume or grant");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

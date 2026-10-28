@@ -27,6 +27,7 @@ const MODELS = {
   review: () => buildBandModel({ snapshot: reviewing(), now: NOW, isWorking: true, usage, git: "fix/1041" }),
   turn: () => buildBandModel({ snapshot: idle(), now: NOW, usage, waiting: { reason: "question" }, git: "fix/1041" }),
   done: () => buildBandModel({ snapshot: idle(), now: NOW, usage, completion: { id: "goal:x", detail: "goal met · 3/3 criteria" }, git: "fix/1041" }),
+  club: () => buildBandModel({ snapshot: idle(), now: NOW, usage, club: true, invitedBy: "octocat", skills: [{ id: "lit-plan", at: NOW - 90_000, state: "recent" }], git: "fix/1041" }),
 };
 
 const channel = (v) => {

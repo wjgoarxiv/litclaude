@@ -22,7 +22,7 @@
 
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { LOOKS, lookOf } from "./looks.mjs";
+import { CLUB_GLINT, CLUB_GOLD, CLUB_PILL, CLUB_STOPS, LOOKS, lookOf } from "./looks.mjs";
 import { TIMINGS, barCells, gradientAt, rainbowAt } from "./motion.mjs";
 
 const C = Object.freeze({
@@ -105,6 +105,7 @@ const indicatorOf = (model, accent) => {
   if (model.completion) return { label: "DONE ✓", fill: C.green };
   if (model.look === "turn") return { label: LOOKS.turn.label, fill: C.amber };
   if (model.look === "review") return { label: `${LOOKS.review.label} ${model.workflow.verdicts.filter(({ state }) => state === "pass" || state === "fail").length}/${model.workflow.verdicts.length}`, fill: accent };
+  if (model.look === "club") return { label: `${LOOKS.club.label} ✦`, fill: CLUB_GOLD };
   if (model.idle) return { label: "idle", fill: C.dim, plain: true };
   const flow = model.workflow;
   if (flow?.paused && flow.current >= 0) return { label: `${flow.stages[flow.current].id.toUpperCase()} ||`, fill: C.dim };
@@ -116,23 +117,32 @@ const indicatorOf = (model, accent) => {
   return { label: "LIVE ●", fill: accent };
 };
 
-// The rewind look draws the LIT pill and a `REWIND <<` indicator in the turning rainbow.
+// The rewind look draws the LIT pill and a `REWIND <<` indicator in the turning rainbow; the club
+// look a gold pill after a `✧`, a rose title closed by a `✦`, and `CLUB ✦` on its gold-gradient pill.
 const topRow = (model, accent, animate, rewind = false) => {
   const { width, pad } = SVG_CARD;
   const y = ROW_Y[0];
+  const club = model.look === "club";
+  const lead = club ? text(pad, y, "✧", { fill: CLUB_STOPS[1] }) : "";
+  const from = club ? pad + widthOf("✧ ") : pad;
   const brand = rewind
-    ? pill(pad, y, "🔥 LIT", { fill: "url(#lit-rainbow)", ink: C.ink, veil: true })
-    : pill(pad, y, "🔥 LIT", { fill: C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
+    ? pill(from, y, "🔥 LIT", { fill: "url(#lit-rainbow)", ink: C.ink, veil: true })
+    : pill(from, y, "🔥 LIT", { fill: club ? CLUB_GOLD : C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
   const indicator = rewind && !model.completion ? { label: "REWIND <<", fill: "url(#lit-rainbow)" } : indicatorOf(model, accent);
+  // The club pill is 16 wider than the bare indicator text; it ends where the text would.
+  const pillWide = club ? 16 : 0;
   // A newer LitClaude installed than the one loaded: `restart to <version>` left of the indicator.
   const chip = model.restart ? `restart to ${model.restart}` : null;
-  const chipEnd = width - pad - widthOf(indicator.label) - 16;
-  const right = text(width - pad, y, indicator.label, { fill: indicator.fill, bold: !indicator.plain, anchor: "end" })
-    + (chip ? text(chipEnd, y, chip, { fill: C.amber, anchor: "end" }) : "");
-  const room = width - pad - widthOf(indicator.label) - 16 - (chip ? widthOf(chip) + 16 : 0) - brand.end - widthOf(" · ");
+  const chipEnd = width - pad - widthOf(indicator.label) - 16 - pillWide;
+  const label = club
+    ? pill(width - pad - widthOf(indicator.label) - 16, y, indicator.label, { fill: "url(#lit-club-pill)", ink: C.ink }).markup
+    : text(width - pad, y, indicator.label, { fill: indicator.fill, bold: !indicator.plain, anchor: "end" });
+  const right = label + (chip ? text(chipEnd, y, chip, { fill: C.amber, anchor: "end" }) : "");
+  const tail = club ? " ✦" : "";
+  const room = width - pad - widthOf(indicator.label) - 16 - pillWide - (chip ? widthOf(chip) + 16 : 0) - brand.end - widthOf(" · ") - widthOf(tail);
   const name = truncateToWidth(model.title ?? "ready", Math.max(4, Math.floor(room / SVG_CARD.cell)));
-  const title = run(brand.end + 4, y, [[" · ", { fill: C.dim }], [name, model.idle && !rewind ? { fill: C.dim } : { fill: accent, bold: true }]]);
-  return brand.markup + title.markup + right;
+  const title = run(brand.end + 4, y, [[" · ", { fill: C.dim }], [name, club ? { fill: CLUB_STOPS[1] } : model.idle && !rewind ? { fill: C.dim } : { fill: accent, bold: true }], ...(club ? [[tail, { fill: CLUB_GOLD }]] : [])]);
+  return lead + brand.markup + title.markup + right;
 };
 
 const rightOfPhases = (model, withProgress = true) => {
@@ -310,6 +320,18 @@ const detailRowSvg = (model, accent, animate) => {
 const TONES = Object.freeze({ pink: [C.pink, "#ff6fae", "🔥"], amber: [C.amber, C.amber, "⚠"], red: [C.red, C.red, "✗"] });
 
 // Skill chips, or the notice or the finish while one is up, or the hint while nothing has fired.
+// The club card's quiet `invited by @<id>` chip on the muted pill, ending at the card's right pad;
+// drawn only when it clears whatever the row already holds (ending at `after`) by 16.
+const inviteChipSvg = (model, y, after) => {
+  if (!model.invitedBy || after === null) return "";
+  const handle = `@${model.invitedBy}`;
+  const w = widthOf(`invited by ${handle}`) + 16;
+  const x = SVG_CARD.width - SVG_CARD.pad - w;
+  if (x < after + 16) return "";
+  return `<rect x="${x.toFixed(1)}" y="${y - PILL_H + 6}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${C.muted}"/>`
+    + run(x + 8, y, [["invited by ", { fill: C.mutedText }], [handle, { fill: CLUB_STOPS[1], bold: true }]]).markup;
+};
+
 const middleRow = (model, accent, animate, shift = 0, rewind = false) => {
   const { width, pad } = SVG_CARD;
   const y = ROW_Y[3] + shift;
@@ -325,7 +347,8 @@ const middleRow = (model, accent, animate, shift = 0, rewind = false) => {
   if (model.skills.length === 0) {
     if (!model.idle && model.next && !model.workflow?.next) return run(pad, y, [["▸ ", { fill: accent }], [truncateToWidth(model.next, Math.floor((room - pad) / SVG_CARD.cell) - 2), { fill: C.white }]]).markup;
     if (!model.idle) return text(pad, y, "no LitFamily skill yet in this request", { fill: C.dim });
-    return run(pad, y, [["no LitFamily skill yet · type ", { fill: C.dim }], ["lit <task>", { fill: accent }], [" to start one", { fill: C.dim }]]).markup;
+    const hint = run(pad, y, [["no LitFamily skill yet · type ", { fill: C.dim }], ["lit <task>", { fill: accent }], [" to start one", { fill: C.dim }]]);
+    return hint.markup + inviteChipSvg(model, y, hint.end);
   }
   const out = [text(pad, y, "skills", { fill: C.dim })];
   let x = pad + widthOf("skills") + 10;
@@ -349,6 +372,7 @@ const middleRow = (model, accent, animate, shift = 0, rewind = false) => {
   });
   if (rewind && animate.sweep && x !== null) out.push(sparksSvg(x, width - pad, y));
   if (model.away && x !== null && x + widthOf("back? type lit adhd to catch up") <= room) out.push(run(x, y, [["back? type ", { fill: C.dim }], ["lit adhd", { fill: accent }], [" to catch up", { fill: C.dim }]]).markup);
+  else out.push(inviteChipSvg(model, y, x));
   return out.join("");
 };
 
@@ -509,6 +533,25 @@ const rainbowDefs = (animate) => {
   return `<defs><linearGradient id="lit-rainbow" x1="0" x2="1" y1="0" y2="1">${stops.join("")}</linearGradient></defs>`;
 };
 
+// The club look's ring: gold on the left side through rose to violet on the right, so the top edge
+// and the bottom edge each carry the whole velvet and the ring closes gold on gold at the left, as
+// the terminal card lays it clockwise. The pill gradient fills `CLUB ✦`.
+const gradientStops = (stops) => stops.map((color, i) => `<stop offset="${(i / (stops.length - 1)).toFixed(3)}" stop-color="${color}"/>`).join("");
+const clubDefs = () => `<defs><linearGradient id="lit-club" x1="0" x2="1" y1="0" y2="0">${gradientStops(CLUB_STOPS.slice(0, 3))}</linearGradient>`
+  + `<linearGradient id="lit-club-pill" x1="0" x2="1" y1="0" y2="0">${gradientStops(CLUB_PILL)}</linearGradient></defs>`;
+
+// The club glint (full motion only): a warm light crossing the top edge left to right in
+// TIMINGS.clubGlint, then off the card until the next pass, TIMINGS.clubGlintPeriod apart. The first
+// pass waits TIMINGS.clubGlintRest, as on the terminal card.
+const clubGlintSvg = (width) => {
+  const reach = 120;
+  const pass = (TIMINGS.clubGlint / TIMINGS.clubGlintPeriod).toFixed(3);
+  return `<defs><linearGradient id="lit-club-glint" gradientUnits="userSpaceOnUse" x1="${-reach}" x2="0" y1="0" y2="0">`
+    + `<stop offset="0" stop-color="${CLUB_GLINT}" stop-opacity="0"/><stop offset="0.5" stop-color="${CLUB_GLINT}" stop-opacity="0.95"/><stop offset="1" stop-color="${CLUB_GLINT}" stop-opacity="0"/>`
+    + `<animateTransform attributeName="gradientTransform" type="translate" values="0 0;${width + reach} 0;${width + reach} 0" keyTimes="0;${pass};1" dur="${TIMINGS.clubGlintPeriod}ms" begin="${TIMINGS.clubGlintRest}ms" repeatCount="indefinite"/>`
+    + `</linearGradient></defs><line x1="15" y1="1.25" x2="${width - 15}" y2="1.25" stroke="url(#lit-club-glint)" stroke-width="2.5" stroke-linecap="round"/>`;
+};
+
 /** What the card says, for a reader that cannot see the drawing. */
 export const svgCardAlt = (model) => {
   const parts = [`LIT ${model.rewind ? "rewind" : model.idle ? "idle" : "working"}`];
@@ -544,12 +587,13 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
   const rewind = (model.rewind === true || (!model.idle && lookOf(model.discipline) === "rewind")) && model.warnings.length === 0;
   const working = (!model.idle || rewind) && motion !== "off";
   const animate = { breath: working, sweep: working && motion === "full", comet: working && motion === "full" };
-  const edge = rewind ? "url(#lit-rainbow)" : borderColor(model, accent);
+  const club = model.look === "club" && model.warnings.length === 0;
+  const edge = rewind ? "url(#lit-rainbow)" : club ? "url(#lit-club)" : borderColor(model, accent);
   const perimeter = 1000;
-  const defs = (rewind ? rainbowDefs(animate.breath) : "") + (animate.sweep
+  const defs = (rewind ? rainbowDefs(animate.breath) : club ? clubDefs() : "") + (animate.sweep
     ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
     : "");
-  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle && !rewind ? "1.5" : "2.5"}"${model.idle && !rewind ? ' stroke-opacity="0.8"' : ""}>`
+  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle && !rewind && !club ? "1.5" : "2.5"}"${model.idle && !rewind && !club ? ' stroke-opacity="0.8"' : ""}>`
     + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
     + "</rect>";
   const comet = animate.comet
@@ -564,6 +608,7 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
     middleRow(model, accent, animate, shift, rewind),
     bottomRow(model, accent, shift),
   ].join("");
-  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${comet}${body}</svg>`;
-  return { source, alt: svgCardAlt(model), animated: working };
+  const glint = club && motion === "full" ? clubGlintSvg(width) : "";
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${comet}${glint}${body}</svg>`;
+  return { source, alt: svgCardAlt(model), animated: working || glint !== "" };
 };

@@ -7,13 +7,26 @@
 //   review  review-work: the top and bottom rules split into the five review lanes
 //   turn    waiting on the user: an amber border breathing over TIMINGS.breath, `YOUR TURN`
 //   done    a plan, goal, review or release finished: one rainbow spray of embers
+//   club    the idle card once `lit invite` recorded an inviter (plans/invite-pilot.md): a gold →
+//           rose → violet ring round all four borders with a slow gold glint along the top (full
+//           motion only), a gold LIT pill, `CLUB ✦` on a gold-gradient pill, sparkles at the
+//           title's corners and an `invited by @<id>` chip; below every other look
 
 export const LOOKS = Object.freeze({
   rewind: Object.freeze({ label: "REWIND <<", palette: "rainbow", comet: "bottom-leftward", pill: "rainbow" }),
   review: Object.freeze({ label: "REVIEW", palette: "lanes", comet: "none", pill: "accent" }),
   turn: Object.freeze({ label: "YOUR TURN", palette: "amber", comet: "none", pill: "amber" }),
   done: Object.freeze({ label: "DONE", palette: "rainbow", comet: "none", pill: "brand" }),
+  club: Object.freeze({ label: "CLUB", palette: "velvet", comet: "none", pill: "gold" }),
 });
+
+// The club look's velvet: gold through rose to violet and back to gold, laid round the border so
+// the ring closes in the same colour it starts with. CLUB_GOLD fills its LIT pill under dark ink,
+// CLUB_PILL grades the `CLUB ✦` pill and CLUB_GLINT is the light that runs along the top.
+export const CLUB_STOPS = Object.freeze(["#ffd75f", "#ff8fbf", "#b48cff", "#ff8fbf", "#ffd75f"]);
+export const CLUB_GOLD = "#ffd75f";
+export const CLUB_PILL = Object.freeze(["#ffd75f", "#ffb38a", "#ff8fbf"]);
+export const CLUB_GLINT = "#fff6d6";
 
 export const LOOK_BY_SKILL = Object.freeze({ "lit-adhd": "rewind", "lit-rewind": "rewind", "review-work": "review" });
 const BY_SKILL = new Map(Object.entries(LOOK_BY_SKILL));

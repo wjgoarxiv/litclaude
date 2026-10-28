@@ -8,7 +8,7 @@ import { shouldRunAutomaticUpdate } from "../plugins/litclaude/lib/automatic-upd
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const documents = [
-  "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "SUPPORT.md", "docs/privacy.md",
+  "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "SUPPORT.md", "TRADEMARK.md", "docs/privacy.md",
   ".github/ISSUE_TEMPLATE/bug_report.md", ".github/ISSUE_TEMPLATE/feature_request.md",
   ".github/PULL_REQUEST_TEMPLATE.md",
 ];

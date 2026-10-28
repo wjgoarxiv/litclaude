@@ -519,6 +519,24 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
   };
 };
 
+// Where `lit invite` keeps its record (lib/invite.mjs inviteHome): LITCLAUDE_HOME, else ~/.litclaude.
+export const inviteRoot = (env) => {
+  // Untrimmed, like lib/invite.mjs and resolveHome, so the card reads the file the CLI wrote.
+  const home = env?.LITCLAUDE_HOME;
+  if (home) return normalizePath(home);
+  return env?.HOME?.trim() ? joinPath(env.HOME.trim(), ".litclaude") : null;
+};
+// lib/invite.mjs's id rule; the band cannot import that module, which writes.
+const INVITE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u;
+
+/** The recorded inviter's id from a real, well-formed invite.json under inviteRoot (read guarded), or null. */
+export const readInvited = async (io, env) => {
+  const root = inviteRoot(env);
+  if (!root) return null;
+  const record = await readGuardedJson(io, root, "invite.json", 4096);
+  return record?.version === 1 && typeof record.invitedBy === "string" && INVITE_ID.test(record.invitedBy) ? record.invitedBy : null;
+};
+
 /**
  * The LitClaude version Claude Code installed, from its `installed_plugins.json` record: the
  * `litclaude@…` entry, user scope first. Anything unreadable or malformed gives null.

@@ -279,6 +279,28 @@ npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic
 
 [카드가 보여 주는 모든 것](./docs/hooks.md#the-lit-band-claude-code-mod)
 
+## 친구 초대
+
+LitFamily는 입소문으로 퍼집니다. 초대는 누가 LitClaude를 알려 줬는지 남기는 방법입니다. 알려 준
+사람의 GitHub 아이디를 프롬프트에 한 번, 그것만 입력하세요.
+
+```text
+lit invite @octocat
+```
+
+LitClaude는 Claude 턴을 시작하지 않고 바로 답하고, 이름을 내 컴퓨터의 `~/.litclaude/invite.json`에
+저장합니다. 그때부터 쉬고 있는 카드가 클럽 룩으로 바뀝니다. 테두리 전체가 금색에서 장밋빛을 지나
+보라색으로 이어지고, 윗변을 따라 금빛이 천천히 지나갑니다. 오른쪽에는 금색 필에 담긴 `CLUB ✦`가,
+아래쪽에는 `invited by @octocat` 칩이 작게 붙습니다. 어디로도 아무것도 보내지 않습니다.
+친구에게 공을 돌리고 싶다면 [LitFamily Discussions](https://github.com/wjgoarxiv/litfamily/discussions)에
+"invited by @octocat"이라고 남겨 주세요. LitFamily 페이지의 명예의 전당은 그 글을 보고 손으로
+정리합니다.
+
+처음 초대가 그대로 남습니다. 나중에 다른 아이디를 넣으면 기록하지 않고 그렇다고 알려 줍니다.
+`lit invite`만 입력하면 내 친구에게 보낼 문장이 나옵니다. 터미널에서는
+`npx @litfamily/litclaude@latest invite @octocat`이 같은 일을 하고, `config club off`로 원래 카드로
+돌아갈 수 있습니다.
+
 ## 자동 핸드오프
 
 세션이 길어지면 Claude의 컨텍스트 창이 차고, Claude Code가 대화를 압축할 때 작업의 세부 내용이
@@ -518,4 +540,6 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 
 기여하려면 [기여 안내](./CONTRIBUTING.md)부터 읽어 주세요. 질문은 [지원](./SUPPORT.md)으로,
 보안 문제는 [보안](./SECURITY.md)에 적힌 방법으로 알려 주시고, [행동 강령](./CODE_OF_CONDUCT.md)은
-모든 참여자에게 적용됩니다. LitClaude는 [MIT 라이선스](./LICENSE)로 배포합니다.
+모든 참여자에게 적용됩니다. LitClaude는 [MIT 라이선스](./LICENSE)로 배포합니다. LitClaude와
+LitFamily라는 이름과 로고는 [상표 정책](./TRADEMARK.md)을 따로 따릅니다. 포크는 자기 이름을 달면
+얼마든지 환영합니다.

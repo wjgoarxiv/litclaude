@@ -460,7 +460,7 @@ export const restartVersion = ({ loaded = null, installed = null } = {}) => {
   return order > 0 ? installed.slice(0, 40) : null;
 };
 
-export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS, turnStartedAt = null, waiting = null, versions = null }) => {
+export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVITY, usage = null, now, band = "always", isWorking = false, notice = null, completion = null, skills = [], lastDiscipline = null, git = null, step = null, threadReserve = 0, lists = EMPTY_LISTS, tasks = EMPTY_TASKS, turnStartedAt = null, waiting = null, versions = null, club = false, invitedBy = null }) => {
   const discipline = snapshot.ignition?.discipline ?? null;
   const progress = progressOf(snapshot);
   const completing = completion !== null;
@@ -490,15 +490,20 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const lit = skills.some(({ state }) => state === "current");
   const workflow = buildWorkflow({ snapshot, skills, completion, now });
   const title = discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline;
-  const look = selectLook({ snapshot, discipline, skills, workflow, completion, waiting, now, turnStartedAt });
+  const chosen = selectLook({ snapshot, discipline, skills, workflow, completion, waiting, now, turnStartedAt });
+  // `club` (an inviter recorded and the club option on) dresses only the idle card, and never
+  // shows a band that `band: auto` would hide.
+  const look = chosen ?? (club === true && !active && !lit ? "club" : null);
   const rewind = look === "rewind";
-  const visible = band === "off" ? false : band === "always" || active || lit || look !== null || notice !== null || completion !== null || warnings.length > 0;
+  const visible = band === "off" ? false : band === "always" || active || lit || chosen !== null || notice !== null || completion !== null || warnings.length > 0;
   return {
     visible,
     idle: !active && !lit,
     restart: restartVersion(versions ?? undefined),
     look,
     rewind,
+    // Who invited this machine, for the club card's chip; null on every other look.
+    invitedBy: look === "club" && typeof invitedBy === "string" ? invitedBy : null,
     waiting: waiting?.reason ?? null,
     away: !active && !lit && !rewind && skills.length > 0 && now - Math.max(...skills.map(({ at }) => (Number.isFinite(at) ? at : now))) >= BREAK_MS,
     discipline,

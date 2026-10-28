@@ -22,7 +22,7 @@ import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyph
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
-import { detectIconFont, readGitBranch, readLedgerTail, readLitSnapshot, readPluginVersions } from "../lib/mod/state.mjs";
+import { detectIconFont, readGitBranch, readInvited, readLedgerTail, readLitSnapshot, readPluginVersions } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
 import {
   EMPTY_ACTIVITY,
@@ -64,6 +64,9 @@ const LONG_TURN_MS = 3 * 60 * 1000;
 const createLive = (options) => ({
   band: normalizeModSettings(options).band,
   motion: normalizeModSettings(options).motion,
+  club: normalizeModSettings(options).club === "on",
+  // The inviter `lit invite` recorded on this machine, or null (state.mjs readInvited).
+  invited: null,
   drawnOn: {},
   iconFont: { present: false, path: null, note: "basic: not checked yet" },
   env: {},
@@ -205,6 +208,8 @@ async function rebuild($, live) {
     turnStartedAt: live.turnStartedAt,
     waiting: waitingOf(live),
     versions: live.versions,
+    club: live.club && live.invited !== null,
+    invitedBy: live.club ? live.invited : null,
     // The thread rows stay reserved while threads are live, so the card does not shrink between repaints.
     threadReserve: previous?.threads?.reserve ?? 0,
   });
@@ -299,6 +304,7 @@ async function refresh($, live, options) {
     const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
     const fresh = await readLitSnapshot(stateIo($), { cwd, sessionId, env: live.env });
     live.git = await readGitBranch(stateIo($), cwd).catch(() => live.git);
+    if (live.club) live.invited = await readInvited(stateIo($), live.env).catch(() => live.invited);
     const listed = await $.agent.list().catch(() => []);
     live.usage = await $.session.usage().catch(() => live.usage);
     const now = await $.clock.now();
@@ -350,6 +356,8 @@ export const register = (on, options) => {
       LITCLAUDE_HUD_STATE_ROOT: await $.env.get("LITCLAUDE_HUD_STATE_ROOT"),
       LITCLAUDE_AUTO_HANDOFF: await $.env.get("LITCLAUDE_AUTO_HANDOFF"),
       LITCLAUDE_AUTO_HANDOFF_PERCENT: await $.env.get("LITCLAUDE_AUTO_HANDOFF_PERCENT"),
+      LITCLAUDE_HOME: await $.env.get("LITCLAUDE_HOME"),
+      HOME: await $.env.get("HOME"),
     };
     live.iconFont = await detectIconFont(stateIo($), {
       HOME: await $.env.get("HOME"),

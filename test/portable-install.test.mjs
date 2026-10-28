@@ -457,7 +457,7 @@ describe("portable LitClaude install layout", () => {
       writeFileSync(settingsPath, `${JSON.stringify({ pluginConfigs: { "other@market": { options: { keep: "me" } }, "litclaude@litclaude-ai": { options: { band: "auto" } } } }, null, 2)}\n`);
       const install = runCli(["install"], home, claudeHome);
       assert.equal(install.status, 0, install.stderr);
-      assert.deepEqual(options(), { band: "auto", motion: "full", glyphs: "auto", notify: "off" }, "defaults fill in; the user's band stays");
+      assert.deepEqual(options(), { band: "auto", motion: "full", glyphs: "auto", notify: "off", club: "on" }, "defaults fill in; the user's band stays");
       assert.match(install.stdout, /DESKTOP_APP: ready/u);
       assert.match(install.stdout, /MOD_OPTIONS: motion full · glyphs auto · band auto · notify off/u);
 

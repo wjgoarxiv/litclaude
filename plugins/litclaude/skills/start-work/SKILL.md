@@ -239,6 +239,11 @@ unavailable:
   its last checkbox, so do not ask the user to set a goal before executing.
 - Do not auto-type or send `/goal` text from a skill; if the user invokes `/goal`, respect it.
 
+When a top-level task cannot move until the user acts, write `BLOCKED: <reason>` on its
+line or as an indented body line under it. The Stop continuation skips such tasks; when
+every open task is blocked it tells the user once and lets the session stop. Removing the
+marker, or the user's reply, resumes the run.
+
 If model-facing goal tools are absent (the case today), continue with Boulder/ledger discipline.
 If goal tools are not exposed, do not print repeated fallback status; just keep
 the plan ledger accurate and continue with verified evidence.

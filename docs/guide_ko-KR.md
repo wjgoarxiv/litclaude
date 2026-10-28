@@ -172,6 +172,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 이 저장소의 최근 세션을 한 화면에 요약합니다. 세션마다 받은 요청, 한 일, 기다리는 것, 로드맵과 진행 게이지, 다음 한 단계를 보여 주고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
 | `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
+| `lit invite @<github-id>`, `lit invite` | 누가 초대했는지 남깁니다. 프롬프트 전체로 입력해야 합니다. Claude 턴 없이 바로 답하고, 아이디를 이 컴퓨터의 `~/.litclaude/invite.json`에만 저장하고, 쉬고 있는 카드를 클럽 룩으로 바꿉니다(`config club off`로 끕니다). 아이디 없이 입력하면 친구에게 보낼 문장을 보여 줍니다. `litclaude-ai invite`도 같습니다. |
 | `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
 | `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. |
@@ -615,6 +616,11 @@ slash-command text를 보내지 않습니다. 이 경로는 먼저 `get_goal`, `
 
 `stop_hook_active`가 `true`이면 hook은 조용히 멈추므로, 지난 프롬프트가 다시 재생되는 일이
 없습니다.
+
+할 일 줄이나 그 아래 들여 쓴 줄에 `BLOCKED: <이유>`가 있으면 그 일은 사용자를 기다립니다. 진행은
+그 일을 건너뛰고, 남은 일이 모두 막혀 있으면 한 번 알린 뒤 멈춥니다. 표시를 지우거나 답하면 다시
+이어 갑니다. 작업 중에 세션은 `~/.claude/projects/<project>/<session>/tool-results/` 아래에 넘쳐 저장된
+자기 도구 출력을 읽을 수 있고, 다른 세션의 폴더는 여전히 읽지 못합니다.
 
 채팅에서 그림 스킬은 정확한 bare `lit-scientific-visualization` 입력으로만 시작합니다. 이름을
 따옴표로 감싸거나, 문장에 섞거나, 앞에 slash를 붙이거나, 조금 다르게 쓰면 hook이 반응하지

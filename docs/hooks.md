@@ -103,7 +103,7 @@ silent no-op for callers that still invoke it directly.
 | Event | Runner | Purpose |
 | --- | --- | --- |
 | `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session (or starts the detached version-cache refresh when the cache is stale), discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
-| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting. |
+| `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting; answers a whole-prompt `lit invite [@<github-id>]` itself and blocks the turn (see [Invite](#invite-lit-invite)). |
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `PostToolUseFailure` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use-failure` | For a Bash command that exits non-zero, such as a bare failing `npm test`, moves the LIT card's lit-loop map from what the command wrote and from its failing test run, which never counts as VERIFY. Nothing else runs on a failed tool. |
@@ -494,7 +494,7 @@ a change too; its step and lane clocks keep counting on their own.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
 which the terminal and the desktop app's Code tab both read). The installer writes each default
-you have not set, so the desktop app, which has no editor for them, starts with all four;
+you have not set, so the desktop app, which has no editor for them, starts with all five;
 `litclaude-ai config` prints them and `litclaude-ai config <option> <value>` changes one.
 Uninstall removes only the defaults it wrote that are still unchanged.
 
@@ -504,13 +504,14 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
+| `club` | `on` (the idle card wears the club look once `lit invite` recorded an inviter), `off` (the plain ready card, byte for byte) | `on` |
 
 Unknown values fall back to the default. The fields are plain strings with no `options` list on
 purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and
 that would take every LitClaude hook down with it. Nerd glyphs reach only the terminal; the
 desktop app and the other surfaces always get the basic set.
 
-The card takes one of four looks (`lib/mod/looks.mjs`), checked in this order. **done**: when a
+The card takes one of five looks (`lib/mod/looks.mjs`), checked in this order. **done**: when a
 plan's tasks are all checked, a litgoal goal is met, review-work's five lanes have all passed, or a
 main-loop `npm publish` (not `--dry-run`) succeeds, the chips row plays one 1.2 s spray of rainbow
 embers and `DONE ✓`, then settles; it never loops. **YOUR TURN**: while the session waits on you
@@ -524,7 +525,14 @@ a darker shade of its colour while it runs, its own colour once it passes and re
 and the corner counts the lanes that reported (`REVIEW 2/5`). The look holds into later turns
 while a lane is still running, since background lanes report in the turns their notifications
 start. **rewind**: lit-adhd and lit-rewind
-by any route, as above. No look flips more than a quarter of the card's brightness more than three
+by any route, as above. **club**: only on a resting card, with no other look and no work or lit
+skill, once `lit invite @<github-id>` saved an inviter and the `club` option is on: a ring laid
+clockwise round all four borders from gold through rose to violet and back to gold, a `✧` before the
+gold LIT pill and a `✦` after the title, `CLUB ✦` on a gold-to-rose pill in the corner and a quiet
+`invited by @<id>` chip at the right of the skills row (dropped when the row has no room). Under full
+motion a warm light crosses the top edge once every 3.6 s (each pass 1.4 s, the first after 1.2 s);
+between passes the card draws no frames. With `subtle` or `off` motion the ring stands still. It
+never makes a band show that `band: auto` would hide. No look flips more than a quarter of the card's brightness more than three
 times a second; with `motion` off or reduced motion each look is one still frame, and with
 `NO_COLOR` set the card keeps its labels and draws no colour (basic glyphs, no motion). The desktop
 drawing shows the labels of these looks, not the lane segments or the embers.
@@ -547,14 +555,35 @@ The mod is read-only. It reads LitClaude's own state, the Git `HEAD` of the work
 the merged settings (for the status line's accent) and nothing else: the ignition record in the
 per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
 linked worktree), and under the outermost Git root's `.litclaude/` the litgoal goal, autoloop
-counter and ledger, the lit-plan, interface-probe and motion turn records, and the auto-handoff
-settings and session record. Each file must be a regular file under its size cap that resolves
+counter and ledger, the lit-plan, interface-probe and motion turn records, the auto-handoff
+settings and session record, and `invite.json` under `LITCLAUDE_HOME` (else `~/.litclaude`) while
+the `club` option is on. Each file must be a regular file under its size cap that resolves
 exactly where its path says, so a symlinked file or state folder is skipped. It writes nothing,
 starts no process, uses no network and calls no model. Its pure parts live in
 `plugins/litclaude/lib/mod/` and are tested under Node.
 
 On Claude Code releases before 2.1.287 the `modules` key is ignored and every settings hook runs
 as before; there is no band.
+
+## Invite (`lit invite`)
+
+`UserPromptSubmit` answers two whole prompts itself, before any other route, with
+`{"decision":"block","reason":…}`, so the host shows the reason and no model turn runs. As with
+`lit approve`, only the whole prompt counts once trimmed (`lit` in any case, spaces or tabs between
+words); a longer, quoted or relayed message that mentions `lit invite` keeps its ordinary route.
+
+| Prompt | What happens |
+| --- | --- |
+| `lit invite @<github-id>` | Saves `{version: 1, invitedBy, at}` in `$LITCLAUDE_HOME/invite.json` (`~/.litclaude/invite.json` by default) and thanks the user, with the [Discussions](https://github.com/wjgoarxiv/litfamily/discussions) link where invites are counted. The same id again changes nothing and says so; another id keeps the first inviter and says so. |
+| `lit invite` | Prints the line to share: friends type `lit invite @<your GitHub id>`. Writes nothing. |
+
+The id must match `^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$` after one leading `@` is stripped; any
+other text is refused in one line and nothing is written. The write (`lib/invite.mjs`) goes to a
+fresh temporary file that is renamed into place; a symlinked home folder or `invite.json` is
+refused. `litclaude-ai invite [@<github-id>] [--json]` is the same from a terminal and exits 2 on
+an invalid id. The invite path imports no network module and opens no browser; posting in the
+thread is up to the user. The card shows the club look from the next refresh, unless the `club`
+option is off.
 
 ## Bounded-authority start-work lifecycle
 

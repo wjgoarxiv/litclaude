@@ -34,7 +34,7 @@
 
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
-import { LOOKS, laneColor, lookOf } from "./looks.mjs";
+import { CLUB_GLINT, CLUB_GOLD, CLUB_PILL, CLUB_STOPS, LOOKS, laneColor, lookOf } from "./looks.mjs";
 import { barCells, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
 import { formatDuration } from "./view.mjs";
@@ -142,6 +142,17 @@ const rainbowPill = (text, rainbow, from, glyphs, bold = true) => {
     : [span(" ", { bg: rainbowCell(rainbow, at(0)) }), ...body, span(" ", { bg: rainbowCell(rainbow, at(chars.length - 1)) })];
 };
 
+// The club look's `CLUB ✦`: dark ink on a fill graded gold to rose, a cell at a time, each cap in
+// the colour of the cell beside it.
+const clubPill = (text, glyphs) => {
+  const chars = [...text];
+  const fill = (i) => gradientAt(CLUB_PILL, chars.length <= 1 ? 0 : i / (chars.length - 1));
+  const body = chars.map((ch, i) => span(ch, { fg: PILL.ink, bg: fill(i), bold: true }));
+  return glyphs.capLeft
+    ? [span(glyphs.capLeft, { fg: fill(0) }), ...body, span(glyphs.capRight, { fg: fill(chars.length - 1) })]
+    : [span(" ", { bg: fill(0) }), ...body, span(" ", { bg: fill(chars.length - 1) })];
+};
+
 const inkOf = (accent) => ({ done: lerpColor(accent, PALETTE.dim, 0.45), now: accent, todo: PALETTE.dim, warn: PALETTE.amber });
 
 // Colour of one phase in this frame: the crossfade from its previous state, then the amber mix for
@@ -220,12 +231,12 @@ const cometOn = (sample, edge, width, look = null) => {
 
 // While LitClaude works the brand pill breathes from its pink toward the flame orange and back.
 // The rewind look turns it through the rainbow instead, lightened so its dark ink stays readable;
-// YOUR TURN holds it amber.
+// YOUR TURN holds it amber, the club look gold.
 const brandSpans = (sample, glyphs, rainbow = null, look = null) => {
   const reveal = revealText("🔥 LIT", sample.pills[0]);
   if (reveal === null) return [];
   if (rainbow) return rainbowPill(reveal, rainbow, 0, glyphs);
-  const fill = look === "turn" ? PALETTE.amber : sample.ambient ? lerpColor(PILL.brand, PALETTE.orange, 0.85 * sample.ambient.breath) : PILL.brand;
+  const fill = look === "turn" ? PALETTE.amber : look === "club" ? CLUB_GOLD : sample.ambient ? lerpColor(PILL.brand, PALETTE.orange, 0.85 * sample.ambient.breath) : PILL.brand;
   return pill(litText(reveal, { fg: PILL.ink, bg: fill, bold: true }, sample.completion?.shimmer ?? null), fill, glyphs);
 };
 // `REWIND <<` while the rewind look is on, each letter a step further round the hue wheel, lightened
@@ -240,6 +251,7 @@ const indicatorSpans = (model, sample, glyphs, accent, rainbow = null, look = nu
     const lanes = model.workflow.verdicts;
     return [span(`${LOOKS.review.label} ${lanes.filter(({ state }) => state === "pass" || state === "fail").length}/${lanes.length}`, { fg: accent, bold: true })];
   }
+  if (look === "club") return clubPill(`${LOOKS.club.label} ✦`, glyphs);
   if (model.idle) return [span("idle", { fg: PALETTE.dim })];
   const flow = model.workflow;
   if (flow && flow.current >= 0) {
@@ -258,12 +270,14 @@ const indicatorSpans = (model, sample, glyphs, accent, rainbow = null, look = nu
 // then the discipline shortens, then it goes too.
 // A newer LitClaude installed than the one loaded adds `restart to <version>` before the
 // indicator, dropped first when the edge has no room for it.
+// The club look sets a sparkle at each corner of the title: `✧` before the brand, `✦` after the name.
 const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rainbow }) => {
-  const brand = brandSpans(sample, glyphs, rainbow, look);
+  const sparkle = look === "club";
+  const brand = [...(sparkle ? [span("✧ ", { fg: CLUB_STOPS[1] })] : []), ...brandSpans(sample, glyphs, rainbow, look)];
   const indicator = indicatorSpans(model, sample, glyphs, accent, rainbow, look);
   const name = model.title ?? "ready";
-  const nameStyle = model.idle && !rainbow ? { fg: PALETTE.dim } : { fg: accent, bold: true };
-  const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle)] : []);
+  const nameStyle = look === "club" ? { fg: CLUB_STOPS[1] } : model.idle && !rainbow ? { fg: PALETTE.dim } : { fg: accent, bold: true };
+  const title = (text) => (text ? [span(" · ", { fg: PALETTE.dim }), span(text, nameStyle), ...(sparkle ? [span(" ✦", { fg: CLUB_GOLD })] : [])] : []);
   const fixed = textWidth("╭─ ") + rowWidth(brand) + 1 + 1;
   const fits = (spans) => fixed + rowWidth(title(name)) + 1 + rowWidth(spans) + textWidth(" ─╮") <= width;
   const chip = model.restart ? [span(`restart to ${model.restart}`, { fg: PALETTE.amber }), span(" · ", { fg: PALETTE.dim }), ...indicator] : null;
@@ -701,8 +715,18 @@ const awayHint = (room, accent) => {
   return hint ? [span(hint[0], { fg: PALETTE.dim }), span(hint[1], { fg: accent }), ...(hint[2] ? [span(hint[2], { fg: PALETTE.dim })] : [])] : [];
 };
 
+// The club card's quiet `invited by @<id>` chip, on the muted pill.
+const inviteChip = (model, glyphs) => (model.invitedBy
+  ? pill([span("invited by ", { fg: PILL.mutedText, bg: PILL.muted }), span(`@${model.invitedBy}`, { fg: CLUB_STOPS[1], bg: PILL.muted, bold: true })], PILL.muted, glyphs)
+  : null);
+// `row` with the chip at its right end, two cells apart at least, or null when they do not both fit.
+const withChip = (row, chip, inner) => (chip && rowWidth(row) + 2 + rowWidth(chip) <= inner
+  ? fitRow([...row, span(" ".repeat(inner - rowWidth(row) - rowWidth(chip))), ...chip], inner)
+  : null);
+
 const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const chips = model.skills;
+  const invite = inviteChip(model, glyphs);
   if (chips.length === 0) {
     if (!model.idle && model.next && !model.workflow?.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
     if (!model.idle) return fitRow([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner);
@@ -711,6 +735,10 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
       [span("no skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent })],
       [span("type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent })],
     ];
+    for (const hint of hints) {
+      const shown = withChip(hint, invite, inner);
+      if (shown) return shown;
+    }
     return fitRow(hints.find((hint) => rowWidth(hint) <= inner) ?? hints.at(-1), inner);
   }
   const row = inner >= 30 ? [span("skills", { fg: PALETTE.dim })] : [];
@@ -729,7 +757,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   }
   if (shown < chips.length) row.push(...(row.length ? [span(" ")] : []), ...mutedPill(`+${chips.length - shown}`, glyphs));
   if (model.away) return fitRow([...row, ...awayHint(inner - rowWidth(row), accent)], inner);
-  return sparkled(row, inner, sample, rainbow);
+  return withChip(row, invite, inner) ?? sparkled(row, inner, sample, rainbow);
 };
 
 const noticeRow = (sample, inner) => {
@@ -800,13 +828,39 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint, r
 
 // The border: red or amber under a warning, otherwise the accent. Idle it is a calm, dim accent;
 // while LitClaude works it sits a step above the accent and breathes brighter toward white with the
-// brand pill. YOUR TURN breathes amber over TIMINGS.breath, and holds it with motion off.
+// brand pill. YOUR TURN breathes amber over TIMINGS.breath, and holds it with motion off. The club
+// look's border is gold (its rules and sides are painted with CLUB_STOPS).
 const edgeColor = (model, sample, accent, look) => {
   if (model.warnings.some(({ tone }) => tone === "red")) return PALETTE.red;
   if (look === "turn") return sample.ambient ? lerpColor(lerpColor(PALETTE.amber, PALETTE.faint, 0.5), PALETTE.amber, sample.ambient.breath) : PALETTE.amber;
   if (model.warnings.length) return PALETTE.amber;
+  if (look === "club") return CLUB_GOLD;
   if (model.idle) return lerpColor(PALETTE.faint, accent, 0.35);
   return lerpColor(accent, "#ffffff", 0.15 + 0.3 * (sample.ambient?.breath ?? 0));
+};
+
+// How far the glint's light reaches either side of its centre, in cells.
+const GLINT_REACH = 8;
+
+// The club ring's colour at a border cell (`col`, `y`) of a card `width` by `height`: CLUB_STOPS laid
+// clockwise from the top-left corner, so the ring closes gold on gold. `glint` (0 to 1 across its
+// pass, or null) lays a warm white light over the top edge, entering and leaving off the card.
+const clubRing = (width, height, glint) => {
+  const right = width - 1;
+  const bottom = height - 1;
+  const perimeter = 2 * right + 2 * bottom;
+  const along = (col, y) => {
+    if (y === 0) return col;
+    if (y === bottom) return right + bottom + (right - col);
+    return col === right ? right + y : 2 * right + bottom + (bottom - y);
+  };
+  const center = glint === null ? null : glint * (width + 2 * GLINT_REACH) - GLINT_REACH;
+  return (col, y) => {
+    const base = gradientAt(CLUB_STOPS, along(col, y) / perimeter);
+    if (center === null || y !== 0) return base;
+    const k = Math.max(0, 1 - Math.abs(col - center) / GLINT_REACH);
+    return k > 0 ? lerpColor(base, CLUB_GLINT, 0.8 * k) : base;
+  };
 };
 
 /**
@@ -832,19 +886,34 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
   const lanes = look === "review" ? model.workflow.verdicts : null;
   const laneAt = (col) => Math.min(lanes.length - 1, Math.floor((col * lanes.length) / width));
   const lanePaint = lanes ? (col) => laneColor(laneAt(col), lanes[laneAt(col)].state) : null;
-  const paint = [0, 1, 2, 3, 4].map((r) => (painted ? (col) => rainbow(col / width + r * 0.04) : r === 0 || r === 4 ? lanePaint : null));
-  const side = (row, r) => (paint[r]
-    ? [span("│", { fg: paint[r](0) }), span(" "), ...row, span(" "), span("│", { fg: paint[r](width - 1) })]
-    : [span("│ ", { fg: edge }), ...row, span(" │", { fg: edge })]);
-  const options = { width, inner, glyphs, accent, edge, look, rainbow, paint };
+  const options = { width, inner, glyphs, accent, edge, look, rainbow };
   const middle = sample.completion ? completionRow(sample, inner) : sample.notice ? noticeRow(sample, inner) : chipsRow(model, sample, options);
+  // The rows between the edges, each with the paint slot its sides take (thread rows share the detail line's).
+  const body = [
+    [model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options), 1],
+    [detailRow(model, sample, options), 2],
+    ...(model.threads ? threadRows(model, sample, options).map((row) => [row, 2]) : []),
+    [middle, 3],
+  ];
+  // The club look's ring: its velvet laid clockwise round the whole border, with the glint's light
+  // crossing the top edge while a pass runs. Without warnings only; it never touches the body.
+  const ring = look === "club" && model.warnings.length === 0 ? clubRing(width, body.length + 2, sample.glint ?? null) : null;
+  const paint = [0, 1, 2, 3, 4].map((r) => {
+    if (painted) return (col) => rainbow(col / width + r * 0.04);
+    if (ring) return r === 0 ? (col) => ring(col, 0) : r === 4 ? (col) => ring(col, body.length + 1) : null;
+    return r === 0 || r === 4 ? lanePaint : null;
+  });
+  const side = (row, r, y) => {
+    const at = ring ? (col) => ring(col, y) : paint[r];
+    return at
+      ? [span("│", { fg: at(0) }), span(" "), ...row, span(" "), span("│", { fg: at(width - 1) })]
+      : [span("│ ", { fg: edge }), ...row, span(" │", { fg: edge })];
+  };
+  const edges = { ...options, paint };
   const rows = [
-    topEdge(model, sample, options),
-    side(model.workflow ? mapRow(model, sample, options) : phaseRow(model, sample, options), 1),
-    side(detailRow(model, sample, options), 2),
-    ...(model.threads ? threadRows(model, sample, options).map((row) => side(row, 2)) : []),
-    side(middle, 3),
-    bottomEdge(model, sample, options),
+    topEdge(model, sample, edges),
+    ...body.map(([row, r], index) => side(row, r, index + 1)),
+    bottomEdge(model, sample, edges),
   ];
   return {
     mode: "card",

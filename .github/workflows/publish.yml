@@ -1,0 +1,70 @@
+# Publishes @litfamily/litclaude from GitHub with npm trusted publishing, so every version carries a
+# provenance statement that links the tarball to this repository and commit. Run it by hand from main.
+# The default is a dry run that only runs the gates and lists the tarball. A real run uploads a staged
+# version; it stays private until the maintainer approves it on npmjs.com with two-factor authentication.
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Upload a staged version to npm (off = gates and pack listing only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      LITCLAUDE_AUTO_INSTALL: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: npm with staged publishing
+        run: npm install -g npm@11.21.1
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Validate plugin
+        run: npm run validate:plugin
+
+      - name: Doctor
+        run: npm run doctor
+
+      - name: Skill-resource manifest drift check
+        run: npm run check:skill-resources
+
+      - name: Canonical runtime-closure drift check
+        run: npm run check:runtime-closures
+
+      - name: Version lockstep check
+        run: npm run check:version
+
+      - name: Assert CI workflow integrity
+        run: npm run assert:ci
+
+      - name: Legacy-token scan
+        run: npm run scan:legacy-tokens
+
+      - name: Pack payload guard
+        run: npm run pack:payload-guard
+
+      - name: Stage on npm
+        if: inputs.stage
+        run: npm stage publish

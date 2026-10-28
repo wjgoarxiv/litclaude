@@ -57,6 +57,7 @@ import { clearLitPlanTurn, evaluateLitPlanStop, recordLitPlanTurn } from "../lib
 import { evaluateInterfaceProbeStop, observeInterfaceProbeTool, recordInterfaceProbeTurn } from "../lib/interface-probe-gate.mjs";
 import { evaluateMotionStop, observeMotionTool, recordMotionTurn } from "../lib/motion-render-gate.mjs";
 import { applyAutoHandoffRoute, autoHandoffReloadContext, evaluateAutoHandoffStop, parseAutoHandoffRoute } from "../lib/auto-handoff.mjs";
+import { inviteMessage, parseInvitePrompt, recordInvite, shareLine } from "../lib/invite.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
   try {
@@ -1662,6 +1663,19 @@ switch (eventName) {
   }
   case "user-prompt-submit": {
     const prompt = typeof input.prompt === "string" ? input.prompt : "";
+    // A whole-prompt `lit invite [@id]` is answered here and blocks the turn, so no model turn
+    // runs for it. The host puts its own label before the reason, hence the leading newline.
+    const invite = parseInvitePrompt(prompt);
+    if (invite) {
+      let reason;
+      try {
+        reason = invite.id === null ? shareLine() : inviteMessage(recordInvite(invite.id));
+      } catch {
+        reason = inviteMessage({ status: "failed" });
+      }
+      console.log(JSON.stringify({ decision: "block", reason: `\n${reason}` }));
+      break;
+    }
     // Prompt-time static injection is the straggler lane: SessionStart already recorded
     // what it injected, so this is normally empty and only speaks when a rule file
     // appeared mid-session. Reduced budget, because it can fire on every turn.

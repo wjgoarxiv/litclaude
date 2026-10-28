@@ -105,6 +105,7 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
   assert.equal(pack.version, "1.0.42");
 
   for (const required of [
+    "TRADEMARK.md",
     "bin/litclaude-ai.js",
     "bin/update-notifier.mjs",
     "bin/update-notifier-refresh.mjs",
@@ -248,6 +249,14 @@ test("pack guard excludes non-README artwork and release sources while allowing 
   ];
   assert.deepEqual(findOffenders(excluded).map(({ filePath }) => filePath), excluded);
   assert.deepEqual(findOffenders(["plugins/litclaude/assets/icon-512.png", "bin/litclaude-ai.js"]), []);
+});
+
+// Claude Code writes a tsconfig.json and .claude-plugin/types/ into a directory loaded with
+// `--plugin-dir`; neither belongs in the package. A skill's own tsconfig.json still ships.
+test("pack guard rejects host residue that --plugin-dir leaves in the plugin root", () => {
+  const residue = ["plugins/litclaude/tsconfig.json", "plugins/litclaude/.claude-plugin/types/tsconfig.json", "plugins/litclaude/.claude-plugin/types/index.d.ts"];
+  assert.deepEqual(findOffenders(residue).map(({ filePath }) => filePath), residue);
+  assert.deepEqual(findOffenders(["plugins/litclaude/skills/lsp-setup/scripts/tsconfig.json", "plugins/litclaude/.claude-plugin/plugin.json"]), []);
 });
 
 test("pack payload guard rejects nested product-local state under included trees", () => {

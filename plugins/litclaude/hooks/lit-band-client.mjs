@@ -9,7 +9,7 @@
 import { composeBand } from "../lib/mod/frame.mjs";
 import { TIMINGS, motionProfile } from "../lib/mod/motion.mjs";
 import { renderBand } from "../lib/mod/render.mjs";
-import { advanceTimeline, ambientActive, clockShown, createTimeline, sampleTimeline, timelineBusy } from "../lib/mod/timeline.mjs";
+import { advanceTimeline, ambientActive, clockShown, createTimeline, glintWait, sampleTimeline, timelineBusy } from "../lib/mod/timeline.mjs";
 
 // The timeline lives in one holder object that the frame timer and every draw share. The timer
 // never reads `surface.state` back, so a draw that folded in a new model is never overwritten by a
@@ -29,9 +29,14 @@ export default function LitBand(props, surface) {
     holder.model = model;
   }
 
-  const interval = () => (timelineBusy(holder.timeline, holder.now, profile) ? TIMINGS.frame
-    : ambientActive(holder.timeline, profile) ? TIMINGS.ambientFrame
-      : clockShown(holder.timeline) ? TIMINGS.clock : null);
+  // The club look's glint ticks only during a pass and otherwise sleeps until the next one.
+  const interval = () => {
+    if (timelineBusy(holder.timeline, holder.now, profile)) return TIMINGS.frame;
+    if (ambientActive(holder.timeline, profile)) return TIMINGS.ambientFrame;
+    const glint = glintWait(holder.timeline, holder.now, profile);
+    const clock = clockShown(holder.timeline) ? TIMINGS.clock : null;
+    return glint !== null && (clock === null || glint < clock) ? glint : clock;
+  };
   const schedule = () => {
     const wanted = interval();
     if (wanted === holder.interval) return;

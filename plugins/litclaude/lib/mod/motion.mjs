@@ -36,6 +36,11 @@ export const TIMINGS = Object.freeze({
   clock: 1000,
   hue: 4800,
   sparks: 3600,
+  // The club look's glint along the top border (full motion only): the first pass waits
+  // `clubGlintRest`, each pass lasts `clubGlint`, and passes start `clubGlintPeriod` apart.
+  clubGlint: 1400,
+  clubGlintRest: 1200,
+  clubGlintPeriod: 3600,
 });
 
 // full: the approved motion, and while LitClaude works the brand breathes, a light sweeps the active

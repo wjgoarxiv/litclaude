@@ -38,6 +38,12 @@
       "title": "LIT finish notification",
       "description": "off, or finish: a notification through your own notification channel when LIT work completes or a LIT turn longer than three minutes ends. finish+sound also plays a sound once LitClaude ships one; until then it notifies like finish.",
       "default": "off"
+    },
+    "club": {
+      "type": "string",
+      "title": "LIT club look",
+      "description": "on: once you typed `lit invite @<github-id>`, the idle card wears the gold club look. off keeps the plain ready card. Nothing is sent anywhere.",
+      "default": "on"
     }
   }
 }

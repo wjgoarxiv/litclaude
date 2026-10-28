@@ -113,6 +113,8 @@ const FORBIDDEN_PATTERNS = [
   new RegExp(`^\\.${["o","m","o"].join("")}/`),
   /# REFERENCE/,
   /\.debug-journal/,
+  // Host residue: Claude Code writes these into a directory loaded with `--plugin-dir`.
+  /^plugins\/litclaude\/(?:tsconfig\.json$|\.claude-plugin\/types\/)/,
 ];
 
 /**

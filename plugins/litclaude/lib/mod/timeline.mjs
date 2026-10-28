@@ -45,10 +45,18 @@ const ambientOf = (model, now, profile, previous = null) => {
   return { on, at: on && previous?.on ? previous.at : now };
 };
 
+// The club look's glint runs on the idle card, so it keeps its own clock apart from the ambient
+// loop: between passes nothing moves and the surface waits for the next one (glintWait).
+const glintOf = (model, now, profile, previous = null) => {
+  const on = Boolean(profile.ambient?.sweep) && model.visible && model.look === "club";
+  return { on, at: on && previous?.on ? previous.at : now };
+};
+
 export const createTimeline = (model, now, profile) => {
   const restAt = now + entryEnd(profile);
   return {
     ambient: ambientOf(model, now, profile),
+    glint: glintOf(model, now, profile),
     enterAt: now,
     exitAt: null,
     fill: { from: 0, to: fractionOf(model), at: restAt, dur: profile.duration(TIMINGS.fill) },
@@ -90,6 +98,7 @@ export const advanceTimeline = (timeline, model, now, profile) => {
   }
   next.chips = chipsOf(model, now, timeline.chips);
   next.ambient = ambientOf(model, now, profile, timeline.ambient);
+  next.glint = glintOf(model, now, profile, timeline.glint);
   next.step = stepOf(model, now);
   next.lanes = lanesOf(model, now);
   return next;
@@ -100,6 +109,28 @@ export const clockShown = (timeline) => timeline.exitAt === null && Boolean(time
 
 /** True while the ambient loop runs; the surface module then keeps a slower frame timer going. */
 export const ambientActive = (timeline, profile) => Boolean(profile.ambient) && timeline.exitAt === null && timeline.ambient.on;
+
+// Where the club glint stands: 0 to 1 across the current pass, or null between passes, before the
+// first one and while the glint is off.
+const glintAt = (timeline, now) => {
+  if (!timeline.glint?.on || timeline.exitAt !== null) return null;
+  const elapsed = now - timeline.glint.at - TIMINGS.clubGlintRest;
+  if (elapsed < 0) return null;
+  const into = elapsed % TIMINGS.clubGlintPeriod;
+  return into < TIMINGS.clubGlint ? into / TIMINGS.clubGlint : null;
+};
+
+/**
+ * How long the surface may wait before its next frame for the club glint: a frame interval while a
+ * pass runs, the time left until the next pass otherwise, and null when the glint is off.
+ */
+export const glintWait = (timeline, now, profile) => {
+  if (!profile.ambient?.sweep || !timeline.glint?.on || timeline.exitAt !== null) return null;
+  const elapsed = now - timeline.glint.at - TIMINGS.clubGlintRest;
+  if (elapsed < 0) return -elapsed;
+  const into = elapsed % TIMINGS.clubGlintPeriod;
+  return into < TIMINGS.clubGlint ? TIMINGS.ambientFrame : TIMINGS.clubGlintPeriod - into;
+};
 
 // The rewind look's sparks: fixed seeds (a small LCG, so every surface draws the same sky), each a
 // starting place, a drift speed and a twinkle offset.
@@ -217,6 +248,7 @@ export const sampleTimeline = (timeline, now, profile) => {
     completion,
     chips,
     ambient: ambientSample(timeline, now, profile),
+    glint: glintAt(timeline, now),
     step: timeline.step ? { name: timeline.step.name, elapsedMs: timeline.step.base + Math.max(0, now - timeline.step.at) } : null,
     lanes: timeline.lanes ? { elapsedMs: timeline.lanes.base + Math.max(0, now - timeline.lanes.at) } : null,
     spin: Math.floor(Math.max(0, now) / TIMINGS.spin) % 4,

@@ -123,9 +123,9 @@ test("a moving bar brightens its leading cell, and only that cell", () => {
 });
 
 test("settings fall back to safe defaults", () => {
-  assert.deepEqual(normalizeModSettings({}), { motion: "full", glyphs: "auto", band: "always", notify: "off" });
-  assert.deepEqual(normalizeModSettings({ motion: "Subtle", glyphs: "NERD", band: "auto", notify: "Finish" }), { motion: "subtle", glyphs: "nerd", band: "auto", notify: "finish" });
-  assert.deepEqual(normalizeModSettings({ motion: "wild", glyphs: "emoji", band: "sometimes", notify: "always" }), { motion: "full", glyphs: "auto", band: "always", notify: "off" });
+  assert.deepEqual(normalizeModSettings({}), { motion: "full", glyphs: "auto", band: "always", notify: "off", club: "on" });
+  assert.deepEqual(normalizeModSettings({ motion: "Subtle", glyphs: "NERD", band: "auto", notify: "Finish", club: "OFF" }), { motion: "subtle", glyphs: "nerd", band: "auto", notify: "finish", club: "off" });
+  assert.deepEqual(normalizeModSettings({ motion: "wild", glyphs: "emoji", band: "sometimes", notify: "always", club: "maybe" }), { motion: "full", glyphs: "auto", band: "always", notify: "off", club: "on" });
   assert.equal(normalizeModSettings(undefined).motion, "full");
 });
 

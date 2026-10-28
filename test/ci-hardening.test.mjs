@@ -389,3 +389,30 @@ describe('ci-hardening: pack guard path-shape coverage', () => {
     ]);
   });
 });
+
+describe('ci-hardening: publish.yml is the only workflow that may request an OIDC token', () => {
+  const PUBLISH_YML = resolve(ROOT, '.github', 'workflows', 'publish.yml');
+  const OIDC = ['id', '-token'].join('');
+  const DIRECT = ['npm', ' ', 'publish'].join('');
+  const STAGE = ['npm', ' stage', ' publish'].join('');
+
+  it('the shipped publish.yml passes and runs every required gate', async () => {
+    const { checkWorkflow } = await import('../tools/assert-ci-workflow.mjs');
+    const text = readFileSync(PUBLISH_YML, 'utf8');
+    assert.deepEqual(checkWorkflow('publish.yml', text), []);
+    for (const gate of ['npm test', 'npm run assert:ci', 'npm run check:version', 'npm run pack:payload-guard']) {
+      assert.ok(text.includes(gate), `publish.yml does not run ${gate}`);
+    }
+  });
+
+  it('refuses the token in any other workflow, an automatic trigger, a direct publish and a missing stage step', async () => {
+    const { checkWorkflow } = await import('../tools/assert-ci-workflow.mjs');
+    const good = `on:\n  workflow_dispatch:\npermissions:\n  ${OIDC}: write\njobs:\n  p:\n    steps:\n      - run: ${STAGE}\n`;
+    assert.deepEqual(checkWorkflow('publish.yml', good), []);
+    assert.notDeepEqual(checkWorkflow('ci.yml', good), []);
+    assert.notDeepEqual(checkWorkflow('publish.yml', good.replace('workflow_dispatch:', 'push:')), []);
+    assert.notDeepEqual(checkWorkflow('publish.yml', `${good}      - run: ${DIRECT}\n`), []);
+    assert.notDeepEqual(checkWorkflow('publish.yml', good.replace(STAGE, 'npm test')), []);
+    assert.notDeepEqual(checkWorkflow('publish.yml', `${good}env:\n  ${['NPM', '_TOKEN'].join('')}: x\n`), []);
+  });
+});

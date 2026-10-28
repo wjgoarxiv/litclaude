@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import {
   appendFileSync,
   closeSync,
@@ -462,7 +462,8 @@ const readCanonicalPlanText = (planPath) => {
 
 export const readPlanProgress = (planPath) => {
   const text = readCanonicalPlanText(planPath);
-  const tasks = parsePlanTaskRows(text).map(({ checked, text: taskText }) => ({ checked, text: taskText }));
+  // `blocked` joins the fingerprint only when set, so a plan without BLOCKED: tasks keeps its hash.
+  const tasks = parsePlanTaskRows(text).map(({ checked, text: taskText, blocked }) => ({ checked, text: taskText, ...(blocked ? { blocked } : {}) }));
   const fingerprint = hash(JSON.stringify(tasks));
   const uncheckedTasks = tasks.filter(({ checked }) => !checked);
   return {
@@ -470,7 +471,8 @@ export const readPlanProgress = (planPath) => {
     total: tasks.length,
     checked: tasks.length - uncheckedTasks.length,
     unchecked: uncheckedTasks.length,
-    next_task: uncheckedTasks[0]?.text ?? null,
+    next_task: uncheckedTasks.find(({ blocked }) => !blocked)?.text ?? null,
+    blocked_tasks: uncheckedTasks.filter(({ blocked }) => blocked).map(({ text: taskText }) => taskText),
   };
 };
 
@@ -853,7 +855,15 @@ export const startWorkStructuredContext = (root, sessionId, response = null) => 
   return `<litclaude-start-work-context>\n${json}\n</litclaude-start-work-context>`;
 };
 
-const forbiddenShellPattern = /(?:\bgit\b[^\n;&|]*\b(?:commit|push|tag|reset|clean|config)\b|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\b(?:publish|version)\b|\bgh\b[^\n;&|]*\brelease\s+create\b|\bdefaults\s+write\b)/iu;
+const forbiddenShellPattern = /(?:\bgit\b[^\n;&|]*\b(?:commit|push|tag|reset|clean|config)\b|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\bpublish\b|\bgh\b[^\n;&|]*\brelease\s+create\b|\bdefaults\s+write\b)/iu;
+// A package manager call that names `version` is a bump unless its subcommand only reads or runs a
+// script (`npm view <pkg> version`, `npm run check:version`). That verb must be the word right after
+// the manager: any flag in front of it (`--prefix run version patch`) leaves the subcommand unknown, refused.
+// The lookahead keeps a nested call (`npm view x version $(npm version patch)`) its own match.
+const PACKAGE_MANAGER_CALL = /\b(?:npm|pnpm|yarn)\b(?=([^\n;&|]*))/giu;
+const VERSION_READ_VERB = /^[ \t]+(?:view|info|show|v|run|run-script)(?:[ \t]|$)/iu;
+const forbiddenShellCommand = (command) => forbiddenShellPattern.test(command)
+  || [...command.matchAll(PACKAGE_MANAGER_CALL)].some(([, rest]) => /\b(?:version|verison)\b/iu.test(rest) && !VERSION_READ_VERB.test(rest));
 const shellRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?:=|\s|$)|(?:^|\s)-C(?:\s|$)/u;
 // For grep and rg, `-C <n>` is the context-lines flag, not a change of directory.
 const searchRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?:=|\s|$)/u;
@@ -1123,7 +1133,7 @@ const classifyBash = (command, cwd) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) {
     return { denied: "unclassified mutating Bash command" };
   }
-  if (forbiddenShellPattern.test(command)) return { denied: "forbidden authority action in Bash command" };
+  if (forbiddenShellCommand(command)) return { denied: "forbidden authority action in Bash command" };
   const trimmed = command.trim();
   const segments = trimmed.split(/[ \t]+&&[ \t]+/u);
   if (segments.length === 1) return classifyBashSegment(trimmed, cwd);
@@ -1332,6 +1342,24 @@ const PLUGIN_ROOT = (() => {
 const pluginSelfRead = (classified) => classified.action === "read" && PLUGIN_ROOT !== null
   && (classified.targetRoots ?? [classified.targetRoot]).every((target) => rootCovers(PLUGIN_ROOT, target));
 
+// Claude Code spills a long tool result to `<config>/projects/<project key>/<session id>/tool-results/`
+// and tells the session to read it there. The root session (and its subagents, which share its id) may
+// read its own folder; the key is the project path with every non-alphanumeric character as `-`.
+// Another session's folder, and any write, stay boundaries.
+const ownSpillRead = (classified, sessionId, projectDirs) => {
+  if (classified.action !== "read" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u.test(sessionId)) return false;
+  const projects = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "projects");
+  const spills = projectDirs.filter((dir) => typeof dir === "string").flatMap((dir) => {
+    const spill = join(projects, dir.replace(/[^A-Za-z0-9]/gu, "-"), sessionId, "tool-results");
+    try {
+      return [canonicalTarget(spill, "spill folder")];
+    } catch {
+      return [];
+    }
+  });
+  return (classified.targetRoots ?? [classified.targetRoot]).every((target) => spills.some((spill) => rootCovers(spill, target)));
+};
+
 // What an approved boundary covers: a read reaches the target's folder, or the toplevel of another
 // git checkout the target sits in; a write reaches the target's folder only. The next file beside
 // the first then needs no second approval.
@@ -1491,7 +1519,7 @@ const observeFilter = ([head, ...args]) => {
 // calls this; the owner's guard keeps classifyBash.
 export const classifyObservation = (command, cwd) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) return false;
-  if (forbiddenShellPattern.test(command)) return false;
+  if (forbiddenShellCommand(command)) return false;
   const tokens = observationTokens(command.trim());
   if (!tokens?.length) return false;
   const segments = [[]];
@@ -1622,6 +1650,9 @@ export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}
     }
     if (classified.control) return { decision: "allow-normal", action: "control", root: executionRoot, roots: [executionRoot] };
     if (pluginSelfRead(classified)) return { decision: "allow-normal", action: "read", root: PLUGIN_ROOT, roots: [PLUGIN_ROOT] };
+    if (!classified.chain && ownSpillRead(classified, input.session_id, [canonicalRoot, input.cwd])) {
+      return { decision: "allow-normal", action: "read", root: classified.targetRoots?.[0] ?? classified.targetRoot, roots: classified.targetRoots ?? [classified.targetRoot] };
+    }
     if (classified.chain) {
       const covered = classified.chain.every((link) => link.control
         || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
@@ -1777,9 +1808,13 @@ export const handleStartWorkStop = (root, input) => {
     const next = progress.next_task
       ? `Continue work ${work.work_id} with next top-level task: ${progress.next_task}.`
       : `Work ${work.work_id} has all top-level tasks checked; run final verification and cleanup, then complete it with \`litclaude-ai start-work complete --work-id ${work.work_id} --session-id ${input.session_id} --expected-revision ${work.revision} --idempotency-key complete-${work.work_id}-${work.revision}\`.`;
+    // Every open task waits on the user (BLOCKED:): say so once and let the session stop. The
+    // fingerprint below keeps the next Stop silent until the plan changes.
+    const waiting = !progress.next_task && progress.unchecked > 0;
     const output = {
-      decision: "block",
-      reason: `LitClaude start-work continuation: ${next}`,
+      ...(waiting
+        ? { systemMessage: `LitClaude start-work ${work.work_id} is waiting on you; every open task is BLOCKED: ${progress.blocked_tasks.slice(0, 5).map((task) => task.replace(/[\p{Cc}\p{Cf}]/gu, " ").slice(0, 120)).join("; ")}${progress.blocked_tasks.length > 5 ? ` (+${progress.blocked_tasks.length - 5} more)` : ""}. Remove BLOCKED: from a task or reply to carry on.` }
+        : { decision: "block", reason: `LitClaude start-work continuation: ${next}` }),
       work_id: work.work_id,
       revision: work.revision,
       continuation_id: `continuation-${shortHash(`${input.session_id}:${promptId}:${work.work_id}:${work.revision}:${progress.fingerprint}`)}`,

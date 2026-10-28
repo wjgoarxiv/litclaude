@@ -44,6 +44,7 @@ import { runWorkflowStageCli } from "../plugins/litclaude/lib/workflow-stage.mjs
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
+import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plugins/litclaude/lib/invite.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
@@ -82,17 +83,22 @@ const prewarmMotionRuntime = () => {
 };
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|start-work|start-work-next|public-read|motion-runtime> [...args]
        litclaude-ai --version
 
 Commands:
   install       Register the packaged LitClaude plugin in Claude Code.
   doctor        Validate the installed LitClaude plugin path.
   config [<option> <value>]
-                Show or change the LIT card options (motion, glyphs, band, notify) in
+                Show or change the LIT card options (motion, glyphs, band, notify, club) in
                 pluginConfigs, the same values /config edits. Works for the
                 desktop app too, which shows no editor for them.
-  path          Print the installed Claude plugin path.
+  invite [@<github-id>] [--json]
+                Record who invited you (the same as typing \`lit invite @<id>\`);
+                the LIT card gets its club look. Saved in ~/.litclaude/invite.json
+                on this machine only; nothing is sent. Without an id, print the
+                line to share with friends.
+  path         Print the installed Claude plugin path.
   run -- ...    Run Claude Code after the global plugin install.
   litgoal       Manage litgoal runtime state and evidence.
   wikify        Manage user-owned local knowledge with cooperative writers; same uid is not a tamper-proof or confidential boundary.
@@ -803,6 +809,23 @@ const configModOptions = (rest, home = claudeHome()) => {
   }
   writeClaudeSettings(settings, home);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(settings)}\n`);
+};
+
+// `invite @<id>` records who invited this machine (lib/invite.mjs) and unlocks the card's club look;
+// bare `invite` prints the line to share. Nothing is sent anywhere. An invalid id exits 2.
+const runInvite = (rest) => {
+  const json = rest.includes("--json");
+  const args = rest.filter((arg) => arg !== "--json");
+  if (args.length > 1) fail("invite takes one GitHub id: litclaude-ai invite @<github-id>", 2);
+  if (args.length === 0) {
+    process.stdout.write(json ? `${JSON.stringify({ status: "share", line: shareLine(), discussions: DISCUSSIONS_URL })}\n` : `${shareLine()}\n`);
+    return;
+  }
+  const result = recordInvite(args[0]);
+  if (json) process.stdout.write(`${JSON.stringify(result)}\n`);
+  if (result.status === "invalid") fail(json ? "" : inviteMessage(result), 2);
+  if (result.status === "failed") fail(json ? "" : inviteMessage(result), 1);
+  if (!json) process.stdout.write(`${inviteMessage(result)}\n`);
 };
 
 const ownsHudStatusLine = (settings, ownership) =>
@@ -1834,6 +1857,9 @@ const main = async () => {
       break;
     case "config":
       configModOptions(parsed.rest);
+      break;
+    case "invite":
+      runInvite(parsed.rest);
       break;
     case "path":
       printPath(parsed);
