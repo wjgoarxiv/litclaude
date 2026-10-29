@@ -11,8 +11,10 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # macOS is where the whole suite is proven green (render tests need a GPU-backed WebGL context and macOS
+    # file-name normalisation); it takes about two and a half hours there.
+    runs-on: macos-latest
+    timeout-minutes: 330
 
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
@@ -20,13 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 22
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: ffmpeg for the motion and audio tests
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: brew install ffmpeg
 
       - name: Unit and integration tests
         run: npm test

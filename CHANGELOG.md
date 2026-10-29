@@ -4,7 +4,7 @@
 
 - A release from GitHub Actions no longer runs the whole suite a second time. The publish gate asks GitHub whether
   `ci.yml` passed on that exact, unmodified commit and refuses the publish if it did not; a local `npm publish` still
-  runs the full suite. `ci.yml` now installs ffmpeg and has an hour, so it can pass on its own.
+  runs the full suite. `ci.yml` now runs on macOS with ffmpeg and enough time to finish, so it can pass on its own.
 
 ## 1.0.43 - 2026-10-28
 
