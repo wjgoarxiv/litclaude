@@ -204,3 +204,5 @@ A Markdown or chat answer when a Word file was asked for; stopping to ask for fa
 | Markdown quality after conversion | `references/markdown_quality_checklist.md` |
 | LaTeX templates for the PDF path | `templates/latex/<profile>/` |
 | Authorship and licence | `NOTICE` |
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:0b57a89dd9d6 -->

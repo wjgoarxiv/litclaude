@@ -89,6 +89,51 @@ const mtimeOf = (path) => {
   }
 };
 
+// A plan run by a lane is ticked in the lane's worktree: its copy of the plan and its start-work
+// ledger. A record counts for this plan only when the plan names that worktree (`.worktrees/<dir>`
+// or `.claude/worktrees/<dir>`) and the ledger's plan file is this plan, by its name or its name
+// without the `YYYY-MM-DD-` prefix. The best-progressed record wins; ties and worse keep the plan's own.
+const WORKTREE_MENTION = /(?<![A-Za-z0-9_/-])((?:\.claude\/)?\.?worktrees\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,79})/gu;
+const MENTIONS_MAX = 12;
+const isDirectory = (path) => {
+  try {
+    return lstatSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+};
+const laneRecordsOf = (root, name, text, budget, redact) => {
+  const stem = name.replace(/^\d{4}-\d{2}-\d{2}-/u, "");
+  const mentions = [...new Set([...text.matchAll(WORKTREE_MENTION)].map((match) => match[1].replace(/\.+$/u, "")))].slice(0, MENTIONS_MAX);
+  return mentions.flatMap((mention) => {
+    const tree = join(root, mention);
+    if (!isDirectory(tree)) return [];
+    const state = readJson(join(tree, ".litclaude", "boulder.json"), budget);
+    if (!state || typeof state.works !== "object" || state.works === null) return [];
+    return Object.values(state.works).flatMap((work) => {
+      const planName = work?.plan_name;
+      if (typeof planName !== "string" || !/^[A-Za-z0-9._-]+\.md$/u.test(planName) || (planName !== name && planName !== stem)) return [];
+      const copy = readSmallFile(join(tree, "plans", planName), budget);
+      const rows = copy === null ? [] : parsePlanTaskRows(copy);
+      if (rows.length) {
+        const open = rows.filter((row) => !row.checked);
+        return [{
+          recordedIn: `${mention}/plans/${planName}`,
+          rows: rows.map((row) => ({ checked: row.checked, title: clipToWidth(redact(row.text), NAME_MAX) })),
+          current: open.length ? clipToWidth(redact(open[0].text), NAME_MAX) : null,
+          progress: progressOf(rows.length - open.length, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX))),
+        }];
+      }
+      const { checked, total, next_task: next } = work.progress ?? {};
+      if (!Number.isInteger(checked) || !Number.isInteger(total) || total <= 0 || checked < 0 || checked > total) return [];
+      const named = typeof next === "string" && next.trim() ? clipToWidth(redact(next), NAME_MAX) : null;
+      const current = checked < total ? named ?? "unknown" : null;
+      return [{ recordedIn: `${mention}/.litclaude/boulder.json`, current, progress: progressOf(checked, total, named ? [named] : undefined) }];
+    });
+  });
+};
+const share = (progress) => progress.done / progress.total;
+
 // A plan met after the read budget ran out is counted in `skipped.count`, so the brief can say so.
 const plansIn = (root, budget, redact, local, skipped = { count: 0 }) => {
   const list = entries(join(root, "plans"));
@@ -104,16 +149,24 @@ const plansIn = (root, budget, redact, local, skipped = { count: 0 }) => {
     if (!rows.length || isTemplate(rows)) return [];
     const open = rows.filter((row) => !row.checked);
     const done = rows.length - open.length;
+    const own = {
+      rows: rows.map((row) => ({ checked: row.checked, title: clipToWidth(redact(row.text), NAME_MAX) })),
+      current: open.length ? clipToWidth(redact(open[0].text), NAME_MAX) : null,
+      progress: progressOf(done, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX))),
+    };
+    const best = laneRecordsOf(root, entry.name, text, budget, redact)
+      .reduce((top, record) => (share(record.progress) > share(top.progress) ? record : top), own);
     // A plan with every row ticked is kept, marked complete: it is finished work, not roadmap.
     return [{
       worktree: redact(root),
       plan: `plans/${entry.name}`,
       local,
-      complete: open.length === 0,
+      complete: best.progress.done === best.progress.total,
       changedMs: mtimeOf(join(root, "plans", entry.name)),
-      rows: rows.map((row) => ({ checked: row.checked, title: clipToWidth(redact(row.text), NAME_MAX) })),
-      current: open.length ? clipToWidth(redact(open[0].text), NAME_MAX) : null,
-      progress: progressOf(done, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX))),
+      rows: best.rows ?? own.rows,
+      current: best.current,
+      progress: best.progress,
+      ...(best.recordedIn ? { recordedIn: best.recordedIn } : {}),
     }];
   });
 };
@@ -403,7 +456,7 @@ export const collectRewind = ({
     // Finished inside the window: completed start-work runs and plans with every row ticked.
     finished: {
       runs: recentRuns.map(({ worktree, plan, atMs }) => ({ worktree, plan, at: new Date(atMs).toISOString() })),
-      plans: (plans ?? []).filter((plan) => plan.complete && recent(plan)).map(({ worktree, plan, local, progress }) => ({ worktree, plan, local, gauge: progress.gauge })),
+      plans: (plans ?? []).filter((plan) => plan.complete && recent(plan)).map(({ worktree, plan, local, progress, recordedIn }) => ({ worktree, plan, local, gauge: progress.gauge, ...(recordedIn ? { recordedIn } : {}) })),
     },
     workflows: (workflows ?? []).map((frame) => ({ ...frame, self: Boolean(sessionId) && frame.sessionId === sessionId })),
     startWork: startWork ?? [],

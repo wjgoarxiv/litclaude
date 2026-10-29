@@ -13,6 +13,7 @@ import * as pid from "./pid.mjs";
 import { orthogonal, routeOrthogonal } from "./route.mjs";
 import { el, esc, n, pathOf, svgDocument, textBox, textWidthEm } from "./svg.mjs";
 import { FONT_LATIN, PID, STREAM, fontFor } from "./theme.mjs";
+import { WORDMARK, markPlan } from "../../../../lib/mark.mjs";
 
 const W = PID.weight;
 
@@ -830,6 +831,12 @@ export function createSheet({
     cell("sheet", [x1 - 46, y0 + 10, x1, y0 + 18], "SHEET", sheet, 2.6);
     cell("project", [x0, y0 + 18, x0 + 90, y0 + 28], "PROJECT", project || "-", 2.5);
     cell("owner", [x0 + 90, y0 + 28 - 10, x1, y0 + 28], "OWNER", owner || "-", 2.5);
+    // The visible LitClaude mark sits in the OWNER cell, right-aligned under the owner's name, never on the drawing.
+    if (markPlan().visible) {
+      cells.push(textEl(x1 - 1.5, y0 + 28 - 1.4, WORDMARK.text, 2.0, {
+        "text-anchor": "end", "data-label": "litclaude-mark", "data-within": [x0 + 90, y0 + 18, x1, y0 + 28].map(n).join(" "), fill: "#444444",
+      }));
+    }
     const w5 = 180 / 5;
     [["drawn", "DRAWN", drawn], ["checked", "CHECKED", checked], ["approved", "APPROVED", approved], ["date", "DATE", date || "-"], ["scale", "SCALE", scale]].forEach(([field, caption, value], i) => {
       cell(field, [x0 + i * w5, y0 + 28, x0 + (i + 1) * w5, y1], caption, value || "-", 2.4);

@@ -1,9 +1,9 @@
 import React from 'react';
 import {AbsoluteFill, Composition, Easing, Img, interpolate, registerRoot, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 
-type CoverProps = {dark: boolean; mobile: boolean; blur: number; grain: number; expressive: boolean};
+type CoverProps = {dark: boolean; mobile: boolean; blur: number; grain: number; expressive: boolean; mark: boolean};
 
-const Cover: React.FC<CoverProps> = ({dark, mobile, blur, grain, expressive}) => {
+const Cover: React.FC<CoverProps> = ({dark, mobile, blur, grain, expressive, mark}) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const phase = frame / (durationInFrames - 1);
@@ -29,8 +29,9 @@ const Cover: React.FC<CoverProps> = ({dark, mobile, blur, grain, expressive}) =>
       <path fill={paper} d="M3 1h12v2h2v15H3z"/><path fill={color} d="M3 1h12v2H5v13h10V3h2v15H3zM7 5h6v1H7zM7 8h6v1H7zM7 11h4v1H7z"/><path fill="#c64d2e" d="M1 4h4v2H1zM1 9h4v2H1zM1 14h4v2H1zM13 13h5v2h-5z"/>
     </svg>
     <div style={{position: 'absolute', left: pad, right: pad, bottom: 40, borderTop: `1px solid ${color}88`}}/>
+    {mark ? <Img className="litclaude-mark" src={staticFile(`mark-${ink}.svg`)} style={{position: 'absolute', zIndex: 7, right: pad, bottom: 12, height: 16, opacity: 0.6}}/> : null}
   </AbsoluteFill>;
 };
 
-const Root = () => <>{[false,true].flatMap(mobile => [false,true].map(dark => <Composition key={`${mobile}-${dark}`} id={`Cover${mobile ? 'Mobile' : 'Wide'}${dark ? 'Dark' : 'Light'}`} component={Cover} width={mobile ? 800 : 1600} height={mobile ? 1000 : 800} fps={60} durationInFrames={300} defaultProps={{dark,mobile,blur:2,grain:0.06,expressive:false}}/>))}</>;
+const Root = () => <>{[false,true].flatMap(mobile => [false,true].map(dark => <Composition key={`${mobile}-${dark}`} id={`Cover${mobile ? 'Mobile' : 'Wide'}${dark ? 'Dark' : 'Light'}`} component={Cover} width={mobile ? 800 : 1600} height={mobile ? 1000 : 800} fps={60} durationInFrames={300} defaultProps={{dark,mobile,blur:2,grain:0.06,expressive:false,mark:true}}/>))}</>;
 registerRoot(Root);

@@ -130,3 +130,5 @@ that way, prefer a clearer name or a test.
 For code comments, evidence is the diff plus tests. For docs comments or
 markdown policy notes, evidence is docs tests and one manual scan of the
 rendered or packaged surface when relevant.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:a9dcd5ab0bdf -->

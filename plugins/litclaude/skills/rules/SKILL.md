@@ -171,3 +171,5 @@ Post-edit output is conditional, not a fixed reminder. It names only what the ed
 Rules work is verified by hook tests and real hook invocation. For this repo,
 use `test/hooks.test.mjs` and a CLI invocation of
 `plugins/litclaude/bin/litclaude-hook.js` with concrete JSON input.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:427bda236421 -->

@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findChrome, renderPng, svgSize } from "./render.mjs";
+import { ffmpegMetadataArgs, tagFile } from "../../../lib/mark.mjs";
 
 export function findTool(name, env = process.env) {
   const dirs = (env.PATH ?? "").split(process.platform === "win32" ? ";" : ":").filter(Boolean);
@@ -58,7 +59,7 @@ export function renderMotion({ frame, out, name = "loop", seconds = 4, fps = 24,
       const svg = frame(i / count);
       size ??= svgSize(svg);
       const dpi = (width / size.width) * 25.4;
-      renderPng({ chrome, svg, out: join(frames, `f${String(i).padStart(4, "0")}.png`), dpi, verify: false });
+      renderPng({ chrome, svg, out: join(frames, `f${String(i).padStart(4, "0")}.png`), dpi, verify: false, tag: false });
       onFrame?.(i + 1, count);
     }
     const even = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
@@ -66,12 +67,13 @@ export function renderMotion({ frame, out, name = "loop", seconds = 4, fps = 24,
     const input = ["-y", "-loglevel", "error", "-framerate", String(fps), "-i", join(frames, "f%04d.png")];
     if (formats.includes("mp4")) {
       const file = join(out, `${name}.mp4`);
-      run(tools.ffmpeg, [...input, "-vf", `${even},format=yuv420p`, "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-movflags", "+faststart", file]);
+      run(tools.ffmpeg, [...input, "-vf", `${even},format=yuv420p`, "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-movflags", "+faststart", ...ffmpegMetadataArgs(), file]);
       results.mp4 = file;
     }
     if (formats.includes("gif")) {
       const file = join(out, `${name}.gif`);
       run(tools.ffmpeg, [...input, "-vf", `scale=${small}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`, "-loop", "0", file]);
+      tagFile(file);
       results.gif = file;
     }
     if (formats.includes("webp")) {
@@ -82,6 +84,7 @@ export function renderMotion({ frame, out, name = "loop", seconds = 4, fps = 24,
       const delay = String(Math.round(1000 / fps));
       const list = readdirSync(smallDir).filter((f) => f.endsWith(".png")).sort();
       run(tools.img2webp, ["-loop", "0", "-lossy", "-q", "78", "-m", "4", ...list.flatMap((f) => ["-d", delay, join(smallDir, f)]), "-o", file]);
+      tagFile(file);
       results.webp = file;
     }
     return { frames: count, fps, seconds, width, files: Object.fromEntries(Object.entries(results).map(([k, f]) => [k, { file: f, bytes: statSync(f).size }])) };

@@ -638,3 +638,5 @@ again and record internally which dirty files were pre-existing and which files
 you modified. Surface that inventory only when it reveals a material risk or the
 authoritative request asks for technical/audit detail. This is especially important for local handoff files and ignored
 evidence directories, which may be session state rather than product source.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:e80bd07708b5 -->

@@ -5,6 +5,30 @@
 - A release from GitHub Actions no longer runs the whole suite a second time. The publish gate asks GitHub whether
   `ci.yml` passed on that exact, unmodified commit and refuses the publish if it did not; a local `npm publish` still
   runs the full suite. `ci.yml` now runs on macOS with ffmpeg and enough time to finish, so it can pass on its own.
+- Headless Chrome started by lit-typographic-motion or lit-schematic now dies with the process that started it.
+  A render or probe killed mid-run, even with SIGKILL, used to leave Chrome running on its own; on macOS and
+  Linux Chrome now runs in its own process group with a watcher that ends the group once its launcher is gone.
+- The readme-studio Remotion cover template now resolves zod 4.6.6, the release that fixes the high-severity
+  advisory GHSA-mrhx-c7xc-m3w5 (memory exhaustion on oversized constrained collections). Remotion pins zod
+  exactly, so the template's `package.json` carries an `overrides` entry that keeps a fresh install on it.
+- The lit-adhd brief no longer shows `0/N` for a plan a lane finished in its own worktree. When a plan names
+  the worktree (`.worktrees/<dir>`) and that worktree's start-work ledger runs the same plan, the gauge takes
+  the further-along record and says where it came from; an unnamed worktree or another plan is never used.
+- `litclaude-ai rewind` now works from the npm CLI too, so the lit-adhd brief no longer falls back to the
+  bundled script after "Unknown command: rewind". It prints the brief without the wordmark and is listed in
+  `litclaude-ai --help`.
+- Files LitClaude makes now say where they came from. Word, PowerPoint, PDF, PNG, GIF, WebP, SVG
+  and MP4 outputs carry an invisible tag naming LitClaude and its version. Films end with a silent
+  half-second "made with LitClaude" card. Cover loops, diagram exports and README covers carry a
+  small corner mark, and P&ID sheets carry one line in the title block. Document pages, code,
+  commits and chat replies stay unmarked.
+- `litclaude config mark on|meta|off` chooses the level (`on` by default, `meta` for the
+  invisible tag only), and `LITCLAUDE_MARK` sets it for one run. It is kept in
+  `~/.litclaude/config.json`, never in Claude Code's settings.
+- `doctor` prints `OFFICIAL_BUILD` and the current `MARK:` mode, and warns when the running copy
+  carries another package name or repository.
+- Every skill and agent file ends with a one-line copyright and licence notice. The prompt hook
+  leaves it out of Claude's context.
 
 ## 1.0.43 - 2026-10-28
 

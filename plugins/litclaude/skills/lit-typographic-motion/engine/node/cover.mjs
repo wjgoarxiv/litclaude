@@ -23,6 +23,8 @@ import { lumaGrid } from "./cover-image.mjs";
 import { renderSheet } from "./cover-sheet.mjs";
 import { loadCoverTreatment } from "./cover-treatment.mjs";
 import { findFfmpeg, findImg2webp, which } from "./encode.mjs";
+import { WORDMARK, findClearSpot, markPlan, tagFile } from "../../../../lib/mark.mjs";
+import { decodePng } from "./png.mjs";
 import { asBlocked } from "./pipeline.mjs";
 import { encodePng, rgbaToRgb } from "./png.mjs";
 import { rasterInfo, scanStage, stageFonts } from "./stage-serve.mjs";
@@ -182,6 +184,33 @@ function readRaster(file, env) {
   }
 }
 
+/**
+ * Place LitClaude's visible corner mark (mark setting `on`) on a cover: sized from the output's short side, put at
+ * the clear spot nearest the bottom-right of frame 0, outside the title box and every art check box, in the
+ * ground's own ink. Returns the overlay spec in page pixels, or null with a notice when no clear spot exists.
+ */
+async function placeCoverMark(browser, { treatment, assets, notices }) {
+  const [pw] = treatment.page;
+  const [w] = treatment.out;
+  const toPage = pw / w;
+  const fontSize = Math.max(WORDMARK.minPx, WORDMARK.cornerShare * Math.min(...treatment.out)) * toPage;
+  const h = Math.ceil(fontSize * 1.4);
+  const base = { fontSize, h, ink: [0, 0, 0], opacity: WORDMARK.cornerOpacity, text: WORDMARK.text, weight: WORDMARK.weight, tracking: WORDMARK.tracking };
+  const textW = Math.ceil(await browser.setMark(base, { measure: true }));
+  await browser.frame(0);
+  const image = decodePng(await browser.capture());
+  const k = image.width / pw;
+  const frac = ([x, y, bw, bh]) => [x * image.width, y * image.height, (x + bw) * image.width, (y + bh) * image.height];
+  const exclude = [frac(treatment.title.box), ...assets.filter((a) => a.checkBox ?? a.box).map((a) => frac(a.checkBox ?? a.box))];
+  const spot = findClearSpot(image, { boxW: textW * k, boxH: h * k, inset: WORDMARK.insetShare * Math.min(image.width, image.height), pad: 0.6 * fontSize * k, exclude });
+  if (!spot) {
+    notices.push("the LitClaude mark found no clear spot in the bottom quarter outside the title and art boxes; this cover carries the invisible tag only");
+    browser.mark = null;
+    return null;
+  }
+  return { ...base, x: spot.x / k, y: spot.y / k, w: textW, ink: spot.ink };
+}
+
 /** Everything a cover round checks before the first capture: treatment, page, scan, assets, fonts. */
 function prepare({ out, env, log }) {
   const treatment = asBlocked(() => loadCoverTreatment(out));
@@ -215,6 +244,7 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
   const order = seekOrder(times.length, treatment.seed || 20261020);
   let rung = treatment.recipe === "hero-3d" ? "gpu" : "software";
   const notices = [];
+  let coverMark = null;
   try {
     const open = (label) => CoverBrowser.open({ stageDir, faces, width: pw, height: ph, scale: COVER.captureScale, profileDir: path.join(runDir, `chrome-${label}`), rung, env, log });
     let a;
@@ -229,6 +259,17 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
       a = await open("master");
     }
     try {
+      // The mark is placed from frame 0 in a browser of its own, so the capture passes start from the same page
+      // state as without it (a page that keeps state between frames is still caught by the seek check).
+      if (markPlan({ env }).visible) {
+        const m = await open("mark");
+        try {
+          coverMark = await placeCoverMark(m, { treatment, assets, notices });
+        } finally {
+          await m.close();
+        }
+      }
+      if (coverMark) await a.setMark(coverMark);
       master = await capturePass({ browser: a, pool, times, dir: dirs.frames, prefix: "f", width: w, height: h });
       await capturePass({ browser: a, pool, times, dir: dirs.masks, prefix: "m", mask: true, width: w, height: h });
     } finally {
@@ -236,13 +277,15 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
     }
     const b = await open("replay");
     try {
-      replay = await capturePass({ browser: b, pool, times, dir: dirs.frames2, prefix: "f", width: w, height: h });
+      if (coverMark) await b.setMark(coverMark);
+      replay =await capturePass({ browser: b, pool, times, dir: dirs.frames2, prefix: "f", width: w, height: h });
     } finally {
       await b.close();
     }
     const c = await open("seek");
     try {
-      sought = await capturePass({ browser: c, pool, times: order.map((i) => times[i]), dir: dirs.seek, prefix: "s", width: w, height: h });
+      if (coverMark) await c.setMark(coverMark);
+      sought =await capturePass({ browser: c, pool, times: order.map((i) => times[i]), dir: dirs.seek, prefix: "s", width: w, height: h });
     } finally {
       await c.close();
     }
@@ -271,6 +314,7 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
   const files = pngFrames(dirs.frames, "f");
   const flash = flashAudit(files, treatment.fps);
   const encoded = encodeCover({ files, fps: treatment.fps, encode: treatment.encode, out, env });
+  tagFile(encoded.file, { env });
   for (const stale of COVER_OUTPUTS.filter((f) => path.join(out, f) !== encoded.file)) rmSync(path.join(out, stale), { force: true });
   const planned = times.length * ms;
   const wanted = new Set([0, ...Array.from({ length: SHEET_TILES }, (_, k) => (k / SHEET_TILES) * planned)]);
@@ -302,6 +346,7 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
   });
   const indexed = stills.finish(sheetFile);
   writeFileSync(path.join(out, "poster.png"), readFileSync(path.join(stills.dir, "poster.png")));
+  tagFile(path.join(out, "poster.png"), { env });
   const report = `${formatCoverReport(gate, { strict: true })}${notices.map((n) => `warning: ${n}\n`).join("")}`;
   writeFileSync(path.join(out, "gate-report.txt"), report);
   const manifest = {
@@ -309,6 +354,7 @@ export async function renderCover({ out, round = 1, env = process.env, log = () 
     treatmentSha256: sha256(readFileSync(path.join(out, "treatment.json"))), stillsSha256: indexed.sha256,
     page: treatment.page, size: treatment.out, scale: COVER.captureScale, rung, warnings: notices, fps: treatment.fps, frames: times.length, frameMs: ms,
     encoder: encoded.encoder, encode: treatment.encode, file: path.basename(encoded.file), bytes: statSync(encoded.file).size, captureSec,
+    mark: coverMark ? { text: coverMark.text, x: +coverMark.x.toFixed(1), y: +coverMark.y.toFixed(1), w: coverMark.w, fontSize: +coverMark.fontSize.toFixed(2), ink: coverMark.ink } : null,
     gate: { pass: gate.pass, target: gate.target, medianD: gate.medianD, movingFrac: gate.movingFrac, longestStillSec: gate.longestStillSec, spike: gate.spike, seamLocal: gate.seamLocal, gates: gate.gates },
   };
   writeJson(path.join(out, "manifest.json"), manifest);

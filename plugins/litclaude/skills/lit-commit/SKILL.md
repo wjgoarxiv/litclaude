@@ -213,3 +213,5 @@ Before finishing:
   applicable.
 - Report commands that passed and any command you could not run.
 - Leave the worktree state explicit.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:924440737520 -->

@@ -142,9 +142,11 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/lib/office_runtime_bootstrap.py', '# fixture\n');
     write('plugins/litclaude/lib/office_data.py', '# fixture\n');
     write('plugins/litclaude/lib/ooxml_integrity.py', '# fixture\n');
+    write('plugins/litclaude/lib/output_mark.py', '# fixture\n');
     write('plugins/litclaude/lib/render_pages.py', '# fixture\n');
     write('plugins/litclaude/lib/owner-lock.mjs', 'export const lock = {};\n');
     write('plugins/litclaude/lib/lit-mark.mjs', 'export const standard = [];\n');
+    write('plugins/litclaude/lib/mark.mjs', 'export const MARK_MODES = [];\n');
     write('plugins/litclaude/lib/rename-aliases.mjs', 'export const renameAliases = {};\n');
     write('plugins/litclaude/lib/secret-shapes.mjs', 'export const containsSecret = () => false;\n');
     write('plugins/litclaude/lib/plan-task-rows.mjs', 'export const parse = () => [];\n');

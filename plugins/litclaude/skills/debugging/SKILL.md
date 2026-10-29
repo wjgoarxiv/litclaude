@@ -282,3 +282,5 @@ Record:
 6. Follow the phase loop. Read each methodology reference as you enter the phase.
 
 **The references are the skill. This file is an index.**
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:e2ee0395fe6e -->

@@ -226,3 +226,5 @@ If Claude Code does not expose LSP tools and a server is not installed, do not
 fabricate a passing diagnostics result. Fall back to the project's own commands
 (`tsc --noEmit`, `ruff`, `cargo check`, `go test`, etc.), label the LSP gap as a
 controlled skip, and report it — consistent with the `lsp` skill's failure rules.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:3dd28ec5d7f0 -->

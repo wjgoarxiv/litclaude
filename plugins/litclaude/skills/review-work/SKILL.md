@@ -817,3 +817,5 @@ without explicit approval? Did verification rewrite local handoff state or
 generated files outside scope? A passing review includes a cleanup receipt that
 answers these questions directly. If the receipt is absent, the overall verdict
 is at least BLOCKED even when code and tests are correct.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:58a03c9f9652 -->

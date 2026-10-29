@@ -88,3 +88,5 @@ do not forward the handoff body verbatim merely because it exists.
 - Do not store transcript dumps, secrets, access tokens, cookies, or unrelated local state in the continuation packet.
 - Do not invent completion, publication, installation, process, or Git claims.
 - Do not treat the example handoff as a workspace template with reusable facts.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:38911d6b326c -->

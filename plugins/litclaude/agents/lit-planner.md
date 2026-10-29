@@ -97,3 +97,5 @@ plan with a replayable DoneClaim.
 This is a planning-only role: must not implement product changes, do not run
 mutating commands, and do not start execution. After approval, hand off through
 `/start-work` or `/litclaude:start-work`.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:650dc6ceb8a5 -->

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBlockRegistry } from './block-registry.mjs';
 import { decodeXmlCharacterReferences, officeCssUrlsAreSafe, officeHrefRefsAreSafe } from './office-safety.mjs';
 import { probeRenderer, runAgentBrowser } from './renderer.mjs';
+import { WORDMARK, markInk, markPlan, svgWithMetadata, tagFile } from '../../../lib/mark.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2);
@@ -70,12 +71,36 @@ function run(commandArgs, env={}) {
   return (r.stdout||'').trim();
 }
 fs.mkdirSync(output,{recursive:true});
+// The visible LitClaude mark (mark setting `on`): added by the exporter, never by the diagram source, at the clear
+// spot nearest the bottom-right corner that no drawn element's box touches, in the ground's own ink.
+const mark=markPlan().visible;
+const markScript='(()=>{const s=document.querySelector("svg"),vb=s.viewBox.baseVal,short=Math.min(vb.width,vb.height),fs='+'Math.max('+WORDMARK.minPx+','+WORDMARK.cornerShare+'*short),inset=Math.max(12,'+WORDMARK.insetShare+'*short),pad=0.6*fs;'
+  +'const r=s.getBoundingClientRect(),k=vb.width/r.width,boxes=[];let ground=null,groundArea=0;'
+  +'for(const e of s.querySelectorAll("rect,circle,ellipse,line,path,polygon,polyline,text,image,use,foreignObject")){if(e.closest("defs,clipPath,mask,marker,pattern,symbol"))continue;const b=e.getBoundingClientRect();if(!b.width&&!b.height)continue;const x=vb.x+(b.left-r.left)*k,y=vb.y+(b.top-r.top)*k,w=b.width*k,h=b.height*k;'
+  +'if(e.tagName==="rect"&&w*h>=0.9*vb.width*vb.height){if(w*h>groundArea){groundArea=w*h;ground=getComputedStyle(e).fill;}continue;}boxes.push([x,y,x+w,y+h]);}'
+  +'const rgb=(c)=>{const m=/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(c||"");return m?[+m[1],+m[2],+m[3]]:null;};'
+  +'const g=rgb(ground)||rgb(getComputedStyle(document.body).backgroundColor)||[255,255,255];'
+  +'const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.textContent='+JSON.stringify(WORDMARK.text)+';t.setAttribute("data-litclaude-mark","1");t.setAttribute("font-family","Pretendard, Arial, sans-serif");t.setAttribute("font-weight","'+WORDMARK.weight+'");t.setAttribute("font-size",fs.toFixed(2));t.setAttribute("letter-spacing",('+WORDMARK.tracking+'*fs).toFixed(3));t.setAttribute("text-anchor","end");t.setAttribute("fill-opacity","'+WORDMARK.cornerOpacity+'");s.appendChild(t);'
+  +'const w=t.getComputedTextLength()+'+WORDMARK.tracking+'*fs*'+WORDMARK.text.length+',h=fs*1.25;let best=null;'
+  +'for(let y=vb.y+vb.height-inset;y-h>=vb.y+0.72*vb.height;y-=fs/3){for(let x=vb.x+vb.width-inset;x-w>=vb.x+inset;x-=fs/2){const box=[x-w-pad,y-h-pad,x+pad,y+pad];if(boxes.some((b)=>b[0]<box[2]&&b[2]>box[0]&&b[1]<box[3]&&b[3]>box[1]))continue;const d=Math.hypot(vb.x+vb.width-inset-x,(vb.y+vb.height-inset-y)*2);if(!best||d<best.d)best={x,y,d};}}'
+  +'if(!best){t.remove();return JSON.stringify({placed:false});}'
+  +'t.setAttribute("x",best.x.toFixed(2));t.setAttribute("y",(best.y-0.22*fs).toFixed(2));return JSON.stringify({placed:true,x:+best.x.toFixed(2),y:+(best.y-0.22*fs).toFixed(2),fs:+fs.toFixed(2),ground:g});})()';
+let markPlaced=null;
 const session='lit-diagram-export-'+process.pid+'-'+Date.now();
 const url=resolved.endsWith('.svg')?'file://'+resolved:'file://'+resolved;
 let opened=false;
 try{
   run(['--session',session,'open',url]);opened=true;
   run(['--session',session,'set','media','light','reduced-motion']);
+  if(mark){
+    run(['--session',session,'eval','document.fonts.ready.then(()=>true)']);
+    const raw=run(['--session',session,'eval',markScript]);
+    let parsed;try{const outer=JSON.parse(raw);parsed=typeof outer==='string'?JSON.parse(outer):outer;}catch{throw new Error('MARK_PLACEMENT_INVALID '+raw);}
+    if(parsed.placed){
+      markPlaced={...parsed,ink:markInk(parsed.ground)};
+      run(['--session',session,'eval','document.querySelector("[data-litclaude-mark]").setAttribute("fill","rgb('+markPlaced.ink.join(',')+')")']);
+    } else console.log('MARK_SKIPPED no clear spot in the bottom quarter; the export carries the invisible tag only');
+  }
   const outputs=[];
   const scales=all?[1,2,3]:[selected];
   for(const scale of scales){
@@ -92,9 +117,11 @@ try{
     const filename=path.join(output,path.basename(resolved).replace(/\.(?:html|svg)$/i,'')+'-'+scale+'x.png');
     run(['--session',session,'screenshot','svg',filename]);
     if(!fs.existsSync(filename)||fs.statSync(filename).size===0) throw new Error('PNG_WRITE_FAILED '+filename+' '+dimensions);
+    tagFile(filename);
     outputs.push({file:filename,bytes:fs.statSync(filename).size,scale,dimensions});
   }
   for(const out of outputs) console.log('PNG '+out.scale+'x '+out.bytes+' bytes '+out.file+' '+out.dimensions);
+  if(markPlaced) console.log('MARK '+JSON.stringify({x:markPlaced.x,y:markPlaced.y,fontSize:markPlaced.fs,ink:markPlaced.ink}));
 } catch(e) {
   console.error('EXPORT_FAILED '+e.message);
   process.exitCode=1;
@@ -106,7 +133,12 @@ try{
 }
 if(officeSvg){
   const target=path.join(output,path.basename(resolved).replace(/\.(?:html|svg)$/i,'')+'-office.svg');
-  fs.writeFileSync(target,'<?xml version="1.0" encoding="UTF-8"?>\n'+officeSvg);
+  const {generator}=markPlan();
+  if(markPlaced){
+    const m=markPlaced;
+    officeSvg=officeSvg.replace(/<\/svg>\s*$/i,'<text data-litclaude-mark="1" x="'+m.x+'" y="'+m.y+'" font-family="Pretendard, Arial, sans-serif" font-weight="'+WORDMARK.weight+'" font-size="'+m.fs+'" letter-spacing="'+(WORDMARK.tracking*m.fs).toFixed(3)+'" text-anchor="end" fill="#'+m.ink.map((v)=>v.toString(16).padStart(2,'0')).join('')+'" fill-opacity="'+WORDMARK.cornerOpacity+'">'+WORDMARK.text+'</text></svg>');
+  }
+  fs.writeFileSync(target,'<?xml version="1.0" encoding="UTF-8"?>\n'+(generator?svgWithMetadata(officeSvg,generator):officeSvg));
   console.log('OFFICE_SVG '+fs.statSync(target).size+' bytes '+target+' text=live font=embedded-woff2');
 }
 if(registry) {

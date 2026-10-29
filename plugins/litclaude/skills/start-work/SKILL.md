@@ -532,3 +532,5 @@ dirty for the same reason and were not rewritten by formatting, tooling, or
 careless broad commands. The final cleanup receipt should say that no temporary
 files, spawned sessions, package publishes, commits, tags, or version bumps were
 created unless the user explicitly requested them.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:89fd940d84ec -->

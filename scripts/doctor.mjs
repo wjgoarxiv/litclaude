@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,6 +10,7 @@ import {
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
+import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -104,4 +105,5 @@ process.stdout.write("\nLITGOAL_RUNTIME_PASS\n");
 process.stdout.write("START_WORK_LIFECYCLE_PASS: schema-3 bounded-authority runtime enrolled\n");
 process.stdout.write("START_WORK_HOST_HOOKS_PASS: PreToolUse, SubagentStart, SubagentStop, SessionEnd, and Stop enrolled\n");
 process.stdout.write("BUNDLED_SKILLS_PAYLOAD_PASS\n");
+for (const line of officialBuildLines(JSON.parse(readFileSync(join(root, "package.json"), "utf8")))) process.stdout.write(`${line}\n`);
 process.stdout.write("\nDOCTOR_PASS\n");

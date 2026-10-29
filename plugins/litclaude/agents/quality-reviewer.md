@@ -107,3 +107,5 @@ inspect the immutable evidence manifest, Design Contract when present, capture
 inventory, responsive states, accessibility-relevant observations, and cleanup
 receipt. Return a separate schema-valid reviewer verdict; do not accept or read
 the other reviewer's draft before finalizing your own.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:c12fea7f9e60 -->

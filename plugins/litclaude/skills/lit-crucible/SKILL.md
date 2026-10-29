@@ -267,3 +267,5 @@ Record the verdict for the LIT card's workflow map with
 - `/litclaude:lit-plan` handoff prepared.
 - Cleanup receipt recorded for any temporary lane, worktree, server, or artifact
   created during pre-planning.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:46b3dae21ffb -->

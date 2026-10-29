@@ -15,7 +15,7 @@ import { assetUsed } from "./assets.mjs";
 import { BLENDER } from "./blender.mjs";
 import { addToStills, writeBoard } from "./board.mjs";
 import { BlockedError } from "./chrome.mjs";
-import { findFfmpeg, findFfprobe, findImg2webp, previewRungs, startMaster, encodePreview, probeVideo } from "./encode.mjs";
+import { findFfmpeg, findFfprobe, findImg2webp, previewRungs, startMaster, encodePreview, probeVideo, tagStaged } from "./encode.mjs";
 import { resolveViewed, asBlocked } from "./pipeline.mjs";
 import { encodePng, rgbaToRgb } from "./png.mjs";
 import { auditMuxed } from "./sound.mjs";
@@ -29,6 +29,7 @@ import { styleCss, styleScript, readStyle } from "./styles.mjs";
 import { scanStage, stageFonts } from "./stage-serve.mjs";
 import { beatCuts, stillsPlan, writeStills } from "./stills.mjs";
 import { FORMATS, loadTreatment } from "./treatment.mjs";
+import { endCardFrame, endCardPlan, endCardRule, padWavSilence, renderEndCard } from "./end-card.mjs";
 
 export const DELIVERABLES = ["film.mp4", "preview.webp", "preview.gif", "poster.png", "reduced-motion.png"];
 export const DETERMINISM_SAMPLES = Object.freeze({ min: 8, max: 16 });
@@ -380,6 +381,10 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
     const stageOut = path.join(runDir, "stage");
     mkdirSync(stageOut, { recursive: true });
     const sound = soundTrackFor({ treatment, out, stageDir, frameCount, fps, cutTimes: cuts.map((c) => c / fps), ffmpeg });
+    // The track is scored to the film's own frames; the end card after it is silent.
+    const cardPlan = endCardPlan({ fps, env });
+    const card = cardPlan ? { ...cardPlan, rgba: await renderEndCard({ out, width, height, ground: treatment.style ? readStyle(treatment.style).palette.ground : null, env, log }) } : null;
+    if (card) padWavSilence(sound.file, { frames: card.frames, fps });
     const filmPath = path.join(stageOut, "film.mp4");
     const encoder = startMaster({ ffmpeg, width, height, fps, out: filmPath, audio: sound.file });
 
@@ -410,11 +415,13 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
     const inflight = [];
     const maxInflight = pool.workers.length + 1;
     let poster = null;
+    let lastRgba = null;
     const consume = async (entry) => {
       const a = await entry.analysis;
       await encoder.write(a.rgba);
+      if (card && entry.f === frameCount - 1) lastRgba = Buffer.from(a.rgba);
       const flash = detector.push(a.cells);
-      lines.push({ frame: entry.f, artifact: "master", rgbaSha256: a.rgbaSha256, luminanceP995: a.luminanceP995, luminanceP005: a.luminanceP005, busy: a.busy, flash });
+      lines.push({ frame: entry.f, artifact: "master", rgbaSha256: a.rgbaSha256, luminanceP995: a.luminanceP995, luminanceP005: a.luminanceP005, busy: a.busy, flash, ...(entry.endCard ? { endCard: true } : {}) });
       if (plan.all.has(entry.f)) kept.set(entry.f, a.rgba);
       if (detFrames.includes(entry.f)) detMaster.set(entry.f, a);
       if (entry.f % previewEvery === 0) {
@@ -435,6 +442,14 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
       if (f % 30 === 0) progress(out, { phase: "master", frame: f, frameCount, round });
     }
     while (inflight.length) await consume(inflight.shift());
+    // The end card follows the film through the same analysis, encoder, flash detector, log and preview source.
+    if (card) {
+      for (let k = 0; k < card.frames; k++) {
+        const rgba = endCardFrame({ last: lastRgba, card: card.rgba, k, fade: card.fade });
+        const png = encodePng(rgbaToRgb(rgba, width, height), width, height, 3, { level: 1 });
+        await consume({ f: frameCount + k, analysis: analyzeChecked(pool, png, width, height), endCard: true });
+      }
+    }
     const encoded = await encoder.finish();
     if (encoded.code !== 0) throw new Error(`ffmpeg master encode failed (${encoded.code}): ${encoded.stderr.slice(-400)}`);
     const masterSec = (Date.now() - tMaster) / 1000;
@@ -454,9 +469,14 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
     const qaResult = await qaPromise;
 
     progress(out, { phase: "preview", round });
-    const preview = buildPreview({ out, ffmpeg, env, width, height, frameCount, fps });
+    const cardFrames = card?.frames ?? 0;
+    const preview = buildPreview({ out, ffmpeg, env, width, height, frameCount: frameCount + cardFrames, fps });
+    tagStaged(stageOut, env);
     const probe = probeVideo(filmPath, env);
-    const soundAudit = auditMuxed({ ffmpeg, ffprobe: findFfprobe(env), film: filmPath, videoDurationSec: frameCount / fps, mode: sound.mode });
+    const soundAudit = auditMuxed({ ffmpeg, ffprobe: findFfprobe(env), film: filmPath, videoDurationSec: (frameCount + cardFrames) / fps, mode: sound.mode });
+    // The film's content rules judge its own frames; the flash audit reads every frame, end card included.
+    const filmLines = lines.filter((l) => !l.endCard);
+    const cardRule = card ? endCardRule({ lines: lines.filter((l) => l.endCard), plan: card, fps }) : null;
     const exports = {
       film: existsSync(filmPath) ? { bytes: statSync(filmPath).size } : null,
       preview: preview.file ? { bytes: preview.bytes, kind: path.extname(preview.file).slice(1) } : null,
@@ -465,8 +485,9 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
     };
     const gate = evaluateStageGate({
       masterFlash: lines.map((l) => l.flash), previewFlash: preview.records ? { records: preview.records, fps: preview.rung.fps } : null, fps,
-      probe, width, height, treatment, exports, reducedFrame: plan.reduced, frames: lines, usesWebGL: finalState.usesWebGL, renderer: finalState.webglRenderer, rung: ctx.rung,
-      determinism, extraRules: [...soundAudit.rules, ...(qaResult?.rules ?? []), assetUsed(treatment, scan.files)].filter(Boolean),
+      probe, width, height, treatment, exports, reducedFrame: plan.reduced, frames: filmLines, usesWebGL: finalState.usesWebGL, renderer: finalState.webglRenderer, rung: ctx.rung,
+      endCardSec: card ? card.sec : 0,
+      determinism, extraRules: [...soundAudit.rules, ...(qaResult?.rules ?? []), assetUsed(treatment, scan.files), cardRule].filter(Boolean),
     });
     const promoted = promote(out, gate.flashFail);
     const loc = (name) => path.join(promoted.dir, name);
@@ -476,7 +497,8 @@ export async function renderStage({ out, round = 1, stillsOnly = false, env = pr
     if (gate.pass && !promoted.withheld) recordHouse(out, { style: treatment.style, path: "stage", format: treatment.format, durationSec: treatment.durationSec });
     const totalSec = (Date.now() - t0) / 1000;
     const manifest = {
-      schemaVersion: 1, path: "stage", renderId: id, round, treatmentSha256: treatmentSha(out), format: treatment.format, width, height, fps, durationSec: spec.duration, treatmentDurationSec: treatment.durationSec,
+      schemaVersion: 1, path: "stage", renderId: id, round, treatmentSha256: treatmentSha(out), format: treatment.format, width, height, fps, durationSec: +(spec.duration + (card?.sec ?? 0)).toFixed(6), treatmentDurationSec: treatment.durationSec,
+      endCard: card ? { frames: card.frames, fade: card.fade, sec: +card.sec.toFixed(6) } : null,
       frameCount, seed: treatment.seed, renderer: finalState.webglRenderer ?? "no WebGL", rung: ctx.rung, chromeFlags: master.flags, usesWebGL: finalState.usesWebGL,
       cuts, stills: { sha256: stills.sha256, poster: plan.poster, reduced: plan.reduced }, posterEncoding: poster,
       geometry: geometryFor(width, height),

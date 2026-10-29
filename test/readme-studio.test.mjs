@@ -236,3 +236,15 @@ it('routes bounded multi-round interviews from both production skills into insta
     assert.equal(createHash('sha256').update(bytes).digest('hex'), expectedHash, `resource hash is stale: ${relative}`);
   }
 });
+
+it('the remotion cover lock resolves zod at 4.6.6 or later (GHSA-mrhx-c7xc-m3w5)', () => {
+  const lock = JSON.parse(readFileSync(join(skill,'templates/remotion-cover/package-lock.json'),'utf8'));
+  const manifest = JSON.parse(readFileSync(join(skill,'templates/remotion-cover/package.json'),'utf8'));
+  const zods = Object.entries(lock.packages).filter(([path]) => path.endsWith('node_modules/zod'));
+  assert.ok(zods.length > 0, 'the lock should hold zod');
+  for (const [path, entry] of zods) {
+    const [major, minor, patch] = entry.version.split('.').map(Number);
+    assert.ok(major > 4 || (major === 4 && (minor > 6 || (minor === 6 && patch >= 6))), `${path} is ${entry.version}`);
+  }
+  assert.equal(manifest.overrides?.zod, '4.6.6', 'Remotion pins zod exactly, so only an override keeps a reinstall on the fixed release');
+});

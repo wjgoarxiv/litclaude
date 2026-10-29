@@ -39,7 +39,7 @@ Claude Code lists this directory as a plugin skill, so `/litclaude:lit-schematic
 
 | Mode | Trigger | Sheet and checks |
 | --- | --- | --- |
-| `pid` | P&ID, piping and instrumentation, 계장도, 배관계장도 | ISO A-series sheet with zone frame, title block, legend built from what is drawn, equipment header, notes; ISA-5.1 tags; QA with `TITLEBLOCK.FIELDS` and `LEGEND.COVERAGE` |
+| `pid` | P&ID, piping and instrumentation, 계장도, 배관계장도 | ISO A-series sheet with zone frame, title block, legend built from what is drawn, equipment header, notes; ISA-5.1 tags; QA with `TITLEBLOCK.FIELDS` and `LEGEND.COVERAGE`; the kit prints LitClaude's small "made with LitClaude" credit in the title block's OWNER cell when the user's LitClaude mark setting is on |
 | `pfd` | PFD, BFD, process flow, 공정흐름도, equipment layout | The same sheet; major equipment and streams with stream numbers and a stream table; instruments only for control loops that define the process |
 | `journal` | paper figure, experimental setup, apparatus, 실험 장치도, 모식도 | Exact column width (85 / 120 / 178 mm), panels (a), (b) at top left, 7 pt type (6 pt floor), stream colours from the colour-vision-safe set with a key, no title inside the art |
 | `iso` | isometric, cutaway, 3D view, 단면 사시도, equipment illustration | Solid shaded parts in full material colour (painted steel, stainless, copper, brass, cast iron, concrete, glass; grey only when the user asks for a quiet or monochrome figure) painted far to near, window cutaway for internals, callouts in columns beside the art with leaders ending on dots on the named part; output static by default, an interactive page or a motion loop on request (below) |
@@ -121,3 +121,5 @@ A PASS needs `QA PASS` on the final SVG, a rendered PNG that was opened and read
 ## #contract.anti_patterns
 
 Lines drawn through symbols or along other lines; branches leaving a bend; labels sitting on lines or on the drawn object; leaders that end in the air or on the wrong part; an instrument without a process connection or a loop without a final element; a PSV with no discharge destination; tags that break ISA-5.1 letter order; a legend that misses a symbol the sheet uses; colour as the only carrier of meaning in a journal figure; text under 6 pt at print size; a cutaway whose window removes the shell under a nozzle; a curved body shaded in steps; two callout dots so close their leaders read as one; pipe classes that look alike; a page that fetches anything from the network; an explode that moves inner parts before the parts around them; a loop whose last frame jumps to the first; and "PASS" reported from QA without opening the image.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:a435673e729d -->

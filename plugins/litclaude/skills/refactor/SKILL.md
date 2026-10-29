@@ -519,3 +519,5 @@ When you hit a deprecated method or API during a refactor:
 
 Refactoring without tests is reckless. Refactoring without understanding the
 impact zone is destructive. This workflow ensures you do neither.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:eafbf36da346 -->

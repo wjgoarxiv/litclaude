@@ -403,3 +403,5 @@ internal fields. Avoid the vague phrase "all good". Prefer claims that can be re
 skill corpus measured by whitespace tokens across `plugins/litclaude/skills/*/SKILL.md`,
 and no package publish, commit, tag, or version bump occurred. If any check was
 not run, say why and name the next command.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:7feda2cd42b1 -->

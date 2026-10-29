@@ -113,3 +113,5 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Running vendored shell/Python examples as package authority, inventing a daemon, or calling sequential work parallel.
 - Repeating a failed strategy without changed evidence; replacing mechanical evaluation with confident prose.
 - Calling a ship/readiness report a publication, or claiming PASS before `review-work` and cleanup evidence.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:246c4db13e11 -->

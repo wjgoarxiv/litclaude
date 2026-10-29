@@ -93,3 +93,5 @@ or HTTP responses, then tear down every spawned process or session.
 Review lane: tests/evidence execution. Run bounded real commands or manual checks
 that exercise the changed behavior, record the observable result, and include
 cleanup proof for every spawned process or session.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:25af7b90907a -->

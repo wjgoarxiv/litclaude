@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { findOffenders } from "../tools/check-pack-payload.mjs";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
+import { withoutNotice } from "./helpers/notice.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const pluginRoot = join(root, "plugins", "litclaude");
@@ -94,7 +95,7 @@ describe("LitClaude handoff skill payload", () => {
   });
 
   it("injects the adapter and canonical source when the slash command is typed", () => {
-    const adapterBody = readFileSync(adapterPath, "utf8").trim();
+    const adapterBody = withoutNotice(readFileSync(adapterPath, "utf8")).trim();
     const originalSkill = readFileSync(join(originalRoot, "SKILL.md"), "utf8").trim();
     for (const prompt of [
       "/litclaude:lit-handoff",

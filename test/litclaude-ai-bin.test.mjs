@@ -1229,6 +1229,35 @@ describe("litclaude-ai CLI", () => {
     }
   });
 
+  it("serves rewind, the lit-adhd collector the prompt hook names", () => {
+    const home = makeHome();
+
+    try {
+      const help = runCli(["rewind", "--help"], home);
+      assert.equal(help.status, 0, help.stderr);
+      assert.match(help.stdout, /^Usage: litclaude-ai rewind \[--brief/u, "the brief must not start with the wordmark");
+
+      const bad = runCli(["rewind", "--nope"], home);
+      assert.equal(bad.status, 64);
+      assert.match(bad.stderr, /litclaude-ai rewind: unknown argument/u);
+      assert.doesNotMatch(bad.stderr, /Unknown command/u);
+
+      const usage = runCli(["--help"], home);
+      assert.match(usage.stdout, /\n  rewind /u, "top-level help should describe rewind");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("serves every in-session command the plugin bin serves", () => {
+    const pluginBin = readFileSync(join(root, "plugins", "litclaude", "bin", "litclaude-ai"), "utf8");
+    const table = pluginBin.slice(pluginBin.indexOf("const SUBCOMMANDS = {"), pluginBin.indexOf("};"));
+    const names = [...table.matchAll(/^  "?([a-z-]+)"?: async/gmu)].map((match) => match[1]);
+    assert.ok(names.includes("rewind"), "plugin bin should serve rewind");
+    const usageLine = readFileSync(binPath, "utf8").match(/Usage: litclaude-ai \[--dry-run\] <([^>]+)>/u)[1].split("|");
+    for (const name of names) assert.ok(usageLine.includes(name), `npm CLI should serve ${name}`);
+  });
+
   it("rejects an empty command", () => {
     assert.equal(existsSync(binPath), true, "litclaude-ai bin must exist");
 

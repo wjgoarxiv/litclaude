@@ -287,3 +287,5 @@ Hierarchy: ./AGENTS.md └── src/hooks/AGENTS.md
 - **Redundancy** — a child file never repeats its parent.
 - **Generic content** — remove anything that applies to all projects.
 - **Verbose style** — telegraphic or die.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:3aa53c83a5d0 -->

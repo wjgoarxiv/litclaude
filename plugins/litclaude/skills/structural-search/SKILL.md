@@ -270,3 +270,5 @@ unpinned payload files. If a future need proves otherwise, add them then, and pi
 Stop when the report names its `query_class`, its engine and version, its scope with exclusions,
 and its count or blocker. A structural claim without a quoted probe is not finished work — it is
 an assumption about the host, and this skill exists because that assumption is often wrong.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:463c72c136f7 -->

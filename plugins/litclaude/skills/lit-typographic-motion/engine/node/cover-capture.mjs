@@ -127,10 +127,23 @@ export class CoverBrowser {
     }
   }
 
+  /**
+   * LitClaude's visible mark as a fixed overlay outside the page's own tree, the same on every frame so the loop
+   * stays seamless. `mark` is { x, y, w, h, fontSize, ink, opacity, text, weight, tracking } in page pixels; with
+   * `measure: true` it is laid out hidden and its rendered width is returned. Mask captures hide it.
+   */
+  async setMark(mark, { measure = false } = {}) {
+    this.mark = mark;
+    const css = { position: "fixed", left: `${measure ? -9999 : mark.x}px`, top: `${measure ? -9999 : mark.y}px`, height: `${mark.h}px`, display: "flex", alignItems: "center", justifyContent: "flex-end", whiteSpace: "nowrap", pointerEvents: "none", zIndex: "2147483647", font: `${mark.weight} ${mark.fontSize}px/1 Pretendard, sans-serif`, letterSpacing: `${mark.tracking}em`, color: `rgb(${mark.ink.join(",")})`, opacity: String(mark.opacity), visibility: measure ? "hidden" : "visible" };
+    if (!measure) css.width = `${mark.w}px`;
+    return this.evaluate(`(async () => { let d = document.getElementById("__litclaude_mark"); if (!d) { d = document.createElement("div"); d.id = "__litclaude_mark"; document.documentElement.appendChild(d); } d.textContent = ${JSON.stringify(mark.text)}; d.removeAttribute("style"); Object.assign(d.style, ${JSON.stringify(css)}); if (document.fonts) await document.fonts.ready; return d.getBoundingClientRect().width; })()`);
+  }
+
   /** Draw loop time t (and the mask variant) and wait for the frame to settle. */
   async frame(t, { mask = false } = {}) {
     try {
-      await this.evaluate(`(async () => { await window.renderFrame(${t}, ${JSON.stringify({ mask })}); if (document.fonts) await document.fonts.ready; return true; })()`);
+      const markToggle = this.mark ? `const m = document.getElementById("__litclaude_mark"); if (m) m.style.visibility = ${mask ? '"hidden"' : '"visible"'};` : "";
+      await this.evaluate(`(async () => { await window.renderFrame(${t}, ${JSON.stringify({ mask })}); ${markToggle} if (document.fonts) await document.fonts.ready; return true; })()`);
     } catch (error) {
       await this.check(`at t = ${t.toFixed(4)}`);
       throw new BlockedError(EXIT.STAGE_CONTRACT_ERROR, `STAGE_CONTRACT_ERROR: renderFrame(${t.toFixed(4)}${mask ? ", { mask: true }" : ""}) threw: ${error.message}`);

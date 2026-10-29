@@ -147,3 +147,5 @@ Never raise a gate number, never weaken the flash audit, never ship a withheld e
 - Quoting song lyrics or other text the user does not own as the film's content.
 
 Every reference is named at its step above. Type engine credit: portions adapted from mexicat/pdoom-video (MIT), commit `ca251e3`; see `engine/NOTICE`.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:10c6f3985f09 -->

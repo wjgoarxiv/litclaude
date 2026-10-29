@@ -17,7 +17,7 @@ import { loadBrief, planFromBrief, BriefError } from "./brief.mjs";
 import { openSession } from "./session.mjs";
 import { analyzeFrame, areaDownscale } from "./analysis.mjs";
 import { encodePng, rgbaToRgb, decodePng } from "./png.mjs";
-import { findFfmpeg, findFfprobe, findImg2webp, previewRungs, startMaster, encodePreview, probeVideo } from "./encode.mjs";
+import { findFfmpeg, findFfprobe, findImg2webp, previewRungs, startMaster, encodePreview, probeVideo, tagStaged } from "./encode.mjs";
 import { checkCoverage, planFontKeys } from "./coverage.mjs";
 import { nodeStatus, checkFont, loadFontManifest, audioStatus, AUDIO_WARNING, wordTimingStatus, INSTALL_COMMAND, ENGINE_ROOT } from "./runtime.mjs";
 import { formatReport, formatPreflightReport } from "./report.mjs";
@@ -29,6 +29,7 @@ import { recordHouse } from "./house.mjs";
 import { treatmentSha } from "./done.mjs";
 import { auditMuxed } from "./sound.mjs";
 import { soundTrackFor } from "./sound-cli.mjs";
+import { endCardFrame, endCardPlan, endCardRule, padWavSilence, renderEndCard } from "./end-card.mjs";
 
 export const DELIVERABLES = ["film.mp4", "preview.webp", "preview.gif", "poster.png", "reduced-motion.png"];
 
@@ -145,7 +146,8 @@ function manifestFor(plan, extra) {
     previewEncoder: extra.previewEncoder ?? null,
     audioTier: plan.audioTier ?? "text-reading-time",
     ...(plan.beatGrid ? { beatGrid: plan.beatGrid } : { bpm: plan.bpm }),
-    durationSec: +plan.durationSec.toFixed(6),
+    durationSec: +(plan.durationSec + (extra.endCard?.sec ?? 0)).toFixed(6),
+    endCard: extra.endCard ? { frames: extra.endCard.frames, fade: extra.endCard.fade, sec: +extra.endCard.sec.toFixed(6) } : null,
     generatedAt: new Date().toISOString(),
     passRanges: extra.passRanges,
     timeline: plan.timeline,
@@ -218,8 +220,12 @@ function contrastFrames(plan) {
   return set;
 }
 
-/** The master render: every frame analysed, logged, audited and piped to ffmpeg. */
-async function renderMaster({ session, plan, out, ffmpeg, samples, shutter, audio = null }) {
+/**
+ * The master render: every frame analysed, logged, audited and piped to ffmpeg. With an end card (`card`: its plan
+ * and RGBA), the card's frames follow the film's through the same analysis, flash detector, encoder and log,
+ * marked `endCard: true`.
+ */
+async function renderMaster({ session, plan, out, ffmpeg, samples, shutter, audio = null, card = null }) {
   const runDir = path.join(out, ".run");
   const samplesDir = path.join(runDir, "samples");
   rmSync(samplesDir, { recursive: true, force: true });
@@ -234,8 +240,10 @@ async function renderMaster({ session, plan, out, ffmpeg, samples, shutter, audi
   const frames = [];
   const masterFlash = [];
   const t0 = Date.now();
+  let last = null;
   await session.render({ from: 0, to: plan.frameCount, fps: plan.fps, samples, shutter, tag: "master" }, async (meta, bytes) => {
     const n = meta.frame;
+    if (card && n === plan.frameCount - 1) last = Buffer.from(bytes);
     const a = analyzeFrame(bytes, meta.width, meta.height, { keepMask: keep.has(n) });
     const flash = detector.push(a.cells);
     await encoder.write(bytes);
@@ -252,6 +260,18 @@ async function renderMaster({ session, plan, out, ffmpeg, samples, shutter, audi
       writeFileSync(path.join(samplesDir, `f${n}.mask.png`), encodePng(a.mask, meta.width, meta.height, 1, { level: 1 }));
     }
   });
+  if (card) {
+    for (let k = 0; k < card.frames; k++) {
+      const bytes = endCardFrame({ last, card: card.rgba, k, fade: card.fade });
+      const a = analyzeFrame(Buffer.from(bytes), 1920, 1080);
+      const flash = detector.push(a.cells);
+      await encoder.write(bytes);
+      const line = { frame: plan.frameCount + k, pass: null, artifact: "master", rgbaSha256: a.rgbaSha256, inkPx: a.inkPx, luminanceP995: a.luminanceP995, textBoxes: [], elements: [], fills: [], post: null, shot: null, flash, endCard: true };
+      log.write(line);
+      frames.push(line);
+      masterFlash.push(flash);
+    }
+  }
   const encoded = await encoder.finish();
   await log.close();
   if (encoded.code !== 0) throw new Error(`ffmpeg master encode failed (${encoded.code}): ${encoded.stderr.slice(-400)}`);
@@ -259,7 +279,7 @@ async function renderMaster({ session, plan, out, ffmpeg, samples, shutter, audi
 }
 
 /** The preview ladder: re-render at the rung's fps, downscale, audit (looping), encode, check size. */
-async function renderPreview({ session, plan, out, ffmpeg, env, minGlyphPx }) {
+async function renderPreview({ session, plan, out, ffmpeg, env, minGlyphPx, card = null }) {
   const runDir = path.join(out, ".run");
   const encoders = previewRungs(ffmpeg, env);
   const img2webp = findImg2webp(env);
@@ -277,13 +297,23 @@ async function renderPreview({ session, plan, out, ffmpeg, env, minGlyphPx }) {
     const count = Math.round(plan.durationSec * rung.fps);
     const cells = [];
     let i = 0;
-    await session.render({ from: 0, to: count, fps: rung.fps, samples: SAMPLING.previewSamples, shutter: SAMPLING.masterShutter, tag: "preview" }, async (meta, bytes) => {
-      analyzeFrame(bytes, meta.width, meta.height);
-      const small = areaDownscale(bytes, meta.width, meta.height, rung.width, height);
+    let lastSmall = null;
+    const put = (small) => {
       cells.push(cellsFromRgba(small, rung.width, height));
       writeFileSync(path.join(dir, `${String(i).padStart(5, "0")}.png`), encodePng(rgbaToRgb(small, rung.width, height), rung.width, height, 3, { level: 1 }));
       i += 1;
+    };
+    await session.render({ from: 0, to: count, fps: rung.fps, samples: SAMPLING.previewSamples, shutter: SAMPLING.masterShutter, tag: "preview" }, async (meta, bytes) => {
+      analyzeFrame(bytes, meta.width, meta.height);
+      lastSmall = areaDownscale(bytes, meta.width, meta.height, rung.width, height);
+      put(lastSmall);
     });
+    if (card) {
+      const cardSmall = areaDownscale(card.rgba, 1920, 1080, rung.width, height);
+      const frames = Math.max(2, Math.round(card.sec * rung.fps));
+      const fade = Math.min(frames - 1, Math.max(1, Math.round((card.fade * rung.fps) / plan.fps)));
+      for (let k = 0; k < frames; k++) put(endCardFrame({ last: lastSmall, card: cardSmall, k, fade }));
+    }
     const records = detectSequence(cells, { loop: true });
     for (const encoder of encoders) {
       const outFile = path.join(runDir, "stage", encoder === "gif" ? "preview.gif" : "preview.webp");
@@ -361,7 +391,11 @@ function readJsonLines(file) {
 export function collectAndEvaluate({ out, previewRecords, previewFps, determinism, perf, coverage, still, exportDir = path.join(out, ".run", "stage"), extraRules = [] }) {
   const manifest = JSON.parse(readFileSync(path.join(out, "manifest.json"), "utf8"));
   const lines = readJsonLines(path.join(out, "render.jsonl"));
-  const frames = lines.filter((l) => l.pass === null && l.artifact === "master").sort((a, b) => a.frame - b.frame);
+  const master = lines.filter((l) => l.pass === null && l.artifact === "master").sort((a, b) => a.frame - b.frame);
+  // The film's content rules judge the film's own frames; the flash audit and the full-frame step rule read every
+  // frame, end card included, and END-CARD checks the card.
+  const frames = master.filter((l) => !l.endCard);
+  const cardLines = master.filter((l) => l.endCard);
   const passLines = lines.filter((l) => l.pass !== null && l.pass !== undefined);
   const shotEvents = lines.filter((l) => l.type === "shot-events").flatMap((l) => l.shots);
   const stage = exportDir;
@@ -398,10 +432,11 @@ export function collectAndEvaluate({ out, previewRecords, previewFps, determinis
   const allowedHangulFonts = [...new Set(Object.values(preset.voices).flatMap((v) => [v.hangul, ...(v.weightSteps ?? [])]))]
     .map((k) => loadFontManifest().fonts[k]).filter(Boolean).map((f) => path.basename(f.path ?? f.file));
   const data = {
-    manifest, frames, passLines, masterFlash: frames.map((f) => f.flash), previewFlash: previewRecords ? { records: previewRecords, fps: previewFps } : null,
+    manifest, frames, passLines, masterFlash: master.map((f) => f.flash), previewFlash: previewRecords ? { records: previewRecords, fps: previewFps } : null,
     shotEvents, exports, probe, still, contrastSamples, determinism, perf, coverage, preset, seedOf: passSeed, allowedHangulFonts,
   };
   const gate = evaluateGate(data);
+  if (manifest.endCard || cardLines.length) extraRules = [...extraRules, endCardRule({ lines: cardLines, plan: manifest.endCard, fps: manifest.fps })];
   if (extraRules.length) {
     gate.rules.push(...extraRules);
     gate.failed = gate.rules.filter((x) => x.status === "FAIL").map((x) => x.id);
@@ -453,6 +488,7 @@ export async function make({ briefPath, out, round = 1, stillsOnly = false, view
   let preview;
   let poster;
   let still;
+  let card = null;
   try {
     stillsSet = await renderStillsSet({ session, plan, treatment: prep.treatment, out, round, stillsOnly: stillsOnly || !ffmpeg, env, log });
     log(`stills: ${stillsSet.stills.files.length} files in ${path.join(out, "stills")}`);
@@ -463,10 +499,16 @@ export async function make({ briefPath, out, round = 1, stillsOnly = false, view
       return { code: EXIT.BLOCKED_NO_FFMPEG_FOR_VIDEO, message: `BLOCKED_NO_FFMPEG_FOR_VIDEO: ffmpeg is not on PATH; the stills and contact sheet are in ${path.join(out, "stills")}; install ffmpeg for the MP4, preview and poster`, plan };
     }
     sound = soundTrackFor({ treatment: prep.treatment, out, frameCount: plan.frameCount, fps: plan.fps, cutTimes: plan.shots.slice(1).map((sh) => sh.start), ffmpeg });
-    master = await renderMaster({ session, plan, out, ffmpeg, samples, shutter, audio: sound.file });
+    // The track is scored to the film's own frames; the end card after it is silent.
+    const cardPlan = endCardPlan({ fps: plan.fps, env });
+    if (cardPlan) {
+      padWavSilence(sound.file, { frames: cardPlan.frames, fps: plan.fps });
+      card = { ...cardPlan, rgba: await renderEndCard({ out, width: 1920, height: 1080, ground: PRESETS[plan.presetId].palette.bg, env, log }) };
+    }
+    master = await renderMaster({ session, plan, out, ffmpeg, samples, shutter, audio: sound.file, card });
     log(`master: ${plan.frameCount} frames in ${master.seconds.toFixed(1)} s`);
     const minGlyph = Math.min(...master.frames.flatMap((f) => (f.textBoxes ?? []).map((b) => b.fontSizePx)).filter((v) => v > 0), 1000);
-    preview = await renderPreview({ session, plan, out, ffmpeg, env, minGlyphPx: minGlyph });
+    preview = await renderPreview({ session, plan, out, ffmpeg, env, minGlyphPx: minGlyph, card });
     const posterShot = plan.shots.find((s) => (s.text || s.items)) ?? plan.shots[0];
     const posterFrame = Number.isInteger(prep.brief.posterFrame) ? prep.brief.posterFrame : Math.round(((posterShot.start + posterShot.end) / 2) * plan.fps);
     poster = await renderStillExport({ session, plan, frame: posterFrame, file: path.join(out, ".run", "stage", "poster.png"), samples, shutter });
@@ -477,7 +519,7 @@ export async function make({ briefPath, out, round = 1, stillsOnly = false, view
     const manifest = manifestFor(plan, {
       samples, shutter, renderer: session.renderer, chromeFlags: session.flags, previewEncoder: preview.encoder, passRanges: info.passRanges, warnings, round,
       sound: { mode: sound.mode, label: sound.label, file: sound.file ? path.relative(out, sound.file) : null },
-      treatmentSha256: treatmentSha(out),
+      treatmentSha256: treatmentSha(out), endCard: card,
     });
     writeJson(path.join(out, "manifest.json"), manifest);
   } finally {
@@ -486,6 +528,7 @@ export async function make({ briefPath, out, round = 1, stillsOnly = false, view
   // The frame log needs the shot-event schedule for MO-SH-03.
   appendShotEvents(out, session.info.shotEvents);
   writeJson(path.join(out, ".run", "exports.json"), { preview: preview.attempts, poster, still, egress: session.egress, encodeArgs: master.encodeArgs, previewRung: preview.rung, previewFlash: preview.records });
+  tagStaged(path.join(out, ".run", "stage"), env);
   if (!runGate) {
     const stage = path.join(out, ".run", "stage");
     for (const name of readdirSync(stage).filter((f) => DELIVERABLES.includes(f))) renameSync(path.join(stage, name), path.join(out, name));
@@ -593,7 +636,9 @@ export async function partial({ mode, briefPath, out, env = process.env, log = (
 /** Audit the staged master's audio against the treatment's sound plan (exit 20 for a generated bed). */
 function typeSoundAudit({ out, treatment, plan, ffmpeg, env }) {
   const film = path.join(out, ".run", "stage", "film.mp4");
-  return auditMuxed({ ffmpeg, ffprobe: findFfprobe(env), film, videoDurationSec: plan.frameCount / plan.fps, mode: treatment.sound.mode });
+  const manifestFile = path.join(out, "manifest.json");
+  const cardFrames = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, "utf8")).endCard?.frames ?? 0 : 0;
+  return auditMuxed({ ffmpeg, ffprobe: findFfprobe(env), film, videoDurationSec: (plan.frameCount + cardFrames) / plan.fps, mode: treatment.sound.mode });
 }
 
 function appendShotEvents(out, shotEvents) {

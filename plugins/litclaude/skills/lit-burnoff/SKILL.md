@@ -428,3 +428,5 @@ The default action under any uncertainty is SKIP, not GUESS. A false negative
 code) breaks the system. Never remove code that serves a functional purpose,
 always verify changes parse and typecheck, and always preserve test coverage by
 adding tests rather than removing them.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:b019ebdcbdf1 -->

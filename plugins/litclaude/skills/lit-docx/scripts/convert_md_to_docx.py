@@ -32,6 +32,7 @@ _sys.dont_write_bytecode = True  # the installed skill directory stays read-only
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "lib"))
 from office_runtime_bootstrap import ensure_runtime  # noqa: E402
 from office_data import DataError, resolve_text  # noqa: E402
+import output_mark  # noqa: E402
 
 ensure_runtime(["docx", "markdown", "bs4", "yaml"])
 
@@ -1216,7 +1217,8 @@ def convert_md_to_docx(
         except docx_design.DesignError as exc:
             raise SystemExit(f"Error: {exc}") from exc
         doc.save(str(docx_path))
-        label = f"tonality={T.name}, density={T.density}, variance={T.variance}" if not T.neutral else "plain profile"
+        output_mark.tag_ooxml(docx_path)
+        label =f"tonality={T.name}, density={T.density}, variance={T.variance}" if not T.neutral else "plain profile"
         print(f"Successfully converted {md_path} to {docx_path} [{label}, locale={lang}]")
         return
 
@@ -1318,6 +1320,7 @@ def convert_md_to_docx(
     drop_shadowed_theme_fonts(doc)
 
     doc.save(str(docx_path))
+    output_mark.tag_ooxml(docx_path)
     print(
         f"Successfully converted {md_path} to {docx_path} "
         f"[publisher={publisher_name}, locale={detected_locale}]"

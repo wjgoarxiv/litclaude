@@ -138,3 +138,5 @@ Record the command or tool used and the diagnostic result. Good examples:
 Diagnostics are signals, not noise. Do not suppress them. If an LSP failure is
 unrelated to the change, label it as pre-existing with the exact output and
 continue only when the task can be safely completed without hiding it.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:c3341f4f5a65 -->

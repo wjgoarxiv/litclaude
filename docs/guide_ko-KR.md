@@ -421,6 +421,34 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 별도 프로필 체험을 마쳤다면 그 세션과 터미널을 닫고 원래 환경의 터미널로 돌아가면
 됩니다. 이전 설치를 되돌리거나 다시 설치할 필요는 없습니다.
 
+## 결과물에 남는 표시
+
+LitClaude 엔진이 쓰는 파일에는 LitClaude가 만들었다는 기록이 남고, 보여 주려고 만든 결과물에는
+"made with LitClaude"라는 작은 표시도 붙습니다. 수준은 `litclaude config mark on|meta|off`로 고르고,
+`doctor`가 지금 값을 `MARK:`로 보여 줍니다. 값은 `~/.litclaude/config.json`(또는 `LITCLAUDE_HOME`
+아래)에 있고, `LITCLAUDE_MARK`로 한 번만 바꿀 수 있습니다.
+
+| 결과물 | 보이지 않는 태그 (`on`, `meta`) | 보이는 표시 (`on`만) |
+| --- | --- | --- |
+| Word, PowerPoint | `docProps/app.xml`의 `Application`과 사용자 속성 `Generator` | 페이지는 쓴 그대로 |
+| PDF (lit-docx, lit-schematic) | `Creator`와 `Producer` | 페이지는 쓴 그대로 |
+| PNG, GIF, WebP | `tEXt Software`, GIF 주석, WebP XMP `CreatorTool` | 다이어그램과 커버 (아래) |
+| MP4 | 컨테이너 `comment` | 영상 (아래) |
+| SVG | `<metadata id="litclaude-generator">` | 다이어그램, 도면 |
+| 영상 (lit-typographic-motion) | MP4와 스틸 그대로 | 마지막 장면 뒤 0.5초쯤의 소리 없는 카드, 스타일의 바탕색 |
+| 커버 루프 | WebP/GIF 그대로 | 제목과 그림을 피한 구석의 고정 표시 |
+| 다이어그램 (lit-diagram-drawer 내보내기) | PNG/SVG 그대로 | 내보내기가 빈자리에 두는 구석 표시 |
+| P&ID, PFD 도면 (lit-schematic) | SVG/PNG/PDF 그대로 | 표제란 OWNER 칸의 한 줄 |
+| README 커버 (readme-studio) | 렌더한 파일 그대로 | 커버 아래 가로줄 밑의 작은 표시 |
+
+게이트 판정은 그대로입니다. 영상의 길이, 흐름, 글자 규칙은 영상 자체의 프레임만 보고, 깜빡임 점검과
+프레임 변화 규칙은 카드까지 보며, `END-CARD`가 카드를 따로 확인합니다. 표시는 로컬 설정만 읽고
+네트워크 요청을 하지 않습니다.
+
+모든 스킬과 에이전트 파일 끝에는 저작권과 라이선스를 적은 한 줄이 있습니다. 이 줄은 파일에만 남고
+Claude의 프롬프트에는 들어가지 않습니다. `doctor`는 `OFFICIAL_BUILD`(`github.com/wjgoarxiv/litclaude`의
+`@litfamily/litclaude`)도 보여 주고, 실행 중인 사본의 패키지나 저장소가 다르면 경고합니다.
+
 ## 무엇이 들어 있나요
 
 - 증거 기반 실행, 계획, 검토, 조사, handoff workflow

@@ -127,3 +127,5 @@ probe above, then check a public page with `agent-browser open https://example.c
 `agent-browser snapshot -i`, and `agent-browser close`. On `unavailable` or
 `unverified-identity`, report the blocker and stop. Do not substitute a fetch, a cached page,
 a screenshot, or a different automation tool.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:bc83b34e1a77 -->

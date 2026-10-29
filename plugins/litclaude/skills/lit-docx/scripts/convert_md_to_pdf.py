@@ -7,6 +7,7 @@ import sys as _sys
 _sys.dont_write_bytecode = True  # the installed skill directory stays read-only
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "lib"))
 from office_runtime_bootstrap import ensure_runtime  # noqa: E402
+import output_mark  # noqa: E402
 
 ensure_runtime(["docx", "markdown", "bs4", "yaml"])
 
@@ -269,6 +270,7 @@ def convert_md_to_pdf(
             draft_tex.parent.mkdir(parents=True, exist_ok=True)
             draft_tex.write_text(tmp_tex.read_text(encoding="utf-8"), encoding="utf-8")
         preflight_pdf_compile(publisher_name, publisher, detected_locale)
+        tmp_tex.write_text(output_mark.tag_latex(tmp_tex.read_text(encoding="utf-8"), output_mark.meta_generator()), encoding="utf-8")
         log = compile_latex_to_pdf(tmp_tex, pdf_path)
     return log
 

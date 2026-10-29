@@ -162,13 +162,33 @@ export function launchArgs(profileDir, flags) {
   ];
 }
 
+// Chrome is tied to this process on POSIX: a shell becomes the leader of a new process group,
+// starts a watcher that leaves the group's descriptors and signals alone, and then execs Chrome,
+// so Chrome keeps the shell's PID. The watcher polls this process and Chrome; once either is gone
+// it sends TERM, then KILL, to the whole group. A launcher killed mid-run, even by SIGKILL, so
+// never leaves Chrome or its helpers alive under PID 1.
+const TETHER = [
+  'parent=$1; group=$$; shift',
+  '( trap "" TERM INT HUP',
+  '  while kill -0 "$parent" 2>/dev/null && kill -0 "$group" 2>/dev/null; do sleep 0.1; done',
+  '  kill -TERM -"$group" 2>/dev/null; sleep 0.2; kill -KILL -"$group" 2>/dev/null',
+  ') </dev/null >/dev/null 2>&1 3>&- 4>&- &',
+  'exec "$@"',
+].join("\n");
+
+/** `spawn` for Chrome: tethered in its own process group on POSIX, a plain child on Windows. */
+function spawnTethered(chrome, args, options) {
+  if (process.platform === "win32") return spawn(chrome, args, options);
+  return spawn("/bin/sh", ["-c", TETHER, "litclaude-chrome", String(process.pid), chrome, ...args], { ...options, detached: true });
+}
+
 export class ChromeSession {
   static async launch({ chrome, flags, profileDir, routes, timeoutMs = 30000 }) {
     mkdirSync(profileDir, { recursive: true });
     const args = launchArgs(profileDir, flags);
     let child;
     try {
-      child = spawn(chrome, args, { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
+      child = spawnTethered(chrome, args, { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
     } catch (error) {
       throw new BlockedError(EXIT.BLOCKED_NO_CHROME, `BLOCKED_NO_CHROME: Chrome failed to launch: ${error.message}`);
     }
@@ -266,7 +286,8 @@ export class ChromeSession {
 
   kill() {
     try {
-      this.child.kill("SIGKILL");
+      if (process.platform === "win32") this.child.kill("SIGKILL");
+      else process.kill(-this.child.pid, "SIGKILL");
     } catch {
       // already gone
     }

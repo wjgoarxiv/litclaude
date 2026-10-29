@@ -453,3 +453,43 @@ test("(c) a plan the budget skipped is counted and named in the brief's notes", 
   assert.match(renderBrief(data, { lang: "en", now: NOW }), new RegExp(`${data.roadmap.plansSkipped} plans? (?:was|were) not read`, "u"));
   assert.match(renderBrief(data, { lang: "ko", now: NOW }), new RegExp(`계획 ${data.roadmap.plansSkipped}개는 읽지 못했습니다`, "u"));
 });
+
+// A plan run by a lane in a worktree is ticked there, in the lane's copy and its start-work ledger.
+// The umbrella plan's gauge takes that record only when the plan names the worktree and the ledger's
+// plan file is the same plan (its name, or its name without the date prefix); nothing else is bound.
+test("a plan's gauge takes the start-work record of the worktree it names, and never a guess", () => {
+  const { repo, env } = fixture();
+  const lane = (name, planName, work, rows) => {
+    const tree = join(repo, ".worktrees", name);
+    mkdirSync(join(tree, ".litclaude"), { recursive: true });
+    if (rows) {
+      mkdirSync(join(tree, "plans"), { recursive: true });
+      writeFileSync(join(tree, "plans", planName), rows);
+    }
+    writeFileSync(join(tree, ".litclaude", "boulder.json"), JSON.stringify({ active_work_id: null, works: { w: { work_id: "w", plan_name: planName, ...work } } }));
+  };
+  mkdirSync(join(repo, "plans"));
+  // Finished in its lane: the copy has every row ticked (and one row the lane added).
+  writeFileSync(join(repo, "plans", "2026-10-28-pilot.md"), "# Pilot\nLane: worktree `.worktrees/lane-a`.\n- [ ] 1. a\n- [ ] 2. b\n- [ ] 3. c\n");
+  lane("lane-a", "pilot.md", { status: "completed", progress: { checked: 4, total: 4 } }, "# Pilot\n- [x] 1. a\n- [x] 2. b\n- [x] 2b. extra\n- [x] 3. c\n");
+  // Under way in its lane: the copy is gone, so the ledger's own snapshot is the record.
+  writeFileSync(join(repo, "plans", "2026-10-28-two.md"), "# Two\nRun in .worktrees/lane-c.\n- [ ] 1. a\n- [ ] 2. b\n- [ ] 3. c\n- [ ] 4. d\n");
+  lane("lane-c", "two.md", { status: "active", progress: { checked: 2, total: 4, next_task: "3. c" } });
+  // Not bound: a lane the plan never names, and a named lane whose ledger runs another plan.
+  writeFileSync(join(repo, "plans", "2026-10-28-three.md"), "# Three\nSee `.worktrees/lane-d`.\n- [x] 1. a\n- [ ] 2. b\n");
+  lane("lane-b", "three.md", { status: "completed", progress: { checked: 2, total: 2 } }, "- [x] 1. a\n- [x] 2. b\n");
+  lane("lane-d", "other.md", { status: "completed", progress: { checked: 2, total: 2 } }, "- [x] 1. a\n- [x] 2. b\n");
+
+  const data = collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true });
+  const open = Object.fromEntries(data.roadmap.plans.map((plan) => [plan.plan, plan]));
+  assert.equal(open["plans/2026-10-28-pilot.md"], undefined, "a plan its lane finished is not open roadmap");
+  const finished = data.finished.plans.find((plan) => plan.plan === "plans/2026-10-28-pilot.md");
+  assert.equal(finished?.gauge, "[▉▉▉▉] 4/4");
+  assert.equal(finished.recordedIn, ".worktrees/lane-a/plans/pilot.md");
+  assert.equal(open["plans/2026-10-28-two.md"].progress.gauge, "[▉▉░░] 2/4");
+  assert.equal(open["plans/2026-10-28-two.md"].current, "3. c");
+  assert.equal(open["plans/2026-10-28-two.md"].recordedIn, ".worktrees/lane-c/.litclaude/boulder.json");
+  assert.equal(open["plans/2026-10-28-three.md"].progress.gauge, "[▉░] 1/2", "an unnamed or unrelated ledger is never used");
+  assert.equal(open["plans/2026-10-28-three.md"].recordedIn, undefined);
+  assert.match(renderBrief(data, { lang: "en", now: NOW }), /2026-10-28-two\.md` `\[▉▉░░\] 2\/4`/u);
+});

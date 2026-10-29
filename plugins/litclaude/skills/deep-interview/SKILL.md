@@ -398,3 +398,5 @@ deep-interview  →  planning  →  execution
 </Advanced>
 
 Task: {{ARGUMENTS}}
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:94c4a2baa467 -->

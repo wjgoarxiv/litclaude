@@ -442,6 +442,35 @@ retry or move any folders, read the same
 After a separate-profile trial, close that Claude session and terminal and go back to your
 original terminal environment. Your previous installation needs no downgrade or reinstall.
 
+## Marks on outputs
+
+Every file LitClaude's engines write records that LitClaude made it. Showcase outputs also show
+a small "made with LitClaude" credit. `litclaude config mark on|meta|off` picks the level and
+`doctor` prints the current one as `MARK:`. The value lives in `~/.litclaude/config.json` (or under
+`LITCLAUDE_HOME`), and `LITCLAUDE_MARK` overrides it for one run.
+
+| Output | Invisible tag (`on`, `meta`) | Visible credit (`on` only) |
+| --- | --- | --- |
+| Word and PowerPoint | `docProps/app.xml` `Application` and a custom `Generator` property | none: pages stay as written |
+| PDF (lit-docx, lit-schematic) | `Creator` and `Producer` | none |
+| PNG, GIF, WebP | `tEXt Software`, a GIF comment, WebP XMP `CreatorTool` | diagrams and covers, see below |
+| MP4 | container `comment` | films, see below |
+| SVG | `<metadata id="litclaude-generator">` | diagrams, schematics |
+| Films (lit-typographic-motion) | as MP4 and stills | a silent card of about 0.5 s after the last beat, on the style's ground |
+| Cover loops | as WebP/GIF | a static corner mark, clear of the title and art |
+| Diagrams (lit-diagram-drawer exports) | as PNG/SVG | a corner mark the exporter places in free space |
+| P&ID and PFD sheets (lit-schematic) | as SVG/PNG/PDF | one line in the title block's OWNER cell |
+| README covers (readme-studio) | as the rendered files | a small mark under the cover's bottom rule |
+
+The gates still judge the work: a film's length, pacing and text rules read the film's own
+frames, while the flash audit and the frame-step rule also read the card, and `END-CARD` checks
+the card itself. Marking reads only the local setting and makes no network call.
+
+Every skill and agent file ends with a one-line copyright and licence notice. The notice stays
+in the file and never reaches Claude's prompt. `doctor` also prints `OFFICIAL_BUILD`
+(`@litfamily/litclaude` from `github.com/wjgoarxiv/litclaude`) and warns when the running copy
+names another package or repository.
+
 ## What ships
 
 - Evidence-first execution, planning, review, research, and handoff workflows.

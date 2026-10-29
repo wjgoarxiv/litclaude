@@ -100,3 +100,5 @@ verify immutable source identity, evidence freshness, capability receipts,
 schema validity, bounded PNG or TUI analysis, reference comparability, reviewer
 independence, and cleanup. Return your own schema-valid verdict without seeing
 the other reviewer's draft or allowing an advisory metric to replace evidence.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:ee0572d4f7f5 -->

@@ -171,3 +171,5 @@ with a single `- 없음` line.
 - Keep the recap honest about uncertainty: unverified claims are labeled as
   such, never upgraded to 완료.
 - The recap itself creates no files; deliver it in the reply only.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:6602ba7b9f70 -->

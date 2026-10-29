@@ -2207,7 +2207,10 @@ function tagLanguages(name, xml) {
   return xml;
 }
 
-/** Write a deck with its Korean runs and charts tagged (see tagLanguages); `edit` may rewrite a part first. */
+/**
+ * Write a deck with its Korean runs and charts tagged (see tagLanguages); `edit` may rewrite a part first.
+ * The package also carries LitClaude's generator in docProps unless the `mark` setting is off (lib/mark.mjs).
+ */
 async function writeTagged(pptx, outputPath, edit = (name, xml) => xml) {
   const JSZip = runtimeRequire("jszip");
   const zip = await JSZip.loadAsync(await pptx.write({ outputType: "nodebuffer" }));
@@ -2215,6 +2218,8 @@ async function writeTagged(pptx, outputPath, edit = (name, xml) => xml) {
     const xml = await zip.file(name).async("string");
     zip.file(name, tagLanguages(name, edit(name, xml)));
   }
+  const { tagOoxmlZip } = await import(require("url").pathToFileURL(path.resolve(TOOLKIT_ROOT, "../../lib/mark.mjs")).href);
+  await tagOoxmlZip(zip);
   fs.writeFileSync(outputPath, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 }
 

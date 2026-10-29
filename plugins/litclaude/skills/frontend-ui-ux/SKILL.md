@@ -160,3 +160,5 @@ the canonical library router only when the question needs its distinct source ma
 ## #contract.anti_patterns
 
 Avoid markup-first design, one-screen visual languages, prose-only acceptance, hidden omissions, and treating implementation as visual evidence.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:b7e5648fc713 -->

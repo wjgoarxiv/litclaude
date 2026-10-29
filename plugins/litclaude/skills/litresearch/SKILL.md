@@ -661,3 +661,5 @@ Record the stop condition: `local evidence sufficient`, `external host facts not
 needed`, or `external fact unresolved but not blocking`. This keeps litresearch
 compatible with minimum-first execution while preserving its evidence discipline
 for genuinely broad investigations.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:668067cfc2cd -->

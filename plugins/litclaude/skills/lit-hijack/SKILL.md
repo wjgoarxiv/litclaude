@@ -549,3 +549,5 @@ existing folder, and the spec adds the new skill's enrollment surfaces.
 - [ ] Visual outputs shown side by side when the target makes them
 - [ ] `REPORT.md` with Taken, Left, Provenance, exposure note, credit and review-by date
 - [ ] `hijack.mjs check --phase report` passes; nothing committed or published without approval
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:ab7adac984ba -->

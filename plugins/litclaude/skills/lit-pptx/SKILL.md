@@ -282,3 +282,5 @@ A deck that restates the request instead of answering it; stopping to ask for da
 | 정/반/합 and review roles | `references/agents/*.md` |
 | Font files and licences | `fonts/provenance.json`, `fonts/pretendard/OFL.txt`, `fonts/a2z/OFL.txt` |
 | Engine authorship and licence | `NOTICE` |
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:bd05fc922eb1 -->

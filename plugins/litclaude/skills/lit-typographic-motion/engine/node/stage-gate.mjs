@@ -17,17 +17,20 @@ function flash({ masterFlash, previewFlash, fps }) {
   return r("MO-C-03", master.pass && (!preview || preview.pass) ? "PASS" : "FAIL", detail);
 }
 
-function floors({ probe, width, height, treatment }) {
+function floors({ probe, width, height, treatment, endCardSec = 0 }) {
   if (!probe) return [r("MO-C-10/11/12", "FAIL", "no MP4 master to probe (ffprobe missing or file absent)")];
   const problems = [];
   if (probe.width !== width || probe.height !== height) problems.push(`size ${probe.width}x${probe.height}, the ${treatment.format} format is ${width}x${height}`);
   if (probe.fps < GATE.minFps) problems.push(`fps ${probe.fps}`);
   for (const [k, v] of [["pixFmt", "yuv420p"], ["colorSpace", "bt709"], ["colorRange", "tv"], ["colorTransfer", "bt709"], ["colorPrimaries", "bt709"]]) if (probe[k] !== v) problems.push(`${k} ${probe[k]}`);
+  // The film is held to the treatment's length; LitClaude's end card after it is measured on its own (END-CARD).
   const target = treatment.durationSec;
-  const off = Math.abs(probe.duration - target) / target;
+  const film = probe.duration - endCardSec;
+  const card = endCardSec ? ` (+${endCardSec.toFixed(2)} s end card)` : "";
+  const off = Math.abs(film - target) / target;
   const length = off > STAGE_GATE.durationTolerance
-    ? r("MO-C-12", "FAIL", `${probe.duration.toFixed(2)} s against the treatment's ${target} s (${(off * 100).toFixed(1)} % off, limit ±10 %)`)
-    : r("MO-C-12", "PASS", `${probe.duration.toFixed(2)} s against the treatment's ${target} s`);
+    ? r("MO-C-12", "FAIL", `${film.toFixed(2)} s${card} against the treatment's ${target} s (${(off * 100).toFixed(1)} % off, limit ±10 %)`)
+    : r("MO-C-12", "PASS", `${film.toFixed(2)} s${card} against the treatment's ${target} s`);
   const detail = `${probe.width}x${probe.height} @ ${probe.fps} fps (ffprobe yuv420p/bt709/tv ${problems.length ? "N" : "Y"})`;
   return [r("MO-C-10/11", problems.length ? "FAIL" : "PASS", problems.length ? `${detail}: ${problems.join(", ")}` : detail), length];
 }

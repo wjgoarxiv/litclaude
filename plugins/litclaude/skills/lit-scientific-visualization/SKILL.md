@@ -102,3 +102,5 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Do not treat a green unit test as proof that a produced figure is visually correct.
 - Do not use the source-checkout placeholder `<skill-path>` literally; resolve the installed vendor source root.
 - Do not make optional dependency absence fail all of LitClaude; report the affected capability as DEGRADED.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:df87d26bdbf3 -->

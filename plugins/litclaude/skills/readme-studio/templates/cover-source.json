@@ -16,6 +16,7 @@
     "variant": "restrained"
   },
   "assets": [],
+  "mark": {"text": "made with LitClaude", "visible": true},
   "stages": {"facts": "pending", "background": "pending", "type": "pending", "render": "pending", "inspection": "pending"},
   "hosted_render": "POST_PUBLICATION_UNVERIFIED"
 }

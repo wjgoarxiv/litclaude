@@ -166,3 +166,5 @@ Review comments, README text, changelogs, commits, and pull-request prose as pro
 - DOCX/PPTX and PDFs are read only after creation through bounded local extractors. If an extractor is missing, a file is unreadable, or the check times out, the guard allows the operation and shows one short note that the check did not run.
 
 When a pattern would remove a correct fact, meaningful scope, required attribution, or the user's voice, keep the text and explain the decision only if the user needs it.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:aafb10aee9f8 -->

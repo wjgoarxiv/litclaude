@@ -17,11 +17,23 @@ import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPretendard } from "./lib/fonts.mjs";
 import { inkGrid, missingInk, pngInfo, withDpi } from "./lib/png.mjs";
+import { tagFile } from "../../../lib/mark.mjs";
 
 export const CHROME_FLAGS = Object.freeze([
   "--headless=new", "--use-mock-keychain", "--password-store=basic", "--no-first-run",
   "--no-default-browser-check", "--disable-gpu", "--hide-scrollbars", "--disable-extensions",
 ]);
+// On POSIX Chrome runs in its own process group behind a shell that execs it (so it keeps the
+// shell's PID) after starting a watcher. The watcher polls this process and Chrome, and when either
+// is gone it kills the group, so a render killed mid-run never leaves Chrome alive under PID 1.
+const TETHER = [
+  'parent=$1; group=$$; shift',
+  '( trap "" TERM INT HUP',
+  '  while kill -0 "$parent" 2>/dev/null && kill -0 "$group" 2>/dev/null; do sleep 0.1; done',
+  '  kill -TERM -"$group" 2>/dev/null; sleep 0.2; kill -KILL -"$group" 2>/dev/null',
+  ') </dev/null >/dev/null 2>&1 &',
+  'exec "$@"',
+].join("\n");
 const PX_PER_MM = 96 / 25.4;
 const MAX_SIDE = 16000;
 // Headless Chrome returns a screenshot larger than about 100 million pixels with only its first
@@ -84,7 +96,10 @@ function runChrome(chrome, args, html, work) {
   writeFileSync(file, html);
   const profile = mkdtempSync(join(work, "profile-"));
   try {
-    const result = spawnSync(chrome, [...CHROME_FLAGS, `--user-data-dir=${profile}`, ...args, pathToFileURL(file).href], { encoding: "utf8", timeout: 180_000 });
+    const argv = [...CHROME_FLAGS, `--user-data-dir=${profile}`, ...args, pathToFileURL(file).href];
+    const result = process.platform === "win32"
+      ? spawnSync(chrome, argv, { encoding: "utf8", timeout: 180_000 })
+      : spawnSync("/bin/sh", ["-c", TETHER, "litclaude-chrome", String(process.pid), chrome, ...argv], { encoding: "utf8", timeout: 180_000, detached: true });
     if (result.error) throw new Error(`RENDER_FAILED ${result.error.message}`);
     if (result.status !== 0) throw new Error(`RENDER_FAILED chrome exited ${result.status}: ${(result.stderr || "").split("\n").slice(-3).join(" ")}`);
   } finally {
@@ -93,7 +108,8 @@ function runChrome(chrome, args, html, work) {
 }
 
 // `verify: false` skips the reference render, for film frames far below the size that can fail.
-export function renderPng({ chrome, svg, out, dpi = 600, crop = null, verify = true }) {
+// `tag: false` leaves the generator tag off, for working frames that never leave the run.
+export function renderPng({ chrome, svg, out, dpi = 600, crop = null, verify = true, tag = true }) {
   const size = svgSize(svg);
   let source = svg;
   let widthMm = size.width;
@@ -130,6 +146,7 @@ export function renderPng({ chrome, svg, out, dpi = 600, crop = null, verify = t
     }
     const png = withDpi(readFileSync(raw), used);
     writeFileSync(out, png);
+    if (tag) tagFile(out);
     return { out, ...pngInfo(png), requestedDpi: dpi };
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -141,6 +158,7 @@ export function renderPdf({ chrome, svg, out }) {
   const work = mkdtempSync(join(tmpdir(), "lit-schematic-render-"));
   try {
     runChrome(chrome, ["--no-pdf-header-footer", `--print-to-pdf=${resolve(out)}`], page({ svg, widthMm: size.width, heightMm: size.height }), work);
+    tagFile(out);
     return { out, widthMm: size.width, heightMm: size.height };
   } finally {
     rmSync(work, { recursive: true, force: true });

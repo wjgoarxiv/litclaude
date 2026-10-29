@@ -7,8 +7,15 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { ENCODE_ARGS, PREVIEW } from "../core/constants.mjs";
 import { which } from "./host.mjs";
+import { ffmpegMetadataArgs, tagFile } from "../../../../lib/mark.mjs";
 
 export { which };
+
+/** Tag the staged deliverables (poster, still, preview) with LitClaude's generator before the gate measures them. */
+export function tagStaged(dir, env = process.env) {
+  if (!existsSync(dir)) return;
+  for (const name of readdirSync(dir).filter((f) => /\.(?:png|gif|webp)$/u.test(f))) tagFile(path.join(dir, name), { env });
+}
 
 export const findFfmpeg = (env = process.env) => (env.FFMPEG_PATH && existsSync(env.FFMPEG_PATH) ? env.FFMPEG_PATH : which("ffmpeg", env));
 export const findFfprobe = (env = process.env) => (env.FFPROBE_PATH && existsSync(env.FFPROBE_PATH) ? env.FFPROBE_PATH : which("ffprobe", env));
@@ -38,7 +45,7 @@ export function startMaster({ ffmpeg, width, height, fps, out, audio = null }) {
   args.push(...ENCODE_ARGS);
   // The track is prepared to the film's exact sample count, so nothing is cut to the shorter stream.
   if (audio) args.push("-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "256k");
-  args.push(out);
+  args.push(...ffmpegMetadataArgs(), out);
   const child = spawn(ffmpeg, args, { stdio: ["pipe", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (d) => { stderr += d.toString(); });

@@ -8,6 +8,7 @@ import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { canonicalSkillIds, canonicalSkillResourceManifest } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
+import { withoutNotice } from "./helpers/notice.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const pluginRoot = join(root, "plugins", "litclaude");
@@ -239,7 +240,9 @@ describe("lit-typographic-motion enrollment and corpus (organic, not just presen
   });
 
   it("SKILL.md is lean, contract-first, and names only helpers and references that exist", () => {
-    assert.ok(Buffer.byteLength(skill) <= 12 * 1024, `SKILL.md ${Buffer.byteLength(skill)} B`);
+    // The fixed notice line every prompt file ends with (test/notice-line.test.mjs) is not part of the skill's prose.
+    const prose = withoutNotice(skill);
+    assert.ok(Buffer.byteLength(prose) <= 12 * 1024, `SKILL.md ${Buffer.byteLength(prose)} B`);
     for (const h of ["## #contract.activation", "## #contract.procedure", "## #contract.hard_stops"]) assert.ok(skill.includes(h), h);
     for (const ref of REFERENCES) assert.ok(skill.includes(`references/${ref}`), ref);
     for (const helper of skill.matchAll(/\$SKILL_ROOT\/(scripts\/[\w.-]+)/gu)) assert.ok(existsSync(join(skillRoot, helper[1])), helper[1]);

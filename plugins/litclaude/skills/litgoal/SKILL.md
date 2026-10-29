@@ -371,3 +371,5 @@ Stop and surface the state when:
   or worktree cannot be cleaned up.
 
 Leftover runtime state means `blocked`, not `pass`.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:182f034d168c -->

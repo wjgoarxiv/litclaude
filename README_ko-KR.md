@@ -485,6 +485,36 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 마켓플레이스로 추가한 플러그인에는 LitClaude 상태 줄이 없고, 업데이트와 제거는 Claude Code의
 `/plugin` 메뉴에서 합니다.
 
+## 결과물에 남는 표시
+
+LitClaude가 만든 파일에는 출처가 남습니다. 엔진이 쓰는 문서, 발표자료, 그림, 영상에는 LitClaude와
+버전을 적은 작은 보이지 않는 태그가 들어갑니다. Word·PowerPoint 파일의 `Application` 항목, PDF의
+`Creator`, 이미지와 영상의 메타데이터 한 줄입니다. 페이지 내용은 쓴 그대로입니다.
+
+보여 주려고 만든 결과물에는 "made with LitClaude"라는 작은 표시도 붙습니다. 영상은 마지막 장면 뒤
+0.5초짜리 카드, 커버 루프·다이어그램·README 커버는 구석의 조용한 표시, P&ID는 표제란의 한 줄입니다.
+코드, 커밋, 대화 답변, 문서 페이지에는 표시가 들어가지 않습니다.
+
+표시는 설정 하나로 고릅니다.
+
+```bash
+npx @litfamily/litclaude@latest config mark on     # 보이지 않는 태그와 보이는 표시 (기본값)
+npx @litfamily/litclaude@latest config mark meta   # 보이지 않는 태그만
+npx @litfamily/litclaude@latest config mark off    # 표시 없음
+```
+
+선택은 `~/.litclaude/config.json`에 저장되고, `LITCLAUDE_MARK=off`로 한 번만 바꿀 수도 있습니다.
+표시는 내 컴퓨터 안에서만 붙고, 어디에도 전송하지 않습니다.
+
+## 공식 빌드 알아보기
+
+LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,
+[github.com/wjgoarxiv/litclaude](https://github.com/wjgoarxiv/litclaude)에서 빌드합니다.
+`doctor`는 이 둘을 `OFFICIAL_BUILD`로 보여 주고, 실행 중인 사본의 패키지 이름이나 저장소가 다르면
+`OFFICIAL_BUILD_WARNING`을 덧붙입니다. 모든 스킬과 에이전트 파일 끝에는 저작권과 라이선스를 적은 한 줄이
+있습니다. 이 줄을 지우거나 다른 이름으로 파는 사본을 보면
+[이슈로 알려 주세요](https://github.com/wjgoarxiv/litclaude/issues).
+
 ## 더 알아보기
 
 - [안내서](./docs/guide_ko-KR.md): 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동

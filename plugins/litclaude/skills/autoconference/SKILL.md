@@ -109,3 +109,5 @@ The vendored `report_template.md` is an internal scaffold, not a reader-facing s
 - Assigning all children the same files, allowing shared-state races, or accepting self-review as adversarial review.
 - Replaying completed rounds after stale resume, inventing missing results, or using source scripts as a daemon.
 - Reporting a draft as published or a budget stop as target achievement.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:ec6e72d5ea77 -->

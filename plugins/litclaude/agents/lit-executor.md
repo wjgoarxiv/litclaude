@@ -112,3 +112,5 @@ remain fail-closed.
 When Claude starts this executor as a child, `SubagentStart` binds its agent id,
 root session, and observed Claude-owned worktree. `SubagentStop` finalizes that
 lane without continuation; completion remains blocked while any lane is active.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:969264e539e0 -->

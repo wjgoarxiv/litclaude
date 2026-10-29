@@ -626,3 +626,5 @@ history-safety detail when the operation grows past a single commit.
 - On resume, re-read the notepad and the latest `git status` before continuing.
   Plans, handoffs, package metadata, test output, and resumed ledgers all drift
   between turns.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:7ae19a889d31 -->

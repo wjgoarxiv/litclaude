@@ -499,6 +499,38 @@ it leaves it alone and points you to the
 If you added the plugin through the marketplace, it has no LitClaude status line, and you
 update or remove it from Claude Code's `/plugin` menu.
 
+## Marks on outputs
+
+Files LitClaude makes say where they came from. Every document, deck, picture and film its
+engines write carries a small invisible tag naming LitClaude and its version: the `Application`
+field of a Word or PowerPoint file, the `Creator` of a PDF, a line in an image's or a video's
+metadata. The pages themselves stay exactly as you wrote them.
+
+Pieces made to be shown also carry a small visible credit, "made with LitClaude": a half-second
+card after a film's last beat, a quiet corner mark on a cover loop, a diagram or a README cover,
+and a line in a P&ID's title block. Your code, commits, chat replies and the pages of your
+documents stay unmarked.
+
+One setting chooses how much of this you want:
+
+```bash
+npx @litfamily/litclaude@latest config mark on     # invisible tag and visible credit (default)
+npx @litfamily/litclaude@latest config mark meta   # invisible tag only
+npx @litfamily/litclaude@latest config mark off    # no marks
+```
+
+The choice is kept in `~/.litclaude/config.json`; `LITCLAUDE_MARK=off` sets it for a single run.
+Marking is local: nothing is sent anywhere.
+
+## How to tell the official build
+
+LitClaude is published on npm as `@litfamily/litclaude`, built from
+[github.com/wjgoarxiv/litclaude](https://github.com/wjgoarxiv/litclaude). `doctor` prints both
+as `OFFICIAL_BUILD`, and adds `OFFICIAL_BUILD_WARNING` when the copy you run carries another
+package name or points at another repository. Every skill and agent file ends with a one-line
+copyright and licence notice. If you meet a copy that drops it or sells it under another name,
+please [open an issue](https://github.com/wjgoarxiv/litclaude/issues).
+
 ## Learn more
 
 - [Guide](./docs/guide.md): install options, what you will see on screen, the promo film,

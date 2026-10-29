@@ -137,3 +137,5 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Accepting a claim during capture, querying review-needed records, emitting an empty knowledge wrapper, or treating a
   derived index, summary, or manifest as authority.
 - Skipping `review-work`, stale-state checks, or `lit-recap`/`handoff` continuity after material operations.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:24f72ed51bcd -->

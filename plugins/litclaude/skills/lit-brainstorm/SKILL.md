@@ -428,3 +428,5 @@ User: `lit brainstorm a name for my app` (a habit tracker for shift workers).
 - [ ] Idea lanes, if any, were read-only, returned options only, and were verified before use
 - [ ] Writes confined to `.litclaude/brainstorm/` and only when allowed
 - [ ] Handoff brief written and the exact next command given; nothing implemented
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:95a214f4be9e -->

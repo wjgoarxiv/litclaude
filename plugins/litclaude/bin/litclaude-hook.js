@@ -373,10 +373,13 @@ const llmContractContext = [
 // SessionStart is a new context boundary and therefore loads the full contract again.
 const llmContractReference = "Reader-facing contract reference: the contract loaded at SessionStart applies; reader mode by default.";
 
+// The notice line that ends every SKILL.md (copyright and fingerprint) belongs to the file, not the prompt.
+const skillNoticeLine = /\n*<!-- LitClaude © \d{4} wjgoarxiv · MIT · github\.com\/wjgoarxiv\/litclaude · fp:[0-9a-f]{12} -->$/u;
+
 const staticSkillBodyContext = ({ skillId, safetyBlock }) => {
   if (!skillId || safetyBlock) return [];
   try {
-    const body = readFileSync(new URL(`../skills/${skillId}/SKILL.md`, import.meta.url), "utf8").trim();
+    const body = readFileSync(new URL(`../skills/${skillId}/SKILL.md`, import.meta.url), "utf8").trim().replace(skillNoticeLine, "");
     if (!body) return [];
     return [
       `<litclaude-skill-body name="${skillId}">

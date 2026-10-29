@@ -77,7 +77,23 @@ def to_pdf(source: Path, out_dir: Path) -> tuple[Path | None, str]:
     pdf = out_dir / f"{source.stem}.pdf"
     if result.returncode != 0 or not pdf.exists():
         raise RuntimeError(f"soffice conversion failed: {(result.stderr or result.stdout).strip()[-400:]}")
+    tag_pdf(pdf)
     return pdf, "converted with soffice"
+
+
+def tag_pdf(pdf: Path) -> None:
+    """Name LitClaude's generator as Creator and Producer of a PDF this script converted (mark setting `on` or
+    `meta`), saved incrementally so the pages stay byte for byte. A PDF given as input is never touched."""
+    import output_mark
+    import pymupdf
+
+    gen = output_mark.meta_generator()
+    if gen is None:
+        return
+    with pymupdf.open(pdf) as document:
+        keys = ("title", "author", "subject", "keywords", "creationDate", "modDate", "trapped")
+        document.set_metadata({**{k: document.metadata.get(k) or "" for k in keys}, "creator": gen, "producer": gen})
+        document.saveIncr()
 
 
 def rasterise(pdf: Path, out_dir: Path, pages: int, dpi: int) -> list[Path]:

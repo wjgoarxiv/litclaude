@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_DYNAMIC_MAX_RESULT_CHARS } from "../plugins/litclaude/lib/rules/constants.mjs";
 import { SKILL_FIRST_NOTICE, assertNoWorkflowActivationContext, pointedSkillBody } from "./helpers/hook-context.mjs";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
+import { withoutNotice } from "./helpers/notice.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -36,7 +37,7 @@ const HOST_HOOK_EVENT_NAMES = new Set([
   "WorktreeCreate",
   "MessageDisplay",
 ]);
-const skillBody = (name) => readFileSync(join(root, "plugins", "litclaude", "skills", name, "SKILL.md"), "utf8").trim();
+const skillBody = (name) => withoutNotice(readFileSync(join(root, "plugins", "litclaude", "skills", name, "SKILL.md"), "utf8")).trim();
 const litgoalDir = (cwd) => join(cwd, ".litclaude", "litgoal");
 const goalsPath = (cwd) => join(litgoalDir(cwd), "goals.json");
 const autoloopPath = (cwd) => join(litgoalDir(cwd), "autoloop.json");

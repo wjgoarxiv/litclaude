@@ -116,10 +116,18 @@ describe("sound reaches the film on both paths (director brief 7)", () => {
     writeTreatment(out, treatment);
     const r = cli(["stage", "--out", out, "--round", "2"]);
     assert.ok([0, 13].includes(r.status), r.stdout + r.stderr);
-    const info = streams(existsSync(join(out, "film.mp4")) ? join(out, "film.mp4") : join(out, "withheld", "film.mp4"));
+    const film = existsSync(join(out, "film.mp4")) ? join(out, "film.mp4") : join(out, "withheld", "film.mp4");
+    const info = streams(film);
     const audio = info.streams.find((s) => s.codec_type === "audio");
     assert.equal(audio?.codec_name, "aac");
-    assert.ok(Math.abs(Number(audio.bit_rate) - 256000) <= 16000, `bit rate ${audio.bit_rate}`);
+    // The bit rate is measured over the film's own audio: LitClaude's end card after it is silence, which AAC
+    // stores in almost nothing and would pull a whole-file average below the 256k the encoder was set to.
+    const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
+    const filmSec = manifest.durationSec - (manifest.endCard?.sec ?? 0);
+    const packets = spawnSync("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries", "packet=pts_time,size", "-of", "csv=p=0", film], { encoding: "utf8" }).stdout
+      .trim().split("\n").map((l) => l.split(",").map(Number)).filter(([pts]) => pts < filmSec);
+    const bitRate = (packets.reduce((s, [, size]) => s + size, 0) * 8) / filmSec;
+    assert.ok(Math.abs(bitRate - 256000) <= 16000, `bit rate ${Math.round(bitRate)} over the film's ${filmSec} s`);
   });
 
   it("the sound subcommand builds the score and its cues from the treatment, and says so for other modes", () => {

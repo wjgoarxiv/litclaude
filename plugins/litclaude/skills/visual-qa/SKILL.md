@@ -72,3 +72,5 @@ Require the canonical `litfamily.design-contract/v1beta2` from `schemas/design-c
 ## #contract.anti_patterns
 
 Never substitute HTTP success for rendering, a file path for verified image bytes, similarity for semantics, or same-context review for independence.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:4aa1e9a577ea -->

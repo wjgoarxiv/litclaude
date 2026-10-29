@@ -81,7 +81,7 @@ The tool adds "Other" itself, so no Other option is written. Skip a question whe
    ```bash
    node "$SKILL_ROOT/scripts/doctor.mjs" --out <dir>
    node "$SKILL_ROOT/scripts/export.mjs" --input diagram.html --out <dir> --scale 2 --office-safe
-   ``` The exporter never installs software; when the renderer is missing it exits `BLOCKED`-style with the exact commands for the user to run.
+   ``` The exporter never installs software; when the renderer is missing it exits `BLOCKED`-style with the exact commands for the user to run. It also adds LitClaude's small "made with LitClaude" corner mark to the exports (and an invisible generator tag), at a clear spot it finds, under the user's LitClaude mark setting; never draw that credit in the source diagram yourself.
 9. **Look at the image.** Open the exported PNG at its intended size. Trace every arrow from start to end, read every label at slide size, check Korean glyphs, boundary labels, arrowheads, contrast, clipping, and margins. A passing check does not replace this look.
 
 ## Reference map
@@ -133,3 +133,5 @@ A PASS needs a clean `verify-diagram`, `verify-type`, and visible-text run on th
 ## #contract.anti_patterns
 
 Method or generator footers, labels sitting on lines or on boxes, detour routes, crossing routes, arrows hidden under or stopping short of their targets, undersized arrowheads, decision nodes with a missing outcome, nodes on the wrong side of a trust boundary, sequence messages without lifelines, text shrunk below the floors to fit, a Korean brief drawn with English labels, and "PASS" reported from source checks without opening the image.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:53e2c8138952 -->

@@ -2,6 +2,8 @@
 // viewBox unit is 1 mm at final print size, so stroke widths and font sizes are physical
 // and the QA gate can check them without knowing the page.
 
+import { markPlan } from "../../../../lib/mark.mjs";
+
 export const MM_PER_PT = 25.4 / 72;
 export const PT_PER_MM = 72 / 25.4;
 export const ptToMm = (pt) => pt * MM_PER_PT;
@@ -63,9 +65,11 @@ export function textBox(x, y, text, size, anchor = "start") {
 
 export function svgDocument({ width, height, title, desc = "", mode, lang = "en", body, defs = "", style = "", extra = {} }) {
   if (!title) throw new Error("lit-schematic: a drawing needs a title (accessible name)");
+  const { generator } = markPlan();
   const head = [
     `<title id="schematic-title">${esc(title)}</title>`,
     desc ? `<desc id="schematic-desc">${esc(desc)}</desc>` : "",
+    generator ? `<metadata id="litclaude-generator">${esc(generator)}</metadata>` : "",
     style ? `<style>${style}</style>` : "",
     defs ? `<defs>${defs}</defs>` : "",
   ].join("");

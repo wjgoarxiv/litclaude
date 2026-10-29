@@ -104,6 +104,7 @@ The collector (`plugins/litclaude/lib/rewind/collect.mjs`, served as `litclaude-
 | --- | --- | --- |
 | Claude Code transcripts, `<config>/projects/<slug>/*.jsonl` | per session: title (custom, then AI, then first prompt), first and last ask, tools used, files changed, last assistant text, status | `transcripts: unknown` |
 | `plans/*.md` checkbox rows | open plans changed inside the window (this worktree's too), current item, done/total, remaining names | `plans: unknown` |
+| a lane's plan copy and `.litclaude/boulder.json` in a worktree the plan names (`.worktrees/<dir>`) | that plan's progress when the ledger runs the same plan (its name, or its name without the `YYYY-MM-DD-` prefix) and has ticked more of it; the gauge then says where it was recorded (`recordedIn`) | the plan's own rows |
 | `.litclaude/litgoal/goals.json` | objective and passed/total criteria | `litgoal: unknown` |
 | `HANDOFF*.md` | headings from the first 40 lines; for this worktree's own file only, the first item under `## Next` / `## Next Steps` | `handoffs: unknown` |
 | `git log --since` | commits in the window, matched to sessions by time and branch | `git: unknown` |
@@ -173,3 +174,5 @@ The colours move by hue at a steady lightness, so the card never flashes: at mos
 | `Doing now: nothing running` | No frame, start-work or active session is on record | Print it as drawn |
 
 See `references/card-examples.md` for complete briefs in English and Korean and `references/status-taxonomy.md` for the status wording in both languages.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:7942e546df3c -->

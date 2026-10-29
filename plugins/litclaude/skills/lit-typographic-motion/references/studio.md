@@ -238,6 +238,17 @@ house style and later films are appended. While it exists the validator holds ne
 to the house style; a request that names another style wins for that film and does not move the house
 style. To change the house style, edit `style` in the file or delete it.
 
+## LitClaude's credit card and cover mark
+
+When the user's LitClaude mark setting is `on` (the default), the renderer adds LitClaude's
+credit after the film's last beat: about 0.5 s on the style's ground with "made with LitClaude" centred,
+reached by a short crossfade, silent (the track is padded), with no camera move. The treatment, the beats
+and the page stay as written; write no credit of your own. The film's length rule, dead air, flat-frame
+and near-black rules judge the film's own frames; the flash audit and the full-frame step rule see the
+card too, and `END-CARD` in the gate report checks it. The manifest records it as `endCard`, and
+`durationSec` includes it. A cover loop gets a small static corner mark instead, placed clear of the
+title and art boxes and recorded as `mark` in the cover manifest. `meta` and `off` draw neither.
+
 ## What stays free
 
 The subject, the idea, the copy, the drawing, the hero moves and the arc stay the model's, with the

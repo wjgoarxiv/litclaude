@@ -32,6 +32,8 @@ import {
 import { readPublicSource } from "../plugins/litclaude/lib/public-source-reader/reader.mjs";
 import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import { MOD_CHOICES } from "../plugins/litclaude/lib/mod/settings.mjs";
+import { MARK_MODES, readMarkMode, writeMarkMode } from "../plugins/litclaude/lib/mark.mjs";
+import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
@@ -41,6 +43,7 @@ import { runStartWorkCli } from "../plugins/litclaude/lib/start-work-cli.mjs";
 import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
 import { runWorkflowCheckCli } from "../plugins/litclaude/lib/workflow-check.mjs";
 import { runWorkflowStageCli } from "../plugins/litclaude/lib/workflow-stage.mjs";
+import { runRewindCli } from "../plugins/litclaude/lib/rewind/collect.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
@@ -83,7 +86,7 @@ const prewarmMotionRuntime = () => {
 };
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read|motion-runtime> [...args]
        litclaude-ai --version
 
 Commands:
@@ -93,6 +96,8 @@ Commands:
                 Show or change the LIT card options (motion, glyphs, band, notify, club) in
                 pluginConfigs, the same values /config edits. Works for the
                 desktop app too, which shows no editor for them.
+                \`config mark <on|meta|off>\` sets whether engine outputs carry
+                LitClaude's marks; it is kept in LitClaude's own config.json.
   invite [@<github-id>] [--json]
                 Record who invited you (the same as typing \`lit invite @<id>\`);
                 the LIT card gets its club look. Saved in ~/.litclaude/invite.json
@@ -108,6 +113,9 @@ Commands:
   workflow-stage <family> <stage> [--n N --total M --unit U --verdict name=pass --session ID]
                 Record where a review, loop, iteration or crucible run stands, for
                 the LIT card's workflow map (.litclaude/workflow-stack/<session>.json).
+  rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12]
+                Draw the lit-adhd brief: what recent sessions in this project's
+                worktrees asked, did and wait on, with plan gauges and one next step.
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
   motion-runtime Pre-warm (install [--audio] [--word-timing]) or report (status) the
                 lit-typographic-motion runtime cache. Run it outside a sandboxed session.
@@ -393,7 +401,7 @@ const familyBanner = ({ color = shouldColorInstall() } = {}) => [
 ].join("\n");
 
 const printCommandBanner = (parsed) => {
-  if (["install", "update", "workflow-stage"].includes(parsed.command)) return;
+  if (["install", "update", "workflow-stage", "rewind"].includes(parsed.command)) return;
   if (parsed.rest.some((arg) => arg === "--json" || arg.startsWith("--json="))) return;
   const color = shouldColorInstall();
   process.stdout.write(`${renderLitClaudeWordmark({ color }).join("\n")}\n`);
@@ -792,11 +800,24 @@ const configModOptions = (rest, home = claudeHome()) => {
   if (rest.length === 0) {
     const options = modOptionsOf(readClaudeSettings(home));
     for (const key of Object.keys(MOD_CHOICES)) process.stdout.write(`${key.padEnd(7)} ${options[key].padEnd(7)} (${MOD_CHOICES[key].join(", ")})\n`);
+    process.stdout.write(`${"mark".padEnd(7)} ${readMarkMode({ litHome: litHome() }).padEnd(7)} (${MARK_MODES.join(", ")})\n`);
     process.stdout.write("Change one with: litclaude-ai config <option> <value>. New Claude Code sessions, terminal or desktop app, pick it up.\n");
     return;
   }
   const [key, raw] = rest;
-  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${Object.keys(MOD_CHOICES).join(", ")}`, 64);
+  // `mark` is an engine setting kept in LitClaude's own config.json, not a card option in Claude's settings.
+  if (key === "mark") {
+    const value = String(raw ?? "").trim().toLowerCase();
+    if (!MARK_MODES.includes(value) || rest.length > 2) fail(`mark takes one of: ${MARK_MODES.join(", ")}`, 64);
+    try {
+      writeMarkMode(litHome(), value);
+    } catch (error) {
+      fail(error.message);
+    }
+    process.stdout.write(`MARK: ${value}\n`);
+    return;
+  }
+  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark"].join(", ")}`, 64);
   const value = String(raw ?? "").trim().toLowerCase();
   if (!MOD_CHOICES[key].includes(value) || rest.length > 2) fail(`${key} takes one of: ${MOD_CHOICES[key].join(", ")}`, 64);
   const settings = readClaudeSettings(home);
@@ -1524,6 +1545,7 @@ const doctor = ({ dryRun }) => {
   if (dryRun) {
     const pluginPath = intendedPluginPath();
     process.stdout.write("DRY_RUN: doctor LitClaude install\n");
+    for (const line of officialBuildLines(packageJson)) process.stdout.write(`${line}\n`);
     process.stdout.write(`Would check plugin files under: ${pluginPath}\n`);
     process.stdout.write(`Would run: claude plugin validate ${pluginPath}\n`);
     process.stdout.write(`Would check Claude plugin registry: ${pluginKey}\n`);
@@ -1628,6 +1650,8 @@ const doctor = ({ dryRun }) => {
   writeAutoHandoffDoctorLines();
   process.stdout.write(`${iconFontDoctorLine()}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
+  process.stdout.write(`MARK: ${readMarkMode({ litHome: litHome() })} (change: litclaude-ai config mark <on|meta|off>)\n`);
+  for (const line of officialBuildLines(packageJson)) process.stdout.write(`${line}\n`);
 
   // lit-typographic-motion: the seven readiness probes, every run. Read-only and never fatal; a
   // missing pre-warm names the command that fixes it.
@@ -1881,6 +1905,9 @@ const main = async () => {
       break;
     case "workflow-stage":
       exitAfterFlush(runWorkflowStageCli(parsed.rest, process.cwd()));
+      break;
+    case "rewind":
+      exitAfterFlush(runRewindCli(parsed.rest, process.cwd()));
       break;
     case "public-read":
       exitAfterFlush(await runPublicRead(parsed));

@@ -179,3 +179,5 @@ an unrecorded cleanup item, and the next session will not know the team ever exi
 
 If fewer than two genuinely distinct slices exist, say so and use a single subagent. Splitting
 work that does not divide is slower than not splitting it.
+
+<!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:2353642f72ff -->
