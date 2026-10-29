@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBlockRegistry } from './block-registry.mjs';
 import { decodeXmlCharacterReferences, officeCssUrlsAreSafe, officeHrefRefsAreSafe } from './office-safety.mjs';
 import { probeRenderer, runAgentBrowser } from './renderer.mjs';
-import { WORDMARK, markInk, markPlan, svgWithMetadata, tagFile } from '../../../lib/mark.mjs';
+import { WORDMARK, markInk, markLogoBox, markLogoDataUri, markLogoSvg, markPlan, svgWithMetadata, tagFile } from '../../../lib/mark.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2);
@@ -81,10 +81,12 @@ const markScript='(()=>{const s=document.querySelector("svg"),vb=s.viewBox.baseV
   +'const rgb=(c)=>{const m=/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(c||"");return m?[+m[1],+m[2],+m[3]]:null;};'
   +'const g=rgb(ground)||rgb(getComputedStyle(document.body).backgroundColor)||[255,255,255];'
   +'const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.textContent='+JSON.stringify(WORDMARK.text)+';t.setAttribute("data-litclaude-mark","1");t.setAttribute("font-family","Pretendard, Arial, sans-serif");t.setAttribute("font-weight","'+WORDMARK.weight+'");t.setAttribute("font-size",fs.toFixed(2));t.setAttribute("letter-spacing",('+WORDMARK.tracking+'*fs).toFixed(3));t.setAttribute("text-anchor","end");t.setAttribute("fill-opacity","'+WORDMARK.cornerOpacity+'");s.appendChild(t);'
-  +'const w=t.getComputedTextLength()+'+WORDMARK.tracking+'*fs*'+WORDMARK.text.length+',h=fs*1.25;let best=null;'
+  +'const tl=t.getComputedTextLength(),tw=tl+'+WORDMARK.tracking+'*fs*'+WORDMARK.text.length+',L='+WORDMARK.logoScale+'*fs,w=tw+'+WORDMARK.logoGap+'*fs+L,h=Math.max(fs*1.25,L);let best=null;'
   +'for(let y=vb.y+vb.height-inset;y-h>=vb.y+0.72*vb.height;y-=fs/3){for(let x=vb.x+vb.width-inset;x-w>=vb.x+inset;x-=fs/2){const box=[x-w-pad,y-h-pad,x+pad,y+pad];if(boxes.some((b)=>b[0]<box[2]&&b[2]>box[0]&&b[1]<box[3]&&b[3]>box[1]))continue;const d=Math.hypot(vb.x+vb.width-inset-x,(vb.y+vb.height-inset-y)*2);if(!best||d<best.d)best={x,y,d};}}'
   +'if(!best){t.remove();return JSON.stringify({placed:false});}'
-  +'t.setAttribute("x",best.x.toFixed(2));t.setAttribute("y",(best.y-0.22*fs).toFixed(2));return JSON.stringify({placed:true,x:+best.x.toFixed(2),y:+(best.y-0.22*fs).toFixed(2),fs:+fs.toFixed(2),ground:g});})()';
+  +'t.setAttribute("x",best.x.toFixed(2));t.setAttribute("y",(best.y-0.22*fs).toFixed(2));'
+  +'const i=document.createElementNS("http://www.w3.org/2000/svg","image"),ly=best.y-0.22*fs-0.36*fs-L/2;i.setAttribute("data-litclaude-mark-logo","1");i.setAttribute("x",(best.x-tl-'+WORDMARK.logoGap+'*fs-L).toFixed(2));i.setAttribute("y",ly.toFixed(2));i.setAttribute("width",L.toFixed(2));i.setAttribute("height",L.toFixed(2));i.setAttribute("opacity","'+WORDMARK.cornerOpacity+'");i.setAttribute("href",'+JSON.stringify(markLogoDataUri())+');s.appendChild(i);'
+  +'return JSON.stringify({placed:true,x:+best.x.toFixed(2),y:+(best.y-0.22*fs).toFixed(2),fs:+fs.toFixed(2),tw:+tl.toFixed(2),ground:g});})()';
 let markPlaced=null;
 const session='lit-diagram-export-'+process.pid+'-'+Date.now();
 const url=resolved.endsWith('.svg')?'file://'+resolved:'file://'+resolved;
@@ -136,7 +138,7 @@ if(officeSvg){
   const {generator}=markPlan();
   if(markPlaced){
     const m=markPlaced;
-    officeSvg=officeSvg.replace(/<\/svg>\s*$/i,'<text data-litclaude-mark="1" x="'+m.x+'" y="'+m.y+'" font-family="Pretendard, Arial, sans-serif" font-weight="'+WORDMARK.weight+'" font-size="'+m.fs+'" letter-spacing="'+(WORDMARK.tracking*m.fs).toFixed(3)+'" text-anchor="end" fill="#'+m.ink.map((v)=>v.toString(16).padStart(2,'0')).join('')+'" fill-opacity="'+WORDMARK.cornerOpacity+'">'+WORDMARK.text+'</text></svg>');
+    officeSvg=officeSvg.replace(/<\/svg>\s*$/i,'<text data-litclaude-mark="1" x="'+m.x+'" y="'+m.y+'" font-family="Pretendard, Arial, sans-serif" font-weight="'+WORDMARK.weight+'" font-size="'+m.fs+'" letter-spacing="'+(WORDMARK.tracking*m.fs).toFixed(3)+'" text-anchor="end" fill="#'+m.ink.map((v)=>v.toString(16).padStart(2,'0')).join('')+'" fill-opacity="'+WORDMARK.cornerOpacity+'">'+WORDMARK.text+'</text>'+markLogoSvg(markLogoBox({x:m.x,y:m.y,fontSize:m.fs,textWidth:m.tw}))+'</svg>');
   }
   fs.writeFileSync(target,'<?xml version="1.0" encoding="UTF-8"?>\n'+(generator?svgWithMetadata(officeSvg,generator):officeSvg));
   console.log('OFFICE_SVG '+fs.statSync(target).size+' bytes '+target+' text=live font=embedded-woff2');

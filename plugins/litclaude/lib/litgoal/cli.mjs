@@ -12,6 +12,8 @@ import {
 import { readLitgoalState, LitgoalStateError, withLitgoalLock, writeLitgoalState } from "./state.mjs";
 import { resetAutoloopState } from "./autoloop.mjs";
 import { NativeWorkerError, runNativeWorker } from "./native-worker.mjs";
+import { fingerprintInputs, reopenStaleCriteria } from "./freshness.mjs";
+import { addUnknown, openCriticalUnknowns, resolveUnknown } from "./unknowns.mjs";
 
 const subcommands = [
   ["create-goals", "Create durable goal records; use --replace for a fresh cycle."],
@@ -21,6 +23,7 @@ const subcommands = [
   ["checkpoint", "Write a continuation checkpoint."],
   ["steer", "Record a steering decision."],
   ["record-review-blockers", "Record review blockers."],
+  ["unknown", "Add, resolve or list unknowns (KK, KU, UK, UU)."],
   ["native-worker", "Launch a separate native /goal worker (dry-run by default)."],
 ];
 
@@ -55,6 +58,7 @@ const reservedEvidenceKeys = new Set([
   "goalId",
   "sessionId",
   "event",
+  "inputs",
 ]);
 
 const hasFlag = (args, flag) => args.includes(flag);
@@ -66,6 +70,12 @@ const optionValue = (args, flag) => {
   if (!value || value.startsWith("--")) return "";
   return value;
 };
+
+// Every value given for a repeatable flag, comma lists split: `--inputs a,b --inputs c` -> [a, b, c].
+const optionValues = (args, flag) =>
+  args.flatMap((arg, index) => (arg === flag && args[index + 1] && !args[index + 1].startsWith("--") ? args[index + 1].split(",") : []))
+    .map((value) => value.trim())
+    .filter(Boolean);
 
 const requireOption = (args, flag, label = flag.slice(2)) => {
   const value = optionValue(args, flag);
@@ -129,6 +139,18 @@ const requireState = (cwd) => {
   if (!state) throw new LitgoalStateError("litgoal state not found");
   return state;
 };
+
+// Reopens stale passes and persists them; call inside the litgoal lock.
+const persistStaleCriteria = (cwd, state) => {
+  const reopened = reopenStaleCriteria(state);
+  if (!reopened.length) return state;
+  state.updatedAt = nowIso();
+  writeLitgoalState(litgoalGoalsPath(cwd), state);
+  for (const entry of reopened) appendLedger(cwd, entry);
+  return state;
+};
+
+const currentStatus = (cwd) => withLitgoalLock(litgoalLockDir(cwd), () => persistStaleCriteria(cwd, requireState(cwd)));
 
 const appendLedger = (cwd, entry) => appendLitgoalLedger(litgoalLedgerPath(cwd), entry);
 
@@ -237,6 +259,11 @@ const updateCriterionWithEvidence = (cwd, args) => {
       throw new LitgoalStateError("complete goal rejects non-pass evidence; open a new or explicitly reopened goal first");
     }
 
+    const inputs = fingerprintInputs(cwd, [
+      ...optionValues(args, "--inputs").map((path) => ({ path, role: "input" })),
+      ...optionValues(args, "--reviewed").map((path) => ({ path, role: "reviewed" })),
+    ]);
+
     // Drift 6e — evidence is attempt-scoped and append-only. A retry adds attempt N+1;
     // it never replaces what an earlier attempt recorded.
     const priorEvidence = criterion.evidence ?? [];
@@ -245,9 +272,11 @@ const updateCriterionWithEvidence = (cwd, args) => {
       ...evidence,
       attempt,
       status,
+      ...(inputs.length ? { inputs } : {}),
       recordedAt: nowIso(),
     };
     criterion.status = status;
+    delete criterion.staleInputs;
     criterion.attempts = attempt;
     criterion.evidence = [...priorEvidence, record];
     state.updatedAt = record.recordedAt;
@@ -258,6 +287,7 @@ const updateCriterionWithEvidence = (cwd, args) => {
       attempt,
       status,
       evidence,
+      ...(inputs.length ? { inputs } : {}),
     });
     return { criterion };
   });
@@ -274,12 +304,17 @@ const checkpoint = (cwd, args) =>
     if (!["active", "complete", "blocked", "review_blocked", "needs_user_decision", "abandoned"].includes(status)) {
       throw new LitgoalCliError("invalid checkpoint status");
     }
+    if (status === "complete") persistStaleCriteria(cwd, state);
     const criteria = state.criteria ?? [];
     if (status === "complete" && criteria.length === 0) {
       throw new LitgoalStateError("non-empty criteria must pass before completion");
     }
     if (status === "complete" && !criteria.every((criterion) => criterion.status === "pass")) {
       throw new LitgoalStateError("criteria must pass before completion");
+    }
+    const critical = status === "complete" ? openCriticalUnknowns(state) : [];
+    if (critical.length) {
+      throw new LitgoalStateError(`open critical unknowns block completion: ${critical.map(({ id }) => id).join(", ")}`);
     }
 
     const record = {
@@ -340,12 +375,36 @@ const recordReviewBlockers = (cwd, args) =>
     return { ...record, goalStatus: state.status };
   });
 
+const unknown = (cwd, args) => {
+  const [action] = args;
+  if (action === "list") return { unknowns: requireState(cwd).unknowns ?? [] };
+  if (action !== "add" && action !== "resolve") throw new LitgoalCliError("usage: litgoal unknown add|resolve|list");
+  return withLitgoalLock(litgoalLockDir(cwd), () => {
+    const state = requireState(cwd);
+    const now = nowIso();
+    const record = action === "add"
+      ? addUnknown(state, {
+        kind: (optionValue(args, "--kind") || "").toUpperCase(),
+        text: optionValue(args, "--text"),
+        source: optionValue(args, "--source"),
+        probe: optionValue(args, "--probe"),
+        critical: hasFlag(args, "--critical"),
+        now,
+      })
+      : resolveUnknown(state, { id: requireOption(args, "--id", "id"), evidence: optionValue(args, "--evidence"), now });
+    state.updatedAt = now;
+    writeLitgoalState(litgoalGoalsPath(cwd), state);
+    appendLedger(cwd, { event: action === "add" ? "unknown.added" : "unknown.resolved", ...record });
+    return { unknown: record };
+  });
+};
+
 const runCommand = (cwd, command, args) => {
   switch (command) {
     case "create-goals":
       return createGoals(cwd, args);
     case "status":
-      return requireState(cwd);
+      return currentStatus(cwd);
     case "criteria":
       return listCriteria(cwd);
     case "record-evidence":
@@ -356,6 +415,8 @@ const runCommand = (cwd, command, args) => {
       return steer(cwd, args);
     case "record-review-blockers":
       return recordReviewBlockers(cwd, args);
+    case "unknown":
+      return unknown(cwd, args);
     case "native-worker":
       return runNativeWorker(args, { cwd });
     default:

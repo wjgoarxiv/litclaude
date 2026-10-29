@@ -1,12 +1,12 @@
 // LitClaude's end card: about half a second after the film's last beat, the film's own ground with "made with
-// LitClaude" centred, in the ground's ink (lib/mark.mjs WORDMARK). No music (the track is padded with silence),
+// LitClaude" and the flame logo centred, in the ground's ink (lib/mark.mjs WORDMARK). No music (the track is padded with silence),
 // no camera move; a short crossfade from the last frame keeps the cut under the full-frame step limit. Only the
 // `on` mark setting draws it. Both render paths append it to the master after the film's own frames: the flash
 // audit, the full-frame step rule and the probe see it; the content rules judge the film's frames alone, and
 // END-CARD checks the card itself.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { WORDMARK, markInk, markPlan } from "../../../../lib/mark.mjs";
+import { WORDMARK, markInk, markLogoDataUri, markPlan } from "../../../../lib/mark.mjs";
 import { decodePng } from "./png.mjs";
 import { StageBrowser } from "./stage-capture.mjs";
 import { stageFonts } from "./stage-serve.mjs";
@@ -24,7 +24,7 @@ const hexRgb = (hex) => {
   return m ? [1, 2, 3].map((i) => parseInt(m[i], 16)) : null;
 };
 
-/** The card page: the ground, the wordmark centred, drawn in the stage's own Pretendard. */
+/** The card page: the ground, the flame logo and the wordmark centred, drawn in the stage's own Pretendard. */
 export function endCardHtml({ width, height, ground }) {
   const g = hexRgb(ground) ?? [16, 18, 22];
   const ink = markInk(g);
@@ -36,8 +36,9 @@ export function endCardHtml({ width, height, ground }) {
 <style>
   html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden; background: rgb(${g.join(",")}); }
   p { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; font: ${WORDMARK.weight} ${size}px/1 "Pretendard"; letter-spacing: ${WORDMARK.tracking}em; color: rgb(${ink.join(",")}); opacity: 0.7; }
+  img { height: ${WORDMARK.logoScale}em; margin-right: ${WORDMARK.logoGap}em; }
 </style>
-<body><p>${WORDMARK.text}</p>
+<body><p><img alt="" src="${markLogoDataUri()}">${WORDMARK.text}</p>
 <script>LitStage.define({ width: ${width}, height: ${height}, fps: 30, duration: 1, render() {} });</script>
 </body>
 `;

@@ -81,7 +81,7 @@ The tool adds "Other" itself, so no Other option is written. Skip a question whe
    ```bash
    node "$SKILL_ROOT/scripts/doctor.mjs" --out <dir>
    node "$SKILL_ROOT/scripts/export.mjs" --input diagram.html --out <dir> --scale 2 --office-safe
-   ``` The exporter never installs software; when the renderer is missing it exits `BLOCKED`-style with the exact commands for the user to run. It also adds LitClaude's small "made with LitClaude" corner mark to the exports (and an invisible generator tag), at a clear spot it finds, under the user's LitClaude mark setting; never draw that credit in the source diagram yourself.
+   ``` The exporter never installs software; when the renderer is missing it exits `BLOCKED`-style with the exact commands for the user to run. It also adds LitClaude's small corner mark, the flame logo and "made with LitClaude", to the exports (and an invisible generator tag), at a clear spot it finds, under the user's LitClaude mark setting; never draw that credit in the source diagram yourself.
 9. **Look at the image.** Open the exported PNG at its intended size. Trace every arrow from start to end, read every label at slide size, check Korean glyphs, boundary labels, arrowheads, contrast, clipping, and margins. A passing check does not replace this look.
 
 ## Reference map

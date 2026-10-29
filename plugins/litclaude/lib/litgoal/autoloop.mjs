@@ -8,7 +8,9 @@ import { join } from "node:path";
 import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
 import { appendLitgoalLedger } from "./ledger.mjs";
 import { litgoalGoalsPath, litgoalLedgerPath, litgoalLockDir, litgoalStateDir } from "./paths.mjs";
+import { reopenStaleCriteria } from "./freshness.mjs";
 import { readLitgoalState, withLitgoalLock, writeLitgoalState } from "./state.mjs";
+import { openCriticalUnknowns } from "./unknowns.mjs";
 
 export const litgoalAutoloopPath = (cwd = process.cwd()) => join(litgoalStateDir(cwd), "autoloop.json");
 
@@ -62,7 +64,8 @@ export const completeAutoloopGoal = (cwd = process.cwd()) =>
     const canComplete = state.status === "active"
       && state.autoloop === true
       && criteria.length > 0
-      && criteria.every((criterion) => criterion?.status === "pass");
+      && criteria.every((criterion) => criterion?.status === "pass")
+      && openCriticalUnknowns(state).length === 0;
     if (!checkpoint && !canComplete) return { completed: false };
 
     if (!checkpoint) {
@@ -96,11 +99,42 @@ export const completeAutoloopGoal = (cwd = process.cwd()) =>
     return { completed: true, checkpoint };
   });
 
+// Before the Stop hook decides, reopen any pass whose recorded inputs changed or vanished, so a stale pass is
+// never completed. Returns the (possibly updated) state.
+export const refreshAutoloopState = (cwd = process.cwd()) =>
+  withLitgoalLock(litgoalLockDir(cwd), () => {
+    const state = readLitgoalState(litgoalGoalsPath(cwd), null);
+    if (!state) return state;
+    const reopened = reopenStaleCriteria(state);
+    if (reopened.length) {
+      state.updatedAt = new Date().toISOString();
+      writeLitgoalState(litgoalGoalsPath(cwd), state);
+      for (const entry of reopened) appendLitgoalLedger(litgoalLedgerPath(cwd), entry);
+    }
+    return state;
+  });
+
+// When only questions the user can answer remain, looping cannot help: the goal moves to needs_user_decision
+// and the session stops with the questions, instead of completing.
+export const handAutoloopToUser = (cwd, stopReason) =>
+  withLitgoalLock(litgoalLockDir(cwd), () => {
+    const state = readLitgoalState(litgoalGoalsPath(cwd), null);
+    if (!state || state.status !== "active") return { handedOff: false };
+    const checkpoint = { status: "needs_user_decision", note: stopReason, createdAt: new Date().toISOString(), generatedBy: "stop-hook-autoloop-handoff" };
+    state.status = "needs_user_decision";
+    state.checkpoints = [...(state.checkpoints ?? []), checkpoint];
+    state.updatedAt = checkpoint.createdAt;
+    writeLitgoalState(litgoalGoalsPath(cwd), state);
+    appendLitgoalLedger(litgoalLedgerPath(cwd), { event: "checkpoint.recorded", ...checkpoint });
+    return { handedOff: true, checkpoint };
+  });
+
 // Pure decision function for the Stop hook — kept side-effect-free so it is unit
 // testable without touching the filesystem or the process. Returns one of:
 //   { action: "allow" }                          -> let the session stop
 //   { action: "cap",   stopReason }              -> hard stop (continue:false)
 //   { action: "block", reason, nextCount }       -> block stopping; caller persists nextCount
+//   { action: "handoff", stopReason }            -> stop and hand the open UK questions to the user
 export const evaluateAutoloop = ({ env = {}, state, autoloopState, now = Date.now() } = {}) => {
   if (env.LITCLAUDE_GOAL_OFF === "1") return { action: "allow", why: "kill-switch" };
   if (!state || state.status !== "active" || state.autoloop !== true) {
@@ -110,7 +144,19 @@ export const evaluateAutoloop = ({ env = {}, state, autoloopState, now = Date.no
   const remaining = criteria.length === 0
     ? [{ id: "criteria-required", status: "missing", description: "no success criteria are defined" }]
     : criteria.filter((c) => !c || c.status !== "pass");
-  if (criteria.length > 0 && remaining.length === 0) return { action: "allow", why: "all-criteria-pass" };
+  const critical = openCriticalUnknowns(state);
+  if (criteria.length > 0 && remaining.length === 0) {
+    if (critical.length === 0) return { action: "allow", why: "all-criteria-pass" };
+    if (critical.every(({ kind }) => kind === "UK")) {
+      return {
+        action: "handoff",
+        stopReason:
+          `LitClaude litgoal "${state.objective}" needs your answer before it can finish:\n` +
+          `${critical.map(({ id, text }) => `  - ${id}: ${text}`).join("\n")}\n` +
+          `Answer in chat; the goal waits as needs_user_decision.`,
+      };
+    }
+  }
 
   const auto = autoloopState && typeof autoloopState === "object"
     ? autoloopState
@@ -129,14 +175,17 @@ export const evaluateAutoloop = ({ env = {}, state, autoloopState, now = Date.no
   }
 
   const nextCount = blockCount + 1;
-  const list = remaining
-    .map((c) => c
+  const list = [
+    ...remaining.map((c) => c
       ? `  - ${c.id} [${c.status}]: ${c.description ?? c.scenario ?? ""}`
-      : "  - criterion-invalid [missing]: invalid criterion")
-    .join("\n");
+      : "  - criterion-invalid [missing]: invalid criterion"),
+    ...critical.map(({ id, kind, text, probe }) => `  - ${id} [open ${kind}, critical]: ${text} (probe: ${probe ?? "none"})`),
+  ].join("\n");
   const reason =
-    `LitClaude litgoal still active: "${state.objective}". ${remaining.length} criterion(s) not yet pass:\n${list}\n` +
-    `Advance each: litclaude-ai litgoal record-evidence --criterion <id> --status pass --json '{"artifact":"..."}'. ` +
+    `LitClaude litgoal still active: "${state.objective}". ${remaining.length} criterion(s) not yet pass, ` +
+    `${critical.length} critical unknown(s) open:\n${list}\n` +
+    `Advance each: litclaude-ai litgoal record-evidence --criterion <id> --status pass --json '{"artifact":"..."}', ` +
+    `or close an unknown with litclaude-ai litgoal unknown resolve --id <id> --evidence "...". ` +
     `Autoloop block ${nextCount}/${AUTOLOOP_MAX_BLOCKS}. Escape: litclaude-ai litgoal checkpoint --status blocked, or LITCLAUDE_GOAL_OFF=1.`;
   return { action: "block", reason, nextCount, firstBlockAt };
 };

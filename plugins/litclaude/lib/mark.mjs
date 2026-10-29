@@ -133,7 +133,9 @@ export const tagOoxmlZip = async (zip, options) => {
  * The visible mark every showcase engine draws (approved by the user on 2026-10-28 from task-6-mock): the text,
  * Pretendard 500 with 0.02 em tracking, a corner size of 1.6 % of the short side (never under 11 px) at 60 %
  * opacity, a film end card of about 0.5 s after the last beat, and ink taken from the output's own ground,
- * pushed 72 % toward black on a light ground or white on a dark one.
+ * pushed 72 % toward black on a light ground or white on a dark one. The flame logo (lib/mark-logo.png, the plugin
+ * icon at 96 px; chosen by the user on 2026-10-30) sits left of the text at 1.3 x the font size, 0.35 em away,
+ * in its own colours at the same opacity.
  */
 export const WORDMARK = Object.freeze({
   text: "made with LitClaude",
@@ -148,7 +150,26 @@ export const WORDMARK = Object.freeze({
   endCardFadeSec: 0.12,
   endCardShare: 0.022,
   inkPush: 0.72,
+  logoScale: 1.3,
+  logoGap: 0.35,
 });
+
+const logoPath = join(dirname(fileURLToPath(import.meta.url)), "mark-logo.png");
+/** The flame logo as a `data:image/png` URI, so an SVG or a page carries it without a sibling file. */
+export const markLogoDataUri = () => `data:image/png;base64,${readFileSync(logoPath).toString("base64")}`;
+
+/**
+ * The logo's box for a mark whose text ends at `x` on baseline `y` with `fontSize` and `textWidth`:
+ * left of the text, centred on its x-height band.
+ */
+export const markLogoBox = ({ x, y, fontSize, textWidth }) => {
+  const size = WORDMARK.logoScale * fontSize;
+  return { x: x - textWidth - WORDMARK.logoGap * fontSize - size, y: y - 0.36 * fontSize - size / 2, size };
+};
+
+/** An SVG <image> element for the logo box, at the mark's opacity. */
+export const markLogoSvg = ({ x, y, size }) =>
+  `<image data-litclaude-mark-logo="1" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${size.toFixed(2)}" height="${size.toFixed(2)}" opacity="${WORDMARK.cornerOpacity}" href="${markLogoDataUri()}"/>`;
 
 /** The mark's ink for a ground colour [r, g, b] (0-255): the ground pushed toward black or white. */
 export const markInk = ([r, g, b]) => {
@@ -163,20 +184,23 @@ export const markInk = ([r, g, b]) => {
  * Returns { x, y (top-left of the text box), ground [r, g, b], ink } or null when no clear spot exists.
  * `image` is { width, height, channels (3 or 4), pixels }.
  */
+// How far (in luminance, 0-1) a pixel may stray from the box's median and still count as ground: a quiet
+// pattern such as soft stripes or a gradient stays under it; type and drawn art (0.3 and more) do not.
+const GROUND_TOLERANCE = 0.2;
 export const findClearSpot = (image, { boxW, boxH, inset, pad = 0, anchor = "bottom-right", exclude = [] }) => {
   const { width, height, channels, pixels } = image;
   const stats = (x0, y0, x1, y1) => {
     const lums = [];
     let r = 0, g = 0, b = 0;
-    for (let y = Math.max(0, y0); y < Math.min(height, y1); y += 2) {
-      for (let x = Math.max(0, x0); x < Math.min(width, x1); x += 2) {
+    for (let y = Math.max(0, Math.floor(y0)); y < Math.min(height, y1); y += 2) {
+      for (let x = Math.max(0, Math.floor(x0)); x < Math.min(width, x1); x += 2) {
         const o = (y * width + x) * channels;
         r += pixels[o]; g += pixels[o + 1]; b += pixels[o + 2];
         lums.push((0.2126 * pixels[o] + 0.7152 * pixels[o + 1] + 0.0722 * pixels[o + 2]) / 255);
       }
     }
     const median = [...lums].sort((p, q) => p - q)[lums.length >> 1];
-    return { ink: lums.filter((l) => Math.abs(l - median) > 0.08).length / lums.length, ground: [r, g, b].map((v) => Math.round(v / lums.length)) };
+    return { ink: lums.filter((l) => Math.abs(l - median) > GROUND_TOLERANCE).length / lums.length, ground: [r, g, b].map((v) => Math.round(v / lums.length)) };
   };
   const ax = anchor === "bottom-right" ? width - inset - boxW / 2 : width / 2;
   const ay = height - inset - boxH / 2;
@@ -331,10 +355,11 @@ export const tagPdfBuffer = (buf, generator) => {
 const TAGGERS = { ".png": tagPngBuffer, ".gif": tagGifBuffer, ".webp": tagWebpBuffer, ".pdf": tagPdfBuffer };
 
 // `node lib/mark.mjs` prints this run's plan as JSON, for skills whose outputs are assembled outside an engine
-// (readme-studio covers): { mode, visible, generator, text }. It reads only the setting; it writes nothing.
+// (readme-studio covers): { mode, visible, generator, text, logo, logoScale, logoGap }, where `logo` is the flame
+// PNG's path. It reads only the setting; it writes nothing.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { mode, visible, generator } = markPlan();
-  process.stdout.write(`${JSON.stringify({ mode, visible, generator, text: WORDMARK.text })}\n`);
+  process.stdout.write(`${JSON.stringify({ mode, visible, generator, text: WORDMARK.text, logo: logoPath, logoScale: WORDMARK.logoScale, logoGap: WORDMARK.logoGap })}\n`);
 }
 
 /** Tags a file the engine just wrote (png, gif, webp, svg) in place; returns whether the mode asked for it. */

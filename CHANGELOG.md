@@ -19,12 +19,25 @@
   `litclaude-ai --help`.
 - Files LitClaude makes now say where they came from. Word, PowerPoint, PDF, PNG, GIF, WebP, SVG
   and MP4 outputs carry an invisible tag naming LitClaude and its version. Films end with a silent
-  half-second "made with LitClaude" card. Cover loops, diagram exports and README covers carry a
-  small corner mark, and P&ID sheets carry one line in the title block. Document pages, code,
-  commits and chat replies stay unmarked.
+  half-second card with the flame logo and "made with LitClaude". Cover loops, diagram exports and
+  README covers carry the same pair as a small corner mark, and P&ID sheets carry it as one line in
+  the title block. Document pages, code, commits and chat replies stay unmarked.
 - `litclaude config mark on|meta|off` chooses the level (`on` by default, `meta` for the
   invisible tag only), and `LITCLAUDE_MARK` sets it for one run. It is kept in
   `~/.litclaude/config.json`, never in Claude Code's settings.
+- `litgoal record-evidence --inputs <files>` binds a pass to each file's SHA-256 when it was
+  observed, and `--reviewed <file>` binds human review evidence to the reviewed artifact. When one of
+  those files changes or disappears, `status`, completion and the autoloop reopen the pass as
+  `stale`, so a file that merely exists no longer counts as current proof.
+- `litgoal unknown add|resolve|list` keeps a register of unknowns during the run, classed KK, KU, UK
+  or UU. A KK item needs a source, an open KU, UK or UU item needs a probe, closing one needs
+  evidence, and an open critical item blocks completion.
+- The litgoal autoloop stops looping when the only thing left is a question the user must answer
+  (open critical UK items): the session stops with the questions and the goal waits as
+  `needs_user_decision` instead of being marked complete.
+- litgoal and start-work state writes work on Windows again. They flushed each file through a
+  read-only handle, which Windows refuses with EPERM, so every write failed there; the handle is
+  now opened read-write.
 - `doctor` prints `OFFICIAL_BUILD` and the current `MARK:` mode, and warns when the running copy
   carries another package name or repository.
 - Every skill and agent file ends with a one-line copyright and licence notice. The prompt hook

@@ -13,7 +13,7 @@ import * as pid from "./pid.mjs";
 import { orthogonal, routeOrthogonal } from "./route.mjs";
 import { el, esc, n, pathOf, svgDocument, textBox, textWidthEm } from "./svg.mjs";
 import { FONT_LATIN, PID, STREAM, fontFor } from "./theme.mjs";
-import { WORDMARK, markPlan } from "../../../../lib/mark.mjs";
+import { WORDMARK, markLogoBox, markLogoDataUri, markPlan } from "../../../../lib/mark.mjs";
 
 const W = PID.weight;
 
@@ -831,11 +831,14 @@ export function createSheet({
     cell("sheet", [x1 - 46, y0 + 10, x1, y0 + 18], "SHEET", sheet, 2.6);
     cell("project", [x0, y0 + 18, x0 + 90, y0 + 28], "PROJECT", project || "-", 2.5);
     cell("owner", [x0 + 90, y0 + 28 - 10, x1, y0 + 28], "OWNER", owner || "-", 2.5);
-    // The visible LitClaude mark sits in the OWNER cell, right-aligned under the owner's name, never on the drawing.
+    // The visible LitClaude mark sits in the OWNER cell, right-aligned under the owner's name, never on the drawing,
+    // with the flame logo left of the text.
     if (markPlan().visible) {
       cells.push(textEl(x1 - 1.5, y0 + 28 - 1.4, WORDMARK.text, 2.0, {
         "text-anchor": "end", "data-label": "litclaude-mark", "data-within": [x0 + 90, y0 + 18, x1, y0 + 28].map(n).join(" "), fill: "#444444",
       }));
+      const logo = markLogoBox({ x: x1 - 1.5, y: y0 + 28 - 1.4, fontSize: 2.0, textWidth: textWidthEm(WORDMARK.text) * 2.0 });
+      cells.push(el("image", { "data-litclaude-mark-logo": "1", x: n(logo.x), y: n(logo.y), width: n(logo.size), height: n(logo.size), href: markLogoDataUri() }));
     }
     const w5 = 180 / 5;
     [["drawn", "DRAWN", drawn], ["checked", "CHECKED", checked], ["approved", "APPROVED", approved], ["date", "DATE", date || "-"], ["scale", "SCALE", scale]].forEach(([field, caption, value], i) => {

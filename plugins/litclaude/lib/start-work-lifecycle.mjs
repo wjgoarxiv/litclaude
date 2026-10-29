@@ -71,7 +71,7 @@ const atomicWriteJson = (path, value) => {
   requireStateDir(dirname(path));
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600, flag: STATE_WRITE_FLAG });
-  const fd = openSync(temporary, "r");
+  const fd = openSync(temporary, "r+");
   fsyncSync(fd);
   closeSync(fd);
   renameSync(temporary, path);
@@ -328,7 +328,7 @@ const reconcileLedger = (root, state) => {
     ids.add(event.event_id);
   }
   if (existsSync(path)) {
-    const fd = openSync(path, "r");
+    const fd = openSync(path, "r+");
     fsyncSync(fd);
     closeSync(fd);
   }

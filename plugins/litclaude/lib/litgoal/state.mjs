@@ -26,7 +26,7 @@ export const writeLitgoalState = (path, state) => {
   const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(state, null, 2)}\n`, { flag: STATE_WRITE_FLAG });
   // Flush tmp file data to disk before rename so the rename is durable.
-  const fd = openSync(tmpPath, "r");
+  const fd = openSync(tmpPath, "r+");
   fsyncSync(fd);
   closeSync(fd);
   renameSync(tmpPath, path);

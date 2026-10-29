@@ -23,7 +23,7 @@ import { lumaGrid } from "./cover-image.mjs";
 import { renderSheet } from "./cover-sheet.mjs";
 import { loadCoverTreatment } from "./cover-treatment.mjs";
 import { findFfmpeg, findImg2webp, which } from "./encode.mjs";
-import { WORDMARK, findClearSpot, markPlan, tagFile } from "../../../../lib/mark.mjs";
+import { WORDMARK, findClearSpot, markLogoDataUri, markPlan, tagFile } from "../../../../lib/mark.mjs";
 import { decodePng } from "./png.mjs";
 import { asBlocked } from "./pipeline.mjs";
 import { encodePng, rgbaToRgb } from "./png.mjs";
@@ -195,7 +195,7 @@ async function placeCoverMark(browser, { treatment, assets, notices }) {
   const toPage = pw / w;
   const fontSize = Math.max(WORDMARK.minPx, WORDMARK.cornerShare * Math.min(...treatment.out)) * toPage;
   const h = Math.ceil(fontSize * 1.4);
-  const base = { fontSize, h, ink: [0, 0, 0], opacity: WORDMARK.cornerOpacity, text: WORDMARK.text, weight: WORDMARK.weight, tracking: WORDMARK.tracking };
+  const base = { fontSize, h, ink: [0, 0, 0], opacity: WORDMARK.cornerOpacity, text: WORDMARK.text, weight: WORDMARK.weight, tracking: WORDMARK.tracking, logo: { src: markLogoDataUri(), scale: WORDMARK.logoScale, gap: WORDMARK.logoGap } };
   const textW = Math.ceil(await browser.setMark(base, { measure: true }));
   await browser.frame(0);
   const image = decodePng(await browser.capture());

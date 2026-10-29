@@ -31,8 +31,7 @@ import {
   DEFAULT_PROMPT_MAX_RULE_CHARS,
 } from "../lib/rules/constants.mjs";
 import { litgoalGoalsPath } from "../lib/litgoal/paths.mjs";
-import { readLitgoalState } from "../lib/litgoal/state.mjs";
-import { completeAutoloopGoal, evaluateAutoloop, readAutoloopState, writeAutoloopState } from "../lib/litgoal/autoloop.mjs";
+import { completeAutoloopGoal, evaluateAutoloop, handAutoloopToUser, readAutoloopState, refreshAutoloopState, writeAutoloopState } from "../lib/litgoal/autoloop.mjs";
 import { buildNativeGoalBindingGuidance, normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
 import { automaticUpdateCachePath, runAutomaticUpdate } from "../lib/automatic-update.mjs";
 import {
@@ -2164,7 +2163,7 @@ switch (eventName) {
     try {
       const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
       const stateRoot = resolveProjectStateRoot(cwd);
-      const state = readLitgoalState(litgoalGoalsPath(stateRoot), null);
+      const state = existsSync(litgoalGoalsPath(stateRoot)) ? refreshAutoloopState(stateRoot) : null;
       const autoloopState = readAutoloopState(stateRoot);
       decision = evaluateAutoloop({ env: process.env, state, autoloopState });
       if (decision.action === "block") {
@@ -2173,6 +2172,9 @@ switch (eventName) {
         writeAutoloopState(stateRoot, { blockCount: decision.nextCount, firstBlockAt: decision.firstBlockAt });
         console.log(JSON.stringify({ decision: "block", reason: decision.reason }));
       } else if (decision.action === "cap") {
+        console.log(JSON.stringify({ continue: false, stopReason: decision.stopReason }));
+      } else if (decision.action === "handoff") {
+        handAutoloopToUser(stateRoot, decision.stopReason);
         console.log(JSON.stringify({ continue: false, stopReason: decision.stopReason }));
       } else if (
         decision.why !== "kill-switch"
@@ -2186,7 +2188,7 @@ switch (eventName) {
       // Any error -> allow stop (no output).
     }
     // Automatic handoff runs last, so it only takes a stop that nothing else wanted to continue.
-    if (decision?.action !== "block" && decision?.action !== "cap") {
+    if (decision?.action !== "block" && decision?.action !== "cap" && decision?.action !== "handoff") {
       try {
         const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
         const handoff = evaluateAutoHandoffStop({

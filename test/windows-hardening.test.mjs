@@ -268,3 +268,16 @@ describe("office runtime picks a Python every pinned package has wheels for", as
     assert.match(picked.detail, /no supported Python \(3\.10 to 3\.14\).*python3: 3\.15\.0 is newer than 3\.14/u);
   });
 });
+
+// Windows refuses fsync on a handle opened read-only (EPERM), so a state write that flushes its own file
+// must open it "r+". Directory flushes stay best-effort inside try blocks and are not checked here.
+const readOnlyFileFsyncs = (source) =>
+  [...source.matchAll(/const fd = openSync\([^)]*,\s*"r"\);\s*\n\s*fsyncSync\(fd\)/gu)].length;
+
+describe("state writes flush through a writable handle", () => {
+  for (const file of ["litgoal/state.mjs", "litgoal/ledger.mjs", "start-work-lifecycle.mjs"]) {
+    it(`lib/${file} never fsyncs a file it opened read-only`, () => {
+      assert.equal(readOnlyFileFsyncs(readFileSync(join(libRoot, file), "utf8")), 0);
+    });
+  }
+});

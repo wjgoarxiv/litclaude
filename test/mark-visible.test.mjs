@@ -6,13 +6,14 @@ import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { WORDMARK, markInk } from "../plugins/litclaude/lib/mark.mjs";
+import { WORDMARK, findClearSpot, markInk, markLogoBox } from "../plugins/litclaude/lib/mark.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const skills = join(root, "plugins", "litclaude", "skills");
 const work = () => mkdtempSync(join(tmpdir(), "litclaude-mark-visible-"));
 const envFor = (dir, mode) => ({ ...process.env, LITCLAUDE_HOME: join(dir, "lit-home"), LITCLAUDE_MARK: mode });
 const node = (dir, mode, args) => spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8", env: envFor(dir, mode), timeout: 600_000 });
+const onPath = (name) => !spawnSync(name, ["-version"], { encoding: "utf8" }).error;
 
 describe("the shared wordmark", () => {
   it("names the approved text and takes its ink from the ground", () => {
@@ -20,11 +21,37 @@ describe("the shared wordmark", () => {
     assert.deepEqual(markInk([255, 255, 255]), [71, 71, 71]);
     assert.deepEqual(markInk([10, 12, 20]), [186, 187, 189]);
   });
+
+  it("reads the ground under a clear spot even when the inset is fractional", () => {
+    const width = 400, height = 200, channels = 4;
+    const pixels = new Uint8Array(width * height * channels);
+    for (let o = 0; o < pixels.length; o += 4) pixels.set([10, 12, 20, 255], o);
+    const spot = findClearSpot({ width, height, channels, pixels }, { boxW: 60.5, boxH: 13.3, inset: 12.5 });
+    assert.deepEqual(spot.ground, [10, 12, 20]);
+    assert.deepEqual(spot.ink, markInk([10, 12, 20]));
+  });
+
+  it("treats quiet ground stripes as clear but refuses a spot that would cover drawn type", () => {
+    const width = 400, height = 200, channels = 4;
+    const pixels = new Uint8Array(width * height * channels);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels.set(Math.floor(x / 20) % 2 ? [26, 38, 51, 255] : [12, 17, 24, 255], (y * width + x) * 4);
+    const image = { width, height, channels, pixels };
+    assert.ok(findClearSpot(image, { boxW: 60, boxH: 14, inset: 10 }));
+    for (let y = 150; y < height; y++) for (let x = 0; x < width; x += 3) pixels.set([240, 240, 240, 255], (y * width + x) * 4);
+    assert.equal(findClearSpot(image, { boxW: 60, boxH: 14, inset: 10 }), null);
+  });
+
+  it("puts the flame logo left of the text, centred on its x-height band", () => {
+    const box = markLogoBox({ x: 100, y: 50, fontSize: 10, textWidth: 60 });
+    assert.equal(box.size, WORDMARK.logoScale * 10);
+    assert.equal(box.x, 100 - 60 - WORDMARK.logoGap * 10 - box.size);
+    assert.equal(box.y, 50 - 3.6 - box.size / 2);
+  });
 });
 
 describe("lit-diagram-drawer: the exporter adds a corner mark clear of the drawing", () => {
   const probe = spawnSync(process.execPath, [join(skills, "lit-diagram-drawer", "scripts", "doctor.mjs")], { encoding: "utf8" });
-  const ready = probe.status === 0 && !/"status":\s*"fail"/u.test(probe.stdout);
+  const ready = probe.status === 0 && !/"status":\s*"fail"/u.test(probe.stdout) && /"export":\s*true/u.test(probe.stdout);
   it("PNG and office SVG carry it in on, not in meta or off; the visible-text check passes on the marked SVG", { skip: ready ? false : "diagram renderer not ready" }, () => {
     const dir = work();
     try {
@@ -79,6 +106,7 @@ describe("lit-typographic-motion cover: a static corner mark on every frame", ()
     const warm = [process.env.LITCLAUDE_MOTION_RUNTIME, join(process.env.XDG_CACHE_HOME || join(process.env.HOME ?? "", ".cache"), "litclaude", "motion-runtime")]
       .filter(Boolean).find((dir) => runtime.runtimeStatus({ env: { ...process.env, LITCLAUDE_MOTION_RUNTIME: dir } }).ready);
     if (!warm || !findChrome()) return t.skip("motion runtime or Chrome not available");
+    if (!(onPath("img2webp") && onPath("dwebp")) && !onPath("gifski")) return t.skip("no cover encoder (libwebp or gifski) on PATH");
     const dir = work();
     try {
       const posters = {};

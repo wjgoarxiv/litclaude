@@ -85,7 +85,7 @@ describe("lit-schematic outputs carry the generator tag", { skip: chrome ? false
 
 describe("lit-diagram-drawer export carries the generator tag", () => {
   const probe = spawnSync(process.execPath, [join(skills, "lit-diagram-drawer", "scripts", "doctor.mjs")], { encoding: "utf8" });
-  const ready = probe.status === 0 && !/"status":\s*"fail"/u.test(probe.stdout);
+  const ready = probe.status === 0 && !/"status":\s*"fail"/u.test(probe.stdout) && /"export":\s*true/u.test(probe.stdout);
   it("office SVG <metadata> and PNG Software chunk in on; none in off", { skip: ready ? false : "diagram renderer not ready" }, () => {
     const dir = work();
     try {

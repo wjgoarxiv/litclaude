@@ -445,7 +445,7 @@ original terminal environment. Your previous installation needs no downgrade or 
 ## Marks on outputs
 
 Every file LitClaude's engines write records that LitClaude made it. Showcase outputs also show
-a small "made with LitClaude" credit. `litclaude config mark on|meta|off` picks the level and
+a small credit: the flame logo and "made with LitClaude". `litclaude config mark on|meta|off` picks the level and
 `doctor` prints the current one as `MARK:`. The value lives in `~/.litclaude/config.json` (or under
 `LITCLAUDE_HOME`), and `LITCLAUDE_MARK` overrides it for one run.
 

@@ -83,12 +83,14 @@ complete.
 
 Prefer the package CLI for durable local state:
 `litclaude-ai litgoal create-goals`, `status`, `criteria`,
-`record-evidence`, `checkpoint`, `steer`, and `record-review-blockers`.
+`record-evidence` (with `--inputs` / `--reviewed` to bind a pass to file hashes), `checkpoint`,
+`steer`, `record-review-blockers`, and `unknown add|resolve|list` for the KK/KU/UK/UU register.
 The installed alias may also be invoked as:
 
 ```bash
 litclaude litgoal create-goals --brief "<brief>" --json
 litclaude litgoal record-evidence --criterion <id> --status pass --json '{"artifact":"...","cleanup":"..."}'
+litclaude litgoal unknown add --kind KU --text "<question>" --probe "<check>" --critical --json
 litclaude litgoal checkpoint --status active --note "<progress>" --json
 litclaude litgoal steer --kind scope --note "<what changed and why>" --json
 ```

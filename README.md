@@ -506,7 +506,7 @@ engines write carries a small invisible tag naming LitClaude and its version: th
 field of a Word or PowerPoint file, the `Creator` of a PDF, a line in an image's or a video's
 metadata. The pages themselves stay exactly as you wrote them.
 
-Pieces made to be shown also carry a small visible credit, "made with LitClaude": a half-second
+Pieces made to be shown also carry a small visible credit, the flame logo and "made with LitClaude": a half-second
 card after a film's last beat, a quiet corner mark on a cover loop, a diagram or a README cover,
 and a line in a P&ID's title block. Your code, commits, chat replies and the pages of your
 documents stay unmarked.

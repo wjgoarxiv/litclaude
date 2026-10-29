@@ -206,6 +206,13 @@ Safety (the loop can never trap a session):
   fails safe and allows stopping.
 - **Escape hatches** — `LITCLAUDE_GOAL_OFF=1` (env kill switch), or
   `litclaude-ai litgoal checkpoint --status blocked` / `--status complete` to end the loop.
+- **Stale passes reopen first** — before deciding, the hook re-hashes every input a passing
+  criterion was bound to (see Evidence Freshness); a changed or missing input turns that pass
+  into `stale` and the loop keeps going instead of completing.
+- **User-only questions stop the loop** — when every criterion passes but open critical unknowns
+  remain, an open KU or UU keeps the loop running (Claude can probe it), while a set made only of
+  UK questions ends the session with `continue:false`, lists the questions, and moves the goal to
+  `needs_user_decision` instead of `complete`. Looping cannot answer a question only the user can.
 
 Prefer `--autoloop` when the user wants hands-off autonomous completion of a multi-criteria goal;
 otherwise the user-typed `/goal` proposal above remains available and they compose cleanly.
@@ -278,6 +285,48 @@ payload must fail with a controlled CLI error. A missing criterion id must fail
 with a controlled state error. Never record `pass` while a QA resource is still
 alive or while the artifact is only a dry-run claim.
 
+### Evidence Freshness
+
+A file that existed when a check ran is not proof that the check is still current. Bind a pass
+to the files it was observed on:
+
+```sh
+litclaude-ai litgoal record-evidence --criterion criterion-1 --status pass \
+  --inputs dist/report.json,src/parser.mjs --reviewed docs/spec.md \
+  --json '{"artifact":"dist/report.json"}'
+```
+
+`--inputs` (repeatable or comma-separated) records each file's absolute path and SHA-256 as
+`role: "input"`; `--reviewed` does the same for the artifact a human review looked at
+(`role: "reviewed"`), so review evidence is bound to the version that was reviewed. The runtime
+owns the `inputs` field; an `inputs` key inside `--json` is refused, and so is a path that is
+not a readable regular file. `status`, `checkpoint --status complete` and the autoloop Stop hook
+re-hash those files: when one changed or vanished, the criterion becomes `stale` with
+`staleInputs` naming each file and `changed` or `missing`, the ledger gets `evidence.stale`, and
+completion is refused until fresh evidence is recorded.
+
+### Unknown Register
+
+Reduce unknowns while the work runs, not only while it is planned:
+
+```sh
+litclaude-ai litgoal unknown add --kind KK --text "<fact>" --source "<where it is stated>" --json
+litclaude-ai litgoal unknown add --kind KU --text "<question>" --probe "<command or check>" --critical --json
+litclaude-ai litgoal unknown resolve --id unknown-2 --evidence "<what answered it>" --json
+litclaude-ai litgoal unknown list --json
+```
+
+| Kind | Meaning | Required |
+|---|---|---|
+| KK | known known | `--source`; stored as `known` |
+| KU | known unknown: Claude can check it | `--probe`; stays `open` |
+| UK | unknown known: only the user can answer | `--probe` (usually "ask the user"); stays `open` |
+| UU | unknown unknown that surfaced mid-run | `--probe`; stays `open` |
+
+Closing an item needs `--evidence`. Any open item marked `--critical` blocks
+`checkpoint --status complete` and autoloop completion. Ledger events are `unknown.added` and
+`unknown.resolved`.
+
 ## Manual-QA Channels
 
 Manual-QA channels are required for criterion completion.
@@ -306,7 +355,8 @@ litclaude-ai litgoal checkpoint --status complete --note "<evidence summary>" --
 ```
 
 The runtime must reject `--status complete` until every criterion in
-`.litclaude/litgoal/goals.json` is `pass`. If completion is rejected, inspect
+`.litclaude/litgoal/goals.json` is `pass` (a stale pass does not count) and no critical unknown
+is open. If completion is rejected, inspect
 `criteria --json`, fix or record the pending criterion, and retry.
 
 ## Steering

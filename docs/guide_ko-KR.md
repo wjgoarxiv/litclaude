@@ -424,7 +424,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 ## 결과물에 남는 표시
 
 LitClaude 엔진이 쓰는 파일에는 LitClaude가 만들었다는 기록이 남고, 보여 주려고 만든 결과물에는
-"made with LitClaude"라는 작은 표시도 붙습니다. 수준은 `litclaude config mark on|meta|off`로 고르고,
+불꽃 로고와 "made with LitClaude"로 된 작은 표시도 붙습니다. 수준은 `litclaude config mark on|meta|off`로 고르고,
 `doctor`가 지금 값을 `MARK:`로 보여 줍니다. 값은 `~/.litclaude/config.json`(또는 `LITCLAUDE_HOME`
 아래)에 있고, `LITCLAUDE_MARK`로 한 번만 바꿀 수 있습니다.
 
