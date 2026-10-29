@@ -1,14 +1,14 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">A Claude Code plugin that helps every session plan the work, build it, check it, and leave a note the next session can pick up.</p>
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/assets/readme/badge-version.svg" alt="1.0.43" />
-  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
+  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/assets/readme/badge-version.svg" alt="1.0.44" />
+  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/README_ko-KR.md">한국어</a>
+  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/README_ko-KR.md">한국어</a>
 </p>
 
 Add `lit` to a Claude Code prompt and Claude pins the goal, writes a failing test first,
@@ -77,7 +77,7 @@ the `/plugin` menu.
 ## More
 
 - [Full guide and skills gallery on GitHub](https://github.com/wjgoarxiv/litclaude#readme)
-- [Privacy and network behavior](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/privacy.md)
-- [Migration and ownership conflicts](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/docs/migration.md)
-- [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/CHANGELOG.md)
-- [MIT license](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.43/LICENSE)
+- [Privacy and network behavior](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/privacy.md)
+- [Migration and ownership conflicts](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/docs/migration.md)
+- [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/CHANGELOG.md)
+- [MIT license](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.44/LICENSE)

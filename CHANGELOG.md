@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.44 - 2026-10-29
 
 - A release from GitHub Actions no longer runs the whole suite a second time. The publish gate asks GitHub whether
   `ci.yml` passed on that exact, unmodified commit and refuses the publish if it did not; a local `npm publish` still
