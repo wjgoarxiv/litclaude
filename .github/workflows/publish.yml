@@ -1,5 +1,6 @@
 # Publishes @litfamily/litclaude from GitHub with npm trusted publishing, so every version carries a
 # provenance statement that links the tarball to this repository and commit. Run it by hand from main.
+# The suite does not run again here: the publish gate refuses unless ci.yml passed on this exact commit.
 # The default is a dry run that only runs the gates and lists the tarball. A real run uploads a staged
 # version; it stays private until the maintainer approves it on npmjs.com with two-factor authentication.
 name: Publish
@@ -18,13 +19,16 @@ permissions:
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
-    runs-on: macos-latest
-    timeout-minutes: 330
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
+      actions: read
       id-token: write
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
+      LITCLAUDE_PUBLISH_FROM_CI: "1"
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,9 +41,6 @@ jobs:
 
       - name: npm with staged publishing
         run: npm install -g npm@11.21.1
-
-      - name: ffmpeg for the motion and audio tests
-        run: brew install ffmpeg
 
       - name: Validate plugin
         run: npm run validate:plugin
@@ -65,12 +66,16 @@ jobs:
       - name: Pack payload guard
         run: npm run pack:payload-guard
 
-      # The suite takes about two and a half hours here, so it runs once: as its own step on a dry run,
-      # or through prepublishOnly (scripts/prepublish-test-gate.mjs) inside npm stage publish.
-      - name: Unit and integration tests
+      # prepublishOnly (scripts/prepublish-test-gate.mjs) checks the GitHub API for a green ci.yml push run
+      # on this commit; on a dry run the same check runs as its own step.
+      - name: ci.yml passed on this commit
         if: ${{ !inputs.stage }}
-        run: npm test
+        run: node scripts/prepublish-test-gate.mjs
 
-      - name: Stage on npm (runs the suite through prepublishOnly first)
+      - name: Pack listing
+        if: ${{ !inputs.stage }}
+        run: npm pack --dry-run
+
+      - name: Stage on npm (the gate checks ci.yml first)
         if: inputs.stage
         run: npm stage publish

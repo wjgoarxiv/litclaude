@@ -169,3 +169,71 @@ test("npm pack and install do not run the publish-only test gate", (t) => {
   assert.equal(installed.status, 0, outputOf(installed));
   assert.doesNotMatch(outputOf(installed), new RegExp(marker, "u"));
 });
+
+const SHA = "a".repeat(40);
+const ciEnv = { GITHUB_ACTIONS: "true", GITHUB_SHA: SHA, GITHUB_REPOSITORY: "wjgoarxiv/litclaude", GITHUB_TOKEN: "t" };
+const cleanGit = (args) => (args[0] === "rev-parse" ? SHA : "");
+const answer = (body, status = 200) => async () => ({ ok: status === 200, status, json: async () => body });
+const greenRun = { workflow_runs: [{ id: 7, head_sha: SHA, conclusion: "success" }] };
+
+test("a CI publish passes the gate only when ci.yml passed on the same clean commit", async () => {
+  const { ciVerdict } = await import("../scripts/prepublish-test-gate.mjs");
+  let asked = "";
+  const fetchImpl = async (url, init) => {
+    asked = url;
+    assert.equal(init.headers.authorization, "Bearer t");
+    return answer(greenRun)();
+  };
+  const verdict = await ciVerdict({ env: ciEnv, fetchImpl, git: cleanGit });
+  assert.equal(verdict.ok, true, verdict.reason);
+  assert.match(asked, /\/repos\/wjgoarxiv\/litclaude\/actions\/workflows\/ci\.yml\/runs\?head_sha=a{40}&status=success&event=push/u);
+});
+
+test("a CI publish is refused without a green ci.yml run for that commit", async () => {
+  const { ciVerdict } = await import("../scripts/prepublish-test-gate.mjs");
+  const refusals = [
+    [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [] }), git: cleanGit }, /no successful ci\.yml/u],
+    [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [{ id: 7, head_sha: "b".repeat(40), conclusion: "success" }] }), git: cleanGit }, /no successful/u],
+    [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [{ id: 7, head_sha: SHA, conclusion: "failure" }] }), git: cleanGit }, /no successful/u],
+    [{ env: ciEnv, fetchImpl: answer({}, 403), git: cleanGit }, /answered 403/u],
+    [{ env: ciEnv, fetchImpl: async () => { throw new Error("offline"); }, git: cleanGit }, /unreachable: offline/u],
+    [{ env: ciEnv, fetchImpl: answer(greenRun), git: (args) => (args[0] === "rev-parse" ? "c".repeat(40) : "") }, /checkout is not/u],
+    [{ env: ciEnv, fetchImpl: answer(greenRun), git: (args) => (args[0] === "rev-parse" ? SHA : " M lib/x.mjs") }, /local changes/u],
+    [{ env: { ...ciEnv, GITHUB_ACTIONS: undefined }, fetchImpl: answer(greenRun), git: cleanGit }, /not a GitHub Actions run/u],
+    [{ env: { ...ciEnv, GITHUB_REPOSITORY: "x/y?z=1" }, fetchImpl: answer(greenRun), git: cleanGit }, /not a GitHub Actions run/u],
+  ];
+  for (const [input, reason] of refusals) {
+    const verdict = await ciVerdict(input);
+    assert.equal(verdict.ok, false);
+    assert.match(verdict.reason, reason);
+  }
+});
+
+test("npm publish outside the CI publish still runs the full suite", (t) => {
+  const marker = "LITCLAUDE_FIXTURE_SUITE_RAN";
+  const directory = createFixture("node fail.mjs");
+  t.after(() => rmSync(directory, { force: true, recursive: true }));
+  writeFileSync(join(directory, "fail.mjs"), `process.stderr.write(${JSON.stringify(marker)}); process.exitCode = 23;\n`);
+  const previous = process.env.LITCLAUDE_PUBLISH_FROM_CI;
+  delete process.env.LITCLAUDE_PUBLISH_FROM_CI;
+  try {
+    assertPublishRefused(publishDryRun(directory), new RegExp(marker, "u"));
+  } finally {
+    if (previous !== undefined) process.env.LITCLAUDE_PUBLISH_FROM_CI = previous;
+  }
+});
+
+test("a CI publish outside GitHub Actions is refused instead of skipping the suite", (t) => {
+  const directory = createFixture("node fail.mjs");
+  t.after(() => rmSync(directory, { force: true, recursive: true }));
+  writeFileSync(join(directory, "fail.mjs"), "process.exitCode = 0;\n");
+  const saved = { from: process.env.LITCLAUDE_PUBLISH_FROM_CI, actions: process.env.GITHUB_ACTIONS };
+  process.env.LITCLAUDE_PUBLISH_FROM_CI = "1";
+  delete process.env.GITHUB_ACTIONS;
+  try {
+    assertPublishRefused(publishDryRun(directory), /prepublish test gate refused: not a GitHub Actions run/u);
+  } finally {
+    if (saved.from === undefined) delete process.env.LITCLAUDE_PUBLISH_FROM_CI; else process.env.LITCLAUDE_PUBLISH_FROM_CI = saved.from;
+    if (saved.actions !== undefined) process.env.GITHUB_ACTIONS = saved.actions;
+  }
+});

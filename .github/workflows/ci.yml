@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: ffmpeg for the motion and audio tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Unit and integration tests
         run: npm test

@@ -400,7 +400,7 @@ describe('ci-hardening: publish.yml is the only workflow that may request an OID
     const { checkWorkflow } = await import('../tools/assert-ci-workflow.mjs');
     const text = readFileSync(PUBLISH_YML, 'utf8');
     assert.deepEqual(checkWorkflow('publish.yml', text), []);
-    for (const gate of ['npm test', 'npm run assert:ci', 'npm run check:version', 'npm run pack:payload-guard']) {
+    for (const gate of ['LITCLAUDE_PUBLISH_FROM_CI: "1"', 'actions: read', 'npm run assert:ci', 'npm run check:version', 'npm run pack:payload-guard']) {
       assert.ok(text.includes(gate), `publish.yml does not run ${gate}`);
     }
   });
