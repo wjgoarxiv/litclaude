@@ -29,6 +29,18 @@ test("a single open plan is offered for go only while no other lane is at work",
   assert.equal(chooseNextStep({ ...base, sessions: [{ id8: "self0001", status: "active", self: true }] }, "s1").kind, "start-plan");
 });
 
+test("this session's own paused frame or run is not offered while another lane is at work", () => {
+  const ownFrame = { sessionId: "s1", role: "spine", status: "paused", skill: "lit-loop", stage: "RED", progress: { gauge: null } };
+  const ownRun = { workId: "w1", plan: "plans/c.md", status: "active", sessionId: "s1" };
+  const working = { status: "ok", agents: [lane()] };
+  assert.equal(chooseNextStep({ ...base, workflows: [ownFrame] }, "s1").say, "lit continue");
+  assert.deepEqual(chooseNextStep({ ...base, workflows: [ownFrame], herdr: working }, "s1"), { kind: "none", target: null, wait: { lanes: 1 } });
+  assert.equal(chooseNextStep({ ...base, startWork: [ownRun] }, "s1").say, "go");
+  assert.deepEqual(chooseNextStep({ ...base, startWork: [ownRun], herdr: working }, "s1"), { kind: "none", target: null, wait: { lanes: 1 } });
+  const boundary = { ...ownRun, status: "paused", pendingBoundary: { action: "read", root: "/x" } };
+  assert.equal(chooseNextStep({ ...base, startWork: [boundary], herdr: working }, "s1").say, "lit approve", "an approval is the user's call, lanes or not");
+});
+
 test("while lanes work the brief says not to type go, in place of a stale handoff step", () => {
   const data = {
     generatedAt: new Date(NOW).toISOString(),
@@ -42,6 +54,9 @@ test("while lanes work the brief says not to type go, in place of a stale handof
   assert.doesNotMatch(ko, /라고 입력하면 이어갑니다/u);
   assert.doesNotMatch(ko, /Ship the old release/u);
   assert.match(ko, /레인 1개가 아직 일하는 중/u);
+  const self = { ...data.sessions[0], id8: "self0001", self: true, status: "waiting-on-user" };
+  const own = renderBrief({ ...data, sessions: [self], workflows: [{ id8: "self0001", status: "paused", skill: "lit-loop", stage: "RED" }] }, { lang: "ko", now: NOW });
+  assert.doesNotMatch(own, /lit continue/u, "this session's card does not offer its paused frame while lanes work");
   const en = renderBrief(data, { lang: "en", now: NOW });
   assert.match(en, /Do not type \*\*`go`\*\*/u);
   assert.doesNotMatch(en, /Ship the old release/u);

@@ -26,21 +26,24 @@ const busyLanes = (data) => {
   return lanes.size;
 };
 
+// While another lane works, nothing that resumes or starts work here is offered: only an approval,
+// which is the user's call either way.
 export const chooseNextStep = (data, sessionId) => {
+  const lanes = busyLanes(data);
   const ownStack = data.workflows.find((frame) => frame.sessionId === sessionId && frame.role === "spine" && frame.status === "paused");
-  if (sessionId && ownStack) {
+  if (sessionId && ownStack && !lanes) {
     return { kind: "resume-frame", target: { skill: ownStack.skill, stage: ownStack.stage, progress: ownStack.progress.gauge }, say: "lit continue" };
   }
   const paused = data.startWork.find((work) => work.status === "paused" && work.pendingBoundary);
   if (paused) {
     return { kind: "approve-boundary", target: { workId: paused.workId, plan: paused.plan, ...paused.pendingBoundary }, say: "lit approve", automatic: false };
   }
+  if (lanes) return { kind: "none", target: null, wait: { lanes } };
   const own = data.startWork.find((work) => work.status === "active" && sessionId && work.sessionId === sessionId);
   if (own) return { kind: "continue-work", target: { workId: own.workId, plan: own.plan }, say: "go" };
   const running = data.startWork.some((work) => ["active", "paused"].includes(work.status));
   const open = data.roadmap.plans.filter((plan) => plan.local && plan.progress.total !== null && plan.progress.done < plan.progress.total);
-  const lanes = busyLanes(data);
-  if (!running && open.length === 1 && lanes === 0) {
+  if (!running && open.length === 1) {
     return { kind: "start-plan", target: { plan: open[0].plan }, say: "go", command: `/litclaude:start-work ${open[0].plan}` };
   }
   return lanes ? { kind: "none", target: null, wait: { lanes } } : { kind: "none", target: null };

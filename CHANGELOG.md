@@ -2,6 +2,9 @@
 
 ## 1.0.45 - 2026-10-30
 
+- lit-adhd no longer tells this session to `lit continue` a paused workflow, or `go` on its own run, while other
+  lanes are at work. It checked its own paused step before looking at the lanes, so the lane hold never applied to
+  the session that started them. A pending `lit approve` is still offered, because that choice is the user's.
 - The README Studio HyperFrames cover template now locks `@hono/node-server` 2.1.5. 2.1.1 decoded a static path
   twice, which let a request slip past middleware (Dependabot alert, moderate; the template only renders locally).
 - The installer can add a short LitFamily block to the global `CLAUDE.md` that Claude Code reads every

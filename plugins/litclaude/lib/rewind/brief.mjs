@@ -215,6 +215,7 @@ const actionOf = (session, escape = plain) => {
 const nextOf = (session, data, w) => {
   const frames = (data.workflows ?? []).filter((frame) => frame.id8 === session.id8);
   const paused = frames.find((frame) => frame.status === "paused");
+  if (paused && session.self && data.next?.wait?.lanes) return w.lanesAtWork(data.next.wait.lanes);
   if (paused) return w.resume(paused.skill, paused.stage, session.self);
   if (session.waitingReason === "start-work boundary") return w.approve;
   if (session.status === "waiting-on-user") {
