@@ -9,6 +9,14 @@
   while loading no longer runs on the wall clock before frame 0, where a slow host let a short one finish and move
   its chained successor early. The no-ffmpeg and large-argument tests no longer assume macOS, and a hand-run
   `ci-linux.yml` runs the `ci.yml` steps on ubuntu-latest.
+- The prompt hook no longer times out when another session holds the start-work lock. It waited up to 5 seconds
+  for the lock inside a hook the host stops at 5 seconds, so the host printed "hook timed out" and dropped the
+  answer. The hook now waits 1.5 seconds and answers that start-work is busy and to send the prompt again, and its
+  time limit is 10 seconds like the other hooks.
+- lit-adhd no longer offers `go` while parallel lanes are at work. A live session of the repo or a herdr agent
+  working in the same herdr workspace now holds the single-plan `go`; the brief says to wait and not to type `go`.
+  It reads `herdr agent list` as the JSON it is, and a HANDOFF Next item already marked done (DONE, SHIPPED, ✅,
+  `[x]`, struck through) is skipped for the first open one.
 
 ## 1.0.44 - 2026-10-29
 

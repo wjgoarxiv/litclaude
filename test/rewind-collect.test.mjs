@@ -261,7 +261,7 @@ test("--here keeps to this folder, herdr is asked only under HERDR_ENV=1, and th
   const calls = [];
   const exec = (file, args) => {
     calls.push([file, ...args].join(" "));
-    if (file === "herdr") return "pane-1 claude working\n";
+    if (file === "herdr") return `${JSON.stringify({ result: { agents: [{ agent: "claude", agent_status: "working", pane_id: "pane-1", cwd: repo }] } })}\n`;
     if (args[0] === "worktree") return `worktree ${repo}\n\nworktree ${other}\n`;
     throw new Error("no log");
   };
@@ -273,7 +273,7 @@ test("--here keeps to this folder, herdr is asked only under HERDR_ENV=1, and th
   const here = collectRewind({ cwd: repo, env: { ...env, HERDR_ENV: "1" }, now: NOW, exec, here: true });
   assert.deepEqual(here.sessions.map((session) => session.id8), ["here0001"]);
   assert.equal(here.sources.herdr, "ok");
-  assert.deepEqual(here.herdr.agents, ["pane-1 claude working"]);
+  assert.deepEqual(here.herdr.agents.map(({ pane, agent, status }) => [pane, agent, status]), [["pane-1", "claude", "working"]]);
   assert.equal(calls.filter((call) => call.startsWith("git worktree")).length, 1);
 
   assert.equal(parseSince("7d"), 7 * 86_400_000);

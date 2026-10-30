@@ -69,6 +69,8 @@ const WORDS = {
     },
     goLine: (say) => `Type **\`${say}\`** to continue.`,
     noGo: "Nothing runs on its own here: open that session, or say what to do.",
+    lanesAtWork: (n) => `${n} other ${n === 1 ? "lane is" : "lanes are"} still at work: wait for ${n === 1 ? "it" : "them"} to finish`,
+    noGoWhileLanes: "Do not type **`go`** now: run `lit adhd` again once the lanes finish.",
     unknownSources: (list) => `Not read: ${list}.`,
     older: "Older sessions were not read (read budget used up).",
     plansSkipped: (n) => `${n} ${n === 1 ? "plan was" : "plans were"} not read (read budget used up).`,
@@ -133,6 +135,8 @@ const WORDS = {
     },
     goLine: (say) => `**\`${say}\`** 라고 입력하면 이어갑니다.`,
     noGo: "저절로 실행되는 단계는 아닙니다. 그 세션을 열거나 할 일을 말해 주세요.",
+    lanesAtWork: (n) => `다른 레인 ${n}개가 아직 일하는 중이에요. 끝날 때까지 기다리세요`,
+    noGoWhileLanes: "지금은 **`go`는 입력하지 마세요.** 레인이 끝나면 `lit adhd`로 다시 확인하세요.",
     unknownSources: (list) => `읽지 못함: ${list}.`,
     older: "오래된 세션은 읽지 않았습니다(읽기 예산 소진).",
     plansSkipped: (n) => `계획 ${n}개는 읽지 못했습니다(읽기 예산 소진).`,
@@ -387,8 +391,13 @@ export const renderBrief = (data, { lang = "en", now = Date.parse(data.generated
   const sessions = data.sessions ?? [];
   const summary = data.summary ?? { sessions: sessions.length, waitingOnUser: 0, active: 0 };
   // With no step for `go`, this worktree's HANDOFF.md Next item comes before the generic suggestion.
+  // While other lanes work, the step is to answer the one waiting on the user, or else to wait.
   const handoffNext = (data.handoffs ?? []).find((handoff) => handoff.local && handoff.next)?.next ?? null;
-  const step = data.next?.kind && data.next.kind !== "none" ? stepText(data.next, w) : bare(handoffNext ?? suggestion(data, w));
+  const lanes = data.next?.wait?.lanes ?? 0;
+  const waiting = sessions.some((session) => session.status === "waiting-on-user" && !session.self);
+  const step = data.next?.kind && data.next.kind !== "none"
+    ? stepText(data.next, w)
+    : lanes ? bare(waiting ? suggestion(data, w) : w.lanesAtWork(lanes)) : bare(handoffNext ?? suggestion(data, w));
   const out = [...openerLines(data, step, w), ""];
   out.push(`## 🧭 ${[w.sessions(summary.sessions), w.waiting(summary.waitingOnUser), w.active(summary.active)].join(" · ")} · ${w.next}: ${plain(step)}`);
   out.push(`*${w.window(data.scope?.since ?? "7d", (data.scope?.worktrees ?? []).length || 1)}*`);
@@ -415,7 +424,7 @@ export const renderBrief = (data, { lang = "en", now = Date.parse(data.generated
   if (data.next?.command) body.push(clipToWidth(data.next.command, width - 4));
   if (say) body.push(`${w.type}: ${say}`);
   out.push("", box(w.recommended, body));
-  out.push("", say ? w.goLine(say) : w.noGo);
+  out.push("", say ? w.goLine(say) : lanes ? w.noGoWhileLanes : w.noGo);
   const unknown = Object.entries(data.sources ?? {}).filter(([, status]) => status !== "ok").map(([name]) => name);
   const notes = [
     unknown.length ? w.unknownSources(unknown.join(", ")) : null,

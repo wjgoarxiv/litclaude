@@ -58,7 +58,7 @@ The collector draws the brief in Markdown (`lib/rewind/brief.mjs`), so its shape
    - ▶ what is next for that session: answer the question it asked, resume its paused frame, approve its boundary, its plan's current item, or what it is doing now (its last tool call: `Bash “Run the gates”`, for an active session only). A done session names the plan its run finished; an idle or done session's last tool call is never offered as its next step.
 3. **Ended sessions, one table row each.** A `### ⚪ Ended · N` table (id, where, goal, ended, done), at most 8 rows and a count of the rest.
 4. **Roadmap timeline.** A `### 🗺️` heading with this worktree's roadmap gauge, then ✓ finished commits with their dates and branch, ▶ the current item of each open plan of this worktree and of plans another worktree changed inside the window (with its worktree name) with its gauge, ○ the items after it, then litgoal objectives. Stale plans elsewhere, unfilled plan scaffolds and another worktree's finished objectives are left out.
-5. **One recommended next step** in a box, from `next`, with the word to type (`go`, `lit continue` or `lit approve`), then one line: "Type `go` to continue." When nothing can run on `go`, the box still recommends a real step from the records: first the first item under `## Next` or `## Next Steps` in this worktree's own `HANDOFF*.md`, then a session waiting on the user, a paused workflow, an open plan item, the latest active session, then the newest listed session that is not running (review what a done one finished, or pick up an idle or ended one). Only a window with no session and no plan says there is nothing to start. It says that nothing runs on its own, and a HANDOFF step never carries a word to type.
+5. **One recommended next step** in a box, from `next`, with the word to type (`go`, `lit continue` or `lit approve`), then one line: "Type `go` to continue." When nothing can run on `go`, the box still recommends a real step from the records: first the first item under `## Next` or `## Next Steps` in this worktree's own `HANDOFF*.md` that is not already marked done (✅, ✓, `[x]`, struck through, DONE or SHIPPED), then a session waiting on the user, a paused workflow, an open plan item, the latest active session, then the newest listed session that is not running (review what a done one finished, or pick up an idle or ended one). Only a window with no session and no plan says there is nothing to start. It says that nothing runs on its own, and a HANDOFF step never carries a word to type.
 
 **Progress gauges (D9), required.** A gauge appears only when both numbers are real, in the form `[▉▉▉░░] 3/5` (filled `▉` done, light `░` remaining, then done/total). An unknown total has no gauge: the card states what is known in words instead. Never a question-mark gauge, never a guess, never an estimate, never a gauge of your own.
 
@@ -111,7 +111,7 @@ The collector (`plugins/litclaude/lib/rewind/collect.mjs`, served as `litclaude-
 | `.litclaude/workflow-stack/*.json` | running and paused disciplines with stage and k/n | `workflowStack: unknown` |
 | `.litclaude/boulder.json` | active start-work, its plan progress and any boundary waiting for approval; completed runs from its history | `startWork: unknown` |
 | `.litclaude/liveness/*.json` | each session's last hook event (`alive`, `idle`, `ended`), written by PostToolUse, Stop and SessionEnd | the transcript time alone decides |
-| `herdr agent list` (only when `HERDR_ENV=1`) | agent panes | `herdr: unknown` |
+| `herdr agent list` (only when `HERDR_ENV=1`) | agent panes of this herdr workspace or this repo: agent, status, pane, session | `herdr: unknown` |
 
 Plans, litgoal, handoffs, workflow stacks and start-work are read first, then transcripts, so a busy transcript folder never crowds out the plans; a plan met after the budget ran out is counted and the brief says how many were not read. Transcripts are read head (64 KiB) and tail (256 KiB) only, under one 8 MiB budget for the whole run, through descriptors opened without following links; subagent transcripts and sidechain lines are skipped. The slug is the session's absolute cwd with every character outside `[A-Za-z0-9]` turned into `-`; a folder whose slug is missing is found by the `cwd` its newest transcript records. Every string is redacted before it leaves the collector: credential shapes, `NAME=value` with a secret-like name, URI userinfo, any current environment value of eight or more characters, and the home directory (shown as `~`).
 
@@ -133,8 +133,9 @@ Sessions waiting on the user come first, then active ones, then idle and done on
 1. This session's own paused spine frame: resume it. Say `lit continue`.
 2. A start-work paused at a boundary: show what it wants to reach. Say `lit approve` or `lit deny`. This is never automatic.
 3. This session's own active start-work: keep going. Say `go`.
-4. Exactly one open plan in this worktree and no work running: start it. Say `go`, which runs `/litclaude:start-work plans/<plan>.md`.
-5. Otherwise `none`: say so.
+4. Exactly one open plan in this worktree, no work running and no other lane at work: start it. Say `go`, which runs `/litclaude:start-work plans/<plan>.md`.
+5. Another lane still at work: a live session of this repo other than this one (working or waiting on the user), or a herdr agent working or blocked in this herdr workspace or inside this repo. One lane seen both ways counts once. There is no step for `go`: the box says to wait for the lanes (or to answer the one that asked something) and the last line says not to type `go` until they finish, so a parallel lane is never raced by a second run.
+6. Otherwise `none`: say so.
 
 ## Continuing with go
 

@@ -4,13 +4,27 @@
 //   2. a paused start-work boundary               -> approve-boundary (shown only, never automatic)
 //   3. an active start-work of this session       -> continue-work
 //   4. a single open plan with no work running    -> start-plan     (`/litclaude:start-work <plan>`)
-//   5. otherwise                                  -> none
+//      and no other lane at work
+//   5. other lanes still at work                  -> none, with `wait` (the brief says not to type `go`)
+//   6. otherwise                                  -> none
 
 import { closeSync, constants, fstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { ignitionFileName } from "../mod/state.mjs";
 import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
+
+// A lane is another live session here (working or waiting on the user) or a herdr agent working or
+// blocked in this workspace or project; one lane seen both ways counts once.
+const busyLanes = (data) => {
+  const lanes = new Set((data.sessions ?? [])
+    .filter((session) => !session.self && ["active", "waiting-on-user"].includes(session.status))
+    .map((session) => session.id8));
+  for (const agent of data.herdr?.agents ?? []) {
+    if (!agent.self && ["working", "blocked"].includes(agent.status)) lanes.add(agent.id8 ?? agent.pane);
+  }
+  return lanes.size;
+};
 
 export const chooseNextStep = (data, sessionId) => {
   const ownStack = data.workflows.find((frame) => frame.sessionId === sessionId && frame.role === "spine" && frame.status === "paused");
@@ -25,10 +39,11 @@ export const chooseNextStep = (data, sessionId) => {
   if (own) return { kind: "continue-work", target: { workId: own.workId, plan: own.plan }, say: "go" };
   const running = data.startWork.some((work) => ["active", "paused"].includes(work.status));
   const open = data.roadmap.plans.filter((plan) => plan.local && plan.progress.total !== null && plan.progress.done < plan.progress.total);
-  if (!running && open.length === 1) {
+  const lanes = busyLanes(data);
+  if (!running && open.length === 1 && lanes === 0) {
     return { kind: "start-plan", target: { plan: open[0].plan }, say: "go", command: `/litclaude:start-work ${open[0].plan}` };
   }
-  return { kind: "none", target: null };
+  return lanes ? { kind: "none", target: null, wait: { lanes } } : { kind: "none", target: null };
 };
 
 export const nextStepPath = (stateRoot, sessionId) => join(stateRoot, ".litclaude", "adhd", `next-${ignitionFileName(sessionId)}`);

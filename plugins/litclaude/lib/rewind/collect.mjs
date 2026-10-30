@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { resolveProjectStateRoot } from "../project-state-root.mjs";
@@ -184,7 +184,10 @@ const litgoalOf = (root, budget, redact) => {
   };
 };
 
-// The first list item or line of text under a `## Next` or `## Next Steps` heading, without its marker.
+// An item already marked done (✅, ✓, [x], ~~struck~~, DONE, SHIPPED) is history, not a next step.
+const DONE_ITEM = /✅|✓|^\[[xX]\]|^~~|\b(?:DONE|SHIPPED)\b/u;
+
+// The first open list item or line of text under a `## Next` or `## Next Steps` heading, without its marker.
 const handoffNext = (text) => {
   const lines = text.split("\n");
   const start = lines.findIndex((line) => /^#{1,6}\s+Next(?:\s+Steps)?\s*$/iu.test(line.trim()));
@@ -192,7 +195,7 @@ const handoffNext = (text) => {
   for (const line of lines.slice(start + 1)) {
     if (/^#{1,6}\s/u.test(line.trim())) return null;
     const item = line.trim().replace(/^(?:[-*+]|\d+[.)])\s+/u, "");
-    if (item) return item;
+    if (item && !DONE_ITEM.test(item.replace(/^\*\*/u, ""))) return item;
   }
   return null;
 };
@@ -297,11 +300,26 @@ const livenessOf = (root, budget) => {
     });
 };
 
-const herdrOf = (env, exec, redact) => {
+// `herdr agent list` answers one JSON document. Only agents in this herdr workspace or inside the
+// folders read are kept, so a lane the brief can see is one that could race this project's `go`.
+const herdrOf = (env, exec, redact, roots) => {
   if (env.HERDR_ENV !== "1") return { status: "unknown", agents: [] };
   try {
-    const out = exec("herdr", ["agent", "list"], { timeout: HERDR_TIMEOUT_MS });
-    return { status: "ok", agents: out.split("\n").filter((line) => line.trim()).slice(0, 20).map((line) => clipToWidth(redact(line.trim()), 120)) };
+    const listed = JSON.parse(exec("herdr", ["agent", "list"], { timeout: HERDR_TIMEOUT_MS }))?.result?.agents;
+    if (!Array.isArray(listed)) return { status: "unknown", agents: [] };
+    const inside = (path) => typeof path === "string" && roots.some((root) => path === root || path.startsWith(`${root}${sep}`));
+    const agents = listed
+      .filter((agent) => (env.HERDR_WORKSPACE_ID && agent?.workspace_id === env.HERDR_WORKSPACE_ID) || inside(agent?.foreground_cwd) || inside(agent?.cwd))
+      .slice(0, 20)
+      .map((agent) => ({
+        agent: clipToWidth(redact(String(agent.agent ?? "unknown")), 20),
+        status: typeof agent.agent_status === "string" ? agent.agent_status : "unknown",
+        pane: typeof agent.pane_id === "string" ? agent.pane_id : "unknown",
+        id8: typeof agent.agent_session?.value === "string" ? agent.agent_session.value.slice(0, 8) : null,
+        title: clipToWidth(redact(String(agent.terminal_title_stripped ?? "")), 60),
+        self: Boolean(env.HERDR_PANE_ID) && agent.pane_id === env.HERDR_PANE_ID,
+      }));
+    return { status: "ok", agents };
   } catch {
     return { status: "unknown", agents: [] };
   }
@@ -372,7 +390,7 @@ export const collectRewind = ({
   }
 
   const commits = collectEach((root) => commitsOf(root, sinceMs, now, exec, redact));
-  const herdr = herdrOf(env, exec, redact);
+  const herdr = herdrOf(env, exec, redact, roots.map((root) => resolve(root)));
 
   // A session waits on the user when it asked something, or holds a paused frame or boundary.
   for (const session of sessions) {

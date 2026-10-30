@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" user-prompt-submit",
-            "timeout": 5,
+            "timeout": 10,
             "statusMessage": "checking LitClaude workflow and bounded-authority lifecycle"
           }
         ]

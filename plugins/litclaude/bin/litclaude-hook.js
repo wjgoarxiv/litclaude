@@ -49,6 +49,7 @@ import {
   recordStartWorkSubagentStart,
   recordStartWorkSubagentStop,
   resumeStartWorkFromUserPrompt,
+  StartWorkLifecycleError,
   startWorkStructuredContext,
 } from "../lib/start-work-lifecycle.mjs";
 import { formatResolvedPlanNotice, resolveLatestDurablePlan } from "../lib/durable-plan.mjs";
@@ -1374,6 +1375,10 @@ const invocationContext = (invoked, invocation) => {
   if (invoked.nothing) {
     return [`Nothing in this session's start-work is waiting for approval, so \`lit ${invoked.nothing}\` changed nothing. Tell the user that in one sentence and start no other work.`, "LitClaude start-work had nothing to approve."];
   }
+  if (invoked.busy) {
+    const typed = invoked.busy === "start" ? "start-work command" : `\`lit ${invoked.busy}\``;
+    return [`Another LitClaude session or command is updating this project's start-work state right now, so this ${typed} changed nothing. Tell the user in one sentence to send the same prompt again in a few seconds, and start no other work.`, "LitClaude start-work is busy; send it again."];
+  }
   if (invoked.choose) {
     const list = invoked.choose.length ? `Open plans: ${invoked.choose.map(clipPath).join(", ")}.` : "No plan under plans/ has an open task.";
     return [`LitClaude did not start start-work: ${invocation?.plan ? "that plan" : "no single open plan"} could be chosen. ${list} Ask the user which plan to run with \`/litclaude:start-work <plan>\`; do not implement anything from this prompt.`, "LitClaude start-work needs a plan name."];
@@ -1726,20 +1731,29 @@ switch (eventName) {
       const own = resolveProjectStateRoot(cwd);
       const above = relative(found, own);
       const lifecycleRoot = above && !above.startsWith("..") && !isAbsolute(above) ? own : found;
+      // The host drops this hook's answer at its time limit, so a lock another session holds gets a
+      // short wait and a "busy, send it again" reply instead of the full lock wait.
+      process.env.LITCLAUDE_START_WORK_LOCK_TIMEOUT_MS ??= "1500";
+      const lockBusy = (error) => error instanceof StartWorkLifecycleError && error.status === 75;
       try {
         if (invocation.kind === "start" && invocation.plan) {
           adoption = adoptStartWork(lifecycleRoot, { sessionId: input.session_id, plan: invocation.plan, promptId: input.prompt_id });
         }
-      } catch {
+      } catch (error) {
         adoption = null;
+        if (lockBusy(error)) invoked = { busy: invocation.kind };
       }
       if (!adoption) {
-        try {
-          invoked = invocation.kind === "start"
-            ? startWorkFromInvocation(lifecycleRoot, { sessionId: input.session_id, promptId: input.prompt_id, plan: invocation.plan })
-            : (invocation.kind === "approve" ? approveStartWorkBoundary : denyStartWorkBoundary)(lifecycleRoot, { sessionId: input.session_id, promptId: input.prompt_id }) ?? { nothing: invocation.kind };
-        } catch (error) {
-          invoked = { failed: error instanceof Error ? error.message : "lifecycle validation failed" };
+        if (!invoked) {
+          try {
+            invoked = invocation.kind === "start"
+              ? startWorkFromInvocation(lifecycleRoot, { sessionId: input.session_id, promptId: input.prompt_id, plan: invocation.plan })
+              : (invocation.kind === "approve" ? approveStartWorkBoundary : denyStartWorkBoundary)(lifecycleRoot, { sessionId: input.session_id, promptId: input.prompt_id }) ?? { nothing: invocation.kind };
+          } catch (error) {
+            invoked = lockBusy(error)
+              ? { busy: invocation.kind }
+              : { failed: error instanceof Error ? error.message : "lifecycle validation failed" };
+          }
         }
         invoked = { ...invoked, lifecycleRoot, sessionId: input.session_id };
       }
