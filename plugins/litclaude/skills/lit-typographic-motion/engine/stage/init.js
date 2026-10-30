@@ -183,6 +183,19 @@
   const born = new Map();
   const finished = new Set();
   const svgBorn = new Map();
+  // An animation the page script starts is paused at once on the virtual clock. Left to the sweep in
+  // step(), it would play on the wall clock while the page loads, and on a slow host a short one
+  // finished, resolved `finished` and moved its chained successor before frame 0.
+  const nativeAnimate = Element.prototype.animate;
+  Element.prototype.animate = function animate(...args) {
+    const a = nativeAnimate.apply(this, args);
+    if (!born.has(a)) {
+      a.pause();
+      born.set(a, V.ms / 1000);
+      a.currentTime = 0;
+    }
+    return a;
+  };
   const drainMicrotasks = async () => {
     for (let i = 0; i < 8; i++) await Promise.resolve();
   };

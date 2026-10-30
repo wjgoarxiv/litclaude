@@ -98,6 +98,17 @@ describe('ci-hardening: every local gate is actually enforced in CI', () => {
     const missing = REQUIRED_CI_SCRIPTS.filter((script) => !text.includes(script));
     assert.deepEqual(missing, [], `ci.yml does not run: ${missing.join(', ')}`);
   });
+
+  // ci-linux.yml proves the suite on ubuntu-latest by hand before ci.yml leaves macOS, so it runs
+  // the same commands as ci.yml (only the ffmpeg install differs) and never on push or PR.
+  it('ci-linux.yml is hand-run and runs the same commands as ci.yml on ubuntu-latest', () => {
+    const linux = readFileSync(resolve(ROOT, '.github', 'workflows', 'ci-linux.yml'), 'utf8');
+    const runs = (text) => [...text.matchAll(/^\s+(?:- )?run: (.+)$/gmu)].map((m) => m[1]).filter((cmd) => !/ffmpeg/u.test(cmd));
+    assert.deepEqual(runs(linux), runs(readFileSync(CI_YML, 'utf8')));
+    assert.match(linux, /^on:\n {2}workflow_dispatch:\n\n/mu);
+    assert.match(linux, /runs-on: ubuntu-latest/u);
+    assert.match(linux, /apt-get install -y ffmpeg/u);
+  });
 });
 
 describe('ci-hardening: check:skill-resources detects unpinned drift', () => {

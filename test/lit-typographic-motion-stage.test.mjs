@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { pathWithout } from "./helpers/path-without.mjs";
 import { stageTestTreatment, writeTreatment } from "./helpers/motion-treatment.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -239,6 +240,23 @@ describe("stage renders (real Chrome, virtual clock)", () => {
     assert.equal(leftEdge(frames.get(150)), 900, "t = 2.5 s: finished and held");
   });
 
+  it("a WAAPI animation started by the page script waits for frame 0 instead of running on the wall clock", async (t) => {
+    if (needsRender(t)) return;
+    // On a slow host (SwiftShader on Linux CI) loading the page takes longer than a short animation,
+    // so one that played in real time finished, chained, and moved the next one before frame 0.
+    // A 1 ms first animation makes that race certain here: its chain must still start at frame 1.
+    const { captureStageFrames } = await import(join(engine, "node", "stage.mjs"));
+    const out = stageRun("waapi-chain");
+    const page = join(out, "stage", "index.html");
+    writeFileSync(page, readFileSync(page, "utf8").replace("{ duration: 500, fill", "{ duration: 1, fill"));
+    const frames = await captureStageFrames({ out, frames: [30], env: { ...process.env, LITCLAUDE_MOTION_RUNTIME: WARM } });
+    const rgba = frames.get(30);
+    let edge = -1;
+    for (let x = 0; x < 1920 && edge < 0; x++) if (rgba[(550 * 1920 + x) * 4 + 1] > 200 && rgba[(550 * 1920 + x) * 4] < 60) edge = x;
+    // Born at t = 1/60 s, so at t = 0.5 s the chain is 483 ms in: 100 + 0.483 * 800 = 487.
+    assert.ok(Math.abs(edge - 487) <= 3, `t = 0.5 s: the chain started at frame 1 (${edge})`);
+  });
+
   it("a 1080x1920 kit film: ffprobe reports the portrait size and the flash grid and title-safe box are portrait", (t) => {
     if (needsRender(t)) return;
     const out = stageRun("portrait", { format: "9:16", fps: 30 });
@@ -309,7 +327,9 @@ describe("stage renders (real Chrome, virtual clock)", () => {
     const out = stageRun("clock", { fps: 30 });
     assert.equal(cli(["stage", "--out", out, "--round", "1", "--stills-only"], { CHROME_PATH: join(out, "no-chrome") }).status, 10);
     const nodeDir = resolve(process.execPath, "..");
-    const r = cli(["stage", "--out", out, "--round", "2"], { PATH: `${nodeDir}:/usr/bin:/bin`, FFMPEG_PATH: "" });
+    // Linux CI installs ffmpeg into /usr/bin itself, so that folder is shadowed rather than trusted.
+    const PATH = pathWithout([nodeDir, "/usr/bin", "/bin"], ["ffmpeg", "ffprobe"], temp("lit-stage-path-"));
+    const r = cli(["stage", "--out", out, "--round", "2"], { PATH, FFMPEG_PATH: "", FFPROBE_PATH: "" });
     assert.equal(r.status, 12, r.stdout + r.stderr);
     assert.ok(existsSync(join(out, "stills", "sheet.png")));
   });

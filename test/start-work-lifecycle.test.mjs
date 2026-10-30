@@ -672,7 +672,11 @@ describe("start-work canonical roots and forbidden actions", () => {
       assert.equal(decision.decision, "allow-normal", decision.reason);
       const write = handleStartWorkPreToolUse(root, { session_id: "s1", prompt_id: "p2", tool_use_id: "t2", cwd: root, tool_name: "Write", tool_input: { file_path: join(base, "챌린지".normalize("NFC"), "src", "b.mjs") } });
       assert.equal(write.decision, "allow-normal", write.reason);
-      assert.equal(Object.values(readStartWorkStatus(root).state.works)[0].status, "active");
+      const work = Object.values(readStartWorkStatus(root).state.works)[0];
+      assert.equal(work.status, "active");
+      // ext4 keeps NFC and NFD as two names, so the recorded root must be the spelling on disk.
+      assert.equal(work.authority.cwd_root, root);
+      assert.equal(work.effective_worktree_root, root);
     } finally {
       rmSync(base, { recursive: true, force: true });
     }

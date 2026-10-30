@@ -179,7 +179,9 @@ const canonicalDirectory = (path, label) => {
   }
   if (stats.isSymbolicLink()) throw new StartWorkLifecycleError(`${label} must not be a symbolic link`);
   if (!stats.isDirectory()) throw new StartWorkLifecycleError(`${label} must be a directory`);
-  return realpathSync(requested).normalize("NFC");
+  // Keep the on-disk spelling: ext4 does not fold Unicode normalization, so an NFC copy of an NFD
+  // folder name opens nothing there. Comparisons normalize on their own (rootCovers).
+  return realpathSync(requested);
 };
 
 const canonicalTarget = (path, label) => {
@@ -1728,7 +1730,7 @@ export const recordStartWorkSubagentStart = (root, input) => {
       started_at: nowIso(),
     };
     work.lanes[agentId] = lane;
-    if (canonicalWorktreePath !== canonicalRoot) {
+    if (canonicalWorktreePath.normalize("NFC") !== canonicalRoot.normalize("NFC")) {
       work.worktrees[worktreePath] = {
         path: worktreePath,
         owner: "claude",

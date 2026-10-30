@@ -377,8 +377,12 @@ describe("litclaude-ai CLI", () => {
 
     try {
       // A blocked private URL needs no network and echoes the URL, so the report runs past
-      // the 64 KiB pipe buffer that an exit before the flush would cut off.
-      const result = runCli(["public-read", "--json", `http://127.0.0.1/${"a".repeat(200_000)}`], home);
+      // the 64 KiB pipe buffer that an exit before the flush would cut off. Linux refuses any one
+      // argument over 128 KiB (MAX_ARG_STRLEN) with E2BIG, so the URL stays under it; the report
+      // echoes it twice, which is still past 128 KiB of stdout.
+      const url = `http://127.0.0.1/${"a".repeat(100_000)}`;
+      assert.ok(Buffer.byteLength(url) < 131_072, "one argv string must fit Linux MAX_ARG_STRLEN");
+      const result = runCli(["public-read", "--json", url], home);
 
       assert.equal(result.status, 2, result.stderr);
       assert.ok(result.stdout.length > 131_072, `piped stdout stopped at ${result.stdout.length} bytes`);

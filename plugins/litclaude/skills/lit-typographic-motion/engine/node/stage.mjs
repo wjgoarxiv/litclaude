@@ -133,7 +133,10 @@ async function openOnRung({ label, ctx }) {
   else if (!error && !(spec.duration > 0)) error = fail("the page's duration must be a positive number of seconds");
   if (!error && state.webglMissing) error = new BlockedError(EXIT.BLOCKED_NO_WEBGL2, `BLOCKED_NO_WEBGL2: the page asked for a WebGL context and the ${ctx.rung} rung gave none`);
   if (!error && browser.prepared?.failedFaces?.length) log(`warning: faces that did not load: ${browser.prepared.failedFaces.join(", ")}`);
-  if (error && !(ctx.rung === "gpu" && error.code === EXIT.BLOCKED_NO_WEBGL2)) {
+  // A 3D page usually throws when its WebGL context comes back null (three.js does), so on the GPU
+  // rung a missing context outranks the contract error it causes: openChecked retries on SwiftShader.
+  // Linux CI Chrome has no GPU, so `--use-angle=gl` gives no WebGL there.
+  if (error && !(ctx.rung === "gpu" && state.webglMissing)) {
     await browser.close();
     throw error;
   }

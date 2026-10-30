@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fakeNpm, npmGlobalInstallEnv, npmGlobalModeKeys } from "./helpers/fake-npm.mjs";
+import { pathWithout } from "./helpers/path-without.mjs";
 import { shortTypeTreatment, writeTreatment } from "./helpers/motion-treatment.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -135,7 +136,9 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     if (needsRender(t)) return;
     const dir = temp("lit-motion-12-");
     const nodeDir = resolve(process.execPath, "..");
-    const noFfmpeg = { LITCLAUDE_MOTION_RUNTIME: WARM, PATH: `${nodeDir}:/usr/bin:/bin`, FFMPEG_PATH: "" };
+    // Linux CI installs ffmpeg into /usr/bin itself, so that folder is shadowed rather than trusted.
+    const PATH = pathWithout([nodeDir, "/usr/bin", "/bin"], ["ffmpeg", "ffprobe"], temp("lit-motion-12-path-"));
+    const noFfmpeg = { LITCLAUDE_MOTION_RUNTIME: WARM, PATH, FFMPEG_PATH: "", FFPROBE_PATH: "" };
     const r = run([motion, "make", briefFile(dir, SHORT), "--out", join(dir, "out")], noFfmpeg);
     assert.equal(r.status, 12, r.stdout + r.stderr);
     assert.match(r.stderr + r.stdout, /BLOCKED_NO_FFMPEG_FOR_VIDEO/u);
@@ -145,6 +148,20 @@ describe("lit-typographic-motion runtime and BLOCKED states (MO-A-42..45, MO-A-5
     assert.equal(stills.status, 0, stills.stderr);
     const sheet = run([motion, "sheet", join(dir, "brief.json"), "--out", join(dir, "out2")], noFfmpeg);
     assert.equal(sheet.status, 0, sheet.stderr);
+  });
+
+  it("the no-ffmpeg PATH hides an ffmpeg that sits beside which, as apt installs it on Linux", () => {
+    const dir = temp("lit-motion-path-");
+    const bin = join(dir, "usr-bin");
+    mkdirSync(bin);
+    for (const name of ["ffmpeg", "ffprobe", "which"]) symlinkSync("/usr/bin/which", join(bin, name));
+    const encode = join(skillRoot, "engine", "node", "encode.mjs");
+    const probe = (PATH) => spawnSync(process.execPath, ["--input-type=module", "-e", `const m = await import(${JSON.stringify(pathToFileURL(encode).href)}); console.log(JSON.stringify([m.findFfmpeg(), m.findFfprobe(), m.which("which")]));`], { encoding: "utf8", env: { PATH, FFMPEG_PATH: "", FFPROBE_PATH: "" } });
+    const before = JSON.parse(probe(bin).stdout);
+    assert.equal(before[0], join(bin, "ffmpeg"), "the fixture puts ffmpeg on PATH");
+    const after = JSON.parse(probe(pathWithout([bin], ["ffmpeg", "ffprobe"], join(dir, "shadow"))).stdout);
+    assert.deepEqual(after.slice(0, 2), [null, null]);
+    assert.ok(after[2], "everything else in the shadowed folder still resolves");
   });
 
   it("an absent audio venv, or one whose pins changed, falls back to Tier 1 with the warning", (t) => {

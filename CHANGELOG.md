@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Linux fixes found by running the suite on ubuntu-latest. start-work kept a project folder whose name is stored
+  decomposed (NFD) in its composed spelling and then could not find the plan on ext4, which does not fold the two;
+  it now keeps the spelling on disk and compares in NFC. A 3D film on a host without a GPU fell over when three.js
+  threw on its null WebGL context, and now retries on SwiftShader as intended. A Web Animation the page starts
+  while loading no longer runs on the wall clock before frame 0, where a slow host let a short one finish and move
+  its chained successor early. The no-ffmpeg and large-argument tests no longer assume macOS, and a hand-run
+  `ci-linux.yml` runs the `ci.yml` steps on ubuntu-latest.
+
 ## 1.0.44 - 2026-10-29
 
 - A release from GitHub Actions no longer runs the whole suite a second time. The publish gate asks GitHub whether

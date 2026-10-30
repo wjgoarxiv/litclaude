@@ -353,6 +353,30 @@ describe("the 3D route", () => {
     for (let i = 0; i < rgba.length; i += 4) if (Math.abs(rgba[i] - 0xf3) + Math.abs(rgba[i + 1] - 0xee) + Math.abs(rgba[i + 2] - 0xe5) > 60) drawn++;
     assert.ok(drawn / (rgba.length / 4) > 0.01, `the protagonist is on screen (${drawn} px)`);
   });
+
+  it("a 3D page that throws because the GPU rung gave it no WebGL context falls back to SwiftShader", async (t) => {
+    const chrome = findChrome();
+    if (!warm || !chrome) return t.skip("needs a pre-warmed motion runtime and Chrome");
+    // Linux CI has no GPU: Chrome on the GPU rung hands the page no WebGL and three.js throws
+    // "Error creating WebGL context." This wrapper makes the real Chrome do the same here.
+    const dir = temp("lit-3d-nogpu-");
+    const launches = join(dir, "launches.txt");
+    const wrapper = join(dir, "chrome-no-gpu-webgl");
+    writeFileSync(wrapper, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${launches}'\ncase "$*" in *--use-angle=swiftshader*) exec '${chrome}' "$@" ;; esac\nexec '${chrome}' --disable-webgl --disable-webgl2 "$@"\n`, { mode: 0o755 });
+    const out = join(dir, "out");
+    const treatment = solid();
+    writeTreatment(out, treatment);
+    mkdirSync(join(out, "stage"), { recursive: true });
+    const pose = "(s, hero, cam, t) => { if (!hero.children.length) { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), new THREE.MeshStandardMaterial({ color: PAL.signal, roughness: 0.4 })); m.position.y = 0.8; hero.add(m); } hero.rotation.y = t * 0.8; },";
+    writeFileSync(join(out, "stage", "index.html"), scaffoldHtml(treatment).replaceAll("(s, hero, cam, t) => {},", pose));
+    const frames = await captureStageFrames({ out, frames: [240], env: { ...process.env, LITCLAUDE_MOTION_RUNTIME: warm, CHROME_PATH: wrapper } });
+    const rgba = frames.get(240);
+    let drawn = 0;
+    for (let i = 0; i < rgba.length; i += 4) if (Math.abs(rgba[i] - 0xf3) + Math.abs(rgba[i + 1] - 0xee) + Math.abs(rgba[i + 2] - 0xe5) > 60) drawn++;
+    assert.ok(drawn / (rgba.length / 4) > 0.01, `the protagonist is on screen (${drawn} px)`);
+    const argv = readFileSync(launches, "utf8").trim().split("\n");
+    assert.ok(argv.length >= 2 && !/--use-angle=swiftshader/u.test(argv[0]) && /--use-angle=swiftshader/u.test(argv.at(-1)), argv.join("\n"));
+  });
 });
 
 describe("fetching a named product's assets", () => {
