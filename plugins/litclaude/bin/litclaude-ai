@@ -18,6 +18,7 @@ const SUBCOMMANDS = {
   rewind: async (load, rest) => (await load("../lib/rewind/collect.mjs")).runRewindCli(rest, process.cwd()),
   wikify: async (load, rest) => (await load("../lib/wikify-knowledge-cli.mjs")).runWikifyKnowledgeCli(rest, undefined, process.cwd()),
   "motion-runtime": async (load, rest) => (await load("../skills/lit-typographic-motion/scripts/motion-runtime.mjs")).main(rest),
+  "agent-file": async (load, rest) => (await load("../lib/agent-file/cli.mjs")).runAgentFileCli(rest, { cwd: process.cwd() }),
 };
 
 const main = async () => {

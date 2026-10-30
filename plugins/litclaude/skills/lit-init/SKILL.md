@@ -268,6 +268,17 @@ ANTI-PATTERNS). Wait for all. Mark "generate" completed.
 Mark "review" in_progress. For each generated file: remove generic advice, remove parent duplicates,
 trim to the size limits, verify telegraphic style. Mark "review" completed.
 
+## Phase 5 — LitFamily project block
+
+After the review, run `litclaude-ai agent-file project --dir <repo root>` once. It adds the short
+LitFamily project block (plans, handoff, approval and evidence conventions) between
+`<!-- litfamily:litclaude:start … -->` and `<!-- litfamily:litclaude:end -->` markers at the end of
+the root `AGENTS.md`, so the hand-written knowledge base above stays yours and the block is refreshed
+in place on the next run. When the repo has no `CLAUDE.md`, it writes one containing `@AGENTS.md` so
+Claude Code loads the same file; an existing `CLAUDE.md` is left alone, and the command prints the
+line to add. Never edit text between the markers by hand, and never copy the block into subdirectory
+files. Report the `AGENT_FILE:` lines it prints in the final report.
+
 ## Final report
 
 ```
@@ -276,6 +287,7 @@ Mode: {update | create-new}
 Files: [OK] ./AGENTS.md (root, {N} lines) · [OK] ./src/hooks/AGENTS.md ({N} lines)
 Dirs analyzed: {N} · Created: {N} · Updated: {N}
 Hierarchy: ./AGENTS.md └── src/hooks/AGENTS.md
+LitFamily block: {AGENT_FILE lines from `agent-file project`}
 ```
 
 ## Anti-patterns

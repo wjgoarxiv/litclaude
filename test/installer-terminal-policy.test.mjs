@@ -21,6 +21,8 @@ const prompts = [
   ["Color 1-10 or name [cyan]: ", "gold"],
   ["Style 0-4 [None / keep current]: ", "3"],
   ["Install the icon font for LitClaude's status band? (y/N) ", "n"],
+  ["Keep Claude Code's Co-Authored-By line in commits and pull requests? [Y/n] ", "y"],
+  ["Add the short LitFamily block to your global CLAUDE.md? Your own text stays as it is. [Y/n] ", "n"],
 ];
 
 function install({ env = {}, args = ["--yes"], replies = [], blocked = false, stageFailure = false } = {}) {
@@ -82,7 +84,7 @@ for (const [name, policy, blocks] of modes) {
       assert.equal(result.settings.outputStyle, explicit ? "LitClaude — ELI5" : undefined);
     }
     const prompted = install({
-      env: { ...policy, LITCLAUDE_SPINNER: "1", LITCLAUDE_HUD_ACCENT_PROMPT: "1", LITCLAUDE_OUTPUT_STYLE_PROMPT: "1", LITCLAUDE_ICON_FONT_PROMPT: "1" },
+      env: { ...policy, LITCLAUDE_SPINNER: "1", LITCLAUDE_HUD_ACCENT_PROMPT: "1", LITCLAUDE_OUTPUT_STYLE_PROMPT: "1", LITCLAUDE_ICON_FONT_PROMPT: "1", LITCLAUDE_ATTRIBUTION_PROMPT: "1", LITCLAUDE_AGENT_FILE_PROMPT: "1" },
       args: [], replies: prompts,
     });
     assert.doesNotMatch(prompted.output, /\x1b/u);

@@ -442,6 +442,40 @@ retry or move any folders, read the same
 After a separate-profile trial, close that Claude session and terminal and go back to your
 original terminal environment. Your previous installation needs no downgrade or reinstall.
 
+## The LitFamily block in CLAUDE.md
+
+`install` can add a short block to the global `CLAUDE.md` (`$CLAUDE_CONFIG_DIR`, else `~/.claude`):
+the activation word, where plans and handoffs live, and the approval rule for push and publish. Only
+the lines between `<!-- litfamily:litclaude:start v=<version> -->` and
+`<!-- litfamily:litclaude:end -->` are written. The first insertion copies the file to
+`CLAUDE.md.litfamily-backup-<time>`, an update rewrites only the block, and `uninstall` removes it
+together with the blank line it added. A symlinked file or a broken marker pair is refused, not
+repaired.
+
+| When | What happens |
+| --- | --- |
+| Interactive install, no block yet | Asks once; No stores `agentFile: off` |
+| `install --yes` | Adds or refreshes the block |
+| Non-interactive install without `--yes` (npm postinstall) | Leaves the file alone and prints how to add it |
+| `install --no-agent-file` | Leaves the file alone for that run |
+| `config agentFile off` / `on` | Removes / writes the block now and stores the choice |
+
+`doctor` prints `AGENT_FILE: present v=<x> | stale v=<x> | absent | malformed | off`, and
+`LITCLAUDE_AGENT_FILE=on|off` overrides the stored choice for one run. `lit init` runs
+`litclaude-ai agent-file project`, which puts the project block into the repo's `AGENTS.md` and, when
+the repo has no `CLAUDE.md`, writes one that contains `@AGENTS.md`.
+
+### Commit and pull request attribution
+
+`config attribution <keep|off>` (stored as `attribution` in config.json, default `keep`;
+`LITCLAUDE_ATTRIBUTION` overrides it for one run). `off` writes Claude Code's native setting
+`"attribution": { "commit": "", "pr": "", "sessionUrl": false }` in the global `settings.json`, keeping
+the previous value in LitClaude's own settings record, and adds a no-attribution line to both blocks.
+The object form is used because `"attribution": false` needs Claude Code 2.1.281 and older versions
+skip the whole file. `keep` and `uninstall` restore the previous value exactly. An interactive install
+asks once when no choice is stored; `--yes` and non-interactive installs change nothing. `doctor` prints
+`ATTRIBUTION:`.
+
 ## Marks on outputs
 
 Every file LitClaude's engines write records that LitClaude made it. Showcase outputs also show

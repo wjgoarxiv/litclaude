@@ -11,7 +11,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["lib/durable-plan.mjs", "33fc7c2ba6305602c73650c8f29e6141e93b8ac32a444f772807e11bf8c22e44"],
     ["lib/immutable-expected-file-map.mjs", "4061486bc8eda8a53e56b7b346a1e400e7c858c0a682c83362fea460b46dfd4b"],
     ["lib/lit-mark.mjs", "b6b501e1d6fbf6c8e1797ba87a46b169423f909b039dab0067314d055cec33e7"],
-    ["lib/mark.mjs", "27520ea62ac74927384dcc3a20dc45aa66e2549cb434a242c546a43234865459"],
+    ["lib/mark.mjs", "8f3d1c3ff2c471d264e8d73fca97595c93cf4b43d7935c285d72ee1ddfa8c67c"],
     ["lib/npm-invocation.mjs", "8d7b98e65836f5400b33163083cfa842fcbbf0659923290b0c680395737d3716"],
     ["lib/office-runtime-lock/package-lock.json", "16d19b420b410035e9ca6886133368444a2b438121919857b3e8915be280c6a6"],
     ["lib/office-runtime-lock/package.json", "5e4b0c7ee7bd5ff88c888f7f46152c605caf128cc4e7bfd16423571210925394"],

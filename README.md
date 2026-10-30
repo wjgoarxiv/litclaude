@@ -522,6 +522,40 @@ npx @litfamily/litclaude@latest config mark off    # no marks
 The choice is kept in `~/.litclaude/config.json`; `LITCLAUDE_MARK=off` sets it for a single run.
 Marking is local: nothing is sent anywhere.
 
+## The LitFamily block in CLAUDE.md
+
+Claude Code reads your global `~/.claude/CLAUDE.md` at the start of every session. When you install
+LitClaude, it offers to add a short LitFamily block at the end of that file, about ten lines: what
+`lit` means, where plans and handoffs live, and that nothing is pushed or published without your yes.
+The detailed rules still arrive through LitClaude's hooks on each turn, so the block stays small.
+
+The block sits between `<!-- litfamily:litclaude:start -->` and `<!-- litfamily:litclaude:end -->`
+markers, and LitClaude only ever writes between them. The first time it goes in, your file is copied
+to `CLAUDE.md.litfamily-backup-<time>`; an update refreshes only the block; `uninstall` takes it out
+and leaves your file as it was.
+
+```bash
+npx @litfamily/litclaude@latest config agentFile off   # remove the block and keep it off
+npx @litfamily/litclaude@latest config agentFile on    # add it back
+```
+
+An interactive install asks before adding it, `install --yes` adds it, and `install --no-agent-file`
+skips it for that run. `doctor` prints the state as `AGENT_FILE:`. For a single repo, `lit init`
+writes the project version of the block into that repo's `AGENTS.md`.
+
+Claude Code adds a `Co-Authored-By` line to the commits it makes and a "Generated with Claude Code"
+line to pull requests. Some people want that record and some don't, so LitClaude leaves it alone
+unless you choose otherwise. An interactive install asks once; you can change it later:
+
+```bash
+npx @litfamily/litclaude@latest config attribution off    # hide it
+npx @litfamily/litclaude@latest config attribution keep   # Claude Code's default again
+```
+
+`off` sets Claude Code's own `attribution` setting in `~/.claude/settings.json` to hide both lines and
+adds a matching rule to the LitFamily block. `keep` and `uninstall` put back whatever that setting held
+before LitClaude changed it.
+
 ## How to tell the official build
 
 LitClaude is published on npm as `@litfamily/litclaude`, built from

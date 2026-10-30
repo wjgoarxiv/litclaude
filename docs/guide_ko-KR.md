@@ -421,6 +421,37 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 별도 프로필 체험을 마쳤다면 그 세션과 터미널을 닫고 원래 환경의 터미널로 돌아가면
 됩니다. 이전 설치를 되돌리거나 다시 설치할 필요는 없습니다.
 
+## CLAUDE.md의 LitFamily 구역
+
+`install`은 전역 `CLAUDE.md`(`$CLAUDE_CONFIG_DIR`, 없으면 `~/.claude`)에 짧은 구역을 넣을 수 있습니다.
+켜는 말, 계획과 이어받기 노트의 위치, 올리기와 출판의 허락 규칙이 들어갑니다. 쓰는 곳은
+`<!-- litfamily:litclaude:start v=<버전> -->`과 `<!-- litfamily:litclaude:end -->` 사이뿐입니다. 처음 넣을
+때 파일을 `CLAUDE.md.litfamily-backup-<시각>`으로 복사하고, 업데이트는 구역만 다시 쓰며, `uninstall`은
+구역과 함께 넣었던 빈 줄 하나를 뺍니다. 심볼릭 링크 파일이나 짝이 깨진 표시는 고치지 않고 거부합니다.
+
+| 언제 | 무엇을 하나 |
+| --- | --- |
+| 대화형 설치, 구역 없음 | 한 번 묻고, 아니요면 `agentFile: off`를 저장 |
+| `install --yes` | 구역을 넣거나 새로 씀 |
+| `--yes` 없는 비대화형 설치 (npm postinstall) | 파일은 그대로 두고 넣는 방법만 출력 |
+| `install --no-agent-file` | 그번만 파일을 그대로 둠 |
+| `config agentFile off` / `on` | 지금 구역을 빼거나 쓰고, 선택을 저장 |
+
+`doctor`는 `AGENT_FILE: present v=<x> | stale v=<x> | absent | malformed | off`를 출력하고,
+`LITCLAUDE_AGENT_FILE=on|off`는 한 번만 선택을 덮어씁니다. `lit init`은 `litclaude-ai agent-file project`를
+돌려 저장소의 `AGENTS.md`에 프로젝트 구역을 넣고, `CLAUDE.md`가 없으면 `@AGENTS.md` 한 줄짜리 파일을
+만듭니다.
+
+### 커밋과 PR의 AI 표시
+
+`config attribution <keep|off>`로 고릅니다. config.json에 `attribution`으로 저장되고 기본값은 `keep`이며,
+`LITCLAUDE_ATTRIBUTION`이 한 번만 덮어씁니다. `off`는 전역 `settings.json`의 Claude Code 설정을
+`"attribution": { "commit": "", "pr": "", "sessionUrl": false }`로 쓰고, 이전 값은 LitClaude의 설정 기록에
+남겨 두며, 두 구역에 AI 표시 금지 줄을 넣습니다. `"attribution": false`는 Claude Code 2.1.281 이상이
+필요하고 옛 버전은 파일 전체를 건너뛰므로 객체 형태를 씁니다. `keep`과 `uninstall`은 이전 값을 그대로
+돌려놓습니다. 저장된 선택이 없을 때 대화형 설치가 한 번 묻고, `--yes`와 비대화형 설치는 아무것도
+바꾸지 않습니다. `doctor`는 `ATTRIBUTION:`을 출력합니다.
+
 ## 결과물에 남는 표시
 
 LitClaude 엔진이 쓰는 파일에는 LitClaude가 만들었다는 기록이 남고, 보여 주려고 만든 결과물에는

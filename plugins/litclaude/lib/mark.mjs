@@ -46,23 +46,40 @@ export const readMarkMode = ({ env = process.env, litHome = markLitHome(env) } =
   return MARK_MODES.includes(stored) ? stored : "on";
 };
 
-/** Stores the mode, keeping the file's other keys; a symlinked config or home is refused, not followed. */
-export const writeMarkMode = (litHome, mode) => {
-  if (!MARK_MODES.includes(mode)) throw new Error(`mark takes one of: ${MARK_MODES.join(", ")}`);
+/** One key of `<litHome>/config.json`, or undefined when the file or key is unreadable. */
+export const readLitConfigKey = (litHome, key) => readConfig(markConfigPath(litHome))?.[key];
+
+/** Stores one key, keeping the file's other keys; a symlinked config or home is refused, not followed. */
+export const writeLitConfigKey = (litHome, key, value) => {
   const path = markConfigPath(litHome);
   for (const p of [litHome, path]) {
     try {
-      if (lstatSync(p).isSymbolicLink()) throw new Error(`refusing to write the mark setting through a symlink: ${p}`);
+      if (lstatSync(p).isSymbolicLink()) throw new Error(`refusing to write the ${key} setting through a symlink: ${p}`);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
   }
+  let current = {};
+  try {
+    lstatSync(path);
+    current = readConfig(path);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  // A config.json that exists but does not read as an object holds the user's other settings.
+  if (current === null) throw new Error(`refusing to overwrite ${path}: it is not readable JSON; fix or remove it first`);
   mkdirSync(litHome, { recursive: true, mode: 0o700 });
-  const next = { ...(readConfig(path) ?? {}), mark: mode };
+  const next = { ...current, [key]: value };
   const staging = `${path}.${process.pid}.tmp`;
   writeFileSync(staging, `${JSON.stringify(next, null, 2)}\n`, { flag: STATE_WRITE_FLAG, mode: 0o600 });
   renameSync(staging, path);
-  return mode;
+  return value;
+};
+
+/** Stores the mode, keeping the file's other keys; a symlinked config or home is refused, not followed. */
+export const writeMarkMode = (litHome, mode) => {
+  if (!MARK_MODES.includes(mode)) throw new Error(`mark takes one of: ${MARK_MODES.join(", ")}`);
+  return writeLitConfigKey(litHome, "mark", mode);
 };
 
 /** `LitClaude <version> · github.com/wjgoarxiv/litclaude`, the version taken from the plugin manifest. */

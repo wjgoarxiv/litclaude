@@ -33,6 +33,24 @@ import { readPublicSource } from "../plugins/litclaude/lib/public-source-reader/
 import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import { MOD_CHOICES } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { MARK_MODES, readMarkMode, writeMarkMode } from "../plugins/litclaude/lib/mark.mjs";
+import {
+  AGENT_FILE_ID,
+  AGENT_FILE_MODES,
+  agentFileBody,
+  agentFileState,
+  applyAgentFile,
+  readAgentFileMode,
+  writeAgentFileMode,
+} from "../plugins/litclaude/lib/agent-file/apply.mjs";
+import { agentFileLine, runAgentFileCli } from "../plugins/litclaude/lib/agent-file/cli.mjs";
+import {
+  ATTRIBUTION_MODES,
+  applyAttribution,
+  readAttributionMode,
+  restoreAttribution,
+  storedAttributionMode,
+  writeAttributionMode,
+} from "../plugins/litclaude/lib/agent-file/attribution.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
@@ -86,7 +104,7 @@ const prewarmMotionRuntime = () => {
 };
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read|motion-runtime> [...args]
        litclaude-ai --version
 
 Commands:
@@ -98,6 +116,13 @@ Commands:
                 desktop app too, which shows no editor for them.
                 \`config mark <on|meta|off>\` sets whether engine outputs carry
                 LitClaude's marks; it is kept in LitClaude's own config.json.
+                \`config agentFile <on|off>\` adds or removes the short LitFamily
+                block in the global CLAUDE.md; your own text there is never touched.
+                \`config attribution <keep|off>\` keeps or hides Claude Code's
+                Co-Authored-By and pull request line (keep is the default).
+  agent-file project [--dir <path>]
+                Write the LitFamily project block into the repo's AGENTS.md, and a
+                CLAUDE.md that imports it when the repo has none (what \`lit init\` runs).
   invite [@<github-id>] [--json]
                 Record who invited you (the same as typing \`lit invite @<id>\`);
                 the LIT card gets its club look. Saved in ~/.litclaude/invite.json
@@ -246,6 +271,7 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
   let permissionExplicit = Boolean(process.env.LITCLAUDE_PERMISSION_MODE);
   let assumeYes = false;
   let iconFont = false;
+  let agentFile = true;
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
@@ -277,10 +303,14 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
       iconFont = true;
       continue;
     }
+    if (arg === "--no-agent-file") {
+      agentFile = false;
+      continue;
+    }
     fail(`Unknown install option: ${arg}`, 64);
   }
 
-  return { permissionMode, permissionExplicit, assumeYes, iconFont };
+  return { permissionMode, permissionExplicit, assumeYes, iconFont, agentFile };
 };
 
 const permissionProfile = (mode) => {
@@ -794,6 +824,102 @@ const uninstallModOptions = (home = claudeHome()) => {
   writeClaudeSettings(settings, home);
 };
 
+// The LitFamily block in the global CLAUDE.md (lib/agent-file). An install adds it on a Yes or --yes
+// and refreshes one already there; a non-interactive install without --yes only says how to add it.
+const agentFilePath = (home = claudeHome()) => join(home, "CLAUDE.md");
+const writeAgentFile = (action, dryRun = false) => applyAgentFile({
+  path: agentFilePath(),
+  id: AGENT_FILE_ID,
+  version,
+  body: agentFileBody("global", { attribution: readAttributionMode({ litHome: litHome() }) }),
+  action,
+  dryRun,
+});
+
+// Rewrites the block in place when it is already there, so it follows the attribution choice.
+const refreshAgentFile = () => {
+  if (readAgentFileMode({ litHome: litHome() }) === "off" || agentFileState({ path: agentFilePath(), version }) === "absent") return null;
+  return writeAgentFile("install");
+};
+
+// Claude Code's own `attribution` setting: `off` hides it, `keep` puts back what LitClaude replaced.
+const setAttribution = (mode, home = claudeHome()) => {
+  const settings = readClaudeSettings(home);
+  const before = JSON.stringify(settings);
+  const record = { ...(settings[litClaudeSettingsKey] ?? {}) };
+  const result = mode === "off" ? applyAttribution(settings, record) : (restoreAttribution(settings, record), "restored");
+  if (Object.keys(record).length > 0) settings[litClaudeSettingsKey] = record;
+  else delete settings[litClaudeSettingsKey];
+  if (JSON.stringify(settings) !== before) writeClaudeSettings(settings, home);
+  return result;
+};
+
+const ATTRIBUTION_QUESTION = "Keep Claude Code's Co-Authored-By line in commits and pull requests? [Y/n] ";
+
+const shouldPromptAttribution = () => {
+  if (process.env.LITCLAUDE_ATTRIBUTION_PROMPT === "1") return true;
+  if (process.env.LITCLAUDE_ATTRIBUTION_PROMPT === "0") return false;
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
+};
+
+// An install changes attribution only when the user chose `off`, now or before; --yes and a
+// non-interactive install leave Claude Code's default alone.
+const installAttribution = async ({ assumeYes }) => {
+  let mode = storedAttributionMode(litHome());
+  if (mode === undefined && !assumeYes && shouldPromptAttribution()) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
+    try {
+      mode = /^\s*n/iu.test(await rl.question(ATTRIBUTION_QUESTION)) ? "off" : "keep";
+    } finally {
+      rl.close();
+    }
+    writeAttributionMode(litHome(), mode);
+  }
+  const result = readAttributionMode({ litHome: litHome() }) === "off" ? setAttribution("off") : null;
+  const note = result === "user-changed" ? "; your own attribution setting in settings.json was left as it is" : "";
+  process.stdout.write(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })}${note} (change: litclaude-ai config attribution <keep|off>)\n`);
+};
+const AGENT_FILE_QUESTION = "Add the short LitFamily block to your global CLAUDE.md? Your own text stays as it is. [Y/n] ";
+
+const shouldPromptAgentFile = () => {
+  if (process.env.LITCLAUDE_AGENT_FILE_PROMPT === "1") return true;
+  if (process.env.LITCLAUDE_AGENT_FILE_PROMPT === "0") return false;
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
+};
+
+const installAgentFile = async ({ assumeYes, agentFile }) => {
+  const path = agentFilePath();
+  if (!agentFile || readAgentFileMode({ litHome: litHome() }) === "off") {
+    process.stdout.write(`AGENT_FILE: off (${path} left as it is; turn on: litclaude-ai config agentFile on)\n`);
+    return;
+  }
+  const state = agentFileState({ path, version });
+  // A linked, non-file or non-UTF-8 CLAUDE.md is never written, so asking about it would only mislead.
+  if (["symlink", "not-file", "not-utf8"].includes(state)) {
+    process.stdout.write(`AGENT_FILE: ${state} ${path}; left as it is\n`);
+    return;
+  }
+  if (state === "absent" && !assumeYes) {
+    if (!shouldPromptAgentFile()) {
+      process.stdout.write(`AGENT_FILE: skipped (add the LitFamily block to ${path}: litclaude-ai config agentFile on)\n`);
+      return;
+    }
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
+    let yes;
+    try {
+      yes = !/^\s*n/iu.test(await rl.question(AGENT_FILE_QUESTION));
+    } finally {
+      rl.close();
+    }
+    if (!yes) {
+      writeAgentFileMode(litHome(), "off");
+      process.stdout.write("AGENT_FILE: off (turn on later: litclaude-ai config agentFile on)\n");
+      return;
+    }
+  }
+  process.stdout.write(`${agentFileLine(writeAgentFile("install"))}\n`);
+};
+
 // `config` prints the options; `config <option> <value>` sets one. A value the user sets is theirs,
 // so it leaves the install record and uninstall keeps it.
 const configModOptions = (rest, home = claudeHome()) => {
@@ -801,6 +927,8 @@ const configModOptions = (rest, home = claudeHome()) => {
     const options = modOptionsOf(readClaudeSettings(home));
     for (const key of Object.keys(MOD_CHOICES)) process.stdout.write(`${key.padEnd(7)} ${options[key].padEnd(7)} (${MOD_CHOICES[key].join(", ")})\n`);
     process.stdout.write(`${"mark".padEnd(7)} ${readMarkMode({ litHome: litHome() }).padEnd(7)} (${MARK_MODES.join(", ")})\n`);
+    process.stdout.write(`agentFile ${readAgentFileMode({ litHome: litHome() }).padEnd(5)} (${AGENT_FILE_MODES.join(", ")})\n`);
+    process.stdout.write(`attribution ${readAttributionMode({ litHome: litHome() }).padEnd(4)} (${ATTRIBUTION_MODES.join(", ")})\n`);
     process.stdout.write("Change one with: litclaude-ai config <option> <value>. New Claude Code sessions, terminal or desktop app, pick it up.\n");
     return;
   }
@@ -817,7 +945,33 @@ const configModOptions = (rest, home = claudeHome()) => {
     process.stdout.write(`MARK: ${value}\n`);
     return;
   }
-  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark"].join(", ")}`, 64);
+  // `agentFile` is kept in config.json too, and acts at once: off removes the block, on writes it.
+  if (key === "agentFile") {
+    const value = String(raw ?? "").trim().toLowerCase();
+    if (!AGENT_FILE_MODES.includes(value) || rest.length > 2) fail(`agentFile takes one of: ${AGENT_FILE_MODES.join(", ")}`, 64);
+    try {
+      writeAgentFileMode(litHome(), value);
+    } catch (error) {
+      fail(error.message);
+    }
+    process.stdout.write(`AGENT_FILE: ${value}\n${agentFileLine(writeAgentFile(value === "off" ? "uninstall" : "install"))}\n`);
+    return;
+  }
+  // `attribution` sets Claude Code's own setting and the block line together.
+  if (key === "attribution") {
+    const value = String(raw ?? "").trim().toLowerCase();
+    if (!ATTRIBUTION_MODES.includes(value) || rest.length > 2) fail(`attribution takes one of: ${ATTRIBUTION_MODES.join(", ")}`, 64);
+    try {
+      writeAttributionMode(litHome(), value);
+    } catch (error) {
+      fail(error.message);
+    }
+    setAttribution(value, home);
+    const block = refreshAgentFile();
+    process.stdout.write(`ATTRIBUTION: ${value}\n${block ? `${agentFileLine(block)}\n` : ""}`);
+    return;
+  }
+  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark", "agentFile", "attribution"].join(", ")}`, 64);
   const value = String(raw ?? "").trim().toLowerCase();
   if (!MOD_CHOICES[key].includes(value) || rest.length > 2) fail(`${key} takes one of: ${MOD_CHOICES[key].join(", ")}`, 64);
   const settings = readClaudeSettings(home);
@@ -1383,7 +1537,7 @@ const install = async ({ dryRun, rest }) => {
   const home = claudeHome();
   const litClaudeHome = litHome();
   const existingLitClaude = readClaudeSettings(home)[litClaudeSettingsKey] ?? {};
-  const { permissionMode, permissionExplicit, assumeYes, iconFont } = parseInstallOptions(rest, existingLitClaude.permissionMode);
+  const { permissionMode, permissionExplicit, assumeYes, iconFont, agentFile } = parseInstallOptions(rest, existingLitClaude.permissionMode);
   const existingHudAccent = normalizeHudAccent(existingLitClaude.hudAccent);
   const existingOutputStyle = existingLitClaude.outputStyleChoice ?? "off";
   const requestedHudAccent = process.env.LITCLAUDE_HUD_ACCENT
@@ -1418,6 +1572,9 @@ const install = async ({ dryRun, rest }) => {
     } else {
       process.stdout.write("Icon font: not requested (pass --icon-font)\n");
     }
+    process.stdout.write(!agentFile || readAgentFileMode({ litHome: litClaudeHome }) === "off"
+      ? `Agent file: off (${agentFilePath(home)} left as it is)\n`
+      : `Would add the LitFamily block to ${agentFilePath(home)} (asks first; --yes adds it, --no-agent-file skips)\n`);
     process.stdout.write("Launch with: claude\n");
     return;
   }
@@ -1530,6 +1687,8 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n");
   process.stdout.write(`${prewarmMotionRuntime()}\n`);
   if (wantsIconFont) await runIconFontInstall();
+  await installAttribution({ assumeYes });
+  await installAgentFile({ assumeYes, agentFile });
   process.stdout.write("Launch with: claude\n");
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };
@@ -1651,6 +1810,9 @@ const doctor = ({ dryRun }) => {
   process.stdout.write(`${iconFontDoctorLine()}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings())}\n`);
   process.stdout.write(`MARK: ${readMarkMode({ litHome: litHome() })} (change: litclaude-ai config mark <on|meta|off>)\n`);
+  const agentFileMode = readAgentFileMode({ litHome: litHome() });
+  process.stdout.write(`AGENT_FILE: ${agentFileMode === "off" ? "off" : agentFileState({ path: agentFilePath(), version })} (${agentFilePath()}; change: litclaude-ai config agentFile <on|off>)\n`);
+  process.stdout.write(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })} (change: litclaude-ai config attribution <keep|off>)\n`);
   for (const line of officialBuildLines(packageJson)) process.stdout.write(`${line}\n`);
 
   // lit-typographic-motion: the seven readiness probes, every run. Read-only and never fatal; a
@@ -1766,6 +1928,7 @@ const uninstall = ({ dryRun }) => {
     const fonts = uninstallIconFont({ litHome: home, dryRun: true });
     for (const path of fonts.removed) process.stdout.write(`Would remove icon font file: ${path}\n`);
     for (const { path, reason } of fonts.kept) process.stdout.write(`Would keep icon font file: ${path} (${reason})\n`);
+    process.stdout.write(`Would remove the LitFamily block from ${agentFilePath()} (your own text stays)\n`);
     return;
   }
   // Before the LitClaude home goes: the manifest there says which font files LitClaude wrote.
@@ -1778,6 +1941,8 @@ const uninstall = ({ dryRun }) => {
   rmSync(marketplaceRoot(home), { recursive: true, force: true });
   // Notifier files predate ownership receipts; retain their bytes and foreign entries.
   removeEmptyDirectory(updateNotifierRoot);
+  // Before LitClaude's settings record goes: it holds the attribution value to put back.
+  setAttribution("keep");
   unregisterClaudePlugin();
   unregisterMarketplace();
   uninstallHudStatusLine();
@@ -1787,6 +1952,7 @@ const uninstall = ({ dryRun }) => {
   rmSync(claudePluginRoot(), { recursive: true, force: true });
   removeEmptyDirectory(dirname(claudePluginRoot()));
   removeEmptyDirectory(pluginCacheRoot);
+  process.stdout.write(`${agentFileLine(writeAgentFile("uninstall"))}\n`);
   process.stdout.write("UNINSTALL_PASS\n");
 };
 
@@ -1925,6 +2091,9 @@ const main = async () => {
     }
     case "uninstall":
       uninstall(parsed);
+      break;
+    case "agent-file":
+      exitAfterFlush(runAgentFileCli(parsed.rest, { dryRun: parsed.dryRun }));
       break;
     default:
       printUsage();

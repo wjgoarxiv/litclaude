@@ -506,6 +506,39 @@ npx @litfamily/litclaude@latest config mark off    # 표시 없음
 선택은 `~/.litclaude/config.json`에 저장되고, `LITCLAUDE_MARK=off`로 한 번만 바꿀 수도 있습니다.
 표시는 내 컴퓨터 안에서만 붙고, 어디에도 전송하지 않습니다.
 
+## CLAUDE.md의 LitFamily 구역
+
+Claude Code는 세션을 시작할 때마다 전역 `~/.claude/CLAUDE.md`를 읽습니다. LitClaude를 설치하면 이
+파일 끝에 열 줄 정도의 짧은 LitFamily 구역을 넣을지 묻습니다. `lit`이 무슨 뜻인지, 계획과 이어받기
+노트가 어디에 있는지, 허락 없이는 올리거나 출판하지 않는다는 내용이 들어갑니다. 자세한 규칙은 지금처럼
+훅이 대화마다 넣어 주므로 구역은 짧게 유지됩니다.
+
+구역은 `<!-- litfamily:litclaude:start -->`와 `<!-- litfamily:litclaude:end -->` 표시 사이에만 있고,
+LitClaude는 그 사이만 씁니다. 처음 넣을 때 원래 파일을 `CLAUDE.md.litfamily-backup-<시각>`으로 복사해
+두고, 업데이트할 때는 구역만 새로 쓰며, `uninstall`은 구역을 빼고 파일을 원래대로 돌려놓습니다.
+
+```bash
+npx @litfamily/litclaude@latest config agentFile off   # 구역을 빼고 계속 꺼 둠
+npx @litfamily/litclaude@latest config agentFile on    # 다시 넣음
+```
+
+대화형 설치는 넣기 전에 묻고, `install --yes`는 바로 넣고, `install --no-agent-file`은 그번만
+건너뜁니다. `doctor`는 상태를 `AGENT_FILE:`로 보여 줍니다. 저장소 하나에는 `lit init`이 같은 구역의
+프로젝트판을 그 저장소의 `AGENTS.md`에 씁니다.
+
+Claude Code는 자기가 만든 커밋에 `Co-Authored-By` 줄을, PR에는 "Generated with Claude Code" 줄을
+붙입니다. 이 기록을 남기고 싶은 사람도 있고 아닌 사람도 있어서, LitClaude는 따로 고르지 않으면 그대로
+둡니다. 대화형 설치에서 한 번 묻고, 나중에 바꿀 수도 있습니다.
+
+```bash
+npx @litfamily/litclaude@latest config attribution off    # 숨김
+npx @litfamily/litclaude@latest config attribution keep   # Claude Code 기본값으로 되돌림
+```
+
+`off`는 `~/.claude/settings.json`에 있는 Claude Code의 `attribution` 설정으로 두 줄을 숨기고, LitFamily
+구역에도 같은 규칙을 한 줄 넣습니다. `keep`과 `uninstall`은 LitClaude가 바꾸기 전의 값을 그대로
+돌려놓습니다.
+
 ## 공식 빌드 알아보기
 
 LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,

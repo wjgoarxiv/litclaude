@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- The installer can add a short LitFamily block to the global `CLAUDE.md` that Claude Code reads every
+  session: the activation word, where plans and handoffs live, and the never-push-without-a-yes rule. It
+  sits between `<!-- litfamily:litclaude:start -->` and `<!-- litfamily:litclaude:end -->` markers at the
+  end of the file, so your own text is never changed; the first install keeps a backup copy, an update
+  refreshes only the block, and `uninstall` takes it out again byte for byte. An interactive install asks
+  first, `--yes` adds it, `--no-agent-file` skips it, and a non-interactive install without `--yes` only
+  prints how to add it. `litclaude-ai config agentFile off` removes it and keeps it off; `on` brings it
+  back. `doctor` prints `AGENT_FILE:`. `lit init` now also writes the project version of the block into
+  the repo's `AGENTS.md` through `litclaude-ai agent-file project`, with a `CLAUDE.md` that imports it
+  when the repo has none.
+- `litclaude-ai config attribution off` hides Claude Code's `Co-Authored-By` commit line and its pull
+  request line through Claude Code's own `attribution` setting, and adds a matching rule to the LitFamily
+  block; `keep`, the default, leaves them as Claude Code writes them, and `uninstall` restores whatever
+  the setting held before. An interactive install asks once; `--yes` changes nothing.
 - Linux fixes found by running the suite on ubuntu-latest. start-work kept a project folder whose name is stored
   decomposed (NFD) in its composed spelling and then could not find the plan on ext4, which does not fold the two;
   it now keeps the spelling on disk and compares in NFC. A 3D film on a host without a GPU fell over when three.js
