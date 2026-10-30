@@ -24,7 +24,7 @@ const binPath = join(root, "bin", "litclaude-ai.js");
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const START = (id, v) => `<!-- litfamily:${id}:start v=${v} -->`;
 const END = (id) => `<!-- litfamily:${id}:end -->`;
-const block = { id: "litclaude", version: "1.0.0", body: "## LitFamily\n\n- rule one\n" };
+const block = { id: "litclaude", version: "9.1.0", body: "## LitFamily\n\n- rule one\n" };
 
 const withDir = (fn) => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-agent-file-")));
@@ -39,23 +39,23 @@ describe("managed block on text", () => {
   it("adds the block to an empty file and to the end of user text, keeping the user's bytes", () => {
     const empty = upsertBlock("", block);
     assert.equal(empty.changed, true);
-    assert.equal(empty.text, `${START("litclaude", "1.0.0")}\n## LitFamily\n\n- rule one\n${END("litclaude")}\n`);
+    assert.equal(empty.text, `${START("litclaude", "9.1.0")}\n## LitFamily\n\n- rule one\n${END("litclaude")}\n`);
     const mine = upsertBlock("# Mine\n\nmy rule\n", block);
     assert.ok(mine.text.startsWith("# Mine\n\nmy rule\n\n<!-- litfamily:litclaude:start"));
-    assert.deepEqual(inspectBlock(mine.text, "litclaude"), { state: "present", version: "1.0.0", created: false });
+    assert.deepEqual(inspectBlock(mine.text, "litclaude"), { state: "present", version: "9.1.0", created: false });
   });
 
   it("is idempotent and replaces only the bytes between its markers", () => {
     const first = upsertBlock("mine\n", block).text;
     assert.deepEqual(upsertBlock(first, block), { text: first, changed: false });
     const withAfter = `${first}\nafter the block\n`;
-    const next = upsertBlock(withAfter, { ...block, version: "1.0.1", body: "## LitFamily\n\n- rule two\n" });
+    const next = upsertBlock(withAfter, { ...block, version: "9.1.1", body: "## LitFamily\n\n- rule two\n" });
     assert.equal(next.changed, true);
     assert.ok(next.text.startsWith("mine\n\n"));
     assert.ok(next.text.endsWith("\nafter the block\n"));
     assert.match(next.text, /rule two/u);
     assert.doesNotMatch(next.text, /rule one/u);
-    assert.equal(inspectBlock(next.text, "litclaude").version, "1.0.1");
+    assert.equal(inspectBlock(next.text, "litclaude").version, "9.1.1");
   });
 
   it("removes exactly what it added", () => {
@@ -82,7 +82,7 @@ describe("managed block on text", () => {
   });
 
   it("refuses a malformed marker pair instead of guessing", () => {
-    const start = START("litclaude", "1.0.0");
+    const start = START("litclaude", "9.1.0");
     for (const text of [`${start}\nbody\n`, `${END("litclaude")}\n${start}\n`, `${start}\n${start}\n${END("litclaude")}\n`]) {
       assert.equal(inspectBlock(text, "litclaude").state, "malformed");
       assert.throws(() => upsertBlock(text, block), /malformed/u);
@@ -156,22 +156,22 @@ describe("agent file on disk", () => {
     assert.equal(readFileSync(target, "utf8"), "real\n");
 
     const broken = join(dir, "broken.md");
-    writeFileSync(broken, `${START("litclaude", "1.0.0")}\nhalf\n`);
+    writeFileSync(broken, `${START("litclaude", "9.1.0")}\nhalf\n`);
     assert.equal(applyAgentFile({ path: broken, ...block, action: "install" }).status, "refused-malformed");
-    assert.equal(readFileSync(broken, "utf8"), `${START("litclaude", "1.0.0")}\nhalf\n`);
+    assert.equal(readFileSync(broken, "utf8"), `${START("litclaude", "9.1.0")}\nhalf\n`);
   }));
 
   it("reports present, stale, absent and malformed", () => withDir((dir) => {
     const path = join(dir, "CLAUDE.md");
-    assert.equal(agentFileState({ path, id: "litclaude", version: "1.0.0" }), "absent");
+    assert.equal(agentFileState({ path, id: "litclaude", version: "9.1.0" }), "absent");
     applyAgentFile({ path, ...block, action: "install" });
-    assert.equal(agentFileState({ path, id: "litclaude", version: "1.0.0" }), "present v=1.0.0");
-    assert.equal(agentFileState({ path, id: "litclaude", version: "2.0.0" }), "stale v=1.0.0");
-    writeFileSync(path, `${START("litclaude", "1.0.0")}\n`);
-    assert.equal(agentFileState({ path, id: "litclaude", version: "1.0.0" }), "malformed");
+    assert.equal(agentFileState({ path, id: "litclaude", version: "9.1.0" }), "present v=9.1.0");
+    assert.equal(agentFileState({ path, id: "litclaude", version: "2.0.0" }), "stale v=9.1.0");
+    writeFileSync(path, `${START("litclaude", "9.1.0")}\n`);
+    assert.equal(agentFileState({ path, id: "litclaude", version: "9.1.0" }), "malformed");
     const link = join(dir, "linked.md");
     symlinkSync(path, link);
-    assert.equal(agentFileState({ path: link, id: "litclaude", version: "1.0.0" }), "symlink");
+    assert.equal(agentFileState({ path: link, id: "litclaude", version: "9.1.0" }), "symlink");
   }));
 
   it("keeps the on/off setting in config.json beside the other keys, with an env override", () => withDir((litHome) => {
