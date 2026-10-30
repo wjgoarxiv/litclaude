@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.45 - 2026-10-30
 
+- The README Studio HyperFrames cover template now locks `@hono/node-server` 2.1.5. 2.1.1 decoded a static path
+  twice, which let a request slip past middleware (Dependabot alert, moderate; the template only renders locally).
 - The installer can add a short LitFamily block to the global `CLAUDE.md` that Claude Code reads every
   session: the activation word, where plans and handoffs live, and the never-push-without-a-yes rule. It
   sits between `<!-- litfamily:litclaude:start -->` and `<!-- litfamily:litclaude:end -->` markers at the
