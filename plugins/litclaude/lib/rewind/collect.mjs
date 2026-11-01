@@ -422,14 +422,18 @@ export const collectRewind = ({
   }
   const recentRuns = (runs ?? []).filter((run) => now - run.atMs <= sinceMs).sort((a, b) => b.atMs - a.atMs);
   for (const session of sessions) {
-    if ((sessionId && session.sessionId === sessionId) || session.status === "waiting-on-user") continue;
+    // A paused frame in a stack can be a day old, so it alone does not keep a session that stopped
+    // from reading as waiting (and as a lane at work); a question it asked, or a boundary, does.
+    const pausedOnly = session.waitingReason === "paused workflow";
+    if ((sessionId && session.sessionId === sessionId) || (session.status === "waiting-on-user" && !pausedOnly)) continue;
     const live = newestLiveness.get(session.sessionId);
     const run = recentRuns.find((item) => item.sessionId === session.sessionId);
-    if (run && !(live?.state === "alive" && live.atMs > run.atMs)) {
+    if (!pausedOnly && run && !(live?.state === "alive" && live.atMs > run.atMs)) {
       session.status = "done";
       session.finishedPlan = run.plan;
     } else if (live && live.state !== "alive" && live.atMs >= (session.lastMs ?? 0) - LIVENESS_SLACK_MS) {
       session.status = live.state === "ended" ? "ended" : "idle";
+      delete session.waitingReason;
     }
   }
   sessions.sort((a, b) => statusRank[a.status] - statusRank[b.status] || (b.lastMs ?? 0) - (a.lastMs ?? 0));

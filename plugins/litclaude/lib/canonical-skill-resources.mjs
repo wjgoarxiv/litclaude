@@ -26,7 +26,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["lib/rename-aliases.mjs", "3ee93aec10d0dbe785c554ab3040173ee94fde27da1b440a54b0513e5d11a508"],
     ["lib/render_pages.py", "56312e376659a83a8547f60491ca2eac8ef2f3ddd763132cac0016f4d0cce542"],
     ["lib/rewind/brief.mjs", "11904c66063ff7c66556c22d198be746768ef0b5a31d40e3b4c6988dbf4b537c"],
-    ["lib/rewind/collect.mjs", "35f092dd1b0c5464e56bc17f7283758aa6b86679a44cae508eb6887f6a189e7a"],
+    ["lib/rewind/collect.mjs", "ffac66406d182a131b79197f4038fc43b205d73da2fc25dce34a10d12781ac91"],
     ["lib/rewind/gauge.mjs", "347095c1d36492bb996a679b67847261d15388b29962ed2ebaabec3cf0a5d9df"],
     ["lib/rewind/next-step.mjs", "75936e3f80ce3328f0a1487a5001dd73c625c996f14d43e4ffbc07c70b56fdd2"],
     ["lib/rewind/redact.mjs", "5bff5f69191f2ec07720f2dde20a850730fed884efb47a43f2604d7295a1615a"],

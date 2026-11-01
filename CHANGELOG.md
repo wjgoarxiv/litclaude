@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- A film stage can declare chroma-keyed overlay clips in `stage/clips/clips.json` (id, directory, frame count, fps).
+  Declared frames are checked against the clip limits and exempt from the flipbook rule; undeclared frame sets are
+  still refused. A page shows a clip frame-exactly from film time with `LitStage.clip`. Cover mode takes no clips.
+- lit-adhd no longer reports a session that stopped as a lane still at work. A paused frame left in its workflow
+  stack from an earlier day kept the session marked as waiting on you, and that mark was exempt from the Stop hook's
+  idle record, so the brief said to wait for a lane that was not running. A session that stopped now reads idle or
+  ended; one that asked you a question, or holds a start-work approval, still waits.
+
 ## 1.0.45 - 2026-10-30
 
 - lit-adhd no longer tells this session to `lit continue` a paused workflow, or `go` on its own run, while other
