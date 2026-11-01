@@ -57,12 +57,12 @@ const assertLlmCommandContract = (text, label) => {
 };
 
 describe("Claude plugin manifest", () => {
-  it("aligns package and plugin manifests to the v1.0.45 release", () => {
+  it("aligns package and plugin manifests to the v1.0.46 release", () => {
     const manifest = readJson(pluginManifestPath);
     const packageJson = readJson(packagePath);
 
-    assert.equal(packageJson.version, "1.0.45");
-    assert.equal(manifest.version, "1.0.45");
+    assert.equal(packageJson.version, "1.0.46");
+    assert.equal(manifest.version, "1.0.46");
     assert.equal(manifest.version, packageJson.version);
     assert.doesNotMatch(packageJson.description, /source-origin|port/i);
     assert.doesNotMatch(manifest.description, /source-origin|port/i);

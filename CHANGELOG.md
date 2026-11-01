@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.46 - 2026-11-01
 
 - A film stage can declare chroma-keyed overlay clips in `stage/clips/clips.json` (id, directory, frame count, fps).
   Declared frames are checked against the clip limits and exempt from the flipbook rule; undeclared frame sets are
