@@ -278,6 +278,11 @@ const seenAt = (other) => Math.max(Number.isFinite(other.at) ? other.at : -Infin
 const STATE_ORDER = { running: 0, idle: 1 };
 const runningFirst = (a, b) => (STATE_ORDER[a.state] ?? 2) - (STATE_ORDER[b.state] ?? 2) || b.seenAt - a.seenAt;
 
+// Another session's start-work frame outlives its work: cancelling or finishing the work does not
+// touch that session's stack. A frame whose plan only settled works ran (snapshot.settledPlans, from
+// boulder.json) is over, so the top of another session is its last frame that is not.
+const topLiveFrame = (other, settledPlans) => other?.frames?.findLast((frame) => !(frame.skill === "start-work" && frame.planRef && settledPlans.includes(frame.planRef.split("/").at(-1)))) ?? null;
+
 // herdr lanes of this project: sessions whose hooks ran in a herdr pane (their liveness record keeps
 // the pane id), drawn as lanes named `<top skill or claude> · <pane>`. This session, and any session
 // in this session's own pane, are never listed.
@@ -291,7 +296,8 @@ const herdrLanesOf = (snapshot, others, now) => {
       const other = others.find((candidate) => candidate.sessionId === id);
       const live = currentLiveness(entry, other?.at);
       if (live?.state === "ended" || (!live && other?.ended) || now - Math.max(entry.at, other?.at ?? -Infinity) > OTHER_SESSION_MS) return null;
-      const top = other?.frames?.length ? frameThread(other.frames.at(-1), 0, {}, false, null, now) : { name: "claude", stage: null, done: null, total: null, state: "running", doneAt: null, active: false, elapsedMs: null };
+      const topFrame = topLiveFrame(other, snapshot.settledPlans ?? []);
+      const top = topFrame ? frameThread(topFrame, 0, {}, false, null, now) : { name: "claude", stage: null, done: null, total: null, state: "running", doneAt: null, active: false, elapsedMs: null };
       return { ...top, key: `herdr-${entry.herdrPane}`, sessionId: id, name: `${top.name} · ${entry.herdrPane}`, state: otherState(top, live), seenAt: Math.max(entry.at, other?.at ?? -Infinity) };
     })
     .filter((thread) => thread && lingering(thread, now))
@@ -332,10 +338,10 @@ const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
   const others = (snapshot.workflow?.others ?? [])
     .filter((other) => {
       const live = currentLiveness(other.liveness, other.at);
-      return (live ? live.state !== "ended" : !other.ended) && !inHerdr.has(other.sessionId) && now - seenAt(other) <= OTHER_SESSION_MS && other.frames?.length;
+      return (live ? live.state !== "ended" : !other.ended) && !inHerdr.has(other.sessionId) && now - seenAt(other) <= OTHER_SESSION_MS && topLiveFrame(other, snapshot.settledPlans ?? []);
     })
     .map((other) => {
-      const thread = frameThread(other.frames.at(-1), 0, {}, false, null, now);
+      const thread = frameThread(topLiveFrame(other, snapshot.settledPlans ?? []), 0, {}, false, null, now);
       return { ...thread, key: `session-${other.id8}`, session: other.id8, state: otherState(thread, currentLiveness(other.liveness, other.at)), seenAt: seenAt(other) };
     })
     .filter((thread) => lingering(thread, now))

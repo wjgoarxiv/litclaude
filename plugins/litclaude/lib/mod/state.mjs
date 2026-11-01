@@ -222,6 +222,17 @@ export const parseBoulder = (state, sessionId) => {
   };
 };
 
+// Plan file names whose start-work is over: every work of the project that was cancelled or
+// completed, minus any plan a live (active or paused) work runs again. Another session's stack keeps
+// its start-work frame until that session ends, so the card asks boulder.json whether it still runs.
+export const settledPlansOf = (state) => {
+  const works = state && state.works && typeof state.works === "object" ? Object.values(state.works) : [];
+  const planOf = (work) => (typeof work?.active_plan === "string" ? work.active_plan.split("/").at(-1) : "");
+  const live = new Set(works.filter((work) => ["active", "paused"].includes(work?.status)).map(planOf));
+  return [...new Set(works.filter((work) => ["cancelled", "completed"].includes(work?.status)).map(planOf))]
+    .filter((name) => name && !live.has(name));
+};
+
 const CRITERION_STATUSES = new Set(["pass", "fail", "blocked", "pending"]);
 
 export const parseGoals = (state, sessionId) => {
@@ -509,6 +520,7 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     ignition: parseIgnition(ignition, sessionId),
     work,
     completedWorkIds: completed,
+    settledPlans: settledPlansOf(boulder),
     goal: parseGoals(goals, sessionId),
     autoloop: parseAutoloop(autoloop),
     litPlan: parseLitPlanTurn(litPlan, sessionId),

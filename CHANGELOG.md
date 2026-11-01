@@ -9,6 +9,9 @@
   stack from an earlier day kept the session marked as waiting on you, and that mark was exempt from the Stop hook's
   idle record, so the brief said to wait for a lane that was not running. A session that stopped now reads idle or
   ended; one that asked you a question, or holds a start-work approval, still waits.
+- The LitClaude card no longer shows a cancelled or finished start-work as running. Another session's workflow stack
+  keeps its start-work step until that session ends, and the card drew it from the stack alone. It now checks
+  `boulder.json` and leaves out a start-work whose plan only cancelled or completed works ran.
 
 ## 1.0.45 - 2026-10-30
 
