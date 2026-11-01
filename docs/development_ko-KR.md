@@ -30,6 +30,11 @@ npm run pack:payload-guard
 npm run pack:dry-run
 ```
 
+CI는 test를 4개 shard(`npm run test:shard -- <i>/4`)로 나눠 병렬로 실행합니다. 나누는 기준은
+`tools/test-shard-timings.json`에 적힌 측정 시간입니다. `npm test`는 여전히 한 번에 전부 실행합니다.
+`test/test-shards.test.mjs`가 shard를 합치면 `test/*.test.mjs`가 파일마다 정확히 한 번씩 나오는지
+확인합니다. 새 test 파일은 표에 없어도 되고, 느린 파일이면 측정 시간을 표에 추가합니다.
+
 ## 로컬 개발
 
 checkout에서 plugin을 직접 로드합니다.

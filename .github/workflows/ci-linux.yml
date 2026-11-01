@@ -1,7 +1,7 @@
 name: CI (Linux)
 
 # Hand-run only: the same steps as ci.yml on ubuntu-latest, so the suite can be proven green on
-# Linux (about 55 minutes) before ci.yml moves off macOS (about two and a half hours).
+# Linux (about 55 minutes serially, about 15 as four shards) before ci.yml moves off macOS.
 on:
   workflow_dispatch:
 
@@ -9,9 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
 
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
@@ -27,8 +32,23 @@ jobs:
       - name: ffmpeg for the motion and audio tests
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Unit and integration tests
-        run: npm test
+      - name: Unit and integration tests (shard ${{ matrix.shard }})
+        run: npm run test:shard -- ${{ matrix.shard }}
+
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      LITCLAUDE_AUTO_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Validate plugin
         run: npm run validate:plugin
@@ -99,3 +119,21 @@ jobs:
             exit 1
           fi
           echo "release-command placeholder guard passed"
+
+  # The one check to read: green only when every test shard and the gates passed. It keeps the job name
+  # "verify" that the single job had, and ci.yml's run conclusion (which the publish gate reads) is
+  # success only when this job is.
+  verify:
+    needs: [test, gates]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Every test shard and the gates passed
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          GATES_RESULT: ${{ needs.gates.result }}
+        run: |
+          echo "test shards: $TEST_RESULT, gates: $GATES_RESULT"
+          [ "$TEST_RESULT" = success ] && [ "$GATES_RESULT" = success ]

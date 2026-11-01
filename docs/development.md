@@ -33,6 +33,11 @@ npm run pack:payload-guard
 npm run pack:dry-run
 ```
 
+CI runs the suite as four parallel shards (`npm run test:shard -- <i>/4`), split by the measured
+seconds in `tools/test-shard-timings.json`; `npm test` still runs everything in one process.
+`test/test-shards.test.mjs` proves the shards together are `test/*.test.mjs`, each file once. A new
+test file needs no table entry; add its measured time there when it is slow.
+
 ## Local development
 
 Load the plugin directly from this checkout while editing it:

@@ -82,7 +82,7 @@ describe('ci-hardening: every local gate is actually enforced in CI', () => {
   // detector of an unpinned resource: doctor verifies what the manifest lists, so a file
   // added without regenerating is invisible to it. This list is the regression pin.
   const REQUIRED_CI_SCRIPTS = [
-    'npm test',
+    'npm run test:shard',
     'npm run validate:plugin',
     'npm run doctor',
     'npm run check:skill-resources',
