@@ -56,6 +56,9 @@ const cardRows = async (project) => {
 const withProject = async (body) => {
   const project = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-ended-")));
   const env = { ...process.env, LITCLAUDE_HUD_STATE_ROOT: join(project, ".hud"), LITCLAUDE_DISABLE_UPDATE_CHECK: "1" };
+  // A run inside a herdr pane would stamp that pane on the fixture sessions, and their rows would read
+  // `review-work · <pane>` instead of `other session <id>`. `npm test` preloads a scrub; a file run alone does not.
+  delete env.HERDR_PANE_ID;
   try {
     mkdirSync(join(project, ".git"));
     runHook(project, env, VIEWER, "pre-tool-use", { tool_name: "Skill", tool_input: { skill: "litclaude:lit-loop" } });
