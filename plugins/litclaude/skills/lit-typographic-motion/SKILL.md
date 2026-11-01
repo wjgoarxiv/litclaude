@@ -124,7 +124,7 @@ Done needs all of: a valid treatment; gate PASS; at least two look rounds, the f
 | 14 | BLOCKED_DEPS_NOT_PREWARMED | Tell the user to run `litclaude-ai motion-runtime install` outside this session. |
 | 15 | BLOCKED_FONT_FETCH | A cached font is missing or its sha256 differs; same fix. |
 | 16 | BLOCKED_TREATMENT_INVALID | Fix the named field. |
-| 17 | STAGE_CONTRACT_ERROR | Fix the named element, API, raster, size or missing copy line. |
+| 17 | STAGE_CONTRACT_ERROR | Fix the named element, API, raster, clip, size or missing copy line. |
 | 18 | STAGE_NONDETERMINISTIC | Seed it or drive it from `t`. |
 | 19 | STAGE_NETWORK_REQUEST | Remove the named URL; everything is local. |
 | 20 | SOUND_INVALID | Fix the planned sound. |
