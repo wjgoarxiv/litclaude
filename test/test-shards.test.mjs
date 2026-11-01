@@ -105,6 +105,9 @@ describe('test shards: the workflows start every shard', () => {
       const specs = matrix.split(',').map((s) => s.trim().replace(/^["']|["']$/gu, ''));
       assert.deepEqual(specs, Array.from({ length: SHARD_COUNT }, (_, i) => `${i + 1}/${SHARD_COUNT}`));
       assert.match(text, /run: npm run test:shard -- \$\{\{ matrix\.shard \}\}/u);
+      const warm = text.indexOf('run: node bin/litclaude-ai.js motion-runtime install');
+      assert.ok(warm > -1 && warm < text.indexOf('run: npm run test:shard'),
+        `${name}: a shard must pre-warm the motion runtime before its tests, or the render tests skip`);
       assert.doesNotMatch(text, /run: npm test\s*$/mu, `${name} still runs the whole suite in one job`);
       assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test, gates\]/mu, `${name}: verify must need the test shards and the gates`);
       assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, `${name}: verify must run even when a shard fails`);

@@ -32,6 +32,12 @@ jobs:
       - name: ffmpeg for the motion and audio tests
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
+      # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
+      # pre-warmed"). One long serial run happened to warm it for the later files; a shard has no such
+      # earlier file, so it is warmed here, once per job, before any test starts.
+      - name: Pre-warm the motion runtime for the render tests
+        run: node bin/litclaude-ai.js motion-runtime install
+
       - name: Unit and integration tests (shard ${{ matrix.shard }})
         run: npm run test:shard -- ${{ matrix.shard }}
 
