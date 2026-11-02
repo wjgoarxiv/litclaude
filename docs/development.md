@@ -33,10 +33,15 @@ npm run pack:payload-guard
 npm run pack:dry-run
 ```
 
-CI runs the suite as four parallel shards (`npm run test:shard -- <i>/4`), split by the measured
-seconds in `tools/test-shard-timings.json`; `npm test` still runs everything in one process.
-`test/test-shards.test.mjs` proves the shards together are `test/*.test.mjs`, each file once. A new
-test file needs no table entry; add its measured time there when it is slow.
+Everyday work runs the fast tier (`npm test`): everything except the render/Chrome/ffmpeg/motion
+files in `tools/test-tiers.json`, about 13 minutes locally. The heavy tier (`npm run test:heavy`)
+runs when those areas change; the release checklist runs both (`npm run test:all`).
+`test/test-tiers.test.mjs` proves every file sits in exactly one tier. CI runs the fast tier on
+every push and PR (macOS and Linux) and the heavy tier as four parallel shards
+(`npm run test:shard -- --tier heavy <i>/4`), split by the measured seconds in
+`tools/test-shard-timings.json`; `test/test-shards.test.mjs` proves the shards together are each
+tier, each file once. A new test file lands in the fast tier with no table entry; add its measured
+time to the timings table when it is slow, and move it to the tiers table when it is heavy.
 
 ## Local development
 

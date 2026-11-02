@@ -11,7 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const shardModule = await import('../tools/test-shard.mjs');
-const { SHARD_COUNT, PROFILES, assignShards, listTestFiles, loadTimings, testArgs, weightsFor } = shardModule;
+const { SHARD_COUNT, PROFILES, TIERS, assignShards, filesForTier, listTestFiles, loadTimings, testArgs, weightsFor } = shardModule;
 
 const allFiles = readdirSync(join(ROOT, 'test')).filter((name) => name.endsWith('.test.mjs')).sort();
 const rel = (name) => `test/${name}`;
@@ -69,7 +69,7 @@ describe('test shards: every test file runs in exactly one shard', () => {
 });
 
 describe('test shards: the command line', () => {
-  const list = (spec, profile) => spawnSync(process.execPath, [join(ROOT, 'tools', 'test-shard.mjs'), spec, '--list', '--profile', profile], {
+  const list = (spec, profile, tier) => spawnSync(process.execPath, [join(ROOT, 'tools', 'test-shard.mjs'), spec, '--list', '--profile', profile, ...(tier ? ['--tier', tier] : [])], {
     cwd: ROOT, encoding: 'utf8',
   });
 
@@ -89,33 +89,72 @@ describe('test shards: the command line', () => {
     }
   });
 
-  it('runs node --test with exactly the flags and --import helpers of npm test', () => {
-    const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts.test;
-    assert.equal(`node ${testArgs(ROOT).join(' ')} test/*.test.mjs`, script);
-    assert.ok(testArgs(ROOT).includes('--test-concurrency=1'));
+  it('shards use the shared node --test flags (pinned in test-tiers.test.mjs)', () => {
+    // The exact flags are pinned by the tier guard; here the shard runner must use that same
+    // shared list, so shards, fast tier, heavy tier and the whole suite invoke node --test alike.
     // A shard that stalls must fail with the hung test's name instead of sitting until the job
     // timeout (run 41412939749: shard 2 printed nothing for 82 min), and a file whose tests are
     // done must not hold the runner open on a lingering handle.
-    assert.ok(testArgs(ROOT).includes('--test-timeout=900000'));
-    assert.ok(testArgs(ROOT).includes('--test-force-exit'));
+    assert.ok(testArgs().includes('--test-concurrency=1'));
+    assert.ok(testArgs().includes('--test-timeout=900000'));
+    assert.ok(testArgs().includes('--test-force-exit'));
+  });
+
+  it('--tier shards exactly that tier, once each', () => {
+    for (const tier of TIERS) {
+      const lines = [];
+      for (let i = 1; i <= SHARD_COUNT; i += 1) {
+        const result = list(`${i}/${SHARD_COUNT}`, PROFILES[0], tier);
+        assert.equal(result.status, 0, result.stderr);
+        lines.push(...result.stdout.split('\n').filter(Boolean));
+      }
+      assert.deepEqual([...lines].sort(), [...filesForTier(tier, ROOT)].sort());
+    }
+  });
+
+  it('rejects an unknown --tier', () => {
+    assert.notEqual(list(`1/${SHARD_COUNT}`, PROFILES[0], 'smoke').status, 0, 'an unknown tier was accepted');
   });
 });
 
-describe('test shards: the workflows start every shard', () => {
+describe('test shards: the workflows split fast and heavy', () => {
   for (const name of ['ci.yml', 'ci-linux.yml']) {
-    it(`${name} runs shards 1/${SHARD_COUNT} to ${SHARD_COUNT}/${SHARD_COUNT}, each once, and gates "verify" on them`, () => {
+    it(`${name} runs the fast tier unsharded and gates "verify" on it`, () => {
       const text = readFileSync(join(ROOT, '.github', 'workflows', name), 'utf8');
-      const matrix = text.match(/^\s+shard: \[([^\]]*)\]\s*$/mu)?.[1];
-      assert.ok(matrix, `${name} has no shard matrix`);
-      const specs = matrix.split(',').map((s) => s.trim().replace(/^["']|["']$/gu, ''));
-      assert.deepEqual(specs, Array.from({ length: SHARD_COUNT }, (_, i) => `${i + 1}/${SHARD_COUNT}`));
-      assert.match(text, /run: npm run test:shard -- \$\{\{ matrix\.shard \}\}/u);
+      assert.doesNotMatch(text, /test:shard/u, `${name} still shards the fast tier`);
+      assert.match(text, /run: npm test\s*$/mu, `${name} does not run the fast tier`);
       const warm = text.indexOf('run: node bin/litclaude-ai.js motion-runtime install');
-      assert.ok(warm > -1 && warm < text.indexOf('run: npm run test:shard'),
-        `${name}: a shard must pre-warm the motion runtime before its tests, or the render tests skip`);
-      assert.doesNotMatch(text, /run: npm test\s*$/mu, `${name} still runs the whole suite in one job`);
-      assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test, gates\]/mu, `${name}: verify must need the test shards and the gates`);
-      assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, `${name}: verify must run even when a shard fails`);
+      assert.ok(warm > -1 && warm < text.indexOf('run: npm test'),
+        `${name}: the fast tier must pre-warm the motion runtime before its tests, or render tests skip`);
+      assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test, gates\]/mu, `${name}: verify must need the fast tier and the gates`);
+      assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, `${name}: verify must run even when the tests fail`);
     });
   }
+
+  it(`ci-heavy.yml runs the heavy tier as shards 1/${SHARD_COUNT} to ${SHARD_COUNT}/${SHARD_COUNT}, each once, and gates "verify" on them`, () => {
+    const text = readFileSync(join(ROOT, '.github', 'workflows', 'ci-heavy.yml'), 'utf8');
+    const matrix = text.match(/^\s+shard: \[([^\]]*)\]\s*$/mu)?.[1];
+    assert.ok(matrix, 'ci-heavy.yml has no shard matrix');
+    const specs = matrix.split(',').map((s) => s.trim().replace(/^["']|["']$/gu, ''));
+    assert.deepEqual(specs, Array.from({ length: SHARD_COUNT }, (_, i) => `${i + 1}/${SHARD_COUNT}`));
+    assert.match(text, /run: npm run test:shard -- --tier heavy \$\{\{ matrix\.shard \}\}/u);
+    const warm = text.indexOf('run: node bin/litclaude-ai.js motion-runtime install');
+    assert.ok(warm > -1 && warm < text.indexOf('run: npm run test:shard'),
+      'ci-heavy.yml: a shard must pre-warm the motion runtime before its tests, or the render tests skip');
+    assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test\]/mu, 'ci-heavy.yml: verify must need the heavy shards');
+    assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, 'ci-heavy.yml: verify must run even when a shard fails');
+  });
+
+  it('ci-heavy.yml runs when heavy areas change, on demand, weekly, and on every main push', () => {
+    const text = readFileSync(join(ROOT, '.github', 'workflows', 'ci-heavy.yml'), 'utf8');
+    assert.match(text, /^on:\n(?:.*\n)*? {4}branches: \[main\]/mu, 'ci-heavy.yml: every main push needs a heavy run for release safety');
+    assert.match(text, /pull_request:/u, 'ci-heavy.yml: PRs touching heavy areas need a heavy run');
+    assert.match(text, /^\s+paths:/mu, 'ci-heavy.yml: PR pushes need a paths filter, or every doc edit pays for renders');
+    for (const path of ['tools/test-tier.mjs', 'tools/test-tiers.json', 'tools/test-shard.mjs', 'package.json']) {
+      assert.ok(text.includes(path), `ci-heavy.yml paths filter misses ${path}`);
+    }
+    assert.match(text, /workflow_dispatch:/u, 'ci-heavy.yml: the heavy tier needs a hand-run trigger');
+    assert.match(text, /schedule:/u, 'ci-heavy.yml: the heavy tier needs a weekly schedule');
+    assert.match(text, /cron:/u, 'ci-heavy.yml: the weekly schedule needs a cron');
+  });
 });

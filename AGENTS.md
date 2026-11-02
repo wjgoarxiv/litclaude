@@ -25,7 +25,9 @@ Node ESM (`.mjs`) throughout, tests via `node --test`. Git root is this director
 Run from this directory:
 
 ```bash
-npm test                      # node --test; ~833 pass as of 2026-08-01
+npm test                      # fast tier only (render/heavy files excluded); ~15 min
+npm run test:heavy          # render/Chrome/ffmpeg/motion tier; runs when those areas change
+npm run test:all             # both tiers; what the release checklist runs
 npm run validate:plugin
 npm run doctor
 npm run check:version         # package.json / plugin.json / MCP lockstep

@@ -1,8 +1,12 @@
 name: CI (Linux)
 
-# Hand-run only: the same steps as ci.yml on ubuntu-latest, so the suite can be proven green on
-# Linux (about 55 minutes serially, about 15 as four shards) before ci.yml moves off macOS.
+# The fast tier on ubuntu-latest, on every push and PR: the same steps as ci.yml (only the ffmpeg
+# install differs). The heavy tier runs separately in ci-heavy.yml.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,12 +15,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ["1/4", "2/4", "3/4", "4/4"]
+    timeout-minutes: 60
 
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
@@ -33,13 +32,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
-      # pre-warmed"). One long serial run happened to warm it for the later files; a shard has no such
-      # earlier file, so it is warmed here, once per job, before any test starts.
+      # pre-warmed"). The fast tier keeps a few render-capable files, so it is warmed here, once per
+      # job, before any test starts.
       - name: Pre-warm the motion runtime for the render tests
         run: node bin/litclaude-ai.js motion-runtime install
 
-      - name: Unit and integration tests (shard ${{ matrix.shard }})
-        run: npm run test:shard -- ${{ matrix.shard }}
+      - name: Unit and integration tests (fast tier)
+        run: npm test
 
   gates:
     runs-on: ubuntu-latest
@@ -126,9 +125,7 @@ jobs:
           fi
           echo "release-command placeholder guard passed"
 
-  # The one check to read: green only when every test shard and the gates passed. It keeps the job name
-  # "verify" that the single job had, and ci.yml's run conclusion (which the publish gate reads) is
-  # success only when this job is.
+  # The Linux fast-tier check: green only when the fast tier and the gates passed.
   verify:
     needs: [test, gates]
     if: ${{ always() }}
@@ -136,10 +133,10 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Every test shard and the gates passed
+      - name: Fast tier and gates passed
         env:
           TEST_RESULT: ${{ needs.test.result }}
           GATES_RESULT: ${{ needs.gates.result }}
         run: |
-          echo "test shards: $TEST_RESULT, gates: $GATES_RESULT"
+          echo "fast tier: $TEST_RESULT, gates: $GATES_RESULT"
           [ "$TEST_RESULT" = success ] && [ "$GATES_RESULT" = success ]

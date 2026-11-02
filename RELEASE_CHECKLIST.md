@@ -85,7 +85,7 @@ behavior.
 
 ## Required Local Verification
 
-- `npm test`
+- `npm run test:all` (fast tier plus the render/installer heavy tier)
 - `npm run validate:plugin`
 - `npm run doctor`
 - `npm run check:version`
@@ -103,7 +103,7 @@ behavior.
 
 Use this track when testing from the current checkout:
 
-1. Run `npm test`.
+1. Run `npm run test:all`.
 2. Run `npm run validate:plugin`.
 3. Run `npm run qa:tmux`.
 4. Run `node bin/litclaude-ai.js workflow-check --json`.
@@ -177,7 +177,7 @@ not merely documented. A reviewer that returns a non-`PASS` verdict must produce
 
 ## Real-Surface QA Gates
 
-`npm run qa:real-surface` must pass alongside `npm test`, not instead of it.
+`npm run qa:real-surface` must pass alongside `npm run test:all`, not instead of it.
 It runs three probes that drive the shipped runtime rather than importing a
 reimplementation, so they survive a packaged install and outlive any test-tree
 cleanup:
@@ -364,7 +364,7 @@ version installable through `npm`, `npx`, and `bunx`.
    for neutral release wording.
 3. Run `npm whoami` and confirm the intended npm account.
 4. Re-run the full local verification set from a clean checkout:
-   - `npm test`
+   - `npm run test:all`
    - `npm run validate:plugin`
    - `npm run doctor`
    - `npm run qa:tmux`

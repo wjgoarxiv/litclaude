@@ -20,6 +20,7 @@ function createFixture(testScript) {
     scripts: {
       prepublishOnly: packageMetadata.scripts.prepublishOnly,
       test: testScript,
+      "test:all": testScript,
     },
   }));
   writeFileSync(join(directory, ".npmrc"), "registry=http://127.0.0.1:9/\noffline=true\n");
@@ -174,38 +175,49 @@ const SHA = "a".repeat(40);
 const ciEnv = { GITHUB_ACTIONS: "true", GITHUB_SHA: SHA, GITHUB_REPOSITORY: "wjgoarxiv/litclaude", GITHUB_TOKEN: "t" };
 const cleanGit = (args) => (args[0] === "rev-parse" ? SHA : "");
 const answer = (body, status = 200) => async () => ({ ok: status === 200, status, json: async () => body });
-const greenRun = { workflow_runs: [{ id: 7, head_sha: SHA, conclusion: "success" }] };
+const greenFast = { workflow_runs: [{ id: 7, head_sha: SHA, conclusion: "success", event: "push" }] };
+const greenHeavy = { workflow_runs: [{ id: 9, head_sha: SHA, conclusion: "success", event: "workflow_dispatch" }] };
+const bothGreen = async (url) => answer(url.includes("ci-heavy.yml") ? greenHeavy : greenFast)();
 
-test("a CI publish passes the gate only when ci.yml passed on the same clean commit", async () => {
+test("a CI publish passes the gate only when ci.yml and ci-heavy.yml passed on the same clean commit", async () => {
   const { ciVerdict } = await import("../scripts/prepublish-test-gate.mjs");
-  let asked = "";
+  const asked = [];
   const fetchImpl = async (url, init) => {
-    asked = url;
+    asked.push(url);
     assert.equal(init.headers.authorization, "Bearer t");
-    return answer(greenRun)();
+    return bothGreen(url);
   };
   const verdict = await ciVerdict({ env: ciEnv, fetchImpl, git: cleanGit });
   assert.equal(verdict.ok, true, verdict.reason);
-  assert.match(asked, /\/repos\/wjgoarxiv\/litclaude\/actions\/workflows\/ci\.yml\/runs\?head_sha=a{40}&status=success&event=push/u);
+  assert.match(asked[0], /\/repos\/wjgoarxiv\/litclaude\/actions\/workflows\/ci\.yml\/runs\?head_sha=a{40}&status=success/u);
+  assert.match(asked[1], /\/repos\/wjgoarxiv\/litclaude\/actions\/workflows\/ci-heavy\.yml\/runs\?head_sha=a{40}&status=success/u);
+  assert.match(verdict.reason, /ci\.yml run 7 and ci-heavy\.yml run 9 passed/u);
 });
 
-test("a CI publish is refused without a green ci.yml run for that commit", async () => {
+test("a CI publish is refused without green fast and heavy runs for that commit", async () => {
   const { ciVerdict } = await import("../scripts/prepublish-test-gate.mjs");
   const refusals = [
     [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [] }), git: cleanGit }, /no successful ci\.yml/u],
+    [{ env: ciEnv, fetchImpl: bothGreen, git: cleanGit }, null],
+    [{ env: ciEnv, fetchImpl: async (url) => answer(url.includes("ci-heavy.yml") ? { workflow_runs: [] } : greenFast)(), git: cleanGit }, /no successful ci-heavy/u],
+    [{ env: ciEnv, fetchImpl: async (url) => answer(url.includes("ci-heavy.yml") ? { workflow_runs: [{ id: 9, head_sha: SHA, conclusion: "success", event: "pull_request" }] } : greenFast)(), git: cleanGit }, /no successful ci-heavy/u],
     [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [{ id: 7, head_sha: "b".repeat(40), conclusion: "success" }] }), git: cleanGit }, /no successful/u],
     [{ env: ciEnv, fetchImpl: answer({ workflow_runs: [{ id: 7, head_sha: SHA, conclusion: "failure" }] }), git: cleanGit }, /no successful/u],
     [{ env: ciEnv, fetchImpl: answer({}, 403), git: cleanGit }, /answered 403/u],
     [{ env: ciEnv, fetchImpl: async () => { throw new Error("offline"); }, git: cleanGit }, /unreachable: offline/u],
-    [{ env: ciEnv, fetchImpl: answer(greenRun), git: (args) => (args[0] === "rev-parse" ? "c".repeat(40) : "") }, /checkout is not/u],
-    [{ env: ciEnv, fetchImpl: answer(greenRun), git: (args) => (args[0] === "rev-parse" ? SHA : " M lib/x.mjs") }, /local changes/u],
-    [{ env: { ...ciEnv, GITHUB_ACTIONS: undefined }, fetchImpl: answer(greenRun), git: cleanGit }, /not a GitHub Actions run/u],
-    [{ env: { ...ciEnv, GITHUB_REPOSITORY: "x/y?z=1" }, fetchImpl: answer(greenRun), git: cleanGit }, /not a GitHub Actions run/u],
+    [{ env: ciEnv, fetchImpl: bothGreen, git: (args) => (args[0] === "rev-parse" ? "c".repeat(40) : "") }, /checkout is not/u],
+    [{ env: ciEnv, fetchImpl: bothGreen, git: (args) => (args[0] === "rev-parse" ? SHA : " M lib/x.mjs") }, /local changes/u],
+    [{ env: { ...ciEnv, GITHUB_ACTIONS: undefined }, fetchImpl: bothGreen, git: cleanGit }, /not a GitHub Actions run/u],
+    [{ env: { ...ciEnv, GITHUB_REPOSITORY: "x/y?z=1" }, fetchImpl: bothGreen, git: cleanGit }, /not a GitHub Actions run/u],
   ];
   for (const [input, reason] of refusals) {
     const verdict = await ciVerdict(input);
-    assert.equal(verdict.ok, false);
-    assert.match(verdict.reason, reason);
+    if (reason === null) {
+      assert.equal(verdict.ok, true, verdict.reason);
+    } else {
+      assert.equal(verdict.ok, false);
+      assert.match(verdict.reason, reason);
+    }
   }
 });
 

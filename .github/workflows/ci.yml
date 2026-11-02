@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Hand-run on a branch to time the shards; the publish gate counts only push runs.
+  # Hand-run on a branch to time the fast tier.
   workflow_dispatch:
 
 permissions:
@@ -13,16 +13,12 @@ permissions:
 
 jobs:
   test:
-    # macOS is where the whole suite is proven green (render tests need a GPU-backed WebGL context and macOS
-    # file-name normalisation). The suite takes about three hours serially there, so it runs as four parallel
-    # shards split by measured file duration (tools/test-shard.mjs); the slowest shard is one motion file.
+    # macOS is where the suite is proven green (render tests need a GPU-backed WebGL context and macOS
+    # file-name normalisation). Everyday pushes run the fast tier only (test/*.test.mjs minus the
+    # render/Chrome/ffmpeg/motion files in tools/test-tiers.json, about 13 minutes); the heavy tier
+    # runs on Linux in ci-heavy.yml.
     runs-on: macos-latest
-    timeout-minutes: 120
-
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ["1/4", "2/4", "3/4", "4/4"]
+    timeout-minutes: 60
 
     env:
       LITCLAUDE_AUTO_INSTALL: "0"
@@ -39,13 +35,13 @@ jobs:
         run: brew install ffmpeg
 
       # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
-      # pre-warmed"). One long serial run happened to warm it for the later files; a shard has no such
-      # earlier file, so it is warmed here, once per job, before any test starts.
+      # pre-warmed"). The fast tier keeps a few render-capable files, so it is warmed here, once per
+      # job, before any test starts.
       - name: Pre-warm the motion runtime for the render tests
         run: node bin/litclaude-ai.js motion-runtime install
 
-      - name: Unit and integration tests (shard ${{ matrix.shard }})
-        run: npm run test:shard -- ${{ matrix.shard }}
+      - name: Unit and integration tests (fast tier)
+        run: npm test
 
   gates:
     runs-on: macos-latest
@@ -132,9 +128,10 @@ jobs:
           fi
           echo "release-command placeholder guard passed"
 
-  # The one check to read: green only when every test shard and the gates passed. It keeps the job name
+  # The one check to read: green only when the fast tier and the gates passed. It keeps the job name
   # "verify" that the single job had, and ci.yml's run conclusion (which the publish gate reads) is
-  # success only when this job is.
+  # success only when this job is. The heavy tier is a separate check (ci-heavy.yml); the publish
+  # gate requires both green on the same commit.
   verify:
     needs: [test, gates]
     if: ${{ always() }}
@@ -142,10 +139,10 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Every test shard and the gates passed
+      - name: Fast tier and gates passed
         env:
           TEST_RESULT: ${{ needs.test.result }}
           GATES_RESULT: ${{ needs.gates.result }}
         run: |
-          echo "test shards: $TEST_RESULT, gates: $GATES_RESULT"
+          echo "fast tier: $TEST_RESULT, gates: $GATES_RESULT"
           [ "$TEST_RESULT" = success ] && [ "$GATES_RESULT" = success ]

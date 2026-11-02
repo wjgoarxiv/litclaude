@@ -81,8 +81,10 @@ describe('ci-hardening: every local gate is actually enforced in CI', () => {
   // check:skill-resources is the specific one that was missing, and it is the ONLY
   // detector of an unpinned resource: doctor verifies what the manifest lists, so a file
   // added without regenerating is invisible to it. This list is the regression pin.
+  // The fast tier (`npm test`) is the gate here; the heavy tier is sharded in ci-heavy.yml
+  // (asserted in test-shards.test.mjs), not in ci.yml.
   const REQUIRED_CI_SCRIPTS = [
-    'npm run test:shard',
+    'npm test',
     'npm run validate:plugin',
     'npm run doctor',
     'npm run check:skill-resources',
@@ -99,13 +101,15 @@ describe('ci-hardening: every local gate is actually enforced in CI', () => {
     assert.deepEqual(missing, [], `ci.yml does not run: ${missing.join(', ')}`);
   });
 
-  // ci-linux.yml proves the suite on ubuntu-latest by hand before ci.yml leaves macOS, so it runs
-  // the same commands as ci.yml (only the ffmpeg install differs) and never on push or PR.
-  it('ci-linux.yml is hand-run and runs the same commands as ci.yml on ubuntu-latest', () => {
+  // ci-linux.yml runs the same fast tier as ci.yml on ubuntu-latest, on every push and PR
+  // (only the ffmpeg install differs). Hand-running stays available for branch timing.
+  it('ci-linux.yml runs the same fast tier as ci.yml on ubuntu-latest, on push and PR', () => {
     const linux = readFileSync(resolve(ROOT, '.github', 'workflows', 'ci-linux.yml'), 'utf8');
     const runs = (text) => [...text.matchAll(/^\s+(?:- )?run: (.+)$/gmu)].map((m) => m[1]).filter((cmd) => !/ffmpeg/u.test(cmd));
     assert.deepEqual(runs(linux), runs(readFileSync(CI_YML, 'utf8')));
-    assert.match(linux, /^on:\n {2}workflow_dispatch:\n\n/mu);
+    assert.match(linux, /^\s+branches: \[main\]/mu);
+    assert.match(linux, /pull_request:/u);
+    assert.match(linux, /workflow_dispatch:/u);
     assert.match(linux, /runs-on: ubuntu-latest/u);
     assert.match(linux, /apt-get install -y ffmpeg/u);
   });

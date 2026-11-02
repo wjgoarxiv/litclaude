@@ -30,7 +30,9 @@ test("package exposes local validation, doctor, QA, and pack scripts", async () 
   const pkg = await json("package.json");
 
   // The preloads turn the install-time motion pre-warm off (installer tests stay offline) and drop any automatic handoff settings the developer exported.
-  assert.equal(pkg.scripts.test, "node --test --test-concurrency=1 --test-timeout=900000 --test-force-exit --import ./test/helpers/scrub-ambient-env.mjs --import ./test/helpers/motion-offline-prewarm.mjs test/*.test.mjs");
+  assert.equal(pkg.scripts.test, "node tools/test-tier.mjs fast");
+  assert.equal(pkg.scripts["test:heavy"], "node tools/test-tier.mjs heavy");
+  assert.equal(pkg.scripts["test:all"], "node tools/test-tier.mjs all");
   assert.equal(pkg.scripts.postinstall, "node scripts/postinstall.mjs");
   assert.equal(pkg.scripts["validate:plugin"], "node scripts/validate-plugin.mjs");
   assert.equal(pkg.scripts.doctor, "node scripts/doctor.mjs");

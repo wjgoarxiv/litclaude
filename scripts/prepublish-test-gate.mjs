@@ -2,9 +2,10 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// publish.yml sets LITCLAUDE_PUBLISH_FROM_CI. There the suite has already run in ci.yml, so the gate
-// only proves that ci.yml passed on this exact, unmodified commit and refuses the publish otherwise.
-// Everywhere else (a local npm publish, ci.yml itself) the full suite runs as before.
+// publish.yml sets LITCLAUDE_PUBLISH_FROM_CI. There the suites have already run in CI, so the gate
+// only proves that ci.yml (fast tier) and ci-heavy.yml (render/installer tier) both passed on this
+// exact, unmodified commit and refuses the publish otherwise. Everywhere else (a local npm publish,
+// ci.yml itself) the full suite runs as before.
 export async function ciVerdict({ env, fetchImpl = fetch, git = runGit }) {
   const sha = env.GITHUB_SHA ?? "";
   const repository = env.GITHUB_REPOSITORY ?? "";
@@ -13,8 +14,16 @@ export async function ciVerdict({ env, fetchImpl = fetch, git = runGit }) {
   }
   if (git(["rev-parse", "HEAD"]) !== sha) return { ok: false, reason: `checkout is not ${sha}` };
   if (git(["status", "--porcelain"]) !== "") return { ok: false, reason: "checkout has local changes" };
-  const url = `https://api.github.com/repos/${repository}/actions/workflows/ci.yml/runs`
-    + `?head_sha=${sha}&status=success&event=push&per_page=1`;
+  const fast = await successfulRun({ env, fetchImpl, repository, sha, workflow: "ci.yml", events: ["push"] });
+  if (!fast.ok) return fast;
+  const heavy = await successfulRun({ env, fetchImpl, repository, sha, workflow: "ci-heavy.yml", events: ["push", "schedule", "workflow_dispatch"] });
+  if (!heavy.ok) return heavy;
+  return { ok: true, reason: `ci.yml run ${fast.run} and ci-heavy.yml run ${heavy.run} passed on ${sha}` };
+}
+
+async function successfulRun({ env, fetchImpl, repository, sha, workflow, events }) {
+  const url = `https://api.github.com/repos/${repository}/actions/workflows/${workflow}/runs`
+    + `?head_sha=${sha}&status=success&per_page=5`;
   const headers = { accept: "application/vnd.github+json" };
   if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
   let body;
@@ -25,11 +34,13 @@ export async function ciVerdict({ env, fetchImpl = fetch, git = runGit }) {
   } catch (error) {
     return { ok: false, reason: `GitHub API unreachable: ${error instanceof Error ? error.message : String(error)}` };
   }
-  const run = Array.isArray(body?.workflow_runs) ? body.workflow_runs[0] : undefined;
-  if (run?.head_sha !== sha || run?.conclusion !== "success") {
-    return { ok: false, reason: `no successful ci.yml push run for ${sha}` };
+  const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+  const run = runs.find((candidate) => candidate?.head_sha === sha && candidate?.conclusion === "success"
+    && events.includes(candidate?.event));
+  if (!run) {
+    return { ok: false, reason: `no successful ${workflow} run (${events.join("/")}) for ${sha}` };
   }
-  return { ok: true, reason: `ci.yml run ${run.id} passed on ${sha}` };
+  return { ok: true, run: run.id };
 }
 
 function runGit(args) {
@@ -43,8 +54,8 @@ function runSuite() {
   );
   const npmExecPath = process.env.npm_execpath;
   const result = npmExecPath
-    ? spawnSync(process.execPath, [npmExecPath, "test"], { env, stdio: "inherit" })
-    : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["test"], {
+    ? spawnSync(process.execPath, [npmExecPath, "run", "test:all"], { env, stdio: "inherit" })
+    : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "test:all"], {
         env,
         shell: process.platform === "win32",
         stdio: "inherit",

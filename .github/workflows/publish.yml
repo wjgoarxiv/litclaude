@@ -1,6 +1,7 @@
 # Publishes @litfamily/litclaude from GitHub with npm trusted publishing, so every version carries a
 # provenance statement that links the tarball to this repository and commit. Run it by hand from main.
-# The suite does not run again here: the publish gate refuses unless ci.yml passed on this exact commit.
+# The suite does not run again here: the publish gate refuses unless ci.yml (fast tier) and
+# ci-heavy.yml (render/installer tier) both passed on this exact commit.
 # The default is a dry run that only runs the gates and lists the tarball. A real run uploads a staged
 # version; it stays private until the maintainer approves it on npmjs.com with two-factor authentication.
 name: Publish
@@ -66,9 +67,9 @@ jobs:
       - name: Pack payload guard
         run: npm run pack:payload-guard
 
-      # prepublishOnly (scripts/prepublish-test-gate.mjs) checks the GitHub API for a green ci.yml push run
-      # on this commit; on a dry run the same check runs as its own step.
-      - name: ci.yml passed on this commit
+      # prepublishOnly (scripts/prepublish-test-gate.mjs) checks the GitHub API for green ci.yml and
+      # ci-heavy.yml runs on this commit; on a dry run the same check runs as its own step.
+      - name: ci.yml and ci-heavy.yml passed on this commit
         if: ${{ !inputs.stage }}
         run: node scripts/prepublish-test-gate.mjs
 
@@ -76,6 +77,6 @@ jobs:
         if: ${{ !inputs.stage }}
         run: npm pack --dry-run
 
-      - name: Stage on npm (the gate checks ci.yml first)
+      - name: Stage on npm (the gate checks both CI workflows first)
         if: inputs.stage
         run: npm stage publish

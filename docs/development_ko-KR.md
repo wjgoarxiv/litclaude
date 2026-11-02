@@ -30,10 +30,15 @@ npm run pack:payload-guard
 npm run pack:dry-run
 ```
 
-CI는 test를 4개 shard(`npm run test:shard -- <i>/4`)로 나눠 병렬로 실행합니다. 나누는 기준은
-`tools/test-shard-timings.json`에 적힌 측정 시간입니다. `npm test`는 여전히 한 번에 전부 실행합니다.
-`test/test-shards.test.mjs`가 shard를 합치면 `test/*.test.mjs`가 파일마다 정확히 한 번씩 나오는지
-확인합니다. 새 test 파일은 표에 없어도 되고, 느린 파일이면 측정 시간을 표에 추가합니다.
+일상 작업은 fast tier(`npm test`)만 돌립니다. `tools/test-tiers.json`의 렌더/Chrome/ffmpeg/motion
+파일을 뺀 나머지로, 로컬에서 약 13분입니다. heavy tier(`npm run test:heavy`)는 해당 영역이 바뀔 때만
+돌리고, 릴리스 체크리스트는 둘 다(`npm run test:all`) 돌립니다. `test/test-tiers.test.mjs`가 모든
+파일이 정확히 하나의 tier에 들어가는지 확인합니다. CI는 매 push/PR마다 fast tier를 돌리고
+(macOS와 Linux), heavy tier는 4개 shard(`npm run test:shard -- --tier heavy <i>/4`)로 나눠
+병렬로 실행합니다. 나누는 기준은 `tools/test-shard-timings.json`에 적힌 측정 시간이며,
+`test/test-shards.test.mjs`가 shard를 합치면 각 tier가 파일마다 정확히 한 번씩 나오는지 확인합니다.
+새 test 파일은 표에 없어도 fast tier에 들어가고, 느린 파일이면 측정 시간을 시간표에 추가하고,
+heavy급이면 tiers 표로 옮깁니다.
 
 ## 로컬 개발
 

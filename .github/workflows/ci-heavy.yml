@@ -1,0 +1,84 @@
+name: CI (Heavy)
+
+# The render/Chrome/ffmpeg/motion tier (tools/test-tiers.json), Linux only: faster and cheaper than
+# macOS, sharded with tools/test-shard.mjs. Runs on every main push (so the publish gate can
+# require a green heavy run on the release SHA), on PRs that touch heavy areas, weekly, and by hand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'plugins/litclaude/skills/lit-typographic-motion/**'
+      - 'plugins/litclaude/lib/mark.mjs'
+      - 'plugins/litclaude/lib/canonical-*.mjs'
+      - 'bin/**'
+      - 'scripts/**'
+      - 'tools/test-tier.mjs'
+      - 'tools/test-tiers.json'
+      - 'tools/test-shard.mjs'
+      - 'tools/test-shard-timings.json'
+      - 'package.json'
+      - 'test/lit-typographic-motion-*.test.mjs'
+      - 'test/mark-visible.test.mjs'
+      - 'test/mark-engines.test.mjs'
+      - 'test/installer-ownership.test.mjs'
+      - 'test/installer-terminal-policy.test.mjs'
+      - 'test/portable-install.test.mjs'
+      - 'test/litclaude-ai-bin.test.mjs'
+      - 'test/next-version-canonical.test.mjs'
+      - 'test/agent-file.test.mjs'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
+
+    env:
+      LITCLAUDE_AUTO_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: ffmpeg for the motion and audio tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
+      # pre-warmed"), so it is warmed here, once per job, before any test starts.
+      - name: Pre-warm the motion runtime for the render tests
+        run: node bin/litclaude-ai.js motion-runtime install
+
+      - name: Render and installer tests (heavy shard ${{ matrix.shard }})
+        run: npm run test:shard -- --tier heavy ${{ matrix.shard }}
+
+  # The heavy-tier check: green only when every heavy shard passed.
+  verify:
+    needs: [test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Every heavy shard passed
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          echo "heavy shards: $TEST_RESULT"
+          [ "$TEST_RESULT" = success ]
