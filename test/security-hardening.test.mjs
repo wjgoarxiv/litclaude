@@ -59,6 +59,17 @@ const exitedProcessId = () => new Promise((resolvePid, reject) => {
   child.once("close", () => resolvePid(pid));
 });
 
+// Mirrors the lock's own liveness check: EPERM means a live process owned by someone else,
+// any other failure to signal means the pid is dead.
+const processIsDead = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return error?.code !== "EPERM";
+  }
+};
+
 const lockContender = (lockDir, criticalPath, { timeoutMs = 2_000, holdMs = 75 } = {}) => new Promise((resolveRun) => {
   const source = `
     import { closeSync, openSync, rmSync } from "node:fs";
@@ -210,8 +221,30 @@ describe("reusable owner lock crash recovery", () => {
   });
 
   it("lets every contender that loses a stale takeover retry instead of failing", async () => {
-    const deadPid = await exitedProcessId();
-    for (let round = 0; round < 15; round += 1) {
+    // The "dead" owner must really be dead: on a runner that churns pids fast, the exited pid
+    // could be reassigned to a live process, which would make every contender wait out its
+    // budget against a live incumbent instead of racing the stale takeover.
+    let deadPid = await exitedProcessId();
+    for (let attempt = 0; attempt < 10 && !processIsDead(deadPid); attempt += 1) {
+      deadPid = await exitedProcessId();
+    }
+    // A crowd of twelve serializes twelve acquisitions behind one lock. On a slow runner the
+    // tail contender's fixed budget expires while it is still losing fair races (main CI run
+    // 41415055968: "state lock timed out" after 21.9 s), so one solo acquisition calibrates this
+    // runner and each contender budgets a multiple of it. Fewer rounds on a very slow runner
+    // keep the test bounded; timing varies more per round there, so each round still races.
+    const crowdSize = 12;
+    const calibrationRoot = makeTemp("lit-owner-lock-calibrate-");
+    const calibrationLockDir = join(calibrationRoot, "state.lock");
+    const calibrationStart = Date.now();
+    const calibration = await lockContender(calibrationLockDir, join(calibrationRoot, "critical"), {
+      timeoutMs: 60_000, holdMs: 0,
+    });
+    assert.equal(calibration.code, 0, calibration.stderr);
+    const soloMs = Math.max(1, Date.now() - calibrationStart);
+    const perContenderMs = Math.max(20_000, Math.ceil(soloMs * crowdSize * 6));
+    const rounds = soloMs > 500 ? 5 : 15;
+    for (let round = 0; round < rounds; round += 1) {
       const root = makeTemp("lit-owner-lock-crowd-");
       const lockDir = join(root, "state.lock");
       mkdirSync(lockDir, { recursive: true });
@@ -220,7 +253,7 @@ describe("reusable owner lock crash recovery", () => {
         pid: deadPid,
         acquired_at_ms: 0,
       })}\n`);
-      const contenders = await Promise.all(Array.from({ length: 12 }, () => lockContender(lockDir, join(root, "critical"), { timeoutMs: 20_000, holdMs: 0 })));
+      const contenders = await Promise.all(Array.from({ length: crowdSize }, () => lockContender(lockDir, join(root, "critical"), { timeoutMs: perContenderMs, holdMs: 0 })));
       for (const contender of contenders) assert.equal(contender.code, 0, contender.stderr);
       assert.equal(existsSync(lockDir), false);
     }
