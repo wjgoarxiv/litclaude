@@ -410,7 +410,10 @@ const needsRender = (t) => {
   }
   return false;
 };
-const cli = (args) => spawnSync(process.execPath, [motion, ...args], { encoding: "utf8", timeout: 600000, env: { ...process.env, LITCLAUDE_MOTION_RUNTIME: WARM, LITCLAUDE_MOTION_FOREGROUND: "1" } });
+// The gallery render is the suite's longest single render (315 s on the 2026-10-30 serial run,
+// over 600 s on a slow shard VM in run 41412939749): its own timeout must sit above that variance
+// but below the per-test --test-timeout=900000, so a real stall still fails with this test's name.
+const cli = (args) => spawnSync(process.execPath, [motion, ...args], { encoding: "utf8", timeout: 840000, env: { ...process.env, LITCLAUDE_MOTION_RUNTIME: WARM, LITCLAUDE_MOTION_FOREGROUND: "1" } });
 
 describe("the board round on the real stage renderer", () => {
   it("the style gallery: the same demo in every style passes the board check and writes four boards", (t) => {

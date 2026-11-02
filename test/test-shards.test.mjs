@@ -93,6 +93,11 @@ describe('test shards: the command line', () => {
     const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts.test;
     assert.equal(`node ${testArgs(ROOT).join(' ')} test/*.test.mjs`, script);
     assert.ok(testArgs(ROOT).includes('--test-concurrency=1'));
+    // A shard that stalls must fail with the hung test's name instead of sitting until the job
+    // timeout (run 41412939749: shard 2 printed nothing for 82 min), and a file whose tests are
+    // done must not hold the runner open on a lingering handle.
+    assert.ok(testArgs(ROOT).includes('--test-timeout=900000'));
+    assert.ok(testArgs(ROOT).includes('--test-force-exit'));
   });
 });
 
