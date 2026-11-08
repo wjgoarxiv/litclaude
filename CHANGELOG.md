@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.47 - 2026-11-09
 
 - The TypeScript language server loads again. `.lsp.json` gave `command` as an argv array, which Claude Code
   rejects (`LSP config validation failed`, `expected string`), so no LSP server came up from the plugin. It now

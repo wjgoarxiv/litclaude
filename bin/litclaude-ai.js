@@ -314,7 +314,7 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
 };
 
 // Claude Code ignores permissionMode in plugin agent frontmatter, so the planner stays
-// read-only through its tools list. Settings written before 1.0.47 carry the old text.
+// read-only through its tools list. Settings written by earlier installs carry the old text.
 const plannerSafeguard = "lit-planner stays read-only through its tools list (no Write, Edit, MultiEdit or Bash)";
 const legacyPlannerSafeguard = "lit-planner remains permissionMode: plan";
 
