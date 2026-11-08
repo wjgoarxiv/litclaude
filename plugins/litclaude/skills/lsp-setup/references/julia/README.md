@@ -33,7 +33,8 @@ Add a `julia` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "julia": {
-    "command": ["julia", "--startup-file=no", "--history-file=no", "-e", "using LanguageServer; runserver()"],
+    "command": "julia",
+    "args": ["--startup-file=no", "--history-file=no", "-e", "using LanguageServer; runserver()"],
     "extensionToLanguage": {
       ".jl": "julia"
     }

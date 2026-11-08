@@ -30,7 +30,8 @@ Add a `bash` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "bash": {
-    "command": ["bash-language-server", "start"],
+    "command": "bash-language-server",
+    "args": ["start"],
     "extensionToLanguage": {
       ".sh": "shellscript",
       ".bash": "shellscript",

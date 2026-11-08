@@ -1,8 +1,9 @@
 // Standalone snapshot of the primary language server per supported language,
 // embedded so detect-lsp.ts runs without any external dependency in any project.
 // Each entry mirrors the per-language references/<language>/README.md and the
-// LitClaude .lsp.json shape, which is keyed by language name:
-//   { "<language>": { "command": [...], "extensionToLanguage": { ".ext": "<lang>" } } }
+// LitClaude .lsp.json, which is keyed by language name:
+//   { "<language>": { "command": "<bin>", "args": [...], "extensionToLanguage": { ".ext": "<lang>" } } }
+// Here `command` is the full argv: its first item is .lsp.json `command`, the rest are `args`.
 // Edit this table when a reference README changes.
 
 export interface LanguageServer {
@@ -17,7 +18,7 @@ export const LANGUAGES: readonly LanguageServer[] = [
 		language: "typescript",
 		command: ["typescript-language-server", "--stdio"],
 		extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"],
-		installHint: "npm install -g typescript-language-server typescript",
+		installHint: "npm install -g typescript-language-server typescript@6",
 	},
 	{
 		language: "python",

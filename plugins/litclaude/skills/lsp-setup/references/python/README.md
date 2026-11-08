@@ -22,12 +22,13 @@ command -v basedpyright-langserver
 ## Configure
 
 Add a `python` entry to `plugins/litclaude/.lsp.json`. LitClaude keys each entry
-by language name with a `command` array and an `extensionToLanguage` map:
+by language name with a `command` string, an `args` array and an `extensionToLanguage` map:
 
 ```json
 {
   "python": {
-    "command": ["basedpyright-langserver", "--stdio"],
+    "command": "basedpyright-langserver",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".py": "python",
       ".pyi": "python"
@@ -43,14 +44,14 @@ Type-check strictness lives in `pyrightconfig.json` or `[tool.basedpyright]` in
 ## Choosing a server
 
 Type checkers and the linter serve different roles. Run a type server, and
-optionally `ruff` ALONGSIDE it (not instead). Set the `command` accordingly:
+optionally `ruff` ALONGSIDE it (not instead). Set `command` and `args` accordingly:
 
-| command                              | install                | role                                    |
+| `command` + `args`                   | install                | role                                    |
 | ------------------------------------ | ---------------------- | --------------------------------------- |
-| `["basedpyright-langserver", "--stdio"]` | `pip install basedpyright` | strictest types, **default**       |
-| `["pyright-langserver", "--stdio"]`  | `pip install pyright`  | upstream Microsoft type checker         |
-| `["ty", "server"]`                   | `pip install ty`       | Astral, very fast, pre-1.0/experimental |
-| `["ruff", "server"]`                 | `pip install ruff`     | lint + format only, complements a type server |
+| `"basedpyright-langserver"` + `["--stdio"]` | `pip install basedpyright` | strictest types, **default**       |
+| `"pyright-langserver"` + `["--stdio"]` | `pip install pyright`  | upstream Microsoft type checker         |
+| `"ty"` + `["server"]` | `pip install ty`       | Astral, very fast, pre-1.0/experimental |
+| `"ruff"` + `["server"]` | `pip install ruff`     | lint + format only, complements a type server |
 
 Recommended: keep `basedpyright` as the `python` entry. `ruff` does not
 type-check, so if you want lint diagnostics too run it as a separate tool rather

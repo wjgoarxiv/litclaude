@@ -118,7 +118,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // LitClaude .lsp.json is keyed by language name:
-//   { "typescript": { "command": [...], "extensionToLanguage": {...} } }
+//   { "typescript": { "command": "<bin>", "args": [...], "extensionToLanguage": {...} } }
 function parseConfiguredLanguages(path: string): readonly string[] {
 	let parsed: unknown
 	try {

@@ -2,17 +2,18 @@
 
 - **Recommended server:** `typescript-language-server --stdio`
 - **Extensions:** `.ts .tsx .js .jsx .mjs .cjs .mts .cts`
-- **Install hint:** `npm install -g typescript-language-server typescript`
+- **Install hint:** `npm install -g typescript-language-server typescript@6`
 
 ## Install
 
-- **macOS:** `npm install -g typescript-language-server typescript`
-- **Linux:** `npm install -g typescript-language-server typescript`
-- **Windows:** `npm install -g typescript-language-server typescript` (PowerShell or cmd)
+- **macOS:** `npm install -g typescript-language-server typescript@6`
+- **Linux:** `npm install -g typescript-language-server typescript@6`
+- **Windows:** `npm install -g typescript-language-server typescript@6` (PowerShell or cmd)
 
 `typescript-language-server` is only a thin wrapper — it needs the `typescript`
 package (`tsserver`) present too, either globally or in the project's
-`node_modules`. Always install both.
+`node_modules`. Always install both. Pin `typescript@6`: TypeScript 7 ships no
+`lib/tsserver.js`, which `typescript-language-server` loads.
 
 Confirm it resolves:
 
@@ -23,47 +24,49 @@ command -v typescript-language-server
 ## Configure
 
 LitClaude declares language servers in `plugins/litclaude/.lsp.json`. Each entry
-is keyed by language name and holds a `command` array plus an
+is keyed by language name and holds a `command` string, an `args` array and an
 `extensionToLanguage` map. TypeScript/JavaScript already ships in the default
 config:
 
 ```json
 {
   "typescript": {
-    "command": ["typescript-language-server", "--stdio"],
+    "command": "typescript-language-server",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".ts": "typescript",
       ".tsx": "typescriptreact",
       ".js": "javascript",
       ".jsx": "javascriptreact",
       ".mjs": "javascript",
-      ".cjs": "javascript"
+      ".cjs": "javascript",
+      ".mts": "typescript",
+      ".cts": "typescript"
     }
   }
 }
 ```
 
-Add `.mts`/`.cts` to `extensionToLanguage` if your project uses them. Claude Code
-resolves the server for an edited file by matching its extension against these
-maps.
+Claude Code resolves the server for an edited file by matching its extension
+against these maps.
 
 ## Alternatives
 
-Swap the `command` for your toolchain. Keep the same `.lsp.json` shape and adjust
+Swap `command` and `args` for your toolchain. Keep the same `.lsp.json` shape and adjust
 `extensionToLanguage` to cover the extensions that server should own:
 
-| command                                   | when to choose                          |
+| `command` + `args`                        | when to choose                          |
 | ----------------------------------------- | --------------------------------------- |
-| `["deno", "lsp"]`                         | Deno projects (handles `.ts/.tsx/.js`)  |
-| `["biome", "lsp-proxy", "--stdio"]`       | Biome lint/format as the LSP            |
-| `["vscode-eslint-language-server", "--stdio"]` | ESLint diagnostics                 |
-| `["oxlint", "--lsp"]`                     | fast Oxc-based linting                  |
-| `["vue-language-server", "--stdio"]`      | `.vue` single-file components           |
-| `["svelteserver", "--stdio"]`             | `.svelte` files                         |
-| `["astro-ls", "--stdio"]`                 | `.astro` files                          |
+| `"deno"` + `["lsp"]` | Deno projects (handles `.ts/.tsx/.js`)  |
+| `"biome"` + `["lsp-proxy", "--stdio"]` | Biome lint/format as the LSP            |
+| `"vscode-eslint-language-server"` + `["--stdio"]` | ESLint diagnostics                 |
+| `"oxlint"` + `["--lsp"]` | fast Oxc-based linting                  |
+| `"vue-language-server"` + `["--stdio"]` | `.vue` single-file components           |
+| `"svelteserver"` + `["--stdio"]` | `.svelte` files                         |
+| `"astro-ls"` + `["--stdio"]` | `.astro` files                          |
 
 `eslint` install: `npm i -g vscode-langservers-extracted`. To run Deno instead
-of the default, replace the `typescript` entry's `command` with `["deno", "lsp"]`.
+of the default, set the `typescript` entry's `command` to `"deno"` and `args` to `["lsp"]`.
 
 ## Troubleshooting
 - **PATH:** `typescript-language-server` must be on PATH; reopen shell after `npm i -g`. Check your global bin with `npm bin -g`.

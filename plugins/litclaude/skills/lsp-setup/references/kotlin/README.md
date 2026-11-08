@@ -27,7 +27,7 @@ Add a `kotlin` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "kotlin": {
-    "command": ["kotlin-lsp"],
+    "command": "kotlin-lsp",
     "extensionToLanguage": {
       ".kt": "kotlin",
       ".kts": "kotlin"

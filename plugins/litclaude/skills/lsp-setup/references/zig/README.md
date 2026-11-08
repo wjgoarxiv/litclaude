@@ -26,7 +26,7 @@ Add a `zig` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "zig": {
-    "command": ["zls"],
+    "command": "zls",
     "extensionToLanguage": {
       ".zig": "zig",
       ".zon": "zig"

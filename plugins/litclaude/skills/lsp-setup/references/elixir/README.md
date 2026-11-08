@@ -26,7 +26,7 @@ Add an `elixir` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "elixir": {
-    "command": ["elixir-ls"],
+    "command": "elixir-ls",
     "extensionToLanguage": {
       ".ex": "elixir",
       ".exs": "elixir"
@@ -40,8 +40,8 @@ configuration is normally required.
 
 ## Alternatives
 
-- **lexical**: set the `command` to `["lexical"]` — fast, modern alternative LSP.
-- **next-ls**: set the `command` to `["nextls", "--stdio"]` — from the elixir-tools project.
+- **lexical**: set the `command` to `"lexical"` — fast, modern alternative LSP.
+- **next-ls**: set the `command` to `"nextls"` and `args` to `["--stdio"]` — from the elixir-tools project.
 
 ## Troubleshooting
 - **PATH:** `elixir-ls` must be on PATH; reopen the shell after install.

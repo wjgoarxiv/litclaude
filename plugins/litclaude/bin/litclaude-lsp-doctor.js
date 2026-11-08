@@ -15,7 +15,8 @@ const result = run("typescript-language-server", ["--version"]);
 
 if (result.error) {
   console.log("typescript-language-server is not available.");
-  console.log("Install with: npm install -g typescript-language-server typescript");
+  console.log("Install with: npm install -g typescript-language-server typescript@6");
+  console.log("Pin typescript@6: TypeScript 7 ships no lib/tsserver.js, which typescript-language-server loads.");
   process.exit(0);
 }
 

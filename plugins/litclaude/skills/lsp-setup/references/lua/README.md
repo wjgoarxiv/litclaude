@@ -25,7 +25,7 @@ Add a `lua` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "lua": {
-    "command": ["lua-language-server"],
+    "command": "lua-language-server",
     "extensionToLanguage": {
       ".lua": "lua"
     }

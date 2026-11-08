@@ -30,7 +30,7 @@ Add a `go` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "go": {
-    "command": ["gopls"],
+    "command": "gopls",
     "extensionToLanguage": {
       ".go": "go"
     }

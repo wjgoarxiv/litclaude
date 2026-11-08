@@ -23,7 +23,8 @@ Add a `yaml` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "yaml": {
-    "command": ["yaml-language-server", "--stdio"],
+    "command": "yaml-language-server",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".yaml": "yaml",
       ".yml": "yaml"

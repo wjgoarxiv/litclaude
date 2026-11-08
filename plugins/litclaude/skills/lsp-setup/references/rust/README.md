@@ -27,7 +27,7 @@ Add a `rust` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "rust": {
-    "command": ["rust-analyzer"],
+    "command": "rust-analyzer",
     "extensionToLanguage": {
       ".rs": "rust"
     }

@@ -25,7 +25,7 @@ Add a `swift` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "swift": {
-    "command": ["sourcekit-lsp"],
+    "command": "sourcekit-lsp",
     "extensionToLanguage": {
       ".swift": "swift",
       ".objc": "objective-c",

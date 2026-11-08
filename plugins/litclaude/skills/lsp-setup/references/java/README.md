@@ -25,7 +25,7 @@ Add a `java` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "java": {
-    "command": ["jdtls"],
+    "command": "jdtls",
     "extensionToLanguage": {
       ".java": "java"
     }

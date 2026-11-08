@@ -25,7 +25,8 @@ Add a `dart` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "dart": {
-    "command": ["dart", "language-server", "--lsp"],
+    "command": "dart",
+    "args": ["language-server", "--lsp"],
     "extensionToLanguage": {
       ".dart": "dart"
     }

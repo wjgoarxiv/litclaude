@@ -27,7 +27,7 @@ Add a `csharp` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "csharp": {
-    "command": ["csharp-ls"],
+    "command": "csharp-ls",
     "extensionToLanguage": {
       ".cs": "csharp"
     }
@@ -45,7 +45,8 @@ Razor and Blazor files use a separate server. Add a second entry:
 ```json
 {
   "razor": {
-    "command": ["roslyn-language-server", "--stdio"],
+    "command": "roslyn-language-server",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".razor": "razor",
       ".cshtml": "razor"

@@ -32,7 +32,8 @@ Add a `haskell` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "haskell": {
-    "command": ["haskell-language-server-wrapper", "--lsp"],
+    "command": "haskell-language-server-wrapper",
+    "args": ["--lsp"],
     "extensionToLanguage": {
       ".hs": "haskell",
       ".lhs": "haskell"

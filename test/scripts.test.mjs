@@ -120,6 +120,32 @@ test("lsp-setup scripts provide non-mutating advisory probes", () => {
   }
 });
 
+test("lsp-setup verify-lsp resolves a command string plus args from .lsp.json", () => {
+  const dir = mkdtempSync(join(tmpdir(), "litclaude-lsp-config-"));
+  const sourcePath = join(dir, "example.ts");
+  const configPath = join(dir, ".lsp.json");
+  const verifyScript = join(rootPath, "plugins", "litclaude", "skills", "lsp-setup", "scripts", "verify-lsp.ts");
+  try {
+    writeFileSync(sourcePath, "export const answer: number = 42;\n");
+    writeFileSync(configPath, JSON.stringify({
+      typescript: {
+        command: "litclaude-absent-language-server",
+        args: ["--stdio"],
+        extensionToLanguage: { ".ts": "typescript" },
+      },
+    }));
+    const verify = spawnSync(
+      process.execPath,
+      ["--experimental-strip-types", verifyScript, sourcePath, `--config=${configPath}`, "--timeout=5000"],
+      { cwd: rootPath, encoding: "utf8" },
+    );
+    assert.equal(verify.status, 1, verify.stdout + verify.stderr);
+    assert.match(verify.stdout + verify.stderr, /litclaude-absent-language-server/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("visual-qa CLI provides a non-mutating TUI advisory probe", () => {
   const dir = mkdtempSync(join(tmpdir(), "litclaude-visual-probe-"));
   const capturePath = join(dir, "capture.txt");

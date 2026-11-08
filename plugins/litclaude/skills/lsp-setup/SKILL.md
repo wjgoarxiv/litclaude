@@ -162,14 +162,15 @@ command -v <server-executable>   # e.g. typescript-language-server, gopls, rust-
 ### 3. Configure (LitClaude `.lsp.json`)
 
 LitClaude declares servers in `plugins/litclaude/.lsp.json`. The schema is keyed
-by **language name**; each entry holds a `command` array and an
-`extensionToLanguage` map that tells Claude Code which file extensions route to
-that server:
+by **language name**; each entry holds a `command` string (the executable), an
+`args` array and an `extensionToLanguage` map that tells Claude Code which file
+extensions route to that server:
 
 ```json
 {
   "<language>": {
-    "command": ["<bin>", "<arg>"],
+    "command": "<bin>",
+    "args": ["<arg>"],
     "extensionToLanguage": {
       ".ext": "<languageId>"
     }
@@ -179,7 +180,9 @@ that server:
 
 Rules:
 
-- One entry per server, keyed by language name. The `command` is the full argv.
+- One entry per server, keyed by language name. `command` is the executable as a
+  single string and `args` holds its arguments; Claude Code rejects an argv array
+  in `command` and loads no server from the file.
 - `extensionToLanguage` maps each owned extension to the LSP `languageId`. Claude
   Code resolves the server for an edited file by matching its extension here.
 - The shipped default declares only `typescript`. Add a language by copying the

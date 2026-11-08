@@ -27,7 +27,8 @@ Add a `ruby` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "ruby": {
-    "command": ["rubocop", "--lsp"],
+    "command": "rubocop",
+    "args": ["--lsp"],
     "extensionToLanguage": {
       ".rb": "ruby",
       ".rake": "ruby",
@@ -44,8 +45,8 @@ formatting, and code actions over LSP.
 
 ## Alternatives
 
-- **Shopify `ruby-lsp`** — the standalone `ruby-lsp` executable, richer navigation than RuboCop alone. Set the `command` to `["ruby-lsp"]`.
-- **`solargraph`** — older completion/type server; install with `gem install solargraph`, set the `command` to `["solargraph", "stdio"]`.
+- **Shopify `ruby-lsp`** — the standalone `ruby-lsp` executable, richer navigation than RuboCop alone. Set the `command` to `"ruby-lsp"`.
+- **`solargraph`** — older completion/type server; install with `gem install solargraph`, set the `command` to `"solargraph"` and `args` to `["stdio"]`.
 
 ## Troubleshooting
 

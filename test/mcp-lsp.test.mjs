@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
@@ -9,6 +9,24 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const pluginRoot = join(root, "plugins", "litclaude");
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+
+// Claude Code's .lsp.json schema: `command` is the executable (a string), `args` its
+// argument list. An argv array in `command` fails validation and the server never loads.
+const lspSchemaProblems = (config) => {
+  const problems = [];
+  if (typeof config !== "object" || config === null || Array.isArray(config)) return ["config is not an object"];
+  for (const [language, entry] of Object.entries(config)) {
+    if (typeof entry?.command !== "string" || entry.command.length === 0) problems.push(`${language}.command must be a string`);
+    if ("args" in entry && !(Array.isArray(entry.args) && entry.args.every((arg) => typeof arg === "string"))) {
+      problems.push(`${language}.args must be an array of strings`);
+    }
+    const map = entry?.extensionToLanguage;
+    if (typeof map !== "object" || map === null || Array.isArray(map) || Object.keys(map).length === 0) {
+      problems.push(`${language}.extensionToLanguage must be a non-empty object`);
+    }
+  }
+  return problems;
+};
 
 const runMcp = (messages, env = {}) =>
   new Promise((resolve, reject) => {
@@ -126,9 +144,37 @@ describe("MCP and LSP config", () => {
     assert.equal(existsSync(path), true, ".lsp.json must exist");
 
     const config = readJson(path);
-    assert.deepEqual(config.typescript.command, ["typescript-language-server", "--stdio"]);
+    assert.equal(config.typescript.command, "typescript-language-server");
+    assert.deepEqual(config.typescript.args, ["--stdio"]);
     assert.equal(config.typescript.extensionToLanguage[".ts"], "typescript");
     assert.equal(config.typescript.extensionToLanguage[".js"], "javascript");
+  });
+
+  it("ships a .lsp.json that passes Claude Code's command/args schema", () => {
+    const config = readJson(join(pluginRoot, ".lsp.json"));
+    assert.deepEqual(lspSchemaProblems(config), []);
+    assert.equal(config.typescript.extensionToLanguage[".mts"], "typescript");
+    assert.equal(config.typescript.extensionToLanguage[".cts"], "typescript");
+  });
+
+  it("teaches only schema-valid .lsp.json snippets in the lsp-setup skill", () => {
+    const skillRoot = join(pluginRoot, "skills", "lsp-setup");
+    const referencesRoot = join(skillRoot, "references");
+    const docs = [
+      join(skillRoot, "SKILL.md"),
+      ...readdirSync(referencesRoot).map((language) => join(referencesRoot, language, "README.md")),
+    ];
+    let snippets = 0;
+    for (const doc of docs) {
+      const text = readFileSync(doc, "utf8");
+      for (const [, body] of text.matchAll(/```json\n([\s\S]*?)```/gu)) {
+        if (!body.includes('"extensionToLanguage"')) continue;
+        snippets += 1;
+        const config = JSON.parse(body);
+        assert.deepEqual(lspSchemaProblems(config), [], `${doc} snippet`);
+      }
+    }
+    assert.ok(snippets >= 21, `expected every language snippet, found ${snippets}`);
   });
 
   it("reports missing TypeScript language server as actionable guidance", () => {
@@ -143,6 +189,6 @@ describe("MCP and LSP config", () => {
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /typescript-language-server/u);
-    assert.match(result.stdout, /npm install -g typescript-language-server typescript/u);
+    assert.match(result.stdout, /npm install -g typescript-language-server typescript@6/u);
   });
 });

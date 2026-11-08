@@ -86,8 +86,9 @@ function resolveServer(ext: string, configPath: string): ResolvedServer | null {
 					if (!isRecord(entry)) continue
 					const map = entry["extensionToLanguage"]
 					const command = entry["command"]
-					if (isRecord(map) && Object.keys(map).includes(ext) && isStringArray(command)) {
-						return { language, command }
+					const args = entry["args"] ?? []
+					if (isRecord(map) && Object.keys(map).includes(ext) && typeof command === "string" && isStringArray(args)) {
+						return { language, command: [command, ...args] }
 					}
 				}
 			}

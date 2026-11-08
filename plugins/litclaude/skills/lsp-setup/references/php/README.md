@@ -25,7 +25,8 @@ Add a `php` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "php": {
-    "command": ["intelephense", "--stdio"],
+    "command": "intelephense",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".php": "php"
     }
@@ -41,7 +42,7 @@ which is passed through the editor's LSP `initializationOptions` rather than
 ## Alternatives
 
 **phpactor** — pure-PHP, no Node dependency. Set the `command` to
-`["phpactor", "language-server"]`.
+`"phpactor"` and `args` to `["language-server"]`.
 
 ## Troubleshooting
 - **PATH:** `intelephense` must be on PATH; reopen the shell after a global npm install. If missing, check `npm bin -g` is on PATH.

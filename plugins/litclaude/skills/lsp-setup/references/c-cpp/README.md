@@ -25,7 +25,8 @@ Add a `c-cpp` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "c-cpp": {
-    "command": ["clangd", "--background-index", "--clang-tidy"],
+    "command": "clangd",
+    "args": ["--background-index", "--clang-tidy"],
     "extensionToLanguage": {
       ".c": "c",
       ".h": "c",
@@ -41,8 +42,8 @@ Add a `c-cpp` entry to `plugins/litclaude/.lsp.json`:
 ```
 
 Claude Code routes these extensions to `clangd` via the map. clangd reads
-build flags from a project `.clangd` file, not from `.lsp.json`; the `command`
-above already passes `--background-index --clang-tidy`.
+build flags from a project `.clangd` file, not from `.lsp.json`; the `args`
+above already pass `--background-index --clang-tidy`.
 
 ## Compile commands
 
@@ -56,7 +57,7 @@ Without it, clangd falls back to heuristic flags and reports spurious errors.
 
 ## Alternatives
 
-`ccls` exists as a third-party server — set the `command` to `["ccls"]` in the
+`ccls` exists as a third-party server — set the `command` to `"ccls"` in the
 `c-cpp` entry if you prefer it.
 
 ## Troubleshooting

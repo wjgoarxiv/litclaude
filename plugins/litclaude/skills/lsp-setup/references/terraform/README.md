@@ -26,7 +26,8 @@ Add a `terraform` entry to `plugins/litclaude/.lsp.json`:
 ```json
 {
   "terraform": {
-    "command": ["terraform-ls", "serve"],
+    "command": "terraform-ls",
+    "args": ["serve"],
     "extensionToLanguage": {
       ".tf": "terraform",
       ".tfvars": "terraform-vars"
