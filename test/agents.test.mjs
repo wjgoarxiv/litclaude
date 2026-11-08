@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -92,7 +92,6 @@ describe("Claude agents", () => {
       assert.match(meta, new RegExp(`name:\\s*${agentName}`, "u"));
       assert.match(meta, /description:/u);
       assert.match(meta, /tools:/u);
-      assert.match(meta, /permissionMode:/u);
       assert.match(meta, /skills:/u);
     }
   });
@@ -122,8 +121,23 @@ describe("Claude agents", () => {
     const text = readFileSync(join(agentsRoot, "lit-planner.md"), "utf8");
     const meta = frontmatter(text);
 
-    assert.match(meta, /permissionMode:\s*plan/u);
     assert.doesNotMatch(meta, /\bWrite\b|\bEdit\b|\bMultiEdit\b/u);
+  });
+
+  it("declares no permissionMode, which Claude Code ignores for plugin agents", () => {
+    for (const file of readdirSync(agentsRoot).filter((name) => name.endsWith(".md"))) {
+      const meta = frontmatter(readFileSync(join(agentsRoot, file), "utf8"));
+      assert.doesNotMatch(meta, /^permissionMode:/mu, `${file} must not declare permissionMode`);
+    }
+  });
+
+  it("keeps the read-only agents read-only through their tools list", () => {
+    for (const agentName of ["lit-planner", "korean-style-analyzer", "librarian-researcher"]) {
+      const meta = frontmatter(readFileSync(join(agentsRoot, `${agentName}.md`), "utf8"));
+      const tools = meta.match(/^tools:(.*)$/mu)?.[1] ?? "";
+      assert.notEqual(tools.trim(), "", `${agentName} must declare an explicit tools list`);
+      assert.doesNotMatch(tools, /\b(?:Write|Edit|MultiEdit|NotebookEdit|Bash)\b/u, `${agentName} tools: ${tools}`);
+    }
   });
 
   it("documents the primary workflow order and approved-plan executor boundary", () => {

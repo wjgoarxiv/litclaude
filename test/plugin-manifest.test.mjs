@@ -148,7 +148,7 @@ describe("Claude plugin manifest", () => {
 	it("keeps the standalone planner unable to delegate recursively", () => {
 		const planner = readFileSync(join(root, "plugins", "litclaude", "agents", "lit-planner.md"), "utf8");
 		const frontmatter = planner.match(/^---\n([\s\S]*?)\n---/u)?.[1] ?? "";
-		assert.match(frontmatter, /permissionMode:\s*plan/u);
+		assert.doesNotMatch(frontmatter, /permissionMode:/u);
 		assert.doesNotMatch(frontmatter, /^tools:.*\bAgent\b/mu);
 	});
 });

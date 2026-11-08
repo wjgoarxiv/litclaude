@@ -2,7 +2,6 @@
 name: lit-verifier
 description: Verifies implementation against objective, evidence, and guardrails.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - review-work
   - rules

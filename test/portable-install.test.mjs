@@ -378,6 +378,26 @@ describe("portable LitClaude install layout", () => {
     }
   });
 
+  it("doctor accepts the planner safeguard text recorded by an earlier install", () => {
+    const home = makeHome();
+    const claudeHome = makeClaudeHome();
+    try {
+      const install = runCli(["install", "--permission-mode", "balanced"], home, claudeHome);
+      assert.equal(install.status, 0, install.stderr);
+      const settingsPath = join(claudeHome, "settings.json");
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
+      settings.litclaude.permissionPreference.plannerSafeguard = "lit-planner remains permissionMode: plan";
+      writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+
+      const doctor = runCliWithEnv(["doctor"], home, claudeHome, { PATH: "" });
+      assert.doesNotMatch(doctor.stderr, /PERMISSION_INTEGRITY_FAIL/u);
+      assert.match(doctor.stdout, /PERMISSION_INTEGRITY_PASS/u);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(claudeHome, { recursive: true, force: true });
+    }
+  });
+
   it("doctor rejects malformed permission ownership metadata and mode/profile drift", () => {
     const home = makeHome();
     const claudeHome = makeClaudeHome();

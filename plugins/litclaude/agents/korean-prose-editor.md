@@ -2,7 +2,6 @@
 name: korean-prose-editor
 description: Edits Korean prose for naturalness while preserving meaning.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - lit-humanizer
   - rules

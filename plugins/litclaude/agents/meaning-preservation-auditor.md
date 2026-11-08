@@ -2,7 +2,6 @@
 name: meaning-preservation-auditor
 description: Audits Korean revisions for meaning preservation and factual drift.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - lit-humanizer
   - review-work

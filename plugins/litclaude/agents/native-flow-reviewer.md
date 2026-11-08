@@ -2,7 +2,6 @@
 name: native-flow-reviewer
 description: Reviews Korean revisions for natural flow and native readability.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - lit-humanizer
   - review-work

@@ -2,7 +2,6 @@
 name: qa-runner
 description: Runs real QA scenarios and captures artifacts plus cleanup receipts.
 tools: Read, Grep, Glob, Bash
-permissionMode: default
 skills:
   - start-work
   - review-work

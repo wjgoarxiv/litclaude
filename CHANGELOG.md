@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- The TypeScript language server loads again. `.lsp.json` gave `command` as an argv array, which Claude Code
+  rejects (`LSP config validation failed`, `expected string`), so no LSP server came up from the plugin. It now
+  names the executable in `command` and passes `--stdio` in `args`, and also maps `.mts` and `.cts`. The
+  lsp-setup skill teaches the same shape in every language snippet, and a test parses each one. Thanks to a user
+  report.
+- Plugin agents no longer declare `permissionMode`. Claude Code ignores that field for plugin agents and printed a
+  warning for each of the eleven files. The planner and the other read-only agents stay read-only through their
+  `tools` lists, which now carry the guard tests.
+- Install hints for the TypeScript server now pin `typescript@6`. TypeScript 7 ships no `lib/tsserver.js`, which
+  `typescript-language-server` loads.
+
 ## 1.0.46 - 2026-11-01
 
 - A film stage can declare chroma-keyed overlay clips in `stage/clips/clips.json` (id, directory, frame count, fps).

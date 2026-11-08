@@ -18,17 +18,17 @@ export const APPROVED_MODEL_ROUTES = Object.freeze({
 });
 
 export const EXPECTED_AGENT_PERMISSIONS = Object.freeze({
-  'lit-executor': Object.freeze({ tools: 'Read, Grep, Glob, Bash, Write, Edit, MultiEdit', permissionMode: 'acceptEdits' }),
-  'korean-prose-editor': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
-  'korean-style-analyzer': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'plan' }),
-  'librarian-researcher': Object.freeze({ tools: 'Read, Grep, Glob, WebFetch, WebSearch', permissionMode: 'plan' }),
-  'meaning-preservation-auditor': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
-  'native-flow-reviewer': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
-  'lit-verifier': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
-  'polish-orchestrator': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
-  'lit-planner': Object.freeze({ tools: 'Read, Grep, Glob, WebFetch, WebSearch', permissionMode: 'plan' }),
-  'qa-runner': Object.freeze({ tools: 'Read, Grep, Glob, Bash', permissionMode: 'default' }),
-  'quality-reviewer': Object.freeze({ tools: 'Read, Grep, Glob', permissionMode: 'default' }),
+  'lit-executor': Object.freeze({ tools: 'Read, Grep, Glob, Bash, Write, Edit, MultiEdit' }),
+  'korean-prose-editor': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'korean-style-analyzer': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'librarian-researcher': Object.freeze({ tools: 'Read, Grep, Glob, WebFetch, WebSearch' }),
+  'meaning-preservation-auditor': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'native-flow-reviewer': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'lit-verifier': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'polish-orchestrator': Object.freeze({ tools: 'Read, Grep, Glob' }),
+  'lit-planner': Object.freeze({ tools: 'Read, Grep, Glob, WebFetch, WebSearch' }),
+  'qa-runner': Object.freeze({ tools: 'Read, Grep, Glob, Bash' }),
+  'quality-reviewer': Object.freeze({ tools: 'Read, Grep, Glob' }),
 });
 
 const UNSUPPORTED_MESSAGE =
@@ -152,11 +152,11 @@ export function inspectClaudeNativeSurface(root = ROOT) {
     }
     const expected = EXPECTED_AGENT_PERMISSIONS[agentName];
     if (!expected) continue;
-    const actual = { tools: fieldOf(frontmatter, 'tools'), permissionMode: fieldOf(frontmatter, 'permissionMode') };
+    const actual = { tools: fieldOf(frontmatter, 'tools') };
     permissions[agentName] = actual;
-    if (actual.tools !== expected.tools || actual.permissionMode !== expected.permissionMode) {
-      failures.push(`AGENT_PERMISSION_CHANGED:${agentName}`);
-    }
+    if (actual.tools !== expected.tools) failures.push(`AGENT_PERMISSION_CHANGED:${agentName}`);
+    // Claude Code ignores permissionMode in plugin agents; the tools list is the boundary.
+    if (fieldOf(frontmatter, 'permissionMode') !== null) failures.push(`AGENT_PERMISSION_MODE_IGNORED:${agentName}`);
   }
 
   for (const agentName of Object.keys(EXPECTED_AGENT_PERMISSIONS)) {

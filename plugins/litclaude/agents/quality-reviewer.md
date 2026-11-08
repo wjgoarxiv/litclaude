@@ -2,7 +2,6 @@
 name: quality-reviewer
 description: Reviews changed files for defects, maintainability, and safety.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - review-work
   - lit-code

@@ -2,7 +2,6 @@
 name: lit-planner
 description: Creates decision-complete Claude Code work plans without product-code edits.
 tools: Read, Grep, Glob, WebFetch, WebSearch
-permissionMode: plan
 skills:
   - lit-plan
   - rules

@@ -2,7 +2,6 @@
 name: korean-style-analyzer
 description: Analyzes Korean prose for machine-written texture and revision targets.
 tools: Read, Grep, Glob
-permissionMode: plan
 skills:
   - lit-humanizer
   - rules

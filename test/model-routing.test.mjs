@@ -183,17 +183,17 @@ describe("LitClaude G20 model-routing boundary", () => {
     assert.deepEqual(report.modelFields, []);
     assert.deepEqual(report.effortFields, []);
     assert.deepEqual(report.permissions, {
-      "lit-executor": { tools: "Read, Grep, Glob, Bash, Write, Edit, MultiEdit", permissionMode: "acceptEdits" },
-      "korean-prose-editor": { tools: "Read, Grep, Glob", permissionMode: "default" },
-      "korean-style-analyzer": { tools: "Read, Grep, Glob", permissionMode: "plan" },
-      "librarian-researcher": { tools: "Read, Grep, Glob, WebFetch, WebSearch", permissionMode: "plan" },
-      "meaning-preservation-auditor": { tools: "Read, Grep, Glob", permissionMode: "default" },
-      "native-flow-reviewer": { tools: "Read, Grep, Glob", permissionMode: "default" },
-      "lit-verifier": { tools: "Read, Grep, Glob", permissionMode: "default" },
-      "polish-orchestrator": { tools: "Read, Grep, Glob", permissionMode: "default" },
-      "lit-planner": { tools: "Read, Grep, Glob, WebFetch, WebSearch", permissionMode: "plan" },
-      "qa-runner": { tools: "Read, Grep, Glob, Bash", permissionMode: "default" },
-      "quality-reviewer": { tools: "Read, Grep, Glob", permissionMode: "default" },
+      "lit-executor": { tools: "Read, Grep, Glob, Bash, Write, Edit, MultiEdit" },
+      "korean-prose-editor": { tools: "Read, Grep, Glob" },
+      "korean-style-analyzer": { tools: "Read, Grep, Glob" },
+      "librarian-researcher": { tools: "Read, Grep, Glob, WebFetch, WebSearch" },
+      "meaning-preservation-auditor": { tools: "Read, Grep, Glob" },
+      "native-flow-reviewer": { tools: "Read, Grep, Glob" },
+      "lit-verifier": { tools: "Read, Grep, Glob" },
+      "polish-orchestrator": { tools: "Read, Grep, Glob" },
+      "lit-planner": { tools: "Read, Grep, Glob, WebFetch, WebSearch" },
+      "qa-runner": { tools: "Read, Grep, Glob, Bash" },
+      "quality-reviewer": { tools: "Read, Grep, Glob" },
     });
   });
 

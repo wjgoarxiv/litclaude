@@ -2,7 +2,6 @@
 name: librarian-researcher
 description: Researches official docs and pinned source references.
 tools: Read, Grep, Glob, WebFetch, WebSearch
-permissionMode: plan
 skills:
   - rules
 ---

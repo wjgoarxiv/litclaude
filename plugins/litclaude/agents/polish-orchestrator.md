@@ -2,7 +2,6 @@
 name: polish-orchestrator
 description: Coordinates strict Korean prose polish decisions and final summary.
 tools: Read, Grep, Glob
-permissionMode: default
 skills:
   - lit-humanizer
   - review-work

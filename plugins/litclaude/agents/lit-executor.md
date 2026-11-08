@@ -2,7 +2,6 @@
 name: lit-executor
 description: Executes one checked plan task at a time with tests and evidence.
 tools: Read, Grep, Glob, Bash, Write, Edit, MultiEdit
-permissionMode: acceptEdits
 skills:
   - start-work
   - lit-code

@@ -313,6 +313,11 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
   return { permissionMode, permissionExplicit, assumeYes, iconFont, agentFile };
 };
 
+// Claude Code ignores permissionMode in plugin agent frontmatter, so the planner stays
+// read-only through its tools list. Settings written before 1.0.47 carry the old text.
+const plannerSafeguard = "lit-planner stays read-only through its tools list (no Write, Edit, MultiEdit or Bash)";
+const legacyPlannerSafeguard = "lit-planner remains permissionMode: plan";
+
 const permissionProfile = (mode) => {
   switch (mode) {
     case "balanced":
@@ -321,7 +326,7 @@ const permissionProfile = (mode) => {
         description: `global Claude settings permissions.allow/deny: adds bounded routine allow rules and dangerous-shell denies; ${permissionOwnershipDescription}`,
         routineAutomation: true,
         dangerousShellDenyPreserved: true,
-        plannerSafeguard: "lit-planner remains permissionMode: plan",
+        plannerSafeguard,
       };
     case "yolo":
       return {
@@ -329,7 +334,7 @@ const permissionProfile = (mode) => {
         description: `global Claude settings permissions.allow/deny: adds broader edit/write and command allow rules plus dangerous-shell denies; ${permissionOwnershipDescription}`,
         routineAutomation: true,
         dangerousShellDenyPreserved: true,
-        plannerSafeguard: "lit-planner remains permissionMode: plan",
+        plannerSafeguard,
       };
     case "safe":
     default:
@@ -338,7 +343,7 @@ const permissionProfile = (mode) => {
         description: `global Claude settings permissions.allow/deny: adds no rules; ${permissionOwnershipDescription}`,
         routineAutomation: false,
         dangerousShellDenyPreserved: true,
-        plannerSafeguard: "lit-planner remains permissionMode: plan",
+        plannerSafeguard,
       };
   }
 };
@@ -1219,7 +1224,8 @@ const permissionIntegrityFailures = (settings) => {
     && typeof actualProfile === "object"
     && !Array.isArray(actualProfile)
     && Object.keys(actualProfile).length === Object.keys(expectedProfile).length
-    && Object.entries(expectedProfile).every(([key, value]) => actualProfile[key] === value);
+    && Object.entries(expectedProfile).every(([key, value]) => actualProfile[key] === value
+      || (key === "plannerSafeguard" && actualProfile[key] === legacyPlannerSafeguard));
   if (
     !profileMatches
   ) failures.push("permissionPreference does not match permissionMode");

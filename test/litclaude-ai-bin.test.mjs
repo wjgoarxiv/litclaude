@@ -681,13 +681,14 @@ describe("litclaude-ai CLI", () => {
       assert.equal(settings.litclaude.permissionMode, "balanced");
       assert.equal(settings.litclaude.permissionPreference.routineAutomation, true);
       assert.equal(settings.litclaude.permissionPreference.dangerousShellDenyPreserved, true);
-      assert.match(settings.litclaude.permissionPreference.plannerSafeguard, /permissionMode: plan/u);
+      assert.match(settings.litclaude.permissionPreference.plannerSafeguard, /read-only through its tools list/u);
 
       const installRoot = join(claudeHome, "plugins", "cache", "litclaude-ai", "litclaude", packageJson.version);
       const planner = readFileSync(join(installRoot, "agents", "lit-planner.md"), "utf8");
       const executor = readFileSync(join(installRoot, "agents", "lit-executor.md"), "utf8");
-      assert.match(planner, /permissionMode:\s*plan/u);
-      assert.match(executor, /permissionMode:\s*acceptEdits/u);
+      assert.doesNotMatch(planner, /permissionMode:/u);
+      assert.doesNotMatch(executor, /permissionMode:/u);
+      assert.match(planner, /^tools: Read, Grep, Glob, WebFetch, WebSearch$/mu);
     } finally {
       rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
       rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
