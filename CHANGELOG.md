@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.48 - 2026-11-09
+
+- The LIT card above the prompt now draws its terminal Client region through Claude Code's global `h`, as
+  `h("Client", { module })`. The Claude plugin directory's validator only reads a Client element in that form,
+  so the old `elements.Client(...)` call blocked a directory submission. The card looks and behaves the same, and it
+  still falls back to its cell drawing when the Client fails to load.
+
 ## 1.0.47 - 2026-11-09
 
 - The TypeScript language server loads again. `.lsp.json` gave `command` as an argv array, which Claude Code
