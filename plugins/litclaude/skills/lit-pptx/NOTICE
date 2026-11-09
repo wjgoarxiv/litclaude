@@ -1,0 +1,38 @@
+lit-pptx — LitClaude deck skill
+
+Deck engine, templates, QA gate, design laws and stage/role prompts
+Copyright (c) 2026 wjgoarxiv. Author of the Markdown-first deck
+engine (scripts/compile-deck.js, scripts/lib/*.js), the enrolled templates
+(templates/enrolled/*), scripts/learn_template.py, scripts/embed_fonts.py,
+scripts/qa_deck.py, scripts/validate_pptx.py, the references/, specs/ and
+references/agents/ prompts, and the 정/반/합 improvement loop, first published
+as the author's personal "pptx-toolkit" skill. Ported into LitClaude by the
+same author and distributed under the LitClaude MIT licence (LICENSE at the
+package root).
+
+Written for this port (not from the personal skill's earlier files):
+  scripts/layout_inventory.py      text/picture/table geometry inventory
+  ../../lib/ooxml_integrity.py     OOXML package integrity check
+  ../../lib/render_pages.py        soffice + PyMuPDF page renderer
+  ../../lib/office-runtime.mjs     pinned first-use runtime installer
+  scripts/lib/runtime-require.js   runtime module loader
+
+Not included: the files that arrived in the personal skill with its initial
+import (an HTML-to-slide converter and its guide, OOXML schema/pack/validate
+tools, and thumbnail/inventory/replace/rearrange scripts). The package test
+suite fails if any of them appears here.
+
+No company brand template, logo, mark or photograph ships with this skill.
+Users enroll their own brand template from a deck they own with
+scripts/learn_template.py.
+
+Fonts (unmodified, SIL Open Font License 1.1; see fonts/provenance.json):
+  fonts/pretendard  Pretendard v1.3.9, Copyright (c) 2021 Kil Hyung-jin,
+                    Reserved Font Name "Pretendard" — fonts/pretendard/OFL.txt
+  fonts/a2z         에이투지체 (A2Z) v1.001, Copyright (c) 2026 PT& —
+                    fonts/a2z/OFL.txt, fonts/a2z/SOURCE.md
+
+Runtime dependencies are not bundled. They install on first use from
+../../lib/office-runtime-lock/ (pptxgenjs, sharp; python-pptx, python-docx,
+markdown, beautifulsoup4, pymupdf, PyYAML, defusedxml and their pinned
+dependencies), each under its own licence.

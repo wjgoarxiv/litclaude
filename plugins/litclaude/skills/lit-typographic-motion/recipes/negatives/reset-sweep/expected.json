@@ -1,0 +1,16 @@
+{
+  "schema": "litclaude.motion-cover-negative/v1",
+  "note": "A slide-like page that must keep failing these decoded-file gates at FLOOR, and no other FLOOR gate among G1-G4; the recipe QA passes it only when the render completed and was gated. Never tune a threshold so it passes.",
+  "mustFail": [
+    "G4.floor"
+  ],
+  "treatment": {
+    "loopSec": 8,
+    "fps": 20,
+    "encode": {
+      "q": 78,
+      "edgeQ": 78,
+      "edgeFrames": 0
+    }
+  }
+}
