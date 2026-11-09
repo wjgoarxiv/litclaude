@@ -530,6 +530,7 @@ export const register = (on, options) => {
     const model = live.model;
     if (!model || settings.band === "off" || e.props.hasSurvey || (!model.visible && !live.exiting)) return next(e);
     const elements = $.ui.resolve(e);
+    const { Client } = elements;
     const columns = Math.max(20, e.props.bodyColumns ?? e.viewport?.columns ?? 80);
     let drawn = null;
     live.drawnOn[e.surface] = e.surface !== "terminal" && elements.Svg ? "svg" : "cells";
@@ -540,8 +541,8 @@ export const register = (on, options) => {
         const { source, alt, animated } = composeSvgCard(model, { motion, accent: live.accent });
         drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
       }
-    } else if (elements.Client && !live.clientFailed) {
-      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
+    } else if (Client && !live.clientFailed) {
+      drawn = Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
     } else if (model.visible) {
       drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent, color }));
     }
