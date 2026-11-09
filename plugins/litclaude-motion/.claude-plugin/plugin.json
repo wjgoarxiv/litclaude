@@ -1,0 +1,20 @@
+{
+  "name": "litclaude-motion",
+  "version": "1.0.47",
+  "description": "short typographic films and silent README cover loops, rendered and checked frame by frame",
+  "author": {
+    "name": "LitClaude contributors"
+  },
+  "homepage": "https://github.com/wjgoarxiv/litclaude",
+  "repository": "https://github.com/wjgoarxiv/litclaude",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "skills",
+    "agents",
+    "lsp",
+    "workflow",
+    "start-work-lifecycle"
+  ]
+}

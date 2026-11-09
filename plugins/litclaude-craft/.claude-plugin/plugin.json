@@ -1,0 +1,20 @@
+{
+  "name": "litclaude-craft",
+  "version": "1.0.47",
+  "description": "code-generation helpers, P&ID and equipment schematics, and README covers",
+  "author": {
+    "name": "LitClaude contributors"
+  },
+  "homepage": "https://github.com/wjgoarxiv/litclaude",
+  "repository": "https://github.com/wjgoarxiv/litclaude",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "skills",
+    "agents",
+    "lsp",
+    "workflow",
+    "start-work-lifecycle"
+  ]
+}

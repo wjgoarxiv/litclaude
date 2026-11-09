@@ -1,0 +1,10 @@
+{
+  "name": "litclaude-motion-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned Node dependencies for the LitClaude lit-typographic-motion engine. Installed only by `litclaude-ai motion-runtime install` (or the installer's pre-warm) into a LitClaude-owned cache; a render never installs.",
+  "license": "MIT",
+  "dependencies": {
+    "opentype.js": "2.0.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "litclaude-diagram",
+  "version": "1.0.47",
+  "description": "architecture, workflow, timeline and concept diagrams, verified and exported for slides and documents",
+  "author": {
+    "name": "LitClaude contributors"
+  },
+  "homepage": "https://github.com/wjgoarxiv/litclaude",
+  "repository": "https://github.com/wjgoarxiv/litclaude",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "skills",
+    "agents",
+    "lsp",
+    "workflow",
+    "start-work-lifecycle"
+  ]
+}
