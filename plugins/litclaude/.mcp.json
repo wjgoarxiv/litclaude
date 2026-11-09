@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "litclaude": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/litclaude-mcp.js"]
+    }
+  }
+}

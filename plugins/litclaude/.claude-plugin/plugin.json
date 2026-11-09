@@ -1,0 +1,49 @@
+{
+  "name": "litclaude",
+  "description": "Claude Code-native workflow plugin with a bounded-authority start-work lifecycle.",
+  "version": "1.0.47",
+  "author": {
+    "name": "LitClaude contributors"
+  },
+  "homepage": "https://github.com/wjgoarxiv/litclaude",
+  "repository": "https://github.com/wjgoarxiv/litclaude",
+  "license": "MIT",
+  "keywords": ["claude-code", "hooks", "skills", "agents", "lsp", "workflow", "start-work-lifecycle"],
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "lspServers": "./.lsp.json",
+  "displayName": "LitClaude",
+  "defaultEnabled": true,
+  "userConfig": {
+    "motion": {
+      "type": "string",
+      "title": "LIT band motion",
+      "description": "How the band above the prompt moves: full (during work the LIT pill breathes, a light sweeps the phase and a comet runs the border), subtle (only the breathing) or off.",
+      "default": "full"
+    },
+    "glyphs": {
+      "type": "string",
+      "title": "LIT band glyphs",
+      "description": "auto uses the icon font when it is installed (litclaude-ai install --icon-font); nerd always; basic works with any font.",
+      "default": "auto"
+    },
+    "band": {
+      "type": "string",
+      "title": "LIT band",
+      "description": "When the LIT card shows above the prompt: always (the whole session, idle included), auto (only while LitClaude work is active or a skill of this request is lit) or off.",
+      "default": "always"
+    },
+    "notify": {
+      "type": "string",
+      "title": "LIT finish notification",
+      "description": "off, or finish: a notification through your own notification channel when LIT work completes or a LIT turn longer than three minutes ends. finish+sound also plays a sound once LitClaude ships one; until then it notifies like finish.",
+      "default": "off"
+    },
+    "club": {
+      "type": "string",
+      "title": "LIT club look",
+      "description": "on: once you typed `lit invite @<github-id>`, the idle card wears the gold club look. off keeps the plain ready card. Nothing is sent anywhere.",
+      "default": "on"
+    }
+  }
+}
