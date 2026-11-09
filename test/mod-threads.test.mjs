@@ -13,6 +13,7 @@ import { settledSample } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { EMPTY_LISTS, EMPTY_TASKS, TASK_STALE_MS, buildBandModel, endedTaskIds, listProgress, noteBackgroundTask, noteLoopCall } from "../plugins/litclaude/lib/mod/view.mjs";
 import { applyStackEvent, emptyStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 const NOW = 10_000_000;
 const SID = "11111111-aaaa-bbbb-cccc-000000000001";
@@ -459,6 +460,9 @@ const hookHost = async (listed = []) => {
     const step = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => step(index + 1, next)) : core);
     return step(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   const flush = async () => {
     while (timers.length) await timers.shift()();
     await new Promise((resolve) => setTimeout(resolve, 0));

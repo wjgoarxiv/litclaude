@@ -540,8 +540,8 @@ export const register = (on, options) => {
         const { source, alt, animated } = composeSvgCard(model, { motion, accent: live.accent });
         drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
       }
-    } else if (elements.Client && !live.clientFailed) {
-      drawn = elements.Client({ key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
+    } else if (!live.clientFailed) {
+      drawn = h("Client", { key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
     } else if (model.visible) {
       drawn = renderBand(elements, composeBand(model, settledSample(model), { columns, glyphs, accent: live.accent, color }));
     }

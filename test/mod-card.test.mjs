@@ -21,6 +21,7 @@ import { AGENT_STALE_MS, EMPTY_TASKS, STALL_MS, buildBandModel, noteBackgroundTa
 import { SVG_CARD, composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
 import { TOAST_GAP_MS, gateToast, mergeToasts, statusChanges, statusOf } from "../plugins/litclaude/lib/mod/toasts.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 const NOW = 10_000_000;
 const CYAN = "#5fd7ff";
@@ -382,6 +383,9 @@ const harness = async (options = {}, agents = [], files = new Map(), { client = 
     const run = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => run(index + 1, next)) : core);
     return run(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   const flush = async () => {
     while (timers.length) await timers.shift()();
     await new Promise((resolve) => setTimeout(resolve, 0));

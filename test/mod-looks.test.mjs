@@ -18,6 +18,7 @@ import { TIMINGS, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs"
 import { parseBoulder, parseIgnition, parseWorkflowStack } from "../plugins/litclaude/lib/mod/state.mjs";
 import { createTimeline, sampleTimeline } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { buildBandModel, releaseFinish, waitingReason, workflowFinish } from "../plugins/litclaude/lib/mod/view.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -254,6 +255,9 @@ const hookHost = async ({ env = {} } = {}) => {
     const step = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => step(index + 1, next)) : typeof core === "function" ? core() : core);
     return step(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   const flush = async () => {
     while (timers.length) await timers.shift()();
     await new Promise((resolve) => setTimeout(resolve, 0));

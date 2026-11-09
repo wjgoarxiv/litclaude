@@ -10,6 +10,7 @@ import { composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
 import { ambientActive, createTimeline, sampleTimeline, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 const NOW = 10_000_000;
 const CYAN = "#5fd7ff";
@@ -242,6 +243,9 @@ const drawWith = async (hostSettings) => {
     const run = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => run(index + 1, next)) : undefined);
     return run(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   await fire("session.start", {});
   while (timers.length) await timers.shift()();
   const find = (node) => (node?.kind === "client" ? node : (node?.children ?? []).map(find).find(Boolean));

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 const holes = (value, path, out = []) => {
   if (value === undefined) out.push(path);
@@ -44,6 +45,9 @@ test("a card drawn before session.start carries no undefined in its Client props
     const step = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => step(index + 1, next)) : undefined);
     return step(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   await fire("tool.call", { tool: "Skill", skill: "litclaude:start-work" });
   await fire("ui.render", { surface: "terminal", props: { bodyColumns: 100 } }, { component: "AbovePrompt" });
   assert.equal(clients.length, 1, "the skill's card was drawn");

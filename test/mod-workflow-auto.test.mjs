@@ -9,6 +9,7 @@ import test from "node:test";
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 import { REVIEW_LANES, buildWorkflow, reviewLaneOf } from "../plugins/litclaude/lib/mod/workflow.mjs";
 import { readStack, writeStack } from "../plugins/litclaude/lib/workflow-stack.mjs";
+import { installModH } from "./helpers/mod-h.mjs";
 
 // The map has to move on its own: in a real session the model never ran `litclaude-ai
 // workflow-stage`, and the card stayed at the stage the skill entered. These cases drive
@@ -79,6 +80,9 @@ const diskHost = async (project) => {
     const run = async (index, input) => (index < chain.length ? chain[index].hook($, input, (next) => run(index + 1, next)) : core);
     return run(0, e);
   };
+  installModH(() => elements);
+  // The host's AbovePrompt Client failed to load: the card falls back to its cell drawing.
+  if (!elements.Client) await fire("ui.fault", { component: "AbovePrompt", phase: "load", reason: "no Client in this table" });
   const flush = async () => {
     while (timers.length) await timers.shift()();
     await new Promise((resolve) => setTimeout(resolve, 0));
