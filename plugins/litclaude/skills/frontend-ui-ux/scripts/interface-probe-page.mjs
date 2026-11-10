@@ -143,8 +143,10 @@ export function measureInterface(options) {
       context.fillStyle = "#000";
       context.fillStyle = value;
       context.fillRect(0, 0, 1, 1);
+      // getImageData already returns un-premultiplied channels; dividing by alpha again inflates
+      // every translucent colour (rgba(255,255,255,.18) would read as r = 1414).
       const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
-      parsed = a === 0 ? null : { r: Math.round((r * 255) / a), g: Math.round((g * 255) / a), b: Math.round((b * 255) / a), a: a / 255 };
+      parsed = a === 0 ? null : { r, g, b, a: a / 255 };
     }
     colorCache.set(value, parsed);
     return parsed;

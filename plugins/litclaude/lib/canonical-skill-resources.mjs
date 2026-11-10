@@ -124,7 +124,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["skills/frontend-ui-ux/scripts/errors.mjs", "62047a42a773e85287fd2006a4ebdbf6defdedf98f14560fc7693417136a0a78"],
     ["skills/frontend-ui-ux/scripts/import-design-intelligence.mjs", "463e28da2cf102b62fd372b4b507f1e716b8ce349db4361e0027a500619b3291"],
     ["skills/frontend-ui-ux/scripts/interface-probe-lock.mjs", "93f113ab63b4b57935fa2d9c0df4916719a435d35706b55a1bd6fc5ba7f1263f"],
-    ["skills/frontend-ui-ux/scripts/interface-probe-page.mjs", "a9fb81a8213bdb8f6c1355ba9dc95f2f2c93c49003223dc5f542edcfc878358a"],
+    ["skills/frontend-ui-ux/scripts/interface-probe-page.mjs", "a72a1048a68c756c622a4da8c35b1faade5b853a21bf436bfacb1f1408d7350c"],
     ["skills/frontend-ui-ux/scripts/interface-probe-rules.mjs", "775fd2836038eb9396f0d03746e74086e95a7f4c5a6a8af1e23a4eebafd2ab1f"],
     ["skills/frontend-ui-ux/scripts/interface-probe-server.mjs", "310abdc6a4dbb3224a0d1fb928ccf6e8a608e4abd6c3b6b632ceb3f3f96940a2"],
     ["skills/frontend-ui-ux/scripts/interface-probe-static.mjs", "96d16a48a5447a55ed1651cb50a14c7664ae6d42ec1dc2f09950ec9b8ceba652"],

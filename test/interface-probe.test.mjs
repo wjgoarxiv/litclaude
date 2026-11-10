@@ -311,6 +311,11 @@ describe("interface probe: rendered fixtures", { skip: browserSkip }, () => {
     assert.ok(ruleHits(report, "CF-205").some(({ threshold }) => threshold === "≤ 1"), "the calm register keeps the single-accent limit");
   });
 
+  it("composites a translucent panel once: light text on rgba(255,255,255,.18) over a dark page passes", () => {
+    const { report } = runProbe(join(fixtures, "translucent"), ["--viewports", "1440"]);
+    assert.deepEqual(ruleHits(report, "CF-201"), [], "the panel is a dark grey surface, not white");
+  });
+
   it("blocks a run that skipped matrix rows when nothing HIGH was found", () => {
     const run = runProbe(join(fixtures, "clean"), ["--viewports", "390"]);
     assert.equal(run.status, EXIT.blocked, run.stdout + run.stderr);
