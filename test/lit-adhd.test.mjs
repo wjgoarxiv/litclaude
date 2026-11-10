@@ -197,6 +197,26 @@ describe("lit-adhd skill body and enrollment", () => {
     assert.match(outputs, /never a guess/iu);
   }));
 
+  // lit-adhd v2: the KPI board is the reply, the per-session cards come only on request.
+  it("states the KPI board and the detail switch in the skill, the hook context and both commands", () => withProject((cwd) => {
+    const outputs = section(read(skillPath), "## #contract.outputs");
+    for (const part of ["🎯", "📊", "🏁", "✅", "⬜", "🔔", "Do this now", "At a glance", "Milestones", "Done lately", "Still to do", "Don't forget", "지금 할 일", "잊지 말 것"]) {
+      assert.ok(outputs.includes(part), `SKILL.md #contract.outputs names ${part}`);
+    }
+    assert.match(outputs, /`--detail`/u);
+    assert.match(outputs, /`lit adhd 자세히`/u);
+    assert.match(outputs, /`lit adhd detail`/u);
+    const context = runHook("lit adhd", cwd).hookSpecificOutput.additionalContext;
+    assert.match(context, /KPI board/u);
+    assert.match(context, /--detail/u);
+    assert.match(context, /lit adhd 자세히/u);
+    for (const name of ["lit-adhd", "lit-rewind"]) {
+      const text = read(join(plugin, "commands", `${name}.md`));
+      assert.match(text, /KPI board/u, name);
+      assert.match(text, /--detail/u, name);
+    }
+  }));
+
   it("carries the contract sections, references and a non-placeholder corpus", () => {
     const text = read(skillPath);
     for (const heading of ["## #contract.activation", "## #contract.inputs", "## #contract.mode_matrix", "## #contract.procedure", "## #contract.outputs", "## #contract.evidence", "## #contract.hard_stops", "## #contract.anti_patterns"]) {

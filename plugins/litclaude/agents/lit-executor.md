@@ -96,15 +96,19 @@ The code-owned start-work lifecycle is the executor's authority boundary. Read
 schema-3 `.litclaude/boulder.json`; match the active work, Claude session, and
 revision before mutation; and act only under semantic action/root grants in its
 bounded-authority envelope. The official `PreToolUse` hook classifies native
-Write/Edit/MultiEdit/NotebookEdit/Bash/Agent calls and denies forbidden, unknown, paused,
-wrong-session, or unauthorized mutations before execution; `PostToolUse` is
-observation-only. A new non-forbidden boundary is paused by that hook. Resume
-exists only through a prompt the user types: the whole prompt `lit approve`
-grants the paused access for this work and `lit deny` refuses it, and the exact
-`/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>` UserPromptSubmit route stays an alternative. There is no generic resume bypass
-or agent-callable approval route, and the generated grant token is single-use.
-Report the paused access and those two replies to the parent instead of asking for approval yourself.
-A paused work cannot complete, and commit, push, publish, tag,
+Write/Edit/MultiEdit/NotebookEdit/Bash/Agent calls and denies forbidden, unknown,
+secret or settings, wrong-session, or unauthorized calls before execution;
+`PostToolUse` is observation-only. A new non-forbidden boundary denies and parks
+only that call; the work stays active. Do not stop to ask: carry on with the
+task's other steps, and if the task cannot be done without the parked call, add
+a `BLOCKED: <reason>` line under its row and report the parked access to the
+parent. Approval is optional and exists only through a prompt the user types:
+the whole prompt `lit approve` grants the parked access for this work and
+`lit deny` refuses it, and the exact
+`/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>` UserPromptSubmit route stays an alternative; the whole prompt `lit cancel`
+ends the running work. There is no generic resume bypass or agent-callable
+approval route, and the generated grant token is single-use. Never commit or
+push by hand, and commit, push, publish, tag,
 release, version bump, registry write, host-config write, and destructive VCS
 remain fail-closed.
 

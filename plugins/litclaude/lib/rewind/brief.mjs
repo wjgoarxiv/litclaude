@@ -40,7 +40,7 @@ const WORDS = {
     self: "this session",
     answer: (q) => `answer its question: “${q}”`,
     resume: (skill, stage, self) => `resume ${skill} at ${stage} (\`lit continue\`${self ? "" : " there"})`,
-    approve: "approve or deny the start-work boundary (`lit approve` / `lit deny`)",
+    approve: "start-work waits on parked steps: allow them (`lit approve`) or end the run (`lit cancel`)",
     planNow: (plan, item) => `${plan} → ${item}`,
     nothing: "nothing pending on record",
     roadmap: "Roadmap",
@@ -106,7 +106,7 @@ const WORDS = {
     self: "이 세션",
     answer: (q) => `질문에 답하기: “${q}”`,
     resume: (skill, stage, self) => `${skill}(${stage}) 이어가기 (${self ? "" : "그 세션에서 "}\`lit continue\`)`,
-    approve: "start-work 경계 승인 또는 거절 (`lit approve` / `lit deny`)",
+    approve: "start-work가 보류한 단계를 기다림: 허용(`lit approve`) 또는 종료(`lit cancel`)",
     planNow: (plan, item) => `${plan} → ${item}`,
     nothing: "기록된 남은 일 없음",
     roadmap: "로드맵",
@@ -165,15 +165,15 @@ const stamp = (iso) => {
   return `${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
 };
 // Inline code that cannot be broken by a backtick inside the data.
-const code = (text) => `\`${stripControls(text).replace(/`/gu, "'")}\``;
+export const code = (text) => `\`${stripControls(text).replace(/`/gu, "'")}\``;
 // One line of data as Markdown text: no line breaks, no tags, and its emphasis marks escaped.
 // Every value printed passes through here or `code`, so a control sequence the collector missed
 // (an older record, a hand-made fixture) still cannot reach the terminal.
-const bare = (text) => stripControls(text).replace(/\s+/gu, " ").trim();
-const plain = (text) => bare(text).replace(/[<>`]/gu, (ch) => ({ "<": "‹", ">": "›", "`": "'" }[ch])).replace(/[*_|[\]\\]/gu, (ch) => `\\${ch}`);
+export const bare = (text) => stripControls(text).replace(/\s+/gu, " ").trim();
+export const plain = (text) => bare(text).replace(/[<>`]/gu, (ch) => ({ "<": "‹", ">": "›", "`": "'" }[ch])).replace(/[*_|[\]\\]/gu, (ch) => `\\${ch}`);
 
 // The last question the session asked, from its last assistant words.
-const lastQuestion = (result, escape = plain) => {
+export const lastQuestion = (result, escape = plain) => {
   const text = String(result ?? "");
   const found = [...text.matchAll(/[^.!?。？\n]{4,}[?？]/gu)].at(-1)?.[0];
   return found ? escape(clipToWidth(bare(found), 90)) : null;

@@ -177,7 +177,7 @@ compare it with the files as they are now, and then carry on.
 | `lit team`, `lit teammates` | Propose native agent teams when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled and the user approves |
 | `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
-| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | Read-only brief across your recent sessions of this repo: what each was asked, did and waits on, roadmap and progress gauges, one next step; say `go` to take it (`lit-rewind` is a permanent alias) |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | Read-only KPI board across your recent sessions of this repo: the one thing to do now and exactly what to type, done / in progress / waiting on you / left with an overall bar, a milestone table, what you finished lately, what is left in plan order, and reminders shaped `thing → what to do` (uncommitted changes, unpushed commits, lanes still working, plans untouched for a week). `lit adhd detail` adds the per-session cards under it; say `go` to take the step (`lit-rewind` is a permanent alias) |
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
 | `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
 | `lit invite @<github-id>`, `lit invite` | Say who invited you, as the whole prompt: LitClaude answers without a Claude turn, saves the id in `~/.litclaude/invite.json` on this machine only and gives the resting card the club look (`config club off` turns it off). Alone, it prints the line to share with friends. Also `litclaude-ai invite` |
@@ -712,10 +712,14 @@ the local `litgoal` ledger as the record. `lit loop` and `lit goal` then show on
 goal tracking. `lit plan` and `/start-work` don't need it: start-work keeps going to the last
 task on its own.
 
-`/start-work` runs the schema-3 bounded-authority start-work lifecycle. When a task needs
-something outside the plan's scope, the call pauses and names the access it wants; reply
-`lit approve` to allow it for this work or `lit deny` to refuse it. The exact route also
-still works:
+`/start-work` runs the schema-3 bounded-authority start-work lifecycle, and it is built so
+you can walk away. When a task needs something outside the plan's scope, only that call is
+set aside ("parked") and the run keeps going with the other tasks; reading Claude Code's
+own folders for the session never stops it, and secrets and settings files are simply
+refused. If every open task ends up waiting on parked calls, the turn ends with one list.
+Approving is optional: type `lit approve` to allow the parked calls for this work, or
+`lit deny` to refuse them. To end a run, type `lit cancel` (or `lit 취소`) in any window of
+the project; nothing needs to be copied. The exact route also still works:
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 

@@ -1,5 +1,5 @@
 ---
-description: "Alias of lit-adhd: cross-session briefing with progress gauges and one next step."
+description: "Alias of lit-adhd: the cross-session KPI board with one thing to do now; detail on request."
 argument-hint: '<--here, --since 7d, --max 12, --en>'
 ---
 
@@ -56,8 +56,9 @@ Reader mode is the default conversational projection: return the result, materia
 risk, required action, and explicitly requested detail. Keep detailed DoneClaims,
 evidence, ledgers, and handoffs internal; material failure, risk, or uncertainty
 always remains visible. Technical and audit detail is included only when the
-current authoritative request asks for it. The brief's five-part format is the requested
-content, not an invitation to append unrelated operational metadata.
+current authoritative request asks for it. The board's six sections (and, on request, the
+detail's five parts) are the requested content, not an invitation to append unrelated
+operational metadata.
 
 ## #contract.evidence
 
@@ -90,14 +91,19 @@ Procedure:
 
 - Run `litclaude-ai rewind --brief --lang <ko|en>` once, `ko` for a Korean
   prompt (or `node <skill-root>/scripts/rewind.mjs --brief --lang <ko|en>` when
-  the bin is not on PATH or rejects `--brief`). Pass `--here`,
-  `--since <7d|12h|30m>` or `--max <n>` only when the user asked for them.
-- Print the brief it draws as the reply, exactly as drawn: the headline, one
-  card per live session grouped by worktree and branch, the ended-session
-  table, the roadmap timeline, the boxed next step and the word to type, as
-  `Skill(lit-adhd)` defines.
-- A gauge (`[▉▉▉░░] 3/5`) appears only when both numbers are recorded; an
-  unknown total shows the known facts in words. Never draw or estimate one.
+  the bin is not on PATH or rejects `--brief`). Pass `--detail` only when the
+  user asked for per-session detail (`lit adhd 자세히`, `lit adhd detail`), and
+  `--here`, `--since <7d|12h|30m>` or `--max <n>` only when the user asked.
+- Print the KPI board it draws as the reply, exactly as drawn, in its fixed
+  order: 🎯 Do this now (one action, why, and what to type or where to go),
+  📊 At a glance (✅ done / 🔄 in progress / ⏳ waiting on you / ⬜ left and the
+  overall bar), 🏁 Milestones, ✅ Done lately, ⬜ Still to do and 🔔 Don't
+  forget, as `Skill(lit-adhd)` defines. With `--detail` the per-session brief
+  (cards grouped by worktree and branch, the ended-session table, the roadmap
+  and the boxed next step) follows under it.
+- A bar (`█████░░░░░ 9/18 (50%)`) or gauge (`[▉▉▉░░] 3/5`) appears only when
+  both numbers are recorded; an unknown total shows the known facts in words.
+  Never draw or estimate one.
 - A source the collector could not read is named once at the end; never fill
   it from memory.
 - If the collector fails, reply `BLOCKED:` with its reason and stop.

@@ -169,7 +169,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`을 켜 두었고 사용자가 승인할 때만 Claude Code의 에이전트 팀을 제안합니다. |
 | `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
 | `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | 파일을 건드리지 않고 세션을 요약합니다. |
-| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 이 저장소의 최근 세션을 한 화면에 요약합니다. 세션마다 받은 요청, 한 일, 기다리는 것, 로드맵과 진행 게이지, 다음 한 단계를 보여 주고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 이 저장소의 최근 세션을 KPI 보드 한 장으로 보여 줍니다. 맨 위에 지금 할 일 하나와 입력할 말이 있고, 끝남·진행 중·나를 기다림·남음 개수와 전체 진행 막대, 마일스톤 표, 최근 끝낸 일, 계획 순서대로 남은 일, `할 일 → 할 행동` 꼴의 알림(커밋 안 된 변경, 푸시 안 된 커밋, 아직 일하는 레인, 일주일 넘게 멈춘 계획)이 이어집니다. 세션별 카드는 `lit adhd 자세히`라고 하면 보드 아래에 붙고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
 | `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
 | `lit invite @<github-id>`, `lit invite` | 누가 초대했는지 남깁니다. 프롬프트 전체로 입력해야 합니다. Claude 턴 없이 바로 답하고, 아이디를 이 컴퓨터의 `~/.litclaude/invite.json`에만 저장하고, 쉬고 있는 카드를 클럽 룩으로 바꿉니다(`config club off`로 끕니다). 아이디 없이 입력하면 친구에게 보낼 문장을 보여 줍니다. `litclaude-ai invite`도 같습니다. |
@@ -666,10 +666,14 @@ slash-command text를 보내지 않습니다. 이 경로는 먼저 `get_goal`, `
 붙여 넣으면 됩니다. `lit plan`과 `/start-work`에는 이 줄이 없습니다. start-work는 마지막 할 일까지
 스스로 이어 갑니다.
 
-`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 계획 범위 밖의
-접근이 필요하면 그 호출이 멈추고 어떤 접근인지 알려 줍니다. 이번 작업에 허용하려면
-`lit approve`(또는 `lit 승인`), 거절하려면 `lit deny`(또는 `lit 거절`)라고 답하세요. 다음 경로도
-그대로 쓸 수 있습니다.
+`/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 맡겨 두고 자리를
+떠나도 되도록 만들었습니다. 계획 범위 밖의 접근이 필요하면 그 호출 하나만 따로 미뤄 두고(parked),
+나머지 일은 계속합니다. 이 세션이 쓰는 Claude Code 폴더를 읽을 때는 멈추지 않고, 비밀 파일과
+설정 파일은 묻지 않고 거절합니다. 남은 일이 모두 미뤄 둔 호출을 기다리면 목록을 한 번 보여 주고
+그 턴을 끝냅니다. 허용은 선택입니다. 미뤄 둔 호출을 허용하려면 `lit approve`(또는 `lit 승인`),
+거절하려면 `lit deny`(또는 `lit 거절`)라고 답하세요. 실행을 끝내려면 프로젝트의 어느 창에서든
+`lit cancel`(또는 `lit 취소`)이라고 입력하면 됩니다. 복사할 명령은 없습니다. 다음 경로도 그대로
+쓸 수 있습니다.
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 

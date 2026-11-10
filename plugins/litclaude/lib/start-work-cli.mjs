@@ -19,7 +19,7 @@ Commands:
   pre-tool-use Classify one Claude PreToolUse JSON input against active authority.
   pause      Pause only at a new non-forbidden authority boundary.
   cancel     Cancel the active work as a terminal transition.
-  complete   Complete active verified work; paused work cannot complete.
+  complete   Complete active verified work; open plan tasks keep it running.
 
 Resume is intentionally not a generic CLI mutation. A user must submit exactly:
   /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>

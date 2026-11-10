@@ -101,19 +101,28 @@ semantic action/root grants, idempotency, locking, and bounded compaction.
 Null worktree means canonical cwd only when the authority envelope grants write
 there.
 
-No CLI flag may impersonate user approval. When a genuinely new,
-non-forbidden authority boundary pauses work, the tool call is denied with the
-access it asked for. Tell the user what it is and that they can reply `lit approve`
-(or `lit 승인`) to allow it for this work, or `lit deny` (or `lit 거절`) to refuse
-it; a denied path stays refused for the rest of the work without pausing again.
-The exact route stays accepted as an alternative:
+No CLI flag may impersonate user approval. When a call reaches a genuinely new,
+non-forbidden authority boundary, only that call is denied and parked; the work
+stays active and every covered call keeps running, so the user can walk away.
+Carry on with the plan's other tasks; mark a task that cannot be done without the
+parked call with a `BLOCKED: <reason>` line under its row. Reading this session's
+own Claude Code folders (spilled tool results, subagent transcripts, the host's
+`tasks` and `scratchpad` folders, memory, `CLAUDE.md`, skills) is never a
+boundary. Secrets and settings (`~/.ssh`, `.env` files, private keys, Claude Code
+settings, git configuration, the start-work state) are refused outright and never
+parked. When every open task waits on a parked call, the turn ends with one list.
+Approval is optional: the whole prompt `lit approve` (or `lit 승인`) grants every
+parked call for this work, and `lit deny` (or `lit 거절`) refuses them; a denied
+path stays refused for the rest of the work. The whole prompt `lit cancel` (or
+`lit 취소`), typed in any session of the project, ends the running work with no
+ids to copy. The exact route stays accepted as an alternative:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
 ```
 
 Only the Claude Code `UserPromptSubmit` hook accepts a whole-prompt token or that
-entire route, matches the active session and pending boundary, records the grant
+entire route, matches the active session and a parked boundary, records the grant
 or the refusal, and returns bounded structured context. Explanations, quotes, fences, mixed prompts, stale
 work/revision values, and generic agent CLI calls do not resume. Forbidden
 release, registry, host-config, destructive VCS, commit, push, publish, tag, and

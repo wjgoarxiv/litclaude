@@ -53,6 +53,7 @@ const PINNED_FILES = [
   "lib/mark.mjs",
   "lib/secret-shapes.mjs",
   "lib/plan-task-rows.mjs",
+  "lib/rewind/board.mjs",
   "lib/rewind/brief.mjs",
   "lib/rewind/collect.mjs",
   "lib/rewind/gauge.mjs",

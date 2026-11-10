@@ -598,23 +598,47 @@ semantic grant, while relocation flags, shell syntax that would require a
 speculative parser, and unverified or outside targets are denied without
 creating an approval boundary.
 
-A typed start-work and its boundary answers are the only mutating
+A typed start-work, its boundary answers and `lit cancel` are the only mutating
 `UserPromptSubmit` exceptions, and each must be the whole prompt. The prompt
 `/litclaude:start-work <plan>` (or `/start-work <plan>`, natural `lit start work`, or no
-plan with exactly one open plan) initializes the work with code-derived grants. `lit approve` / `lit 승인`
-grants the one pending boundary of the session's own work, and `lit deny` / `lit 거절`
-clears it and keeps that path refused. The exact route below is still accepted,
-with no surrounding explanation or extra arguments:
+plan with exactly one open plan) initializes the work with code-derived grants.
+
+A call outside those grants is denied and parked in `pending_boundaries` (at most 16,
+one event per new boundary; a repeat only counts hits and keeps the revision). The work
+stays `active`, every covered call keeps running, and the denial tells the model to carry
+on and mark a task that needs the parked call `BLOCKED: <reason>`. A state written before
+parked steps (`paused` with one `pending_boundary`) is read as one parked step. Reads of
+the session's own Claude Code folders never park: `<config>/projects/<key>/<session>/`
+`tool-results` and `subagents`, the project's `memory`, `CLAUDE.md`, `skills` (followed
+through its link), the host's `tasks` and `scratchpad` under
+`<CLAUDE_CODE_TMPDIR or /tmp>/claude-<uid>/<key>/<session>/` (the scratchpad may also be
+written), the host's `bundled-skills`, and the run's private temp folder; the key comes
+from `transcript_path` first. Secrets and settings are refused outright, never parked:
+`~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.codex`, `~/.npmrc`, `~/.claude.json`, shell rc files,
+Claude Code `settings*.json` (user and project), `.mcp.json`, `.env` files (not
+`.example`, `.sample`, `.template`), `.envrc`, `id_rsa`-style private keys, `*.pem`, and
+for writes git `hooks/`, `config` and `worktrees/` plus the start-work state. Paths compare
+after links resolve, case-folded on macOS and Windows. Only direct file access is checked;
+a script or a folder-wide search can still read such a file.
+
+Approving is optional. `lit approve` / `lit 승인` grants every parked boundary of the
+session's own work (one revision each, up to 64 grants, the rest reported), and
+`lit deny` / `lit 거절` refuses them and keeps those paths refused. `lit cancel` /
+`lit 취소`, accepted only from the `UserPromptSubmit` event, ends the project's running
+work from any session, also from a nested repository below it, with no work id or
+revision; the cancelled session may only read until the user types there again. The exact
+route below is still accepted, with no surrounding explanation or extra arguments:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
 ```
 
-The hook matches the owning Claude session and exact paused boundary before
+The hook matches the owning Claude session and an exact parked boundary before
 recording the grant. There is no generic CLI resume or agent-callable approval
 bypass. Returned `<litclaude-start-work-context>` JSON is bounded structured
 data and contains no raw prompt. Stop ignores subagents and stale work/revision
-events; each normal Stop re-evaluates progress, a new fingerprint emits once,
+events; each normal Stop re-evaluates progress (the parked boundaries join the
+fingerprint, and the continuation lists them), a new fingerprint emits once,
 and `stop_hook_active: true` re-entry stays silent so stale output cannot block
 again. Later unchanged turns are silent. Transcript pressure checks read only regular,
 non-symlink files at or below 256 KiB.
@@ -896,10 +920,17 @@ headers by default, switches the body to English on `--en`, and emits the brief
 `lit adhd`, `lit rewind`, `lit-adhd`, `lit-rewind`, `$lit-adhd` and `$lit-rewind` load
 `/litclaude:lit-adhd` / `Skill(lit-adhd)` for a read-only brief across every recent session of
 the repository's worktrees. `lit-rewind` is a permanent alias with the same skill and discipline.
-The context tells the model to run `litclaude-ai rewind --brief` once and print the brief it draws:
-the collector reads transcripts, plans, litgoal, handoff headings, git log, workflow stacks,
-start-work state and herdr (with `HERDR_ENV=1`) under one byte budget, redacts secrets, and
-draws the whole brief itself (`lib/rewind/brief.mjs`): a headline, one card per live session
+The context tells the model to run `litclaude-ai rewind --brief` once and print the KPI board it
+draws: the collector reads transcripts, plans, litgoal, handoff headings, git log and per-worktree
+`git status` / unpushed counts, workflow stacks, start-work state and herdr (with `HERDR_ENV=1`)
+under one byte budget, redacts secrets, and computes and draws the board itself
+(`lib/rewind/board.mjs`): 🎯 the one thing to do now with what to type, 📊 four bucket counts
+(✅ done, 🔄 in progress, ⏳ waiting on you, ⬜ left) and an overall bar, 🏁 a milestone table,
+✅ what finished lately, ⬜ what is left in plan order, and 🔔 at most five reminders shaped
+`thing → what to do`, all within 40 lines and without session ids, commit hashes or raw status
+codes. Only when the user asks for detail (`lit adhd 자세히`, `lit adhd detail`) does the context
+add `--detail`, and the per-session brief follows under the board
+(`lib/rewind/brief.mjs`): a headline, one card per live session
 grouped by worktree and branch, one table row per ended session, a roadmap timeline scoped to this
 worktree and recently changed plans, and one boxed next step that is always a real one. A gauge (`[▉▉▉░░] 3/5`)
 appears only when both numbers are recorded; otherwise the card states the known facts. A brief is read-only on the workflow stack. Near-miss words (`lit adhder`,
@@ -910,8 +941,9 @@ The collector also records this session's one next step under `.litclaude/adhd/`
 next prompt is `go`, `lit go`, `ㄱㄱ`, `고` or `진행` and that record is at most 30 minutes old, the
 hook deletes it and acts on that step alone: a single open plan starts through the same typed-start
 path as `/litclaude:start-work plans/<plan>.md` (the path is re-checked against `plans/*.md` with an
-open task), a paused frame or this session's start-work resumes, and a boundary still answers only to
-`lit approve` or `lit deny`. Without a fresh record of this session, `go` is ordinary text.
+open task), a paused frame or this session's start-work resumes, and a run whose open tasks all wait
+on parked steps answers only to `lit approve` or `lit cancel`. Without a fresh record of this session,
+`go` is ordinary text.
 
 `lit-comprehend`, bare `comprehend`, `lit comprehend`, `$lit-comprehend`, and
 `$comprehend` load `/litclaude:lit-comprehend` / `Skill(lit-comprehend)` for a self-contained explainer artifact aimed at

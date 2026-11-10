@@ -625,6 +625,7 @@ describe("release integrity — parity and canonical runtime assets", () => {
       "lib/lit-mark.mjs",
       "lib/mark.mjs",
       "lib/plan-task-rows.mjs",
+      "lib/rewind/board.mjs",
       "lib/rewind/brief.mjs",
       "lib/rewind/collect.mjs",
       "lib/rewind/gauge.mjs",

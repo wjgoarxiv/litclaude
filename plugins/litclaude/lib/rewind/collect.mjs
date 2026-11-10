@@ -11,6 +11,7 @@ import { basename, join, resolve, sep } from "node:path";
 
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { resolveProjectStateRoot } from "../project-state-root.mjs";
+import { buildBoard, renderBoard, STALE_PLAN_DAYS } from "./board.mjs";
 import { renderBrief } from "./brief.mjs";
 import { aggregateProgress, clipToWidth, displayWidth, progressOf } from "./gauge.mjs";
 import { chooseNextStep, writeNextStep } from "./next-step.mjs";
@@ -134,6 +135,17 @@ const laneRecordsOf = (root, name, text, budget, redact) => {
 };
 const share = (progress) => progress.done / progress.total;
 
+// A plan's own name: its first `# ` heading outside a code fence, within its first 40 lines.
+const planTitle = (text, redact) => {
+  let fenced = false;
+  for (const line of text.split("\n").slice(0, 40)) {
+    if (/^\s*(?:```|~~~)/u.test(line)) fenced = !fenced;
+    const match = fenced ? null : /^#\s+(.+?)\s*#*\s*$/u.exec(line);
+    if (match) return clipToWidth(redact(match[1]), 70);
+  }
+  return null;
+};
+
 // A plan met after the read budget ran out is counted in `skipped.count`, so the brief can say so.
 const plansIn = (root, budget, redact, local, skipped = { count: 0 }) => {
   const list = entries(join(root, "plans"));
@@ -160,6 +172,7 @@ const plansIn = (root, budget, redact, local, skipped = { count: 0 }) => {
     return [{
       worktree: redact(root),
       plan: `plans/${entry.name}`,
+      title: planTitle(text, redact),
       local,
       complete: best.progress.done === best.progress.total,
       changedMs: mtimeOf(join(root, "plans", entry.name)),
@@ -257,14 +270,21 @@ const startWorkOf = (root, budget, redact) => {
   const progress = rows.length
     ? progressOf(rows.length - open.length, rows.length, open.map((row) => clipToWidth(redact(row.text), NAME_MAX)))
     : progressOf(work.progress?.checked, work.progress?.total, work.progress?.next_task ? [clipToWidth(redact(work.progress.next_task), NAME_MAX)] : undefined);
+  // A parked step leaves the run going; it waits on the user only when every open task is BLOCKED.
+  // A state written before parked steps (`paused` with one pending boundary) waits as before.
+  const parked = Array.isArray(work.pending_boundaries) ? work.pending_boundaries : [];
+  const legacy = work.status === "paused" ? work.pending_boundary : null;
+  const allBlocked = rows.length ? open.length > 0 && open.every((row) => row.blocked) : !work.progress?.next_task && work.progress?.unchecked > 0;
+  const waiting = legacy ?? (parked.length && allBlocked ? parked[0] : null);
   return [{
     worktree: redact(root),
     workId: work.work_id,
     plan: typeof work.plan_name === "string" ? `plans/${work.plan_name}` : "unknown",
-    status: work.status,
+    status: waiting ? "paused" : work.status === "paused" ? "active" : work.status,
     sessionId: work.root_session_id ?? null,
     id8: typeof work.root_session_id === "string" ? work.root_session_id.slice(0, 8) : "unknown",
-    ...(work.pending_boundary ? { pendingBoundary: { action: work.pending_boundary.action, root: redact(work.pending_boundary.root) } } : {}),
+    ...(waiting ? { pendingBoundary: { action: waiting.action, root: redact(waiting.root) } } : {}),
+    ...(parked.length ? { parked: parked.length } : {}),
     progress,
   }];
 };
@@ -322,6 +342,26 @@ const herdrOf = (env, exec, redact, roots) => {
     return { status: "ok", agents };
   } catch {
     return { status: "unknown", agents: [] };
+  }
+};
+
+// How many changes wait to be committed and commits wait to be pushed in one worktree; `ahead` is
+// null without an upstream. A worktree git cannot read is left out, never guessed. LitClaude's own
+// `.litclaude/` state (this collector writes its next-step record there) is not the user's change.
+const gitStateOf = (root, exec, redact) => {
+  try {
+    const dirty = exec("git", ["status", "--porcelain=v1", "--untracked-files=normal"], { cwd: root, timeout: GIT_TIMEOUT_MS }).split("\n")
+      .filter((line) => line.trim() && !/^.. "?\.litclaude\//u.test(line)).length;
+    let ahead = null;
+    try {
+      const count = Number.parseInt(exec("git", ["rev-list", "--count", "@{upstream}..HEAD"], { cwd: root, timeout: GIT_TIMEOUT_MS }).trim(), 10);
+      ahead = Number.isInteger(count) && count >= 0 ? count : null;
+    } catch {
+      ahead = null;
+    }
+    return [{ worktree: redact(root), name: clipToWidth(redact(basename(root)), 40), dirty, ahead }];
+  } catch {
+    return null;
   }
 };
 
@@ -390,6 +430,7 @@ export const collectRewind = ({
   }
 
   const commits = collectEach((root) => commitsOf(root, sinceMs, now, exec, redact));
+  const gitState = collectEach((root) => gitStateOf(root, exec, redact));
   const herdr = herdrOf(env, exec, redact, roots.map((root) => resolve(root)));
 
   // A session waits on the user when it asked something, or holds a paused frame or boundary.
@@ -478,8 +519,12 @@ export const collectRewind = ({
     // Finished inside the window: completed start-work runs and plans with every row ticked.
     finished: {
       runs: recentRuns.map(({ worktree, plan, atMs }) => ({ worktree, plan, at: new Date(atMs).toISOString() })),
-      plans: (plans ?? []).filter((plan) => plan.complete && recent(plan)).map(({ worktree, plan, local, progress, recordedIn }) => ({ worktree, plan, local, gauge: progress.gauge, ...(recordedIn ? { recordedIn } : {}) })),
+      plans: (plans ?? []).filter((plan) => plan.complete && recent(plan)).map(({ worktree, plan, title, local, progress, rows, changedMs, recordedIn }) => ({ worktree, plan, title, local, gauge: progress.gauge, progress, rows, changedMs, ...(recordedIn ? { recordedIn } : {}) })),
     },
+    // Open plans nobody changed for a week or more, whatever the window: a reminder to decide on.
+    stalePlans: (plans ?? []).filter((plan) => !plan.complete && plan.changedMs !== null && now - plan.changedMs >= STALE_PLAN_DAYS * 86_400_000)
+      .map(({ worktree, plan, title, local, changedMs }) => ({ worktree, plan, title, local, days: Math.floor((now - changedMs) / 86_400_000) })),
+    git: gitState ?? [],
     workflows: (workflows ?? []).map((frame) => ({ ...frame, self: Boolean(sessionId) && frame.sessionId === sessionId })),
     startWork: startWork ?? [],
     handoffs,
@@ -502,6 +547,7 @@ export const collectRewind = ({
     work.self = Boolean(sessionId) && work.sessionId === sessionId;
     delete work.sessionId;
   }
+  data.board = buildBoard(data);
   return data;
 };
 
@@ -546,16 +592,18 @@ export const renderRewind = (data, width = 100) => {
 };
 
 /**
- * `litclaude-ai rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]`.
- * `--brief` prints the Markdown brief the lit-adhd skill copies; `--json` the data under it.
+ * `litclaude-ai rewind [--brief [--detail] [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]`.
+ * `--brief` prints the KPI board the lit-adhd skill copies, `--detail` adds the per-session brief
+ * under it, and `--json` prints the data under both.
  */
 export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, stdout = process.stdout, stderr = process.stderr } = {}) => {
   const options = { cwd, env, here: false, since: DEFAULT_SINCE, max: DEFAULT_MAX, sessionId: env.CLAUDE_CODE_SESSION_ID || null };
   let json = false;
   let brief = false;
+  let detail = false;
   let lang = "en";
   let width = Number(stdout.columns) || 100;
-  const usage = "Usage: litclaude-ai rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
+  const usage = "Usage: litclaude-ai rewind [--brief [--detail] [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
   if (args.some((arg) => arg === "--help" || arg === "-h")) {
     stdout.write(`${usage}\n`);
     return 0;
@@ -564,6 +612,7 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
     const arg = args[index];
     if (arg === "--json") json = true;
     else if (arg === "--brief") brief = true;
+    else if (arg === "--detail") detail = true;
     else if (arg === "--lang" && ["ko", "en"].includes(args[index + 1])) lang = args[++index];
     else if (arg === "--here") options.here = true;
     else if (arg === "--since" && parseSince(args[index + 1])) options.since = args[++index];
@@ -576,6 +625,7 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
     }
   }
   const data = collectRewind(options);
-  stdout.write(json ? `${JSON.stringify(data, null, 2)}\n` : brief ? renderBrief(data, { lang }) : renderRewind(data, width));
+  const board = () => renderBoard(data, { lang });
+  stdout.write(json ? `${JSON.stringify(data, null, 2)}\n` : brief ? (detail ? `${board()}\n---\n\n${renderBrief(data, { lang })}` : board()) : renderRewind(data, width));
   return 0;
 };

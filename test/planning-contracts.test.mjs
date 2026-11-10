@@ -95,7 +95,7 @@ test("T17 lit-plan ends with a single-step start instruction that names the plan
   assert.match(skill, /Please\s+confirm \(or steer\)/u, "the preview and the gate for plan changes stay");
 });
 
-test("T18 start-work docs name the short approve token and keep the exact route as a compatible alternative", () => {
+test("T18 start-work docs name the short approve and cancel tokens, parked steps, and keep the exact route as a compatible alternative", () => {
   for (const path of [
     "plugins/litclaude/commands/start-work.md",
     "plugins/litclaude/skills/start-work/SKILL.md",
@@ -106,6 +106,12 @@ test("T18 start-work docs name the short approve token and keep the exact route 
     const text = read(path);
     assert.match(text, /`lit approve`/u, path);
     assert.match(text, /`lit deny`/u, path);
+    assert.match(text, /`lit cancel`/u, `${path} names the one-word cancel`);
+    assert.match(text, /park/u, `${path} says an outside call is parked, not a freeze`);
+    assert.doesNotMatch(text, /paused work cannot complete|A paused work cannot complete|pauses until the user answers/u, `${path} no longer freezes the run`);
+  }
+  for (const path of ["plugins/litclaude/skills/lit-plan/SKILL.md", "docs/hooks.md", "docs/guide.md", "docs/guide_ko-KR.md", "plugins/litclaude/skills/lit-adhd/SKILL.md"]) {
+    assert.match(read(path), /`lit cancel`/u, `${path} names the one-word cancel`);
   }
   for (const path of ["plugins/litclaude/commands/start-work.md", "plugins/litclaude/skills/start-work/SKILL.md"]) {
     const text = read(path);

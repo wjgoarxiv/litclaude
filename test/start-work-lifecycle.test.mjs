@@ -42,10 +42,10 @@ const runHook = (event, root, input = {}) => spawnSync(
 );
 
 const parse = (result) => JSON.parse(result.stdout);
-// The exact 5-ID resume route, built from the paused work's state; the deny text no longer prints it.
+// The exact 5-ID resume route, built from the first parked boundary; the deny text never prints it.
 const resumeRouteFor = (root) => {
   const work = parse(runCli(root, ["status"])).state.works["work-1"];
-  const boundary = work.pending_boundary;
+  const boundary = work.pending_boundaries?.[0];
   return `/litclaude:start-work resume --work-id ${work.work_id} --revision ${work.revision} --boundary-id ${boundary.boundary_id} --prompt-id ${boundary.origin_prompt_id} --grant-id ${boundary.grant_id}`;
 };
 
@@ -200,7 +200,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     }
   });
 
-  it("pauses only for a genuinely new non-forbidden authority boundary", () => {
+  it("parks only a genuinely new non-forbidden authority boundary, without freezing the work", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();
     try {
@@ -230,11 +230,11 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
       ]);
       assert.equal(novel.status, 0, novel.stderr);
       const work = parse(novel).state.works["work-1"];
-      assert.equal(work.status, "paused");
+      assert.equal(work.status, "active");
       assert.equal(work.revision, 2);
-      assert.equal(work.pending_boundary.action, "write");
-      assert.equal(work.pending_boundary.root, realpathSync(outside));
-      assert.match(work.pending_boundary.boundary_id, /^boundary-/u);
+      assert.equal(work.pending_boundaries[0].action, "write");
+      assert.equal(work.pending_boundaries[0].root, realpathSync(outside));
+      assert.match(work.pending_boundaries[0].boundary_id, /^boundary-/u);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
@@ -260,7 +260,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
         prompt: `Please explain ${route}`,
       });
       assert.equal(injected.status, 0, injected.stderr);
-      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "paused");
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries.length, 1);
 
       const trusted = runHook("user-prompt-submit", root, {
         session_id: "session-1",
@@ -275,9 +275,9 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
       const work = parse(runCli(root, ["status"])).state.works["work-1"];
       assert.equal(work.status, "active");
       assert.equal(work.revision, 3);
-      assert.equal(work.pending_boundary, null);
-      assert.equal(work.authority.grants.some(({ grant_id }) => grant_id === paused.pending_boundary.grant_id), true);
-      assert.equal(work.authority.consumed_grants.some(({ grant_id }) => grant_id === paused.pending_boundary.grant_id), true);
+      assert.deepEqual(work.pending_boundaries, []);
+      assert.equal(work.authority.grants.some(({ grant_id }) => grant_id === paused.pending_boundaries[0].grant_id), true);
+      assert.equal(work.authority.consumed_grants.some(({ grant_id }) => grant_id === paused.pending_boundaries[0].grant_id), true);
 
       const replay = runHook("user-prompt-submit", root, {
         session_id: "session-1",
@@ -320,7 +320,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
 
       const work = parse(runCli(root, ["status"])).state.works["work-1"];
       assert.ok(work.events.length <= 64);
-      assert.equal(work.authority.consumed_grants.some(({ grant_id }) => grant_id === paused.pending_boundary.grant_id), true);
+      assert.equal(work.authority.consumed_grants.some(({ grant_id }) => grant_id === paused.pending_boundaries[0].grant_id), true);
       const reusedAfterCompaction = runHook("user-prompt-submit", root, {
         session_id: "session-1",
         prompt_id: "prompt-reuse-after-compaction",
@@ -368,7 +368,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     }
   });
 
-  it("uses fenced-checkbox-safe progress and refuses completion while paused or unchecked", () => {
+  it("uses fenced-checkbox-safe progress and refuses completion while a top-level task is unchecked", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();
     try {
@@ -392,10 +392,10 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
         "complete", "--work-id", "work-1", "--session-id", "session-1", "--expected-revision", "2", "--idempotency-key", "paused-complete",
       ]);
       assert.notEqual(complete.status, 0);
-      assert.match(parse(complete).error.message, /paused work cannot complete/iu);
+      assert.match(parse(complete).error.message, /unchecked top-level task/iu, "a parked step does not decide completion; the plan does");
 
       const pausedWork = parse(paused).state.works["work-1"];
-      const route = `/litclaude:start-work resume --work-id work-1 --revision 2 --boundary-id ${pausedWork.pending_boundary.boundary_id} --prompt-id cli-pause --grant-id ${pausedWork.pending_boundary.grant_id}`;
+      const route = `/litclaude:start-work resume --work-id work-1 --revision 2 --boundary-id ${pausedWork.pending_boundaries[0].boundary_id} --prompt-id cli-pause --grant-id ${pausedWork.pending_boundaries[0].grant_id}`;
       assert.equal(runHook("user-prompt-submit", root, {
         session_id: "session-1",
         prompt_id: "prompt-resume",

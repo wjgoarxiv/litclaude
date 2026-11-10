@@ -101,11 +101,12 @@ cleanup receipts, and explicit release approval boundaries.
 For approved-plan execution, use the code-owned schema-3 bounded-authority
 start-work lifecycle rather than ad hoc ledger edits. Match active work,
 session, and monotonic revision; keep plan/worktree/authority roots canonical;
-pause only at a genuinely new non-forbidden semantic action/root boundary; and
-never invent a resume grant. A pause is settled only by the user typing
-`lit approve` or `lit deny` as the whole prompt (the exact resume route documented
-by `Skill(start-work)` and `/litclaude:start-work` stays an alternative); paused
-work cannot complete.
+a genuinely new non-forbidden semantic action/root boundary parks only that call
+while the work keeps going; and never invent a resume grant. Parked calls are
+settled, optionally, only by the user typing `lit approve` or `lit deny` as the
+whole prompt (the exact resume route documented by `Skill(start-work)` and
+`/litclaude:start-work` stays an alternative), and the whole prompt `lit cancel`
+ends the running work from any session.
 
 Run the objective through `PIN -> RED -> GREEN -> VERIFY -> SURFACE -> REVIEW
 -> CLEAN -> RECORD`:

@@ -95,7 +95,8 @@ Stop hook saves the plan as this session's next step once the plan file is writt
 what lets the one word `go` start it. The hook starts the work
 with grants derived from the project; a plan that needs more names it on a line
 such as `Scope roots: <path> (read)`, and anything else outside the
-project pauses until the user answers `lit approve` or `lit deny`. Every absolute
+project is parked (only that call; the run keeps going, and the user may allow it
+later with `lit approve` or end the run with `lit cancel`). Every absolute
 path a todo names outside the project must sit under such a line: `scaffold-plan.mjs
 --check` and the Stop hook list each uncovered one with the exact line to paste
 (`Scope roots: <existing folder> (read)`), and the Stop hook blocks until it is there.

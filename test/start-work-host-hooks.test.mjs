@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -56,10 +56,10 @@ const preTool = (root, toolName, toolInput, overrides = {}) => runHook("pre-tool
   ...overrides,
 });
 
-// The exact 5-ID resume route, built from the paused work's state; the deny text no longer prints it.
+// The exact 5-ID resume route, built from the first parked boundary; the deny text never prints it.
 const resumeRouteFor = (root) => {
   const work = parse(runCli(root, ["status"])).state.works["work-1"];
-  const boundary = work.pending_boundary;
+  const boundary = work.pending_boundaries?.[0];
   return boundary ? `/litclaude:start-work resume --work-id ${work.work_id} --revision ${work.revision} --boundary-id ${boundary.boundary_id} --prompt-id ${boundary.origin_prompt_id} --grant-id ${boundary.grant_id}` : undefined;
 };
 
@@ -322,7 +322,7 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
-  it("pauses an outside boundary, accepts only exact namespaced single-use resume, and persists semantic authorization", () => {
+  it("parks an outside boundary, accepts only exact namespaced single-use resume, and persists semantic authorization", () => {
     const root = fixtureRoot();
     const outside = fixtureRoot();
     try {
@@ -340,15 +340,15 @@ describe("Claude-native bounded-authority host hooks", () => {
       assert.match(route, /--prompt-id prompt-outside-write/u);
       assert.match(route, /--grant-id grant-[a-f0-9]+/u);
 
-      const paused = parse(runCli(root, ["status"])).state.works["work-1"];
-      assert.equal(paused.status, "paused");
-      assert.equal(paused.pending_boundary.origin_prompt_id, "prompt-outside-write");
+      assert.match(denial.hookSpecificOutput.permissionDecisionReason, /parked this call/u);
+      const parked = parse(runCli(root, ["status"])).state.works["work-1"];
+      assert.equal(parked.status, "active", "a parked boundary never freezes the work");
+      assert.equal(parked.pending_boundaries[0].origin_prompt_id, "prompt-outside-write");
 
-      const pausedRead = preTool(root, "Read", { file_path: join(root, "plans", "approved.md") }, {
+      const coveredRead = preTool(root, "Read", { file_path: join(root, "plans", "approved.md") }, {
         prompt_id: "prompt-paused-read", tool_use_id: "tool-paused-read",
       });
-      assert.equal(parse(pausedRead).hookSpecificOutput.permissionDecision, "deny");
-      assert.match(parse(pausedRead).hookSpecificOutput.permissionDecisionReason, /paused/iu);
+      assert.equal(coveredRead.stdout, "", "a covered call goes on while a step is parked");
 
       for (const prompt of [
         route.replace("/litclaude:start-work", "/start-work"),
@@ -359,7 +359,7 @@ describe("Claude-native bounded-authority host hooks", () => {
         const inert = runHook("user-prompt-submit", root, { session_id: "session-root", prompt_id: "prompt-inert", prompt });
         assert.equal(inert.status, 0, inert.stderr);
         assert.doesNotMatch(parse(inert).hookSpecificOutput.additionalContext, /Trusted explicit user resume accepted/iu);
-        assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "paused");
+        assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries.length, 1);
       }
 
       const resumed = runHook("user-prompt-submit", root, {
@@ -370,6 +370,7 @@ describe("Claude-native bounded-authority host hooks", () => {
       assert.match(parse(resumed).hookSpecificOutput.additionalContext, /Trusted explicit user resume accepted/u);
       let work = parse(runCli(root, ["status"])).state.works["work-1"];
       assert.equal(work.status, "active");
+      assert.deepEqual(work.pending_boundaries, []);
       assert.equal(work.authority.resume_token_receipts.length, 1);
       assert.equal(work.authority.resume_token_receipts[0].origin_prompt_id, "prompt-outside-write");
       assert.equal(work.authority.resume_token_receipts[0].consumed_by_prompt_id, "prompt-resume");
@@ -591,10 +592,10 @@ describe("Claude-native bounded-authority host hooks", () => {
       });
       assert.equal(result.status, 0, result.stderr);
       assert.equal(parse(result).hookSpecificOutput.permissionDecision, "deny");
-      assert.match(parse(result).hookSpecificOutput.permissionDecisionReason, /outside this plan.s scope. Reply "lit approve"/u);
+      assert.match(parse(result).hookSpecificOutput.permissionDecisionReason, /parked this call: write access .* outside this plan.s scope/u);
       const work = parse(runCli(root, ["status"])).state.works["work-1"];
-      assert.equal(work.status, "paused");
-      assert.equal(work.pending_boundary.origin_prompt_id, "prompt-linked-worktree");
+      assert.equal(work.status, "active");
+      assert.equal(work.pending_boundaries[0].origin_prompt_id, "prompt-linked-worktree");
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(worktree, { recursive: true, force: true });
@@ -889,7 +890,7 @@ describe("start-work pauses only at a real authority boundary", () => {
       allowed(preTool(root, "Grep", { pattern: "review", path: join(repoRoot, "plugins", "litclaude", "skills") }));
       const write = denied(preTool(root, "Write", { file_path: join(repoRoot, "plugins", "litclaude", "skills", "x.md"), content: "x" }, { prompt_id: "prompt-plugin-write" }));
       assert.equal(write.permissionDecision, "deny", "a write into the plugin is still a boundary");
-      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "paused");
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries.length, 1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -916,7 +917,7 @@ describe("start-work pauses only at a real authority boundary", () => {
       const first = denied(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-read-a", tool_use_id: "tool-read-a" }));
       const route = resumeRouteFor(root);
       assert.ok(route, first.permissionDecisionReason);
-      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundary.root, realpathSync(outside));
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries[0].root, realpathSync(outside));
       const resumed = runHook("user-prompt-submit", root, { session_id: "session-root", prompt_id: "prompt-approve-a", prompt: route });
       assert.equal(resumed.status, 0, resumed.stderr);
       allowed(preTool(root, "Read", { file_path: join(outside, "b.txt") }, { prompt_id: "prompt-read-b", tool_use_id: "tool-read-b" }));
@@ -1218,42 +1219,52 @@ describe("typed start-work is the approval", () => {
     }
   });
 
-  it("T3 approves the single pending boundary from an exact \"lit approve\" prompt in the owning session", () => {
+  it("T3 parks outside calls without freezing the run, and an exact \"lit approve\" grants every parked step", () => {
     const root = project();
     const outside = realpathSync(fixtureRoot());
+    const second = realpathSync(fixtureRoot());
     try {
       writeFileSync(join(outside, "a.txt"), "a");
       writeFileSync(join(outside, "b.txt"), "b");
+      writeFileSync(join(second, "c.txt"), "c");
       prompt(root, "/litclaude:start-work plans/p.md");
-      const paused = parse(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" })).hookSpecificOutput;
-      assert.equal(paused.permissionDecision, "deny");
-      assert.equal(paused.permissionDecisionReason, `LitClaude start-work paused: read access to ${outside} is outside this plan's scope. Reply "lit approve" to allow it for this work, or "lit deny".`);
-      assert.equal(work(root).status, "paused");
+      const parked = parse(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" })).hookSpecificOutput;
+      assert.equal(parked.permissionDecision, "deny");
+      assert.match(parked.permissionDecisionReason, new RegExp(`parked this call: read access to ${outside.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} is outside this plan's scope`, "u"));
+      assert.match(parked.permissionDecisionReason, /carry on with the plan's other tasks/u);
+      assert.match(parked.permissionDecisionReason, /lit cancel/u);
+      assert.equal(work(root).status, "active", "the run keeps going");
+      assert.equal(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }).stdout, "", "covered calls still run");
+      preTool(root, "Read", { file_path: join(second, "c.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-c" });
+      assert.equal(work(root).pending_boundaries.length, 2, "boundaries queue in order");
       const context = prompt(root, "lit approve", "session-root", "prompt-approve");
       assert.match(context, /approved/iu);
       const resumed = work(root);
       assert.equal(resumed.status, "active");
+      assert.deepEqual(resumed.pending_boundaries, []);
+      assert.equal(resumed.authority.resume_token_receipts.length, 2);
       assert.equal(resumed.authority.resume_token_receipts.at(-1).consumed_by_prompt_id, "prompt-approve");
       assert.ok(resumed.authority.grants.some((grant) => grant.action === "read" && grant.root === outside));
+      assert.ok(resumed.authority.grants.some((grant) => grant.action === "read" && grant.root === second));
       assert.equal(preTool(root, "Read", { file_path: join(outside, "b.txt") }, { tool_use_id: "tool-b" }).stdout, "");
     } finally {
-      rmSync(root, { recursive: true, force: true });
-      rmSync(outside, { recursive: true, force: true });
+      for (const path of [root, outside, second]) rmSync(path, { recursive: true, force: true });
     }
   });
 
-  it("T4 keeps \"lit approve\" inert from another session, with no pending boundary, or inside a longer prompt", () => {
+  it("T4 keeps \"lit approve\" inert from another session, with nothing parked, or inside a longer prompt", () => {
     const root = project();
     const outside = realpathSync(fixtureRoot());
     try {
       prompt(root, "/litclaude:start-work plans/p.md");
       prompt(root, "lit approve", "session-root", "prompt-early");
-      assert.equal(work(root).authority.resume_token_receipts.length, 0, "nothing pending, nothing approved");
+      assert.equal(work(root).authority.resume_token_receipts.length, 0, "nothing parked, nothing approved");
       preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" });
-      assert.equal(work(root).status, "paused");
+      assert.equal(work(root).pending_boundaries.length, 1);
       for (const [text, sessionId] of [["lit approve", "session-other"], ["please lit approve", "session-root"], ["```\nlit approve\n```", "session-root"], ["yes", "session-root"], ["ok", "session-root"], ["lit approve it all", "session-root"]]) {
         prompt(root, text, sessionId, `prompt-${text.length}-${sessionId}`);
-        assert.equal(work(root).status, "paused", `${sessionId}: ${text}`);
+        assert.equal(work(root).pending_boundaries.length, 1, `${sessionId}: ${text}`);
+        assert.equal(work(root).authority.resume_token_receipts.length, 0, `${sessionId}: ${text}`);
       }
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1261,27 +1272,31 @@ describe("typed start-work is the approval", () => {
     }
   });
 
-  it("T5 \"lit deny\" clears the pending boundary without granting it, and that path stays refused", () => {
+  it("T5 \"lit deny\" refuses every parked step without granting it, and those paths stay refused", () => {
     const root = project();
     const outside = realpathSync(fixtureRoot());
+    const second = realpathSync(fixtureRoot());
     try {
       writeFileSync(join(outside, "a.txt"), "a");
+      writeFileSync(join(second, "c.txt"), "c");
       prompt(root, "/litclaude:start-work plans/p.md");
       preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-a" });
+      preTool(root, "Read", { file_path: join(second, "c.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-c" });
       const context = prompt(root, "lit 거절", "session-root", "prompt-deny");
       assert.match(context, /denied/iu);
       const after = work(root);
       assert.equal(after.status, "active");
-      assert.equal(after.pending_boundary, null);
-      assert.ok(!after.authority.grants.some((grant) => grant.root === outside));
-      const again = parse(preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-again", tool_use_id: "tool-again" })).hookSpecificOutput;
-      assert.equal(again.permissionDecision, "deny");
-      assert.match(again.permissionDecisionReason, /denied/u);
-      assert.equal(work(root).status, "active", "a denied path does not pause the work again");
+      assert.deepEqual(after.pending_boundaries, []);
+      assert.ok(!after.authority.grants.some((grant) => grant.root === outside || grant.root === second));
+      for (const [file, id] of [[join(outside, "a.txt"), "again-a"], [join(second, "c.txt"), "again-c"]]) {
+        const again = parse(preTool(root, "Read", { file_path: file }, { prompt_id: `prompt-${id}`, tool_use_id: `tool-${id}` })).hookSpecificOutput;
+        assert.equal(again.permissionDecision, "deny");
+        assert.match(again.permissionDecisionReason, /denied/u);
+      }
+      assert.deepEqual(work(root).pending_boundaries, [], "a denied path is not parked again");
       assert.equal(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }).stdout, "", "the rest of the work goes on");
     } finally {
-      rmSync(root, { recursive: true, force: true });
-      rmSync(outside, { recursive: true, force: true });
+      for (const path of [root, outside, second]) rmSync(path, { recursive: true, force: true });
     }
   });
 
@@ -1462,3 +1477,590 @@ describe("start-work guard fixes 1.0.43", () => {
   });
 });
 
+
+describe("lit cancel ends a run from any window", () => {
+  const project = (parent = null) => {
+    const root = parent ? join(parent, "sub") : realpathSync(fixtureRoot());
+    mkdirSync(join(root, ".git"), { recursive: true });
+    mkdirSync(join(root, "plans"), { recursive: true });
+    writeFileSync(join(root, "plans", "p.md"), "# P\n\n## TODOs\n\n- [ ] 1. write hello.txt\n- [ ] 2. write bye.txt\n");
+    return root;
+  };
+  const hookIn = (event, root, input, env = {}) => spawnSync(process.execPath, [hookPath, event], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({ cwd: root, hook_event_name: event, ...input }),
+    env: { ...process.env, ...env },
+  });
+  const prompt = (root, text, sessionId = "session-root", promptId = `prompt-${text.length}-${sessionId}`, env = {}) => {
+    const result = hookIn("user-prompt-submit", root, { session_id: sessionId, prompt_id: promptId, prompt: text }, env);
+    assert.equal(result.status, 0, result.stderr);
+    return parse(result).hookSpecificOutput?.additionalContext ?? "";
+  };
+  const statePath = (root) => join(root, ".litclaude", "boulder.json");
+  const state = (root) => (existsSync(statePath(root)) ? JSON.parse(readFileSync(statePath(root), "utf8")) : null);
+  const active = (root) => {
+    const current = state(root);
+    return current?.active_work_id ? current.works[current.active_work_id] : null;
+  };
+  const cancelledEvents = (root) => readFileSync(join(root, ".litclaude", "start-work", "ledger.jsonl"), "utf8")
+    .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter(({ event }) => event === "work.cancelled");
+  const start = (root) => {
+    prompt(root, "/litclaude:start-work plans/p.md", "session-root", "prompt-start");
+    assert.ok(active(root), "the run started");
+  };
+
+  it("parses only the whole-prompt lit cancel and lit 취소 tokens", async () => {
+    const { parseStartWorkInvocation } = await import(lifecyclePath);
+    assert.deepEqual(parseStartWorkInvocation("lit cancel"), { kind: "cancel" });
+    assert.deepEqual(parseStartWorkInvocation("  lit 취소  "), { kind: "cancel" });
+    for (const text of ['"lit cancel"', "```\nlit cancel\n```", "please lit cancel now", "lit cancel it", "> lit cancel", "lit  cancel\nmore", "/litclaude:start-work cancel"]) {
+      assert.equal(parseStartWorkInvocation(text)?.kind === "cancel", false, text);
+    }
+  });
+
+  it("cancels from the owner session, records one event and gives no lit-loop ignition", () => {
+    const root = project();
+    try {
+      start(root);
+      const before = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && path !== "boulder.json"));
+      const context = prompt(root, "lit cancel", "session-root", "prompt-cancel");
+      assert.equal(active(root), null);
+      assert.equal(state(root).history.at(-1).status, "cancelled");
+      assert.equal(cancelledEvents(root).length, 1);
+      assert.match(context, /cancelled start-work/u);
+      assert.match(context, /p\.md/u);
+      assert.doesNotMatch(context, /LITWORK MODE ENABLED|LIT IGNITED|--work-id|lit approve/u);
+      const after = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && path !== "boulder.json"));
+      assert.deepEqual([...after].filter((path) => !before.has(path)), [], "no ignition, stack or lit-plan record");
+      // A host retry of the same prompt changes nothing.
+      prompt(root, "lit cancel", "session-root", "prompt-cancel");
+      assert.equal(cancelledEvents(root).length, 1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels from a second session, while a step is parked, and the owner is told on its next changing call", () => {
+    const root = project();
+    const outside = realpathSync(fixtureRoot());
+    try {
+      writeFileSync(join(outside, "a.txt"), "a");
+      start(root);
+      preTool(root, "Read", { file_path: join(outside, "a.txt") }, { prompt_id: "prompt-start", tool_use_id: "tool-a" });
+      const context = prompt(root, "lit 취소", "session-other", "prompt-cancel-other");
+      assert.equal(active(root), null, context);
+      assert.match(context, /another session/u);
+      const write = parse(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" })).hookSpecificOutput;
+      assert.equal(write.permissionDecision, "deny");
+      assert.match(write.permissionDecisionReason, /lit cancel/u);
+      assert.equal(preTool(root, "Read", { file_path: join(root, "plans", "p.md") }).stdout, "", "reads still work");
+      prompt(root, "what now?", "session-root", "prompt-next");
+      assert.equal(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }).stdout, "", "the user's next prompt lifts the notice");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels the project's run from a nested repository inside it", () => {
+    const root = project();
+    try {
+      start(root);
+      const nested = project(root);
+      const context = prompt(nested, "lit cancel", "session-nested", "prompt-nested");
+      assert.equal(active(root), null, context);
+      assert.equal(existsSync(statePath(nested)), false, "nothing written in the nested repository");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("says nothing to cancel without a run and leaves the state byte-identical", () => {
+    const root = project();
+    try {
+      start(root);
+      prompt(root, "lit cancel", "session-root", "prompt-cancel-1");
+      const bytes = readFileSync(statePath(root));
+      // Another session holds no cancel notice, so its prompt leaves the file alone.
+      const context = prompt(root, "lit cancel", "session-third", "prompt-cancel-2");
+      assert.match(context, /nothing to cancel|No start-work is running/iu);
+      assert.deepEqual(readFileSync(statePath(root)), bytes);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("replies busy when another process holds the lock, and works with a longer lock wait", () => {
+    const root = project();
+    try {
+      start(root);
+      const lock = join(root, ".litclaude", "start-work", ".lock");
+      mkdirSync(lock);
+      writeFileSync(join(lock, "owner.json"), JSON.stringify({ nonce: "held", pid: process.pid, acquired_at_ms: Date.now() }));
+      const bytes = readFileSync(statePath(root));
+      const busy = prompt(root, "lit cancel", "session-root", "prompt-busy");
+      assert.match(busy, /send the same prompt again/u);
+      assert.deepEqual(readFileSync(statePath(root)), bytes);
+      rmSync(lock, { recursive: true, force: true });
+      prompt(root, "lit cancel", "session-root", "prompt-slow", { LITCLAUDE_START_WORK_LOCK_TIMEOUT_MS: "5000" });
+      assert.equal(active(root), null);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on corrupt state", () => {
+    const root = project();
+    try {
+      start(root);
+      writeFileSync(statePath(root), "{not json");
+      const context = prompt(root, "lit cancel", "session-root", "prompt-corrupt");
+      assert.match(context, /BLOCKED/u);
+      assert.equal(readFileSync(statePath(root), "utf8"), "{not json");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("never cancels from a prompt field in any other hook event", () => {
+    const root = project();
+    try {
+      start(root);
+      for (const event of ["pre-tool-use", "post-tool-use", "subagent-start", "subagent-stop", "stop"]) {
+        hookIn(event, root, { session_id: "session-root", prompt_id: `prompt-${event}`, prompt: "lit cancel", tool_name: "Read", tool_input: { file_path: join(root, "plans", "p.md") }, stop_hook_active: false });
+        assert.ok(active(root), event);
+      }
+      hookIn("user-prompt-submit", root, { hook_event_name: "PreToolUse", session_id: "session-root", prompt_id: "prompt-forged", prompt: "lit cancel" });
+      assert.ok(active(root), "a payload naming another event is not a typed prompt");
+      // The model-callable CLI cancel keeps its owner and revision checks.
+      const cli = runCli(root, ["cancel", "--work-id", active(root).work_id, "--session-id", "session-other", "--expected-revision", String(state(root).revision), "--idempotency-key", "cli-cancel"]);
+      assert.notEqual(cli.status, 0);
+      assert.ok(active(root));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the run's own harness folders need no boundary", () => {
+  const uid = typeof process.getuid === "function" ? process.getuid() : 0;
+  const preToolIn = (env, root, toolName, toolInput, overrides = {}) => spawnSync(process.execPath, [hookPath, "pre-tool-use"], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({
+      cwd: root, hook_event_name: "pre-tool-use", session_id: "session-root", prompt_id: "prompt-tool",
+      tool_use_id: "tool-use-1", tool_name: toolName, tool_input: toolInput, ...overrides,
+    }),
+    env: { ...process.env, ...env },
+  });
+  // The session started in a folder other than the lifecycle root (a worktree lane), so only the
+  // transcript path names the right project key.
+  const KEY = "-elsewhere-start-dir";
+
+  it("allows the recorded pause classes and keeps other sessions' folders and writes outside", () => {
+    const config = realpathSync(fixtureRoot());
+    const hostTmp = realpathSync(fixtureRoot());
+    const skillsTarget = realpathSync(fixtureRoot());
+    const root = realpathSync(fixtureRoot());
+    const scratch = join(realpathSync(tmpdir()), "litclaude-work-1");
+    try {
+      initialize(root);
+      const project = join(config, "projects", KEY);
+      const host = join(hostTmp, `claude-${uid}`);
+      const files = {
+        toolResult: join(project, "session-root", "tool-results", "out.txt"),
+        subagent: join(project, "session-root", "subagents", "agent-1.jsonl"),
+        memory: join(project, "memory", "MEMORY.md"),
+        claudeMd: join(config, "CLAUDE.md"),
+        skill: join(config, "skills", "x", "SKILL.md"),
+        tasks: join(host, KEY, "session-root", "tasks", "a.output"),
+        scratchpad: join(host, KEY, "session-root", "scratchpad", "n.txt"),
+        bundled: join(host, "bundled-skills", "2.1.0", "x", "SKILL.md"),
+        own: join(scratch, "f.txt"),
+        otherResult: join(project, "session-other", "tool-results", "out.txt"),
+        otherSubagent: join(project, "session-other", "subagents", "agent-9.jsonl"),
+      };
+      for (const [name, file] of Object.entries(files)) {
+        if (name === "skill") continue;
+        mkdirSync(join(file, ".."), { recursive: true });
+        writeFileSync(file, name);
+      }
+      mkdirSync(join(skillsTarget, "x"), { recursive: true });
+      writeFileSync(join(skillsTarget, "x", "SKILL.md"), "skill");
+      symlinkSync(skillsTarget, join(config, "skills"));
+      const env = { CLAUDE_CONFIG_DIR: config, CLAUDE_CODE_TMPDIR: hostTmp };
+      const overrides = { transcript_path: join(project, "session-root.jsonl") };
+      const allowed = [
+        ["Read", { file_path: files.toolResult }],
+        ["Read", { file_path: files.subagent }],
+        ["Grep", { pattern: "x", path: join(project, "session-root", "subagents") }],
+        ["Read", { file_path: files.memory }],
+        ["Read", { file_path: files.claudeMd }],
+        ["Read", { file_path: files.skill }],
+        ["Read", { file_path: files.tasks }],
+        ["Read", { file_path: files.scratchpad }],
+        ["Write", { file_path: files.scratchpad, content: "x" }],
+        ["Read", { file_path: files.bundled }],
+        ["Read", { file_path: files.own }],
+      ];
+      for (const [toolName, toolInput] of allowed) {
+        const result = preToolIn(env, root, toolName, toolInput, overrides);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(result.stdout, "", `${toolName} ${JSON.stringify(toolInput)}`);
+      }
+      const refused = [
+        ["Read", { file_path: files.otherResult }],
+        ["Read", { file_path: files.otherSubagent }],
+        ["Write", { file_path: files.claudeMd, content: "x" }],
+        ["Write", { file_path: files.memory, content: "x" }],
+        ["Write", { file_path: files.tasks, content: "x" }],
+      ];
+      for (const [toolName, toolInput] of refused) {
+        const result = preToolIn(env, root, toolName, toolInput, { ...overrides, tool_use_id: `tool-${toolName}-${toolInput.file_path}` });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(parse(result).hookSpecificOutput?.permissionDecision, "deny", `${toolName} ${JSON.stringify(toolInput)}`);
+        // Each refusal is examined on its own; clear any pause it left behind.
+        const statePath = join(root, ".litclaude", "boulder.json");
+        const current = JSON.parse(readFileSync(statePath, "utf8"));
+        const work = current.works["work-1"];
+        work.status = "active";
+        work.pending_boundary = null;
+        delete work.pending_boundaries;
+        writeFileSync(statePath, JSON.stringify(current));
+      }
+    } finally {
+      for (const path of [config, hostTmp, skillsTarget, root, scratch]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("secrets and settings are refused outright during a run", () => {
+  const setup = () => {
+    const home = realpathSync(fixtureRoot());
+    const root = realpathSync(fixtureRoot());
+    initialize(root);
+    for (const [path, text] of [
+      [join(home, ".ssh", "config"), "Host x"], [join(home, ".aws", "credentials"), "k"], [join(home, ".claude", "settings.json"), "{}"],
+      [join(home, ".codex", "config.toml"), "x"], [join(home, ".zshrc"), "export K=1"],
+      [join(root, ".env"), "SECRET=1"], [join(root, ".env.example"), "SECRET="], [join(root, "id_map.json"), "{}"], [join(root, "deck.key"), "k"],
+      [join(root, "sub", ".env"), "S=1"], [join(root, ".git", "config"), "[core]"], [join(root, "keys", "server.pem"), "pem"], [join(root, "keys", "id_ed25519"), "k"],
+    ]) {
+      mkdirSync(join(path, ".."), { recursive: true });
+      writeFileSync(path, text);
+    }
+    symlinkSync(join(home, ".aws", "credentials"), join(root, "creds-link"));
+    return { home, root, env: { HOME: home, CLAUDE_CONFIG_DIR: join(home, ".claude") } };
+  };
+  const run = (env, root, toolName, toolInput, overrides = {}) => spawnSync(process.execPath, [hookPath, "pre-tool-use"], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({ cwd: root, hook_event_name: "pre-tool-use", session_id: "session-root", prompt_id: "prompt-tool", tool_use_id: `tool-${Math.random()}`, tool_name: toolName, tool_input: toolInput, ...overrides }),
+    env: { ...process.env, ...env },
+  });
+  const work = (root) => JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")).works["work-1"];
+
+  it("refuses secret and settings paths without a pause, grant or queue entry", () => {
+    const { home, root, env } = setup();
+    try {
+      const refused = [
+        ["Read", { file_path: join(home, ".ssh", "config") }],
+        ["Read", { file_path: join(home, ".SSH", "config") }],
+        ["Write", { file_path: join(home, ".claude", "settings.json"), content: "{}" }],
+        ["Write", { file_path: join(home, ".CLAUDE", "settings.json"), content: "{}" }],
+        ["Read", { file_path: join(home, ".codex", "config.toml") }],
+        ["Read", { file_path: join(home, ".zshrc") }],
+        ["Read", { file_path: join(root, ".env") }],
+        ["Read", { file_path: join(root, "creds-link") }],
+        ["Read", { file_path: join(root, "keys", "server.pem") }],
+        ["Read", { file_path: join(root, "keys", "id_ed25519") }],
+        ["Edit", { file_path: join(root, ".git", "config"), old_string: "a", new_string: "b" }],
+        ["Write", { file_path: join(root, ".git", "hooks", "pre-commit"), content: "x" }],
+        ["Write", { file_path: join(root, ".litclaude", "boulder.json"), content: "{}" }],
+        ["Write", { file_path: join(root, ".claude", "settings.local.json"), content: "{}" }],
+        ["Write", { file_path: join(root, ".mcp.json"), content: "{}" }],
+        ["Bash", { command: `cat ${join(home, ".ssh", "config")}` }],
+        ["Bash", { command: "rm .env" }],
+        ["Bash", { command: "cd sub && cat .env" }],
+      ];
+      const before = work(root);
+      for (const [toolName, toolInput] of refused) {
+        const result = run(env, root, toolName, toolInput);
+        assert.equal(result.status, 0, result.stderr);
+        const output = parse(result).hookSpecificOutput;
+        assert.equal(output?.permissionDecision, "deny", `${toolName} ${JSON.stringify(toolInput)}`);
+        assert.match(output.permissionDecisionReason, /protected/u, `${toolName} ${JSON.stringify(toolInput)}`);
+        const after = work(root);
+        assert.equal(after.status, "active");
+        assert.deepEqual(after.pending_boundaries, []);
+        assert.deepEqual(after.authority.grants, before.authority.grants);
+        assert.deepEqual(after.authority.denied_boundaries, before.authority.denied_boundaries);
+      }
+      const other = parse(run(env, root, "Read", { file_path: join(home, ".ssh", "config") }, { session_id: "session-other" })).hookSpecificOutput;
+      assert.equal(other.permissionDecision, "deny");
+      assert.match(other.permissionDecisionReason, /protected/u, "another session cannot read it either");
+      for (const name of [".env.example", "id_map.json", "deck.key"]) {
+        assert.equal(run(env, root, "Read", { file_path: join(root, name) }).stdout, "", name);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the hard stops refused", () => {
+    const { home, root, env } = setup();
+    try {
+      for (const command of ["git push", "git commit -m x", "git reset --hard", "npm publish", "npm version patch", "gh release create v1"]) {
+        const output = parse(run(env, root, "Bash", { command })).hookSpecificOutput;
+        assert.equal(output?.permissionDecision, "deny", command);
+        assert.equal(work(root).status, "active", command);
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("a parked boundary never freezes the run", () => {
+  const statePath = (root) => join(root, ".litclaude", "boulder.json");
+  const read = (root) => JSON.parse(readFileSync(statePath(root), "utf8"));
+  const work = (root) => read(root).works["work-1"];
+  const ask = (root, text, promptId, sessionId = "session-root") => {
+    const result = runHook("user-prompt-submit", root, { session_id: sessionId, prompt_id: promptId, prompt: text });
+    assert.equal(result.status, 0, result.stderr);
+    return parse(result).hookSpecificOutput?.additionalContext ?? "";
+  };
+  const outsideFiles = (count) => Array.from({ length: count }, () => {
+    const dir = realpathSync(fixtureRoot());
+    writeFileSync(join(dir, "f.txt"), "f");
+    return dir;
+  });
+
+  it("repeat hits keep the revision, and the third says stop retrying", () => {
+    const root = fixtureRoot();
+    const [outside] = outsideFiles(1);
+    try {
+      initialize(root);
+      preTool(root, "Read", { file_path: join(outside, "f.txt") }, { tool_use_id: "t-1" });
+      const revision = read(root).revision;
+      preTool(root, "Read", { file_path: join(outside, "f.txt") }, { tool_use_id: "t-2" });
+      const third = parse(preTool(root, "Read", { file_path: join(outside, "f.txt") }, { tool_use_id: "t-3" })).hookSpecificOutput;
+      assert.match(third.permissionDecisionReason, /do not retry/u);
+      assert.equal(read(root).revision, revision, "repeats append no event");
+      assert.equal(work(root).pending_boundaries[0].hits, 3);
+      const progress = runCli(root, ["progress", "--work-id", "work-1", "--session-id", "session-root", "--expected-revision", String(revision), "--idempotency-key", "lane-progress"]);
+      assert.equal(progress.status, 0, progress.stderr);
+    } finally {
+      for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a 17th distinct boundary out loud, and parks a call without a prompt id by its tool use", () => {
+    const root = fixtureRoot();
+    const dirs = outsideFiles(17);
+    try {
+      initialize(root);
+      dirs.slice(0, 16).forEach((dir, index) => preTool(root, "Read", { file_path: join(dir, "f.txt") }, { tool_use_id: `t-${index}` }));
+      assert.equal(work(root).pending_boundaries.length, 16);
+      const over = parse(preTool(root, "Read", { file_path: join(dirs[16], "f.txt") }, { tool_use_id: "t-16" })).hookSpecificOutput;
+      assert.match(over.permissionDecisionReason, /16 steps are already parked/u);
+      assert.equal(work(root).pending_boundaries.length, 16, "never a silent drop or overwrite");
+      assert.equal(work(root).status, "active");
+    } finally {
+      for (const path of [root, ...dirs]) rmSync(path, { recursive: true, force: true });
+    }
+    const second = fixtureRoot();
+    const [outside] = outsideFiles(1);
+    try {
+      initialize(second);
+      preTool(second, "Read", { file_path: join(outside, "f.txt") }, { prompt_id: undefined, tool_use_id: "toolu_abc" });
+      assert.equal(work(second).pending_boundaries[0].origin_prompt_id, "tool:toolu_abc");
+      const none = parse(preTool(second, "Write", { file_path: join(outside, "g.txt"), content: "g" }, { prompt_id: undefined, tool_use_id: undefined })).hookSpecificOutput;
+      assert.equal(none.permissionDecision, "deny");
+      assert.match(none.permissionDecisionReason, /BLOCKED/u);
+      assert.equal(work(second).pending_boundaries.length, 1);
+    } finally {
+      for (const path of [second, outside]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("approves up to the grant limit and reports the rest", () => {
+    const root = fixtureRoot();
+    const dirs = outsideFiles(2);
+    try {
+      initialize(root);
+      dirs.forEach((dir, index) => preTool(root, "Read", { file_path: join(dir, "f.txt") }, { prompt_id: "prompt-typed", tool_use_id: `t-${index}` }));
+      const state = read(root);
+      const grants = state.works["work-1"].authority.grants;
+      while (grants.length < 63) grants.push({ ...grants[0], grant_id: `grant-${String(grants.length).padStart(20, "0")}` });
+      writeFileSync(statePath(root), JSON.stringify(state));
+      const context = ask(root, "lit approve", "prompt-approve");
+      assert.match(context, /1 parked step could not be granted/u);
+      assert.equal(work(root).pending_boundaries.length, 1);
+    } finally {
+      for (const path of [root, ...dirs]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("reads an old paused state as one parked step that approve, deny and the exact route settle", () => {
+    for (const settle of ["approve", "deny", "route"]) {
+      const root = fixtureRoot();
+      const [outside] = outsideFiles(1);
+      try {
+        initialize(root);
+        const state = read(root);
+        const old = state.works["work-1"];
+        old.status = "paused";
+        delete old.pending_boundaries;
+        old.pending_boundary = {
+          boundary_id: "boundary-0123456789abcdef0123", action: "read", root: outside, origin_session_id: "session-root",
+          origin_prompt_id: "prompt-old", origin_tool_use_id: "tool-old", grant_id: "grant-0123456789abcdef0123", requested_at: "2026-11-01T00:00:00.000Z",
+        };
+        writeFileSync(statePath(root), JSON.stringify(state));
+        assert.equal(preTool(root, "Read", { file_path: join(root, "plans", "approved.md") }).stdout, "", "an old paused work runs again");
+        if (settle === "route") {
+          ask(root, `/litclaude:start-work resume --work-id work-1 --revision ${read(root).revision} --boundary-id boundary-0123456789abcdef0123 --prompt-id prompt-old --grant-id grant-0123456789abcdef0123`, "prompt-route");
+        } else {
+          ask(root, `lit ${settle}`, `prompt-${settle}`);
+        }
+        const after = work(root);
+        assert.equal(after.status, "active", settle);
+        assert.deepEqual(after.pending_boundaries, [], settle);
+        assert.equal(after.authority.grants.some((grant) => grant.root === outside), settle !== "deny", settle);
+      } finally {
+        for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("continues past a parked step at Stop, then names the parked steps once when every open task is BLOCKED", () => {
+    const root = fixtureRoot();
+    const [outside] = outsideFiles(1);
+    let n = 0;
+    const stop = () => runHook("stop", root, { session_id: "session-root", prompt_id: `prompt-stop-${n += 1}`, stop_hook_active: false });
+    try {
+      initialize(root);
+      preTool(root, "Read", { file_path: join(outside, "f.txt") });
+      const first = parse(stop());
+      assert.equal(first.decision, "block");
+      assert.match(first.reason, /Parked, not run: read /u);
+      assert.equal(stop().stdout, "", "the same queue and plan stay silent");
+      writeFileSync(join(root, "plans", "approved.md"), "# Approved\n\n## TODOs\n\n- [ ] Ship safely\n  BLOCKED: needs the parked read\n");
+      const waiting = parse(stop());
+      assert.notEqual(waiting.decision, "block");
+      assert.match(waiting.systemMessage, /Parked steps: read /u);
+      assert.match(waiting.systemMessage, /lit approve/u);
+      assert.match(waiting.systemMessage, /lit cancel/u);
+      assert.equal(stop().stdout, "");
+    } finally {
+      for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the hard stops refused with steps queued and after an approval", () => {
+    const root = fixtureRoot();
+    const [outside] = outsideFiles(1);
+    const hardStops = ["git push", "git commit -m x", "git reset --hard", "npm publish", "npm version patch", "gh release create v1"];
+    const check = (label) => {
+      for (const command of hardStops) {
+        const output = parse(preTool(root, "Bash", { command })).hookSpecificOutput;
+        assert.equal(output?.permissionDecision, "deny", `${label}: ${command}`);
+        assert.doesNotMatch(output.permissionDecisionReason, /parked this call/u, `${label}: ${command}`);
+      }
+    };
+    try {
+      initialize(root);
+      preTool(root, "Read", { file_path: join(outside, "f.txt") }, { prompt_id: "prompt-typed" });
+      check("queued");
+      ask(root, "lit approve", "prompt-approve");
+      check("approved");
+      assert.equal(work(root).pending_boundaries.length, 0);
+    } finally {
+      for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+});
+
+// Review follow-ups (F2): a cancel must reach lanes in linked worktrees, a takeover inherits the
+// parked steps, and multi-part .env names stay protected.
+describe("review follow-ups for cancel, takeover and env files", () => {
+  const ask = (root, text, sessionId, promptId, cwd = root) => {
+    const result = runHook("user-prompt-submit", root, { cwd, hook_event_name: "UserPromptSubmit", session_id: sessionId, prompt_id: promptId, prompt: text });
+    assert.equal(result.status, 0, result.stderr);
+    return result;
+  };
+  const work = (root) => JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")).works["work-1"];
+
+  it("a cancel also stops the run's lane in a linked worktree until the user types there", () => {
+    const root = realpathSync(fixtureRoot());
+    const worktree = realpathSync(fixtureRoot());
+    try {
+      initialize(root);
+      mkdirSync(join(root, ".git", "worktrees", "lane"), { recursive: true });
+      writeFileSync(join(worktree, ".git"), `gitdir: ${join(root, ".git", "worktrees", "lane")}\n`);
+      ask(root, "lit cancel", "session-other", "prompt-cancel");
+      assert.equal(work(root).status, "cancelled");
+      const lane = parse(preTool(root, "Write", { file_path: join(worktree, "x.txt"), content: "x" }, { cwd: worktree, prompt_id: "prompt-lane", tool_use_id: "tool-lane" })).hookSpecificOutput;
+      assert.equal(lane?.permissionDecision, "deny");
+      assert.match(lane.permissionDecisionReason, /lit cancel/u);
+      ask(root, "carry on with something else", "session-root", "prompt-next", worktree);
+      const after = preTool(root, "Write", { file_path: join(worktree, "x.txt"), content: "x" }, { cwd: worktree, prompt_id: "prompt-lane-2", tool_use_id: "tool-lane-2" });
+      assert.equal(after.stdout, "", "the user's next prompt in that session lifts the notice");
+    } finally {
+      for (const path of [root, worktree]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("a session that takes over a run can approve the steps the old session parked", () => {
+    const root = realpathSync(fixtureRoot());
+    const outside = realpathSync(fixtureRoot());
+    try {
+      initialize(root);
+      writeFileSync(join(outside, "f.txt"), "f");
+      preTool(root, "Read", { file_path: join(outside, "f.txt") }, { prompt_id: "prompt-park", tool_use_id: "tool-park" });
+      assert.equal(work(root).pending_boundaries.length, 1);
+      assert.equal(runHook("session-end", root, { session_id: "session-root", reason: "exit" }).status, 0);
+      ask(root, "/litclaude:start-work plans/approved.md", "session-other", "prompt-adopt");
+      assert.equal(work(root).root_session_id, "session-other");
+      ask(root, "lit approve", "session-other", "prompt-approve");
+      const after = work(root);
+      assert.deepEqual(after.pending_boundaries, []);
+      assert.ok(after.authority.grants.some(({ action, root: granted }) => action === "read" && granted === outside));
+    } finally {
+      for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("tells the cancelled session's model, on its next prompt, that the run is over", () => {
+    const root = realpathSync(fixtureRoot());
+    try {
+      initialize(root);
+      ask(root, "lit cancel", "session-other", "prompt-cancel");
+      const next = parse(ask(root, "write extra.txt", "session-root", "prompt-next")).hookSpecificOutput?.additionalContext ?? "";
+      assert.match(next, /start-work work-1 \(approved\.md\) was cancelled with `lit cancel` from another session/u);
+      assert.match(next, /do not continue its plan/u);
+      const again = parse(ask(root, "and another", "session-root", "prompt-again")).hookSpecificOutput?.additionalContext ?? "";
+      assert.doesNotMatch(again, /was cancelled with `lit cancel`/u, "said once");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses multi-part .env names but not their example files", () => {
+    const root = realpathSync(fixtureRoot());
+    try {
+      initialize(root);
+      for (const name of [".env.production.local", ".env.local.bak", ".env.production.example"]) writeFileSync(join(root, name), "S=1");
+      for (const name of [".env.production.local", ".env.local.bak"]) {
+        const output = parse(preTool(root, "Read", { file_path: join(root, name) }, { tool_use_id: `tool-${name}` })).hookSpecificOutput;
+        assert.equal(output?.permissionDecision, "deny", name);
+        assert.match(output.permissionDecisionReason, /protected/u, name);
+      }
+      assert.equal(preTool(root, "Read", { file_path: join(root, ".env.production.example") }, { tool_use_id: "tool-example" }).stdout, "");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

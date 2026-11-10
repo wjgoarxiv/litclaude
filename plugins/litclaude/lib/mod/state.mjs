@@ -205,10 +205,16 @@ export const parseBoulder = (state, sessionId) => {
   if (!active || !["active", "paused"].includes(active.status) || !workBelongs(active, sessionId)) return { work: null, completed };
   const progress = active.progress && typeof active.progress === "object" ? active.progress : {};
   const total = int(progress.total);
+  // A parked step leaves the run going; it waits on the user only when every open task is BLOCKED.
+  // A state written before parked steps (`paused` with one pending boundary) waits as before.
+  const parked = Array.isArray(active.pending_boundaries) ? active.pending_boundaries : [];
+  const legacy = active.status === "paused" ? active.pending_boundary : null;
+  const waits = Boolean(legacy) || (parked.length > 0 && !progress.next_task && int(progress.unchecked) > 0);
   return {
     work: {
       id: str(active.work_id, 120) ?? String(state.active_work_id),
-      status: active.status,
+      status: waits ? "paused" : "active",
+      parked: parked.length,
       planName: str(active.plan_name, 200),
       total,
       checked: Math.min(int(progress.checked), total),
@@ -216,7 +222,7 @@ export const parseBoulder = (state, sessionId) => {
       lanes: laneList(active.lanes),
       lastEvent: str(Array.isArray(active.events) ? active.events.at(-1)?.event : null, 60),
       // A paused work waits at a typed boundary (start-work-lifecycle) until the user answers it.
-      awaiting: active.status === "paused" ? str(active.pending_boundary?.boundary_id, 120) : null,
+      awaiting: waits ? str((legacy ?? parked[0])?.boundary_id, 120) : null,
     },
     completed,
   };

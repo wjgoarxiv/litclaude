@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+- A start-work run no longer freezes at a boundary. A call outside the plan's grants is denied and parked, and
+  only that call: the run stays active, every covered call keeps running, and the model is told to carry on and
+  mark a task that needs the parked call `BLOCKED:`. When every open task waits on parked calls, the turn ends
+  with one list. Approving is optional now: `lit approve` grants every parked call and `lit deny` refuses them. A
+  state saved by an older version (a paused work with one pending boundary) reads as one parked call.
+- `lit cancel` (or `lit 취소`), typed as the whole prompt in any session of the project, ends the running
+  start-work. The hook does it itself, so no work id, revision or command line has to be copied; the model kept
+  getting that command wrong. It also reaches a run in a folder above a nested repository. The cancelled session
+  may only read until the user types there again; that next prompt also tells its model the run is over. A
+  lane working in a linked worktree is stopped too, and a session that takes over a run inherits its parked steps.
+- Reading the session's own Claude Code folders no longer stops a run: spilled tool results and subagent
+  transcripts, the host's `tasks` and `scratchpad` folders (the scratchpad may also be written), project memory,
+  `CLAUDE.md`, skills and bundled skills, and the run's private temp folder. The project key now comes from the
+  transcript path, so a run whose session started in a worktree lane finds its folders too. These reads made up
+  most of the recorded pauses.
+- Secrets and settings are refused outright during a run instead of pausing it for approval: `~/.ssh`, `~/.aws`,
+  `~/.gnupg`, `~/.codex`, `~/.npmrc`, `~/.claude.json`, shell rc files, Claude Code settings, `.mcp.json`, `.env`
+  files, private keys, `*.pem`, and writes to git configuration or the start-work state. Paths are compared after
+  links resolve and case-folded on macOS and Windows. Only direct file access is checked.
+- `lit adhd` now opens on a KPI board instead of per-session cards. It starts with the one thing to do now, one
+  reason, and exactly what to type (or where to go, or which lanes to wait for). Then come four counts (done, in
+  progress, waiting on you, left) with an overall bar, a milestone table with bars and when each plan last changed,
+  the five latest finished items, what is left in plan order, and up to five reminders shaped
+  `thing → what to do`: a session waiting on you, uncommitted changes and unpushed commits per worktree, lanes
+  still working, and plans nobody touched for a week. The collector computes every number and draws the board
+  in Korean or English, so the model prints it as given. Session ids, commit hashes and raw status codes no longer
+  appear. The cards, roadmap and boxed next step are still there with `lit adhd 자세히` / `lit adhd detail`
+  (`--detail`). `go` continues the same step as before.
+
 ## 1.0.48 - 2026-11-09
 
 - The LIT card above the prompt now draws its terminal Client region through Claude Code's global `h`, as

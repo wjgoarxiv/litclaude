@@ -283,3 +283,18 @@ test("the icon font is looked for in each per-user font folder, read-only", asyn
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("parseBoulder: parked steps keep the run going; it waits only when every open task is blocked, or in an old paused state", () => {
+  const boundary = (id) => ({ boundary_id: id, action: "read", root: "/x", origin_session_id: "s1" });
+  const stateWith = (work) => ({ active_work_id: "w1", works: { w1: { work_id: "w1", root_session_id: "s1", active_session_id: "s1", session_ids: ["s1"], plan_name: "p.md", ...work } } });
+  const going = parseBoulder(stateWith({ status: "active", pending_boundaries: [boundary("b1"), boundary("b2")], progress: { total: 2, checked: 0, unchecked: 2, next_task: "1. a" } }), "s1").work;
+  assert.equal(going.status, "active");
+  assert.equal(going.parked, 2);
+  assert.equal(going.awaiting, null);
+  const stuck = parseBoulder(stateWith({ status: "active", pending_boundaries: [boundary("b1")], progress: { total: 2, checked: 1, unchecked: 1, next_task: null } }), "s1").work;
+  assert.equal(stuck.status, "paused");
+  assert.equal(stuck.awaiting, "b1");
+  const old = parseBoulder(stateWith({ status: "paused", pending_boundary: boundary("b0"), progress: { total: 1, checked: 0, unchecked: 1, next_task: "1. a" } }), "s1").work;
+  assert.equal(old.status, "paused");
+  assert.equal(old.awaiting, "b0");
+});

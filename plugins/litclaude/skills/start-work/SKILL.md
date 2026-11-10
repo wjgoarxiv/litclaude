@@ -138,8 +138,8 @@ Claude Code's official `PreToolUse` hook is the enforcement point. It maps
 Write, Edit, MultiEdit, NotebookEdit, Bash, and Agent (plus bounded read tools) to semantic
 actions and canonical targets before execution. Authorized calls emit nothing
 and continue through normal host permissions. Forbidden aliases, unclassified
-mutation, paused work, wrong sessions, and unauthorized roots return an
-official deny decision. `PostToolUse` remains observation-only.
+mutation, secrets and settings, wrong sessions, and unauthorized roots return an
+official deny decision; an unauthorized root denies only that call and parks it. `PostToolUse` remains observation-only.
 For Bash, do not infer cwd authority for path-bearing arguments. Only the
 runtime's deliberately small command grammar is eligible; it canonicalizes all
 recognized operands against the effective semantic grant and denies relocation
@@ -147,18 +147,30 @@ flags, outside paths, quoting, or syntax that would require a speculative shell
 parser without manufacturing a resumable boundary.
 
 Use `pause` only when the next operation crosses a genuinely new non-forbidden
-action/root boundary. An already covered boundary stays active without a
-revision change. Commit, push, publish, tag, release, version bump, registry
-write, host-config write, and destructive VCS are forbidden boundaries: block
-them instead of manufacturing a pause. A paused work cannot complete.
+action/root boundary; it parks that boundary and the work stays active. An
+already covered boundary stays active without a revision change. Commit, push,
+publish, tag, release, version bump, registry write, host-config write, and
+destructive VCS are forbidden boundaries: block them instead of manufacturing a
+pause. Secrets and settings (`~/.ssh`, `~/.aws`, `.env` files, private keys,
+Claude Code settings, `.mcp.json`, git configuration, the start-work state) are
+refused outright, never parked. Parked steps do not decide completion; the
+plan's checkboxes do.
+
+A parked call never freezes the run: carry on with the plan's other tasks, and
+mark a task that cannot be done without it with a `BLOCKED: <reason>` line under
+its row. Do not stop to ask. When every open task waits on parked calls, the
+Stop hook ends the turn with one list. The whole prompt `lit cancel` (or
+`lit 취소`), typed in any session of the project, ends the running work; no work
+id or revision is needed, and the cancelled session may only read until the
+user types again there.
 
 Resume is deliberately asymmetric. There is no `--user-confirmed`, generic
 agent-callable resume bypass, or prose-based approval. Only a prompt the user
-types settles a pause: the whole prompt `lit approve` (or `lit 승인`) grants the
-one pending boundary for this work, and `lit deny` (or `lit 거절`) clears it and
-keeps that path refused without pausing again. Tell the user the access the
-paused call asked for and those two replies. The entire exact route stays
-accepted as an alternative:
+types settles parked steps, and doing so is optional: the whole prompt
+`lit approve` (or `lit 승인`) grants every parked boundary for this work, and
+`lit deny` (or `lit 거절`) refuses them and keeps those paths refused. When the
+run waits on parked steps, tell the user what they reach and those replies, plus
+`lit cancel`. The entire exact route stays accepted as an alternative:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>

@@ -199,14 +199,17 @@ test("data stays data: backticks, emphasis and tags in a title cannot restyle th
   assert.equal(pipedRow.replace(/\\\|/gu, "").split("|").length, 7);
 });
 
-test("the CLI prints the brief with --brief and --lang", () => {
+// lit-adhd v2: `--brief` opens on the KPI board (test/lit-adhd-board.test.mjs); this per-session
+// brief is the detail drawn under it with `--detail`.
+test("the CLI prints the per-session brief under the board with --brief --detail and --lang", () => {
   const root = mkdtempSync(join(tmpdir(), "brief-cli-"));
   try {
     let out = "";
     const stdout = { write: (chunk) => { out += chunk; }, columns: 100 };
-    const code = runRewindCli(["--brief", "--lang", "ko", "--here"], root, { env: { HOME: root, CLAUDE_CONFIG_DIR: join(root, "claude") }, stdout, stderr: stdout });
+    const code = runRewindCli(["--brief", "--detail", "--lang", "ko", "--here"], root, { env: { HOME: root, CLAUDE_CONFIG_DIR: join(root, "claude") }, stdout, stderr: stdout });
     assert.equal(code, 0);
-    assert.match(out, /^지금까지: .+\n지금: .+\n다음: .+\n\n## 🧭 세션 0개/u);
+    assert.match(out, /^## 🎯 지금 할 일/u);
+    assert.match(out, /\n---\n\n지금까지: .+\n지금: .+\n다음: .+\n\n## 🧭 세션 0개/u);
     assert.match(out, /추천하는 다음 단계/u);
     assert.doesNotMatch(out, PLACEHOLDER);
   } finally {
