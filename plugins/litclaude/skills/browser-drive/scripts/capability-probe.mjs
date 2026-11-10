@@ -10,6 +10,9 @@
 // name and be something else entirely, so identity is checked against the version banner before the
 // driver is reported as usable. The same discipline `Skill(structural-search)` applies to `sg`.
 import { spawnSync } from "node:child_process";
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, extname, join, win32 } from "node:path";
 import process from "node:process";
 import { containsSecret } from "../../../lib/secret-shapes.mjs";
 
@@ -26,6 +29,12 @@ const MAX_BANNER_CHARS = 200;
 const MAX_OUTPUT_BYTES = 64 * 1024;
 const DEFAULT_VERSION_TIMEOUT_MS = 10_000;
 const MAX_VERSION_TIMEOUT_MS = DEFAULT_VERSION_TIMEOUT_MS;
+const WINDOWS_DEFAULT_PATHEXT = ".COM;.EXE;.BAT;.CMD";
+const MAX_WINDOWS_SHIM_BYTES = 4 * 1024;
+// The quoted target of an npm `.cmd` shim, relative to the shim's own directory: either the
+// native `"%~dp0node_modules\...\agent-browser-win32-x64.exe" %*` that agent-browser's installer
+// writes on a reinstall, or npm's own `"%dp0%\node_modules\...\agent-browser.js" %*`.
+const WINDOWS_SHIM_TARGET_PATTERN = /"%(?:~dp0|dp0%)\\?([^"%\r\n]+)"\s+%\*/iu;
 const VERIFIED_VERSION_FLOOR = "0.34.0";
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/u;
 const BANNER_INSTRUCTION_PATTERN =
@@ -121,10 +130,12 @@ const POSIX_DRIVER_WRAPPER = [
   "  /bin/sleep 0.1",
   "  kill -KILL -\"$group_pid\" 2>/dev/null",
   ") >/dev/null 2>&1 &",
+  // stdin is whatever runBrowserCommand attached: /dev/null (Node opens it for an ignored fd), or
+  // a pipe carrying the caller's `input`, which the driver reads to EOF.
   "if [ \"$mode\" = \"shell\" ]; then",
-  "  command \"$@\" </dev/null",
+  "  command \"$@\"",
   "else",
-  "  \"$@\" </dev/null",
+  "  \"$@\"",
   "fi",
   "status=$?",
   "exit \"$status\"",
@@ -140,30 +151,88 @@ function outputLimitError() {
   return Object.assign(new Error("browser process output exceeded the safe limit"), { code: "ENOBUFS" });
 }
 
+function readFileHead(path, limit) {
+  const buffer = Buffer.alloc(limit);
+  const fd = openSync(path, "r");
+  try {
+    let length = 0;
+    while (length < limit) {
+      const read = readSync(fd, buffer, length, limit - length, length);
+      if (read === 0) break;
+      length += read;
+    }
+    return buffer.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// A driver that starts a background daemon on Windows hands the daemon its inherited stdout and
+// stderr handles. spawnSync waits until every pipe closes, so with pipes each call that starts the
+// daemon runs into its timeout and reports ETIMEDOUT although the command itself has exited.
+// Owned temporary files do not hold the call open; they are read back within the same byte limit
+// once the direct child exits.
+function spawnWindowsSync(command, args, options, maxBuffer) {
+  const directory = mkdtempSync(join(tmpdir(), "litclaude-browser-"));
+  try {
+    const paths = [join(directory, "stdout"), join(directory, "stderr")];
+    const fds = [];
+    let resultValue;
+    try {
+      for (const path of paths) fds.push(openSync(path, "w"));
+      resultValue = spawnSync(command, args, {
+        ...options,
+        stdio: [options.input === undefined ? "ignore" : "pipe", fds[0], fds[1]],
+        killSignal: "SIGKILL",
+      });
+    } finally {
+      for (const fd of fds) closeSync(fd);
+    }
+    const [stdout, stderr] = paths.map((path) => readFileHead(path, maxBuffer + 1));
+    const overflow = stdout.byteLength > maxBuffer || stderr.byteLength > maxBuffer;
+    const decode = (buffer) => (typeof options.encoding === "string" && options.encoding !== "buffer"
+      ? buffer.toString(options.encoding)
+      : buffer);
+    const output = [decode(stdout), decode(stderr)];
+    return {
+      ...resultValue,
+      output: [null, ...output],
+      stdout: output[0],
+      stderr: output[1],
+      error: resultValue.error ?? (overflow ? outputLimitError() : undefined),
+    };
+  } finally {
+    // The daemon can still hold the files open. Removal is best effort; their content was read.
+    try { rmSync(directory, { recursive: true, force: true }); } catch { /* left for the OS temp cleaner */ }
+  }
+}
+
 /** Run a browser probe command synchronously with bounded output and owned cleanup. */
 export function runBrowserCommand(command, args, options = {}) {
   const requestedMaxBuffer = Number.isSafeInteger(options.maxBuffer) && options.maxBuffer > 0
     ? options.maxBuffer
     : MAX_OUTPUT_BYTES;
+  const maxBuffer = Math.min(requestedMaxBuffer, MAX_OUTPUT_BYTES);
   let resultValue;
   try {
-    resultValue = spawnSync(
-      process.platform === "win32" ? command : "/bin/sh",
-      process.platform === "win32"
-        ? args
-        : ["-c", POSIX_DRIVER_WRAPPER, "litclaude-browser-watch", String(process.pid), options.shell ? "shell" : "direct", command, ...args],
-      {
-        ...options,
-        // POSIX gets an owned process group. Windows receives Node's direct-child timeout fallback.
-        detached: process.platform !== "win32",
-        shell: process.platform === "win32" ? options.shell : false,
-        ...(process.platform === "win32" ? {} : { stdio: ["ignore", "pipe", "pipe"] }),
-        // SIGTERM can be ignored, and spawnSync keeps waiting for a child that ignores it — the
-        // timeout only stays a bound if the kill is one the child cannot swallow.
-        killSignal: "SIGKILL",
-        maxBuffer: Math.min(requestedMaxBuffer, MAX_OUTPUT_BYTES),
-      },
-    );
+    resultValue = process.platform === "win32"
+      // Windows receives Node's direct-child timeout fallback; there is no owned process group.
+      ? spawnWindowsSync(command, args, { ...options, detached: false, maxBuffer }, maxBuffer)
+      : spawnSync(
+        "/bin/sh",
+        ["-c", POSIX_DRIVER_WRAPPER, "litclaude-browser-watch", String(process.pid), options.shell ? "shell" : "direct", command, ...args],
+        {
+          ...options,
+          // POSIX gets an owned process group.
+          detached: true,
+          shell: false,
+          stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+          // SIGTERM can be ignored, and spawnSync keeps waiting for a child that ignores it — the
+          // timeout only stays a bound if the kill is one the child cannot swallow.
+          killSignal: "SIGKILL",
+          maxBuffer,
+        },
+      );
   } catch {
     return null;
   }
@@ -223,6 +292,52 @@ function compareSemver(left, right) {
   return 0;
 }
 
+// `command -v` is a POSIX shell builtin; cmd.exe has no such command. Windows resolves the name the
+// way cmd.exe does, directory by directory in PATH order, trying each PATHEXT extension in turn,
+// so npm's extensionless shell shim (which Windows cannot run) is never picked. This is done here
+// rather than with where.exe, which prints in the console code page: a profile path with Hangul or
+// other non-ASCII characters comes back garbled.
+function findOnWindowsPath(searchPath, pathext) {
+  const extensions = pathext.split(";").map((value) => value.trim()).filter((value) => value.startsWith("."));
+  for (const entry of searchPath.split(win32.delimiter)) {
+    const directory = entry.trim().replace(/^"(.*)"$/u, "$1");
+    if (directory === "") continue;
+    for (const extension of extensions) {
+      const candidate = join(directory, `${DRIVER_COMMAND}${extension}`);
+      try {
+        if (statSync(candidate).isFile()) return candidate;
+      } catch { /* not in this directory */ }
+    }
+  }
+  return null;
+}
+
+const acceptableResolvedPath = (path) => path.length <= MAX_BANNER_CHARS
+  && !hasResidualControlOrFormat(path)
+  && !bannerIsUnsafe(path);
+
+// Node refuses to start a `.cmd` or `.bat` file without a shell, and a shell would re-parse every
+// argument, URLs included. A shim is followed to the native executable it starts; any other batch
+// file is something this probe cannot vouch for.
+function unwrapWindowsShim(candidate) {
+  if (![".cmd", ".bat"].includes(extname(candidate).toLowerCase())) return candidate;
+  try {
+    if (statSync(candidate).size > MAX_WINDOWS_SHIM_BYTES) return null;
+    const match = WINDOWS_SHIM_TARGET_PATTERN.exec(readFileSync(candidate, "utf8"));
+    if (!match) return null;
+    const target = join(dirname(candidate), ...match[1].split(/[\\/]+/u).filter(Boolean));
+    if (extname(target).toLowerCase() === ".exe") return existsSync(target) ? target : null;
+    // npm's own shim runs agent-browser's JS launcher, which only starts the native binary beside
+    // it (an arm64 host falls back to x64, as the launcher does).
+    if (basename(target).toLowerCase() !== `${DRIVER_COMMAND}.js`) return null;
+    return [...new Set([process.arch, "x64"])]
+      .map((arch) => join(dirname(target), `${DRIVER_COMMAND}-win32-${arch}.exe`))
+      .find((path) => existsSync(path)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function result(status, { command = null, version = null, blocker = null, detail }) {
   return { status, command, version, blocker, detail };
 }
@@ -250,30 +365,40 @@ export function probeBrowserDriver(options) {
     let path;
     let runCommand = runBrowserCommand;
     let versionTimeoutMs = DEFAULT_VERSION_TIMEOUT_MS;
+    let platform = process.platform;
     try {
       path = options.path;
       const configuredRunCommand = options.runCommand;
       if (configuredRunCommand !== undefined) runCommand = configuredRunCommand;
       versionTimeoutMs = options.versionTimeoutMs;
+      if (options.platform !== undefined) platform = options.platform;
     } catch {
       return invalidProbeInput();
     }
-    if ((path !== undefined && typeof path !== "string") || typeof runCommand !== "function") return invalidProbeInput();
+    if ((path !== undefined && typeof path !== "string") || typeof runCommand !== "function" || typeof platform !== "string") {
+      return invalidProbeInput();
+    }
 
+    const windows = platform === "win32";
     const searchPath = typeof path === "string" ? path : (process.env.PATH ?? "");
     const env = { PATH: searchPath };
 
-    let resolved;
-    try {
-      resolved = runCommand("command", ["-v", DRIVER_COMMAND], {
-        encoding: "utf8",
-        env,
-        shell: true,
-        timeout: DEFAULT_VERSION_TIMEOUT_MS,
-        maxBuffer: MAX_OUTPUT_BYTES,
-      });
-    } catch {
-      resolved = null;
+    let resolved = null;
+    const windowsCandidate = windows
+      ? findOnWindowsPath(searchPath, process.env.PATHEXT || WINDOWS_DEFAULT_PATHEXT)
+      : null;
+    if (!windows) {
+      try {
+        resolved = runCommand("command", ["-v", DRIVER_COMMAND], {
+          encoding: "utf8",
+          env,
+          shell: true,
+          timeout: DEFAULT_VERSION_TIMEOUT_MS,
+          maxBuffer: MAX_OUTPUT_BYTES,
+        });
+      } catch {
+        resolved = null;
+      }
     }
     if (resolved?.error?.code === BROWSER_PROCESS_CLEANUP_FAILED) {
       return result("unverified-identity", {
@@ -286,22 +411,33 @@ export function probeBrowserDriver(options) {
     const resolverStderr = resolverOutputTooLarge ? [] : (meaningfulLines(resolved?.stderr) ?? []);
     const resolverHasResidualControlOrFormat = !resolverOutputTooLarge
       && (hasResidualControlOrFormat(resolved?.stdout) || hasResidualControlOrFormat(resolved?.stderr));
-    const command = resolved?.status === 0
-      && !resolverOutputTooLarge
-      && resolverStdout.length === 1
-      && resolverStderr.length === 0
-      && resolverStdout[0].length <= MAX_BANNER_CHARS
-      && !resolverHasResidualControlOrFormat
-      && !bannerIsUnsafe(resolverStdout[0])
-      ? resolverStdout[0]
-      : null;
-    if (command === null) {
-      const resolverRejected = resolved?.status === 0 || resolved?.error?.code === "ENOBUFS";
+    const resolvedPath = windows
+      ? (windowsCandidate !== null && acceptableResolvedPath(windowsCandidate) ? windowsCandidate : null)
+      : resolved?.status === 0
+        && !resolverOutputTooLarge
+        && resolverStdout.length === 1
+        && resolverStderr.length === 0
+        && resolverStdout[0].length <= MAX_BANNER_CHARS
+        && !resolverHasResidualControlOrFormat
+        && !bannerIsUnsafe(resolverStdout[0])
+        ? resolverStdout[0]
+        : null;
+    if (resolvedPath === null) {
+      const resolverRejected = windows
+        ? windowsCandidate !== null
+        : resolved?.status === 0 || resolved?.error?.code === "ENOBUFS";
       return result(resolverRejected ? "unverified-identity" : "unavailable", {
         blocker: resolverRejected ? BROWSER_DRIVE_BLOCKER.identity : BROWSER_DRIVE_BLOCKER.unavailable,
         detail: resolverRejected
           ? `${DRIVER_COMMAND} resolved but its command path was rejected`
           : `${DRIVER_COMMAND} is not on PATH; this session cannot drive a browser`,
+      });
+    }
+    const command = windows ? unwrapWindowsShim(resolvedPath) : resolvedPath;
+    if (command === null || !acceptableResolvedPath(command)) {
+      return result("unverified-identity", {
+        blocker: BROWSER_DRIVE_BLOCKER.identity,
+        detail: `${DRIVER_COMMAND} resolved to a batch file that does not start a native ${DRIVER_COMMAND} executable`,
       });
     }
 

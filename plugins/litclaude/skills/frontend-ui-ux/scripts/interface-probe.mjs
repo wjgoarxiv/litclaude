@@ -71,11 +71,12 @@ function startServer(root) {
   });
 }
 
-function browser(command, session, args) {
+function browser(command, session, args, input) {
   const result = runBrowserCommand(command, ["--session", session, ...args], {
     encoding: "utf8",
     timeout: COMMAND_TIMEOUT_MS,
     env: { ...process.env, AGENT_BROWSER_HIDE_SCROLLBARS: "true", AGENT_BROWSER_IDLE_TIMEOUT_MS: "120000" },
+    ...(input === undefined ? {} : { input }),
   });
   return {
     ok: result?.status === 0 && !result.error,
@@ -87,7 +88,9 @@ function browser(command, session, args) {
 
 function evaluate(command, session, fn, argument) {
   const script = `(() => { const run = ${fn.toString()}; return JSON.stringify(run(${JSON.stringify(argument)})); })()`;
-  const run = browser(command, session, ["eval", "--json", "-b", Buffer.from(script, "utf8").toString("base64")]);
+  // Base64-encoded, the measurement script is about 170 KB: past the Windows command line (32,767
+  // characters) and Linux's 128 KiB cap on a single argument. stdin has neither limit.
+  const run = browser(command, session, ["eval", "--json", "--stdin"], script);
   if (!run.ok) return { error: run.error ?? (run.stderr.trim() || run.stdout.trim()).slice(-300) };
   try {
     const envelope = JSON.parse(run.stdout);
