@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.49 - 2026-11-11
 
 - A start-work run no longer freezes at a boundary. A call outside the plan's grants is denied and parked, and
   only that call: the run stays active, every covered call keeps running, and the model is told to carry on and
