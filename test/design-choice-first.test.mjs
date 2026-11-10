@@ -22,11 +22,6 @@ const BLOCK_CHARS = 4200;
 // artifact, `choices` are tokens only that skill ships (a real preset, theme, template or path),
 // and `prompt` is a natural activation prompt for the hook-context check.
 const skills = {
-  "lit-pptx": {
-    build: /^5\. \*\*Write the Markdown source\*\*/mu,
-    choices: [/`ledger`|Ledger/u, /AZURE-PRO/u, /BOILERPLATE-PRETENDARD/u, /4:3/u, /learn/iu],
-    prompt: "lit-pptx make a deck about our Q3 results",
-  },
   "lit-docx": {
     build: /^3\. \*\*Outline, then write the Markdown source\*\*/mu,
     choices: [/Report/u, /Brief/u, /Manual/u, /Proposal/u, /Memo/u, /Journal/u, /elsevier/iu, /korean-generic/u, /--template/u],
@@ -128,7 +123,7 @@ describe("design skills ask the user to choose the design first", () => {
     });
   }
 
-  it("keeps the seven steps skill-specific: no two share the same body", () => {
+  it("keeps the six steps skill-specific: no two share the same body", () => {
     const blocks = Object.keys(skills).map((id) => stepBlock(read(id)).replace(/\s+/gu, " "));
     assert.equal(new Set(blocks).size, blocks.length);
     const sentences = blocks.map((block) => new Set(block.split(/(?<=[.:])\s/u).filter((s) => s.length > 60)));

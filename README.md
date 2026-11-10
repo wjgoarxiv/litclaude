@@ -45,6 +45,8 @@ Equipment, systems and data, each drawn by the skill that knows its rules: ISA-5
 
 Name a style, or let lit-pptx choose one from thirteen. Every deck has native, editable charts and KPI rows, Pretendard embedded, and passed a gate for overflow, contrast and empty slides.
 
+lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes deck requests to it and gives the install line when it is missing.
+
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-newsroom.webp" width="400" alt="Contact sheet of a ten-slide newsroom-style deck: black masthead bands, an orange data series, bar and line charts and big figures." /><br /><b>lit-pptx</b> · newsroom, 10 slides<br /><code>lit 우리 구 주민에게 보여줄 2026년 대중교통 이용 데이터 브리핑 발표자료 10장, 뉴스룸 스타일로</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-neo.webp" width="400" alt="Contact sheet of a ten-slide neo-brutalism pitch deck: blue and yellow blocks, thick outlines, hard shadows and large bold numbers." /><br /><b>lit-pptx</b> · neo-brutalism pitch<br /><code>lit 신규 서비스 투자 피칭 덱 10장, 네오 브루탈리즘 스타일로. 글자와 숫자는 크고 굵게</code></td></tr>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-themes.webp" width="400" alt="Grid of the same deck in thirteen tonalities, one row per tonality, from light paper styles to dark night and teal themes." /><br /><b>lit-pptx</b> · one deck, 13 tonalities<br /><sub>The same sample deck rendered by the engine in all thirteen tonalities, from paper and newsroom to riso, night and ledger.</sub></td></tr>

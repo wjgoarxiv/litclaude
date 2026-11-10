@@ -45,6 +45,8 @@ lit src/dates.js의 날짜 파싱 버그를 테스트와 함께 고쳐줘
 
 스타일을 말하거나, 열세 가지 가운데 lit-pptx가 고르게 둡니다. 차트와 KPI 줄은 PowerPoint에서 바로 고칠 수 있고, Pretendard가 들어 있으며, 넘침·대비·빈 슬라이드 검사를 통과한 덱만 나옵니다.
 
+이제 lit-pptx는 wjgoarxiv-skills 마켓플레이스의 `decks` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 남아 발표자료 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-newsroom.webp" width="400" alt="뉴스룸 스타일 10장 덱의 한눈 보기. 검은 마스트헤드 띠, 주황색 데이터 계열, 막대·선 차트와 큰 숫자가 보인다." /><br /><b>lit-pptx</b> · 뉴스룸, 10장<br /><code>lit 우리 구 주민에게 보여줄 2026년 대중교통 이용 데이터 브리핑 발표자료 10장, 뉴스룸 스타일로</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-neo.webp" width="400" alt="네오 브루탈리즘 피칭 덱 10장의 한눈 보기. 파랑·노랑 블록, 두꺼운 외곽선, 딱딱한 그림자, 크고 굵은 숫자." /><br /><b>lit-pptx</b> · 네오 브루탈리즘 피칭<br /><code>lit 신규 서비스 투자 피칭 덱 10장, 네오 브루탈리즘 스타일로. 글자와 숫자는 크고 굵게</code></td></tr>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/deck-themes.webp" width="400" alt="같은 덱을 열세 가지 톤으로 그린 격자. 톤마다 한 줄씩, 밝은 종이 스타일부터 어두운 night, 청록 테마까지." /><br /><b>lit-pptx</b> · 한 덱, 열세 가지 톤<br /><sub>같은 예시 덱을 엔진이 열세 가지 톤으로 모두 그린 것입니다. paper, newsroom부터 riso, night, ledger까지.</sub></td></tr>

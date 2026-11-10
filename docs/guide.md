@@ -184,7 +184,7 @@ compare it with the files as they are now, and then carry on.
 | `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
 | `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
 | `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic` |
-| `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx` |
+| `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx`. The skill now lives in the `decks` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx` |
 | `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
 | `browser-drive`, `$browser-drive` | Drive a real page. It first checks for `vercel-labs/agent-browser` 0.34.0 or later; anything newer than 0.34.0 still works and is marked `beyond-verified`. If the driver is missing or older, it names the install commands and leaves running them to you |
@@ -303,6 +303,12 @@ Ask for slides or a report and end the prompt with `lit`, for example
 files. Before either skill writes a slide or a paragraph, it works out who will read the file
 and how, and picks a look to match. The reply names that look, says why it fits, and mentions
 two others that would also suit, so a wrong first guess costs you one sentence.
+
+`lit-pptx` now ships as the `decks` plugin of the wjgoarxiv-skills marketplace. Install it with
+`claude plugin marketplace add <path to your wjgoarxiv-skills clone>` and
+`claude plugin install decks@wjgoarxiv-skills` (the GitHub form follows publication). Without it,
+a deck request gets those two lines back instead of a deck. The rest of this section describes the
+skill as the decks plugin ships it.
 
 `lit-pptx` has thirteen looks for decks. At one end is a dense, number-led review meant to be read
 at a desk; at the other, a dark style built for a keynote screen. Three are loud on purpose and

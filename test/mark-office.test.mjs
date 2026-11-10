@@ -13,7 +13,6 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const pluginRoot = join(root, "plugins", "litclaude");
 const libDir = join(pluginRoot, "lib");
 const docxScript = join(pluginRoot, "skills", "lit-docx", "scripts", "convert_md_to_docx.py");
-const deckScript = join(pluginRoot, "skills", "lit-pptx", "scripts", "compile-deck.js");
 const fixtures = join(root, "test", "fixtures", "lit-office");
 const GEN = generatorString();
 const CUSTOM_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties";
@@ -46,7 +45,6 @@ const assertUntagged = (file, label) => {
 
 describe("invisible generator tag in office outputs", { skip: runtimeReady ? false : "office runtime not installed; run node plugins/litclaude/lib/office-runtime.mjs ensure" }, () => {
   const docx = (dir, mode, source, extra = []) => spawnSync("python3", [docxScript, join(fixtures, source), join(dir, `${mode}.docx`), ...extra], { cwd: dir, encoding: "utf8", env: envFor(dir, mode) });
-  const deck = (dir, mode, extra = []) => spawnSync(process.execPath, [deckScript, join(fixtures, "deck-azure.md"), "--template", "AZURE-PRO", "--pptx", join(dir, `${mode}.pptx`), ...extra], { cwd: dir, encoding: "utf8", env: envFor(dir, mode) });
 
   for (const [label, source, extra] of [["docx plain", "report-data.md", []], ["docx publisher", "report-ko.md", ["--publisher", "korean-generic"]]]) {
     it(`${label}: tagged in on and meta, untouched in off`, () => {
@@ -56,19 +54,6 @@ describe("invisible generator tag in office outputs", { skip: runtimeReady ? fal
           const r = docx(dir, mode, source, extra);
           assert.equal(r.status, 0, r.stderr);
           (mode === "off" ? assertUntagged : assertTagged)(join(dir, `${mode}.docx`), `${label} ${mode}`);
-        }
-      } finally { rmSync(dir, { recursive: true, force: true }); }
-    });
-  }
-
-  for (const [label, extra] of [["pptx template", []], ["pptx tonality pack", ["--tonality", "ledger"]], ["pptx with embedded fonts", ["--embed-fonts"]]]) {
-    it(`${label}: tagged in on and meta, untouched in off`, () => {
-      const dir = work();
-      try {
-        for (const mode of ["on", "meta", "off"]) {
-          const r = deck(dir, mode, extra);
-          assert.equal(r.status, 0, r.stderr);
-          (mode === "off" ? assertUntagged : assertTagged)(join(dir, `${mode}.pptx`), `${label} ${mode}`);
         }
       } finally { rmSync(dir, { recursive: true, force: true }); }
     });

@@ -212,3 +212,5 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Runs on its own: loads your project rules, asks for diagnostics after edits, and reviews new comments.</td>
 </tr>
 </table>
+
+lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes deck requests to it and gives the install line when it is missing.

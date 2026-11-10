@@ -176,7 +176,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
 | `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. |
-| `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. |
+| `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. 스킬 본체는 wjgoarxiv-skills의 `decks` 플러그인으로 옮겼고, LitClaude의 같은 이름 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. |
 | `litclaude wikify <capture/save/review/query/config>` | 검토를 거친 프로젝트 지식을 로컬에 정리합니다. |
 | `browser-drive`, `$browser-drive` | 실제 웹 페이지를 조작합니다. 먼저 `vercel-labs/agent-browser` 0.34.0 이상이 있는지 확인하고, 0.34.0보다 새 버전이면 그대로 쓰되 `beyond-verified`로 표시합니다. 없거나 더 오래된 버전이면 설치 명령만 알려 주고, 실행은 사용자에게 맡깁니다. |
@@ -290,6 +290,12 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 쓰기 전에 누가 어떻게 읽을 파일인지부터 따지고, 거기에 맞는 모양을 고릅니다. 답에서는 고른
 모양과 그 이유를 말하고, 함께 어울릴 만한 다른 두 가지도 알려 줍니다. 첫 판단이 빗나갔다면
 한 문장으로 다른 모양을 부탁하면 됩니다.
+
+`lit-pptx`는 이제 wjgoarxiv-skills 마켓플레이스의 `decks` 플러그인으로 설치합니다.
+`claude plugin marketplace add <wjgoarxiv-skills 클론 경로>`와
+`claude plugin install decks@wjgoarxiv-skills`를 실행하면 됩니다(GitHub 주소는 공개 후에 씁니다).
+설치하지 않은 상태로 발표자료를 부탁하면 덱 대신 이 두 줄을 안내받습니다. 아래 설명은 decks
+플러그인에 든 스킬 기준입니다.
 
 `lit-pptx`에는 발표자료용 모양이 열세 가지 있습니다. 한쪽 끝은 책상에서 읽는 촘촘한 수치 중심
 보고형이고, 다른 쪽 끝은 큰 화면에 띄우는 어두운 발표형입니다. 그중 세 가지는 일부러 강한

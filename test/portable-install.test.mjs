@@ -233,15 +233,13 @@ describe("portable LitClaude install layout", () => {
       );
       assert.equal(installedDiagram.status, 0, installedDiagram.stderr);
       assert.match(installedDiagram.stdout, /DIAGRAM_PASS .* humanizer-block=0/u);
-      for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-pptx/NOTICE", "skills/lit-pptx/scripts/compile-deck.js", "skills/lit-pptx/scripts/qa_deck.py",
-        "skills/lit-pptx/scripts/layout_inventory.py", "skills/lit-pptx/fonts/pretendard/Pretendard-Regular.otf", "skills/lit-pptx/fonts/pretendard/OFL.txt",
+      // lit-pptx is a same-name stub: its SKILL.md and the Pretendard pair lit-typographic-motion reuses.
+      for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-pptx/fonts/pretendard/Pretendard-Regular.otf", "skills/lit-pptx/fonts/pretendard/Pretendard-Bold.otf", "skills/lit-pptx/fonts/pretendard/OFL.txt",
         "skills/lit-docx/SKILL.md", "skills/lit-docx/NOTICE", "skills/lit-docx/scripts/convert_md_to_docx.py", "skills/lit-docx/scripts/qa_docx.py",
         "skills/lit-docx/templates/docx/korean-generic.docx", "lib/office-runtime.mjs", "lib/office-runtime-lock/requirements.lock", "lib/ooxml_integrity.py", "lib/render_pages.py", "lib/office_data.py"]) {
         assertFile(join(pluginPath, file), `office ${file}`);
       }
-      const installedTemplates = spawnSync(process.execPath, [join(pluginPath, "skills", "lit-pptx", "scripts", "compile-deck.js"), "--list-templates"], { cwd: home, encoding: "utf8" });
-      assert.equal(installedTemplates.status, 0, installedTemplates.stderr);
-      assert.match(installedTemplates.stdout, /^AZURE-PRO /mu);
+      assert.match(readFileSync(join(pluginPath, "skills", "lit-pptx", "SKILL.md"), "utf8"), /decks@wjgoarxiv-skills/u, "installed stub carries the install line");
       const installedOfficeStatus = spawnSync(process.execPath, [join(pluginPath, "lib", "office-runtime.mjs"), "status", "--json"], { cwd: home, encoding: "utf8", env: { ...process.env, HOME: home, XDG_CACHE_HOME: join(home, ".cache"), LITCLAUDE_OFFICE_RUNTIME: "" } });
       assert.equal(installedOfficeStatus.status, 0, installedOfficeStatus.stderr);
       assert.equal(JSON.parse(installedOfficeStatus.stdout).root, join(home, ".cache", "litclaude", "office-runtime"));

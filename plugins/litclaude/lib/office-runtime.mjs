@@ -235,7 +235,8 @@ export function officeRuntimeStatus() {
     node: { ready: node.ready, dir: node.dir, pinned: node.pinned },
     python: { ready: python.ready, dir: python.dir, host: python.host, packages: python.pinned.length },
     hostTools: hostToolStatus(),
-    firstUse: node.ready && python.ready ? "ready" : "installs on first lit-pptx or lit-docx run",
+    // lit-docx needs only the Python half; the Node half served lit-pptx, which moved to the decks plugin.
+    firstUse: python.ready ? "ready" : "installs on first lit-docx run",
   };
 }
 

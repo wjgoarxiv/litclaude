@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- lit-pptx moved out of LitClaude into the `decks` plugin of the new wjgoarxiv-skills marketplace, copied byte for
+  byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
+  `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` slide request still route: with the decks plugin
+  installed they load `decks:lit-pptx`, and without it the reply gives the install lines. For now the marketplace is
+  a local clone (`claude plugin marketplace add <path>`, then `claude plugin install decks@wjgoarxiv-skills`); the
+  GitHub form follows its publication. The stub keeps `fonts/pretendard/`, which lit-typographic-motion and
+  lit-schematic read by path. lit-docx is unchanged and keeps LitClaude's own office runtime. The deck engine's
+  tests, fixtures and pins left with the body. The office runtime's `firstUse` status now reads `ready` once the
+  Python half that lit-docx uses is installed.
+
 ## 1.0.49 - 2026-11-11
 
 - A start-work run no longer freezes at a boundary. A call outside the plan's grants is denied and parked, and
