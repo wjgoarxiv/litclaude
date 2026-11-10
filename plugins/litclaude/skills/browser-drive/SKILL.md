@@ -115,6 +115,10 @@ interruption terminates that group and its descendants. On Windows, the fallback
 direct child. It cannot guarantee cleanup for descendant processes. A cleanup failure is
 `BLOCKED_BROWSER_DRIVER_CLEANUP_FAILED`, never an available result.
 
+On Windows, the probe looks `agent-browser` up through `PATH` and `PATHEXT` the way `cmd.exe` does,
+follows an npm `.cmd` shim to the native `agent-browser-win32-*.exe` it starts, and reports that
+executable as `command`.
+
 If the driver is missing or below the floor, the user can install it with:
 
 ```bash

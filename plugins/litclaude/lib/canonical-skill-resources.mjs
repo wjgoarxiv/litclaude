@@ -49,7 +49,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["scripts/scaffold-plan.mjs", "295247e2d68617236dafabaff5706a43970cf34384b5fd0cfcd437e417507ad7"],
     ["skills/autoconference/SKILL.md", "8d129faef0613c46baff2fe56d26813a957685b000d335f3cb455d5b4b8ec124"],
     ["skills/autoresearch/SKILL.md", "be86f3e098fb74ac1ce99a4ece476837e31967b0e3b1886f5252164727ae87b4"],
-    ["skills/browser-drive/scripts/capability-probe.mjs", "69fbf97638165d8dac5297c6c2e7b18c5757605acdcaed3ce96f745dc3c72532"],
+    ["skills/browser-drive/scripts/capability-probe.mjs", "058b55c6f0a7dfc621512aaac51a63c5d9ef0c4ce83d4d427b13d0c3e5cfbab5"],
     ["skills/debugging/SKILL.md", "302b9e25855c58783068486a65fe71b303b43a6fcae1b5e798bdf4235ce11995"],
     ["skills/debugging/references/methodology/00-setup.md", "dc05ca5d38d870359b2ab8304ae32b31430892d864723d87f846e7a41cf8ed7f"],
     ["skills/debugging/references/methodology/02-investigate.md", "52e4d5eced1ce6959ecb550e3413596fa46ba738cc1e644ac010d1e14751d3ce"],
