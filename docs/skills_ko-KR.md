@@ -216,3 +216,5 @@ LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개
 이제 lit-pptx는 wjgoarxiv-skills 마켓플레이스의 `decks` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 남아 발표자료 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
 
 이제 lit-docx는 wjgoarxiv-skills 마켓플레이스의 `documents` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 남아 문서 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
+이제 lit-diagram-drawer, lit-schematic, lit-scientific-visualization은 wjgoarxiv-skills 마켓플레이스의 `figures` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 그림 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.

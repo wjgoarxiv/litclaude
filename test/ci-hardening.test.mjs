@@ -345,8 +345,6 @@ describe('ci-hardening: pack guard path-shape coverage', () => {
   // Deliberate exceptions — these ship by design and must NOT be blocked.
   const MUST_SHIP = [
     'plugins/litclaude/vendor/handoff/templates/HANDOFF.md',
-    'plugins/litclaude/vendor/scientific-visualization/tests/test_style_presets.py',
-    'plugins/litclaude/vendor/scientific-visualization/tests/test_figure_export.py',
     'plugins/litclaude/lib/rules/glob.mjs',
     'plugins/litclaude/skills/litwork/SKILL.md',
     'docs/rules.md',
@@ -384,7 +382,7 @@ describe('ci-hardening: pack guard path-shape coverage', () => {
       assert.doesNotMatch(approved, /[*?]/u, `${approved} must be an exact path, not a glob`);
     }
     // A sibling of an approved path is NOT covered by it.
-    assert.equal(findOffenders(['plugins/litclaude/vendor/scientific-visualization/tests/sneaky.py']).length, 1);
+    assert.equal(findOffenders(['plugins/litclaude/vendor/handoff/templates/sneaky.test.mjs']).length, 1);
   });
 
   it('rejects every file beneath an unpinned top-level skill directory', async () => {

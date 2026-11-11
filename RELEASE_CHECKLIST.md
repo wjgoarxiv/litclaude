@@ -271,24 +271,19 @@ checkout and from an isolated install of the packed tarball:
   the plain `🔥 LIT IGNITED · lit-handoff 🔥` system mark plus the model probe
   `🔥 **LIT IGNITED · lit-handoff** 🔥` while quoted, fenced, mixed, slash, and
   explanatory near misses remain inert.
-- `lit-scientific-visualization` ships the approved exact 16-file canonical
-  corpus plus license and provenance metadata, and exact bare
-  `lit-scientific-visualization` shows
+- `lit-scientific-visualization` is a same-name stub: its adapter, the 16-file
+  canonical corpus with license and provenance, and its doctor ship in the
+  `figures` plugin of wjgoarxiv-skills. Exact bare
+  `lit-scientific-visualization` and the typed command still show
   the plain `🔥 LIT IGNITED · lit-scientific-visualization 🔥` system mark plus the model probe
   `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥` while quoted, fenced,
-  mixed, slash, generic-visualization, and explanatory near misses remain inert.
-- The scientific adapter reads the full canonical source, resolves packaged
-  `scripts/` and `assets/`, and exposes the shipped style presets, figure export
-  helpers, and color palettes from the installed package rather than checkout-only
-  paths.
-- Installed-payload integrity checks compare the immutable source records and
+  mixed, slash, generic-visualization, and explanatory near misses remain inert,
+  and the stub answers with the install lines and `/figures:lit-scientific-visualization`.
+- Installed-payload integrity checks compare the immutable handoff source records and
   fail closed on missing or changed bundled files.
-- `litclaude-scientific-visualization-doctor.js --json` performs read-only
-  dependency checks, never installs Python packages, and reports unsupported
-  optional workflows as `DEGRADED` rather than claiming availability.
 - `npm pack --dry-run --json` and an isolated consumer install include both
-  command routes, both adapted skills, both canonical-source trees, provenance,
-  licenses, scripts, assets, and the scientific dependency doctor.
+  command routes, the handoff adapter and its canonical-source tree, provenance,
+  and license, and the scientific-visualization stub.
 
 ## v0.2.2 Dynamic Workflow Hardening Gates
 

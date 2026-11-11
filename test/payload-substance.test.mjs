@@ -40,7 +40,9 @@ test("cross-product payload parity always checks the committed family manifest",
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /PAYLOAD_PARITY_PASS: source=manifest fraction=0\.5/);
   assert.match(result.stdout, /PAYLOAD_PARITY_ROW skill=autoresearch median=30 closures=p27:29/);
-  assert.match(result.stdout, /PAYLOAD_PARITY_ROW skill=lit-scientific-visualization median=21 closures=p27:20,p28:28,p31:26,p32:20,p33:21/);
+  // LitClaude's lit-scientific-visualization is a one-file stub (figures moved to wjgoarxiv-skills), a recorded divergence.
+  assert.match(result.stdout, /PAYLOAD_PARITY_ROW skill=lit-scientific-visualization median=21 closures=p27:1,p28:28,p31:26,p32:20,p33:21/);
+  assert.match(result.stdout, /exemptions=[^\n]*lit-scientific-visualization@2026-11-11/);
   assert.doesNotMatch(result.stdout, /PAYLOAD_PARITY_FRESHNESS_PASS/, "default checks must not execute sibling package hooks");
   assert.doesNotMatch(result.stdout, /PAYLOAD_PARITY_FAIL skill=(autoresearch|autoconference)/);
 });

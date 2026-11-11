@@ -86,8 +86,8 @@ hook, and the hashes of the Pretendard files lit-typographic-motion reuses from 
 ## Files kept here
 
 `fonts/pretendard/` holds Pretendard Regular and Bold (official files, SIL Open Font License 1.1 in `OFL.txt`).
-They stay in LitClaude until the video and covers family moves, because lit-typographic-motion and lit-schematic
-use them.
+They stay in LitClaude until the video and covers family moves, because lit-typographic-motion uses them
+(lit-schematic, the other reader, moved to the figures plugin).
 
 ## What moved
 

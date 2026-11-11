@@ -20,22 +20,13 @@ const BLOCK_CHARS = 4200;
 
 // For each skill: `build` is a robust anchor for the step that builds, renders or writes the
 // artifact, `choices` are tokens only that skill ships (a real preset, theme, template or path),
-// and `prompt` is a natural activation prompt for the hook-context check.
+// and `prompt` is a natural activation prompt for the hook-context check. lit-schematic and lit-diagram-drawer
+// left with the figures family; their stubs ask nothing (test/figures-stubs.test.mjs).
 const skills = {
   "frontend-ui-ux": {
     build: /design-lock\.mjs" init/u,
     choices: [/field-notes/u, /graphite/u, /meadow/u, /computational-brutalism/u, /neo-brutalism/u, /landing/u, /workspace/u, /settings/u],
     prompt: "frontend-ui-ux build a settings page",
-  },
-  "lit-schematic": {
-    build: /^5\. \*\*Build\.\*\*/mu,
-    choices: [/P&ID/u, /PFD/u, /journal/iu, /isometric/iu, /A3/u, /85/u, /interactive/iu, /grey|monochrome/iu],
-    prompt: "lit-schematic draw a P&ID for the dosing skid",
-  },
-  "lit-diagram-drawer": {
-    build: /^6\. \*\*Draft HTML\/SVG\.\*\*/mu,
-    choices: [/slide-16x9/u, /slide-4x3/u, /doc-inline/u, /doc-wide/u, /light/u, /dark/u, /type-catalog/u],
-    prompt: "lit-diagram-drawer draw the service deployment boundary",
   },
   "readme-studio": {
     build: /^6\. Compose a distinctive cover/mu,
@@ -118,7 +109,7 @@ describe("design skills ask the user to choose the design first", () => {
     });
   }
 
-  it("keeps the five steps skill-specific: no two share the same body", () => {
+  it("keeps the three steps skill-specific: no two share the same body", () => {
     const blocks = Object.keys(skills).map((id) => stepBlock(read(id)).replace(/\s+/gu, " "));
     assert.equal(new Set(blocks).size, blocks.length);
     const sentences = blocks.map((block) => new Set(block.split(/(?<=[.:])\s/u).filter((s) => s.length > 60)));

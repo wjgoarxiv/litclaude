@@ -163,7 +163,6 @@ describe("npm-installed CLIs run with no shell on win32", async () => {
   it("no shipped call site spawns claude, agent-browser or a language server by bare name", () => {
     const sites = [
       "bin/litclaude-ai.js", "scripts/validate-plugin.mjs", "plugins/litclaude/bin/litclaude-lsp-doctor.js",
-      "plugins/litclaude/skills/lit-diagram-drawer/scripts/renderer.mjs", "plugins/litclaude/skills/lit-diagram-drawer/scripts/export.mjs",
       "plugins/litclaude/skills/lsp-setup/scripts/verify-lsp.ts",
     ];
     for (const site of sites) {

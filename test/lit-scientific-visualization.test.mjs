@@ -1,49 +1,17 @@
-import { micro } from "../bin/litfamily-banner.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
-import { withoutNotice } from "./helpers/notice.mjs";
 
+// lit-scientific-visualization moved, with the scientific-visualization source and its doctor, to the figures plugin
+// of wjgoarxiv-skills. LitClaude keeps the same-name stub, the slash command and the exact-bare route; this file checks
+// that both routes still answer with the stub and that everything else stays inert, as before.
 const root = fileURLToPath(new URL("..", import.meta.url));
 const pluginRoot = join(root, "plugins", "litclaude");
-const originalRoot = join(pluginRoot, "vendor", "scientific-visualization");
-const adapterPath = join(pluginRoot, "skills", "lit-scientific-visualization", "SKILL.md");
-const commandPath = join(pluginRoot, "commands", "lit-scientific-visualization.md");
-const doctorPath = join(pluginRoot, "bin", "litclaude-scientific-visualization-doctor.js");
 const hookPath = join(pluginRoot, "bin", "litclaude-hook.js");
-const approvedManifestHash = "5a01a2768a1b29d4820bdc895fb7cb75c329110fd711de8fd07bdeaa1e42b9ab";
-
-const expectedOriginalHashes = new Map([
-  ["SKILL.md", "d6084a7e3adf283157820ea20dbe1b46fa22fa1be17b138ab1203be550f4ef68"],
-  ["assets/color_palettes.py", "ffea28da930406ecb11bbeaebfc530dfac40b772827a7653f449cb3b0bb35309"],
-  ["assets/nature.mplstyle", "6a7343788bf772b7e1bc813d094f7bafa97c1e5544586e7b76002ad8547229b6"],
-  ["assets/presentation.mplstyle", "e3ee23f0470d7fb07a0be75cd1210e231becfc2f5267aa404e4186aa077a3339"],
-  ["assets/publication.mplstyle", "18447af3bc47310d23fc27255413c23d8bbe3ff441463cc54fcecdfacd205bea"],
-  ["evals/evals.json", "366dc61b6e042f08f28bf33f2534feea80219d771b84497ec7094b30263e935b"],
-  ["references/color_palettes.md", "0298691c8de8379570488a7b7768663971bc20af1fb05d464c5438d43a21dcfa"],
-  ["references/journal_requirements.md", "56fdde590a9d778547dbcb609b77d86f1f31865e803bcecca5d8c4c72b91b3c7"],
-  ["references/matplotlib_examples.md", "c99cd4f83e2452773e9580e2fa0984e61433c7a9b57ca0d2562dc400dfe4f83d"],
-  ["references/mdanalysis_martini_visualization.md", "abcb3c61f1c3984ba9014d9ae197b726d23c1df844dc90988ecc4d8f0e349bfe"],
-  ["references/publication_guidelines.md", "d9f5d0f115872c4c190a11d83432d44635e38ef9f1740db471fcc70f4c91dd2c"],
-  ["references/seaborn_for_publications.md", "2da2147ae8974b4b5d16096c1484b982d5d1e5f91113808ebfd12111a0a6597a"],
-  ["scripts/figure_export.py", "b22c7708afaf2a1cfa4f821eb9230d4262f1d52948af7f0815855aa9d0960403"],
-  ["scripts/style_presets.py", "e9d450bd4ab6b11303b02d5029177c8d49466cc597648d12de0ecdb7620f64c4"],
-  ["tests/test_figure_export.py", "b18414369e6721ad93d417914114d71af006248675eb20bb1f4989c48ec9a58e"],
-  ["tests/test_style_presets.py", "ff0e190196480848f1fea2398220038771f386ee7967a0ef122b0dfbca3aed46"],
-]);
-
-const listFiles = (directory) => readdirSync(directory, { recursive: true, withFileTypes: true })
-  .filter((entry) => entry.isFile())
-  .map((entry) => relative(directory, join(entry.parentPath, entry.name)))
-  .sort();
-
-const sha256Bytes = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const sha256File = (path) => sha256Bytes(readFileSync(path));
 
 const runHook = (prompt) => spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
   env: { ...process.env, LC_ALL: "C.UTF-8", TERM: "xterm-256color" },
@@ -52,71 +20,20 @@ const runHook = (prompt) => spawnSync(process.execPath, [hookPath, "user-prompt-
   input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd: root }),
 });
 
-describe("LitClaude scientific-visualization payload", () => {
-  it("preserves exactly the 16 approved authored files and aggregate manifest", () => {
-    assert.equal(existsSync(originalRoot), true, "vendored scientific source root must exist");
-    assert.deepEqual(listFiles(originalRoot), [...expectedOriginalHashes.keys()].sort());
-
-    const records = [];
-    for (const [file, expectedHash] of expectedOriginalHashes) {
-      const actualHash = sha256File(join(originalRoot, file));
-      assert.equal(actualHash, expectedHash, `${file} must preserve its approved SHA-256`);
-      records.push(`${actualHash}  scientific-visualization/${file}\n`);
-    }
-    assert.equal(sha256Bytes(records.join("")), approvedManifestHash);
-    assert.equal(listFiles(originalRoot).some((file) => file.endsWith(".pyc") || file.includes("__pycache__")), false);
-  });
-
-  it("ships the native adapter, command, doctor, MIT license, and provenance", () => {
-    for (const path of [adapterPath, commandPath, doctorPath]) {
-      assert.equal(existsSync(path), true, `${path} must exist`);
-    }
-    const adapter = readFileSync(adapterPath, "utf8");
-    const command = readFileSync(commandPath, "utf8");
-    const license = readFileSync(join(pluginRoot, "vendor", "licenses", "045_scientific-visualization-MIT.txt"), "utf8");
-    const provenance = readFileSync(join(pluginRoot, "vendor", "provenance", "045_scientific-visualization.md"), "utf8");
-
-    assert.match(adapter, /name:\s*lit-scientific-visualization/u);
-    assert.match(adapter, /disable-model-invocation:\s*true/u);
-    assert.match(adapter, /contract_schema_version:\s*litclaude\.llm-contract\.v1/u);
-    assert.match(adapter, /\.\.\/\.\.\/vendor\/scientific-visualization/u);
-    assert.match(adapter, /resolve.*relative.*SKILL\.md/isu);
-    assert.match(adapter, /DEGRADED/u);
-    assert.match(adapter, /source root.*scripts.*assets/isu);
-    assert.match(adapter, /insert.*scripts.*assets.*module search path/isu);
-    assert.match(adapter, /begin.*exact probe.*🔥 \*\*LIT IGNITED · lit-scientific-visualization\*\* 🔥/isu);
-    assert.match(adapter, /hook-routed/u);
-    assert.match(adapter, /UserPromptSubmit/u);
-    assert.match(adapter, /do not.*install|never.*install/iu);
-    assert.match(command, /Skill\(lit-scientific-visualization\)/u);
-    assert.match(command, /🔥 \*\*LIT IGNITED · lit-scientific-visualization\*\* 🔥/u);
-    assert.match(license, /^MIT License/mu);
-    assert.match(provenance, new RegExp(approvedManifestHash, "u"));
-    assert.match(provenance, /CP\/SDS/u);
-  });
-
-  it("routes only exact bare lit-scientific-visualization with a visible banner and complete canonical source", () => {
+describe("lit-scientific-visualization stub routes", () => {
+  it("routes exact bare lit-scientific-visualization with a visible banner to the stub", () => {
     const result = runHook("  LIT-SCIENTIFIC-VISUALIZATION\n");
     assert.equal(result.status, 0, result.stderr);
     const payload = JSON.parse(result.stdout);
     const context = payload.hookSpecificOutput.additionalContext;
-    const canonicalSkill = readFileSync(join(originalRoot, "SKILL.md"), "utf8").trim();
-
     assert.match(stripAnsi(payload.systemMessage ?? ""), /🔥 LIT IGNITED · lit-scientific-visualization 🔥/u);
     assert.match(context, /begin your reply with the exact probe line `🔥 \*\*LIT IGNITED · lit-scientific-visualization\*\* 🔥`/iu);
-    assert.match(context, /\/litclaude:lit-scientific-visualization/u);
     assert.match(context, /Skill\(lit-scientific-visualization\)/u);
-    assert.match(context, new RegExp(`canonical source root.*${originalRoot.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}`, "iu"));
-    assert.equal(context.includes(canonicalSkill), true, "exact bare route must inject the complete canonical source body");
-    assert.match(context, /never install Python, matplotlib, or optional packages silently/iu);
+    assert.match(context, /\/figures:lit-scientific-visualization/u);
+    assert.match(context, /never install Python packages/iu);
   });
 
-  // The adapter is disable-model-invocation, so the command's `Skill(lit-scientific-visualization)`
-  // step resolves back to the command itself and the adapter never loads. The typed slash command
-  // therefore gets the same bodies from the hook as the exact-bare route.
-  it("injects the adapter and canonical source when the slash command is typed", () => {
-    const adapterBody = withoutNotice(readFileSync(adapterPath, "utf8")).trim();
-    const canonicalSkill = readFileSync(join(originalRoot, "SKILL.md"), "utf8").trim();
+  it("answers the typed slash command with the stub and never echoes its arguments", () => {
     for (const prompt of [
       "/litclaude:lit-scientific-visualization",
       "  /litclaude:lit-scientific-visualization plot the CO2 isotherms in data/iso.csv\nAPI_TOKEN=do-not-echo",
@@ -126,8 +43,7 @@ describe("LitClaude scientific-visualization payload", () => {
       const payload = JSON.parse(result.stdout);
       const context = payload.hookSpecificOutput.additionalContext;
       assert.match(stripAnsi(payload.systemMessage ?? ""), /🔥 LIT IGNITED · lit-scientific-visualization 🔥/u, prompt);
-      assert.equal(context.includes(adapterBody), true, `${prompt} must inject the adapter body`);
-      assert.equal(context.includes(canonicalSkill), true, `${prompt} must inject the canonical source body`);
+      assert.match(context, /figures@wjgoarxiv-skills/u, prompt);
       assert.doesNotMatch(context, /do-not-echo|iso\.csv/u, "the prompt is never echoed");
     }
   });
@@ -156,62 +72,23 @@ describe("LitClaude scientific-visualization payload", () => {
     }
   });
 
-  it("enrolls the capability in docs and both doctor surfaces", () => {
+  it("stays enrolled in the catalog and documented where the routes are", () => {
     for (const file of ["docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md", "docs/hooks.md", "docs/workflow-compatibility-audit.md"]) {
       assert.match(readFileSync(join(root, file), "utf8"), /lit-scientific-visualization/u, `${file} must list the skill`);
-    }
-    for (const file of ["scripts/doctor.mjs", "bin/litclaude-ai.js"]) {
-      const source = readFileSync(join(root, file), "utf8");
-      assert.match(source, /litclaude-scientific-visualization-doctor\.js/u, `${file} must run the capability doctor`);
-      assert.match(source, /canonicalSkillFiles/u, `${file} must consume the shared skill catalog`);
     }
     assert.match(
       readFileSync(join(root, "plugins", "litclaude", "lib", "canonical-skill-catalog.mjs"), "utf8"),
       /"lit-scientific-visualization"/u,
     );
-    const capabilityDoctor = readFileSync(doctorPath, "utf8");
-    assert.match(capabilityDoctor, /source_root \/ "assets"/u);
-    assert.match(capabilityDoctor, /import color_palettes/u);
-    assert.match(readFileSync(join(root, "docs", "guide.md"), "utf8"), /exact bare `lit-scientific-visualization`/u);
-    assert.match(readFileSync(join(root, "docs", "guide_ko-KR.md"), "utf8"), /정확한 bare `lit-scientific-visualization`/u);
-    assert.match(readFileSync(join(root, "docs", "hooks.md"), "utf8"), /exact-bare.*`lit-scientific-visualization`/isu);
-    assert.match(readFileSync(join(root, "docs", "workflow-compatibility-audit.md"), "utf8"), /exact-bare hook/iu);
   });
 
-  it("packs all adapters, metadata, and the exact authored source payload", () => {
-    const result = spawnSync("npm", ["pack", "--dry-run", "--json"], { cwd: root, encoding: "utf8" });
+  it("packs the stub and the command, and none of the moved source", () => {
+    const result = spawnSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: root, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     const files = new Set(JSON.parse(result.stdout)[0].files.map(({ path }) => path));
-    for (const path of [
-      "plugins/litclaude/skills/lit-scientific-visualization/SKILL.md",
-      "plugins/litclaude/commands/lit-scientific-visualization.md",
-      "plugins/litclaude/bin/litclaude-scientific-visualization-doctor.js",
-      "plugins/litclaude/vendor/licenses/045_scientific-visualization-MIT.txt",
-      "plugins/litclaude/vendor/provenance/045_scientific-visualization.md",
-      ...[...expectedOriginalHashes.keys()].map((file) => `plugins/litclaude/vendor/scientific-visualization/${file}`),
-    ]) {
+    for (const path of ["plugins/litclaude/skills/lit-scientific-visualization/SKILL.md", "plugins/litclaude/commands/lit-scientific-visualization.md"]) {
       assert.equal(files.has(path), true, `${path} must be packed`);
     }
-    assert.equal([...files].some((file) => /scientific-visualization\/.+(?:__pycache__|\.pyc$)/u.test(file)), false);
+    assert.equal([...files].some((file) => /vendor\/scientific-visualization\/|045_scientific-visualization|scientific-visualization-doctor/u.test(file)), false);
   });
-
-  // The immutable source examples save to fixed names (figure1.pdf, figure1.png,
-  // multi_panel.pdf) and figures are written through Bash, so the harness
-  // read-before-write guard never sees them. The adapter has to carry the rule.
-  it("makes the LitClaude layer rich by default and keeps minimal for an explicit request", () => {
-    const adapter = readFileSync(adapterPath, "utf8");
-    assert.doesNotMatch(adapter, /smallest correct figure/u);
-    assert.doesNotMatch(adapter, /preserve every restraint, including[^.]*grids/iu);
-    for (const layer of [/annotat/iu, /inset/iu, /light (?:major )?grid/iu, /multi-panel|panel labels/iu]) assert.match(adapter, layer);
-    assert.match(adapter, /minimal[^.]*only when the user asks/iu);
-    assert.match(adapter, /rcparams\(\)\s*\n\s*plt\.rcParams\.update\(\{[^}]*"axes\.grid": True/u, "the rich layer runs right after rcparams()");
-    assert.match(adapter, /standing request/iu, "the adapter tells the model the source's on-request clauses are satisfied");
-  });
-
-  it("requires explicit output paths and forbids clobbering unrelated figures", () => {
-    const adapter = readFileSync(adapterPath, "utf8");
-    assert.match(adapter, /explicit output path/iu);
-    assert.match(adapter, /(do not|never)[^.]*overwrit/iu);
-  });
-
 });

@@ -790,13 +790,15 @@ with the command and are never echoed.
 
 Scientific visualization has one exact-bare UserPromptSubmit route: only the
 complete prompt `lit-scientific-visualization` after outer whitespace activates
-`Skill(lit-scientific-visualization)`, injects the full adapter and canonical
-source, and shows `🔥 LIT IGNITED · lit-scientific-visualization 🔥` in its system
+`Skill(lit-scientific-visualization)`, injects the same-name stub's mode contract and
+its installed `SKILL.md` path (the adapter, its canonical source and doctor moved to the
+`figures` plugin of wjgoarxiv-skills, where the user runs `/figures:lit-scientific-visualization`),
+and shows `🔥 LIT IGNITED · lit-scientific-visualization 🔥` in its system
 message. The model begins with exactly one `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥` probe line.
 Generic visualization, plot, chart, figure, and scientific visualization prose,
 mentions, quoted or fenced text, mixed prompts and near misses do not activate the
 prompt hook. A prompt that starts with the typed `/litclaude:lit-scientific-visualization`
-command gets the same adapter and canonical source: the adapter is
+command gets the same stub context: the stub is
 `disable-model-invocation`, so the command's `Skill(lit-scientific-visualization)` step
 would only reopen the command. The arguments stay with the command and are never echoed.
 
@@ -1030,8 +1032,9 @@ characters; a longer block reaches the model as a saved-file stub with a preview
 probe line, the activation-word note, the reply language, the `Skill(<route>)` request and
 the mode contract first. The route's SKILL.md is named by its installed path inside
 `<litclaude-skill-body>`, and the model loads it from there. `lit-recap` keeps its skill
-body inline because it fits; the exact bare `handoff` and `lit-scientific-visualization`
-prompts still carry their canonical sources inline. The per-route byte budgets live in
+body inline because it fits; the exact bare `handoff` prompt
+still carries its canonical source inline, and `lit-scientific-visualization` now carries only
+its stub's contract. The per-route byte budgets live in
 `test/prompt-context-budget.test.mjs`.
 
 Hook JSON uses uncolored rows. CLI output uses the 44×20 Ignition B banner and
@@ -1092,9 +1095,11 @@ Actual Claude Code capability governs generation; absent tools produce
 `IMAGE_GENERATION_UNAVAILABLE`, followed by composition from a supplied inspected
 background if available. Integrity checks include its nested templates and helpers.
 
-Leading `lit-diagram-drawer` / `$lit-diagram-drawer` selects the diagram skill. The
-hook adds its mode contract and the exact installed `SKILL.md` path, whose directory
-anchors the verifier, export, doctor, and importer scripts. `/litclaude:lit-diagram-drawer`
+Leading `lit-diagram-drawer` / `$lit-diagram-drawer` selects the diagram skill. It is now a
+same-name stub for the `figures` plugin of wjgoarxiv-skills: the hook adds its mode contract,
+which tells the model to load `Skill(figures:lit-diagram-drawer)` when the session lists it and
+otherwise to reply with the install lines and draw nothing, and the exact installed `SKILL.md`
+path. `/litclaude:lit-diagram-drawer`
 is Claude Code's own skill route and does not pass through the hook. The words
 "diagram", "chart", or "visualization" alone activate nothing, so interface requests
 keep reaching `frontend-ui-ux` and the exact bare `lit-scientific-visualization` route
@@ -1108,6 +1113,7 @@ web-interface noun, so an isometric hero image for a landing page stays with `fr
 Ahead of the office route, a schematic request wins when it carries a drawing verb (그려, draw,
 sketch); "lit P&ID 설명 보고서 작성해줘" asks for a document and still reaches `lit-docx`. The
 hook adds the mode contract and the exact installed `SKILL.md` path on every such prompt.
+`lit-schematic` is the same kind of stub for the `figures` plugin (`Skill(figures:lit-schematic)`).
 
 Leading `lit-pptx` / `$lit-pptx` and `lit-docx` / `$lit-docx` select the office skills, and
 so does a bare `lit` whose prompt both asks to make something (만들, 작성, 써줘, 정리해,

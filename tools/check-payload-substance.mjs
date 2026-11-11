@@ -30,7 +30,6 @@ const LEGAL_NAMES = new Set(['ATTRIBUTION.md', 'LICENSE', 'NOTICE', 'ORIGIN.json
 const GENERIC_REFERENCE_NAMES = new Set(['README.md', 'package.json', 'SKILL.md', 'AGENTS.md', 'CLAUDE.md']);
 const VENDOR_COMPANION_IDS = Object.freeze({
   handoff: '022_handoff',
-  'scientific-visualization': '045_scientific-visualization',
   'llm-wikify': '018_llm-wikify',
   autoresearch: '060_autoresearch-skill',
   autoconference: '064_autoconference-skill',
@@ -607,7 +606,6 @@ function externalCompanionPaths(productRoot, skill, packPaths, roots) {
         if (
           entry.endsWith(`/licenses/${companionId}-MIT.txt`)
           || entry.endsWith(`/provenance/${companionId}.md`)
-          || (companionId === '045_scientific-visualization' && entry === 'plugins/litclaude/vendor/NOTICE.md')
         ) companions.add(entry);
       }
     }

@@ -1,6 +1,6 @@
 # Bundled skill notice
 
-LitClaude includes five owner-authorized MIT source snapshots. The three canonical workflow-family
+LitClaude includes four owner-authorized MIT source snapshots. The three canonical workflow-family
 closures carry these source identifiers and revisions:
 
 - `autoresearch`: stable source identifier `my-agent-skills/060_autoresearch-skill`; commit
@@ -22,12 +22,14 @@ Anonymous upstream retrieval is not claimed for those owner source closures.
 Runtime/release integrity relies on bundled licensed bytes plus local canonical closures, not remote fetch.
 The Wikify public URL is a provenance convenience; package integrity remains local.
 
-The two earlier bundled snapshots remain:
+The earlier bundled snapshot remains:
 
 - `handoff`: four authored files, preserved byte-for-byte.
-- `scientific-visualization`: sixteen Git-tracked authored files, preserved byte-for-byte. Generated Python caches are intentionally excluded. The authorized source includes the CP/SDS MARTINI visualization reference.
 
-The corresponding license texts are under `vendor/licenses/`; immutable source hashes and provenance are under `vendor/provenance/`. The snapshots do not depend on the original `~/skills` checkout at runtime.
+The `scientific-visualization` snapshot (sixteen authored files) left LitClaude with the figures family; it ships
+unchanged, with its provenance and MIT license, in the `figures` plugin of the wjgoarxiv-skills marketplace.
+
+The corresponding license text is under `vendor/licenses/`; immutable source hashes and provenance are under `vendor/provenance/`. The snapshot does not depend on the original `~/skills` checkout at runtime.
 
 ## Methodology attribution
 

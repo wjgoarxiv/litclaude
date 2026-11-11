@@ -181,9 +181,9 @@ compare it with the files as they are now, and then carry on.
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
 | `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
 | `lit invite @<github-id>`, `lit invite` | Say who invited you, as the whole prompt: LitClaude answers without a Claude turn, saves the id in `~/.litclaude/invite.json` on this machine only and gives the resting card the club look (`config club off` turns it off). Alone, it prints the line to share with friends. Also `litclaude-ai invite` |
-| `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization` |
-| `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
-| `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic` |
+| `lit-scientific-visualization` | Prepare publication figures; also `/litclaude:lit-scientific-visualization`. The skill now lives in the `figures` plugin of wjgoarxiv-skills, as `/figures:lit-scientific-visualization`; LitClaude's same-name stub gives the install line |
+| `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer`. The skill now lives in the `figures` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
+| `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic`. The skill now lives in the `figures` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx`. The skill now lives in the `decks` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx`. The skill now lives in the `documents` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
@@ -351,6 +351,13 @@ example and label it as one instead of stopping to ask. Under a bare `lit`, neit
 style questions. Their Node and Python packages install on first use from pinned
 lockfiles into `~/.cache/litclaude/office-runtime`. That runtime now ships with the decks and
 documents plugins, so `litclaude doctor` no longer reports it.
+
+`lit-diagram-drawer`, `lit-schematic` and `lit-scientific-visualization` now ship as the `figures`
+plugin of the same marketplace (`claude plugin install figures@wjgoarxiv-skills`), with the
+scientific-visualization source and its doctor, so `litclaude doctor` no longer runs a
+scientific-visualization check. Without the plugin, a drawing or figure request gets the install
+lines back instead of a file. The two paragraphs below describe the skills as the figures plugin
+ships them.
 
 For architecture, process, schema, timeline and other conceptual diagrams meant for
 slides and documents, use `/litclaude:lit-diagram-drawer <brief>`, or start a prompt with
@@ -742,7 +749,7 @@ run skips it, and when every open task is blocked it tells you once and stops. R
 or reply to carry on. During a run the session may also read its own spilled tool output under
 `~/.claude/projects/<project>/<session>/tool-results/`; other sessions' folders stay out of reach.
 
-From chat, the hook starts the figure skill only on the exact bare `lit-scientific-visualization`
+From chat, the hook starts the figure skill's stub only on the exact bare `lit-scientific-visualization`
 prompt. It leaves the name alone when it is quoted, mixed into a sentence, slash-prefixed
 or slightly off.
 

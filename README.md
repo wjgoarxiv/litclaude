@@ -41,6 +41,8 @@ Equipment, systems and data, each drawn by the skill that knows its rules: ISA-5
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/optics-bench.webp" width="400" alt="Isometric optical bench: a He-Ne laser, beam expander, two mirrors, a beam splitter, a lens, the sample and two photodetectors, with the orange beam path and labelled callouts." /><br /><b>lit-schematic</b> · apparatus figure<br /><code>lit 레이저 광학 벤치 실험 장치를 저널 double column 그림 한 장으로 그려줘 …</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/cutaway-loop.webp" width="400" alt="Animated cutaway of a stirred autoclave: the parts assemble, the impeller turns and coolant flows through the internal coil." /><br /><b>lit-schematic</b> · cutaway as a loop<br /><code>lit … 오토클레이브 컷어웨이를 짧은 루프 모션 영상으로 만들어줘: 분해된 부품이 조립되고, 임펠러가 돌고, 냉각수가 코일을 따라 흐르게</code></td></tr>
 </table>
 
+lit-diagram-drawer, lit-schematic and lit-scientific-visualization now ship separately as the `figures` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes drawing and figure requests to it and gives the install line when it is missing.
+
 ### Present it
 
 Name a style, or let lit-pptx choose one from thirteen. Every deck has native, editable charts and KPI rows, Pretendard embedded, and passed a gate for overflow, contrast and empty slides.
@@ -416,7 +418,8 @@ lit-humanizer docs/intro.md
 `lit-schematic` draws real equipment: a P&ID with ISA-5.1 tags, routed lines, a legend and a
 title block, a two-panel journal figure of an experimental setup, or an isometric cutaway of a
 vessel. Each drawing passes a QA gate for overlaps, lines through symbols and small text, and is
-exported as SVG, PDF and a 600 dpi PNG that Claude opens before it reports.
+exported as SVG, PDF and a 600 dpi PNG that Claude opens before it reports. It now ships in the
+`figures` plugin of wjgoarxiv-skills; LitClaude's `lit-schematic` stub gives the install line.
 
 ```text
 lit draw a P&ID of the high-pressure hydrate reactor loop

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- lit-diagram-drawer, lit-schematic and lit-scientific-visualization moved out of LitClaude into the `figures` plugin
+  of the wjgoarxiv-skills marketplace, copied byte for byte with what they reach outside their folders: the
+  scientific-visualization source (16 files, with its provenance and MIT licence) and its read-only doctor, the mark
+  and renderer helpers under `lib/`, and the lit-humanizer files the diagram verifier runs. LitClaude keeps a same-name
+  stub for each, so `/litclaude:lit-diagram-drawer`, `/litclaude:lit-schematic`, a bare `lit` P&ID or cutaway
+  request, `/litclaude:lit-scientific-visualization` and the exact bare `lit-scientific-visualization` still route:
+  with the figures plugin installed the first two load `figures:lit-diagram-drawer` and `figures:lit-schematic`, and
+  the plot route points at `/figures:lit-scientific-visualization` (it is user-invoked only); without it, the reply
+  gives the install lines (`claude plugin marketplace add <path>`, then `claude plugin install
+  figures@wjgoarxiv-skills`). Drawing and plot prompts no longer carry the old procedures or the canonical source.
+  The lit-diagram-drawer stub keeps the Pretendard variable font and its licence for the frontend-ui-ux design kit.
+  `litclaude doctor` and `npm run doctor` no longer run the scientific-visualization doctor; they check the handoff
+  snapshot directly. The bodies' tests, fixtures and pins left with them.
 - lit-docx moved out of LitClaude into the `documents` plugin of the wjgoarxiv-skills marketplace, copied byte for
   byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
   `/litclaude:lit-docx`, `Skill(lit-docx)` and a bare `lit` document request still route: with the documents plugin

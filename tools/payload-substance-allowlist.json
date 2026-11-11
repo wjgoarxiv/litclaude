@@ -1,12 +1,17 @@
 {
   "schema": "litfamily.payload-substance/v1",
   "parityDivergences": {
+    "lit-scientific-visualization": {
+      "date": "2026-11-11",
+      "reason": "LitClaude's copy is a same-name pointer stub: the adapter, its scientific-visualization source and doctor moved to the figures plugin of wjgoarxiv-skills, so its packed closure is the one SKILL.md while the siblings still ship the full payload until their own stubs land."
+    },
     "lit-loop": {
       "date": "2026-08-30",
       "reason": "Claude's lit-loop is intentionally a self-contained hook-and-skill contract; the sibling Codex port includes several compiled runtime modules that Claude Code does not load, so comparing those host-specific implementation files would misclassify a native divergence."
     }
   },
   "skills": {
+    "lit-schematic": "A same-name pointer stub: the schematic skill moved to the figures plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-docx": "A same-name pointer stub: the document skill moved to the documents plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-burnoff-file": "The single file gives a bounded smell taxonomy, preservation rules, process, and report shape; no corpus is needed for this review.",
     "autoconference": "The adapter names the packaged conference closure, whose modes, references, templates, scripts, and assets are included in the pack.",
@@ -19,7 +24,7 @@
     "lit-loop": "The body supplies the complete PIN, RED, GREEN, surface, cleanup, evidence, and stop loop in its own contract.",
     "lit-plan": "Decision-complete plan fields, authority boundaries, adaptive checklist depth, review, and validation are complete in the document.",
     "lit-recap": "The read-only recap contract identifies state sources, evidence hierarchy, output shape, and stale-state handling in one file.",
-    "lit-scientific-visualization": "The adapter resolves the packaged visualization closure; styles, palettes, references, export scripts, evaluations, and tests are packed.",
+    "lit-scientific-visualization": "A same-name pointer stub: the adapter, its scientific-visualization source and doctor moved to the figures plugin of wjgoarxiv-skills, so the file only gives the install line and the moved command and claims no packed corpus.",
     "litgoal": "The body names the packaged goal CLI and state runtime; atomic ledger and quality-gate modules are shipped with it.",
     "litresearch": "The body defines a bounded research workflow and the only extra file is attribution metadata; no unshipped corpus is claimed.",
     "litwork": "The detailed body is backed by package-owned runtime bindings and fully specifies bounded delivery, evidence gates, manual QA, cleanup, and failure handling.",

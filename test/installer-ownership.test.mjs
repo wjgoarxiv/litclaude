@@ -56,7 +56,6 @@ const refusesUnchanged = (f, command) => {
 const slice31aVendorPathMap = [
   ["018_llm-wikify", "llm-wikify"],
   ["022_handoff", "handoff"],
-  ["045_scientific-visualization", "scientific-visualization"],
   ["060_autoresearch-skill", "autoresearch"],
   ["064_autoconference-skill", "autoconference"],
 ];
@@ -475,12 +474,13 @@ test("a .in_use folder holding anything but pid-named entries is still foreign s
 });
 
 // Python writes bytecode next to the scripts it runs. That cache is generated, never user data, so it must
-// not turn an installed plugin into foreign state.
-const pycacheDir = (f) => join(f.plugin, "vendor/scientific-visualization/scripts/__pycache__");
+// not turn an installed plugin into foreign state. lit-humanizer's office-text extractor is the Python script used
+// here (the scientific-visualization scripts these tests used left with the figures family).
+const pycacheDir = (f) => join(f.plugin, "skills/lit-humanizer/scripts/__pycache__");
 const addBytecode = (f) => {
   mkdirSync(pycacheDir(f), { recursive: true });
-  writeFileSync(join(pycacheDir(f), "style_presets.cpython-312.pyc"), Buffer.from([0xcb, 0x0d, 0x0d, 0x0a, 0, 1, 2, 3]));
-  writeFileSync(join(f.plugin, "vendor/scientific-visualization/scripts/loose.pyc"), Buffer.from([1, 2, 3]));
+  writeFileSync(join(pycacheDir(f), "extract_office_text.cpython-312.pyc"), Buffer.from([0xcb, 0x0d, 0x0d, 0x0a, 0, 1, 2, 3]));
+  writeFileSync(join(f.plugin, "skills/lit-humanizer/scripts/loose.pyc"), Buffer.from([1, 2, 3]));
 };
 const bytecodeIn = (path) => {
   if (!existsSync(path)) return [];
@@ -518,7 +518,7 @@ test("an edited .py file next to a bytecode cache is still refused", (t) => {
   const f = fixture(t);
   pass(f.run("install"));
   addBytecode(f);
-  const script = join(f.plugin, "vendor/scientific-visualization/scripts/style_presets.py");
+  const script = join(f.plugin, "skills/lit-humanizer/scripts/extract_office_text.py");
   writeFileSync(script, `${readFileSync(script, "utf8")}\n# user edit\n`);
   const { nextBin } = newerCandidate(f);
   const before = digest(f.path);
@@ -532,7 +532,7 @@ test("a foreign file inside the plugin is still refused when a bytecode cache is
   const f = fixture(t);
   pass(f.run("install"));
   addBytecode(f);
-  writeFileSync(join(f.plugin, "vendor/scientific-visualization/scripts/notes.txt"), "mine");
+  writeFileSync(join(f.plugin, "skills/lit-humanizer/scripts/notes.txt"), "mine");
   const result = f.run("install");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
@@ -541,7 +541,7 @@ test("a foreign file inside the plugin is still refused when a bytecode cache is
 test("a symlink named like a bytecode cache is still refused", (t) => {
   const f = fixture(t);
   pass(f.run("install"));
-  symlinkSync(f.path, join(f.plugin, "vendor/scientific-visualization/scripts/__pycache__"), "dir");
+  symlinkSync(f.path, join(f.plugin, "skills/lit-humanizer/scripts/__pycache__"), "dir");
   const result = f.run("install");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /INSTALL_OWNERSHIP_CONFLICT/u);
@@ -551,7 +551,7 @@ test("a hard link into the installed plugin is refused even when its bytes match
   const f = fixture(t);
   pass(f.run("install"));
   const outside = join(f.path, "shared-copy.py");
-  linkSync(join(f.plugin, "vendor/scientific-visualization/scripts/style_presets.py"), outside);
+  linkSync(join(f.plugin, "skills/lit-humanizer/scripts/extract_office_text.py"), outside);
   const before = readFileSync(outside, "utf8");
   const result = f.run("install");
   assert.notEqual(result.status, 0, "a file shared with a path outside the plugin is not LitClaude's to replace");

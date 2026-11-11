@@ -39,10 +39,6 @@ const APPROVED_PAYLOAD_PATHS = new Set([
   // Canonical vendored handoff assets — the skill's own template and example.
   'plugins/litclaude/vendor/handoff/examples/HANDOFF-example-generic-auth-refactor.md',
   'plugins/litclaude/vendor/handoff/templates/HANDOFF.md',
-  // Vendored upstream test files that are part of the hash-pinned 045 payload. Dropping
-  // them would break vendor integrity verification, so they ship by design.
-  'plugins/litclaude/vendor/scientific-visualization/tests/test_figure_export.py',
-  'plugins/litclaude/vendor/scientific-visualization/tests/test_style_presets.py',
   // README artwork that ships in the package. The npm README (README_npm.md, swapped in
   // as README.md at pack time) serves its media from these paths through jsDelivr at the
   // published version; the GitHub README loads the same files from the repository.

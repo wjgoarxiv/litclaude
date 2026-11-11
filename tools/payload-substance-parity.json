@@ -426,7 +426,7 @@
     "lit-scientific-visualization": {
       "median": 21,
       "closures": {
-        "p27": 20,
+        "p27": 1,
         "p28": 28,
         "p31": 26,
         "p32": 20,

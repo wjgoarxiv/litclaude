@@ -216,3 +216,5 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes deck requests to it and gives the install line when it is missing.
 
 lit-docx now ships separately as the `documents` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes document requests to it and gives the install line when it is missing.
+
+lit-diagram-drawer, lit-schematic and lit-scientific-visualization now ship separately as the `figures` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes drawing and figure requests to it and gives the install line when it is missing.

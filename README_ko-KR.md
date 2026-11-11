@@ -41,6 +41,8 @@ lit src/dates.js의 날짜 파싱 버그를 테스트와 함께 고쳐줘
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/optics-bench.webp" width="400" alt="등각으로 그린 광학 벤치. He-Ne 레이저, 빔 익스팬더, 미러 두 개, 빔 스플리터, 렌즈, 시료, 광검출기 두 개와 주황색 빔 경로에 지시선 이름이 붙어 있다." /><br /><b>lit-schematic</b> · 실험 장치도<br /><code>lit 레이저 광학 벤치 실험 장치를 저널 double column 그림 한 장으로 그려줘 …</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/cutaway-loop.webp" width="400" alt="교반 오토클레이브 컷어웨이 애니메이션. 부품이 조립되고 임펠러가 돌며 냉각수가 내부 코일을 따라 흐른다." /><br /><b>lit-schematic</b> · 컷어웨이 루프 영상<br /><code>lit … 오토클레이브 컷어웨이를 짧은 루프 모션 영상으로 만들어줘: 분해된 부품이 조립되고, 임펠러가 돌고, 냉각수가 코일을 따라 흐르게</code></td></tr>
 </table>
 
+이제 lit-diagram-drawer, lit-schematic, lit-scientific-visualization은 wjgoarxiv-skills 마켓플레이스의 `figures` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 그림 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
 ### 발표하기
 
 스타일을 말하거나, 열세 가지 가운데 lit-pptx가 고르게 둡니다. 차트와 KPI 줄은 PowerPoint에서 바로 고칠 수 있고, Pretendard가 들어 있으며, 넘침·대비·빈 슬라이드 검사를 통과한 덱만 나옵니다.
@@ -405,7 +407,8 @@ lit-humanizer docs/intro.md
 `lit-schematic`은 실제 장비를 그립니다. ISA-5.1 태그와 배관 경로, 범례, 표제란을 갖춘 P&ID,
 논문에 넣을 두 패널짜리 실험 장치 그림, 용기 내부를 보여 주는 아이소메트릭 컷어웨이를 만들
 수 있습니다. 그림마다 겹침, 심볼을 지나는 선, 작은 글자를 QA 게이트로 검사하고, SVG와 PDF,
-600 dpi PNG로 내보낸 뒤 Claude가 이미지를 직접 열어 확인하고 나서 보고합니다.
+600 dpi PNG로 내보낸 뒤 Claude가 이미지를 직접 열어 확인하고 나서 보고합니다. 이 스킬은 이제
+wjgoarxiv-skills의 `figures` 플러그인에 들어 있고, LitClaude의 `lit-schematic` 안내 스킬이 설치 명령을 알려 줍니다.
 
 ```text
 lit 고압 하이드레이트 반응기 루프 P&ID 그려줘

@@ -199,11 +199,8 @@ describe("portable LitClaude install layout", () => {
       assertFile(join(pluginPath, "skills", "lit-handoff", "SKILL.md"), "lit-handoff adapter");
       assertFile(join(pluginPath, "commands", "lit-handoff.md"), "lit-handoff command");
       assertFile(join(pluginPath, "vendor", "handoff", "SKILL.md"), "canonical handoff source");
-      assertFile(join(pluginPath, "skills", "lit-scientific-visualization", "SKILL.md"), "scientific visualization adapter");
+      assertFile(join(pluginPath, "skills", "lit-scientific-visualization", "SKILL.md"), "scientific visualization stub");
       assertFile(join(pluginPath, "commands", "lit-scientific-visualization.md"), "scientific visualization command");
-      assertFile(join(pluginPath, "vendor", "scientific-visualization", "SKILL.md"), "canonical scientific visualization source");
-      assertFile(join(pluginPath, "vendor", "scientific-visualization", "scripts", "style_presets.py"), "scientific visualization style runtime");
-      assertFile(join(pluginPath, "vendor", "scientific-visualization", "assets", "publication.mplstyle"), "scientific visualization style asset");
       assertFile(join(pluginPath, "agents", "lit-planner.md"), "planner agent");
       assertFile(join(pluginPath, "agents", "quality-reviewer.md"), "quality reviewer agent");
       assertFile(join(pluginPath, "bin", "litclaude-hook.js"), "hook bin");
@@ -211,28 +208,17 @@ describe("portable LitClaude install layout", () => {
       assertFile(join(pluginPath, "lib", "wikify-knowledge.mjs"), "Wikify knowledge runtime");
       assertFile(join(pluginPath, "lib", "wikify-knowledge-cli.mjs"), "Wikify knowledge CLI");
       assertFile(join(pluginPath, "bin", "litclaude-lsp-doctor.js"), "LSP doctor bin");
-      assertFile(join(pluginPath, "bin", "litclaude-scientific-visualization-doctor.js"), "scientific visualization doctor bin");
-      const bundledDoctor = spawnSync(
-        process.execPath,
-        [join(pluginPath, "bin", "litclaude-scientific-visualization-doctor.js"), "--json"],
-        { cwd: pluginPath, encoding: "utf8" },
-      );
-      assert.equal(bundledDoctor.status, 0, bundledDoctor.stderr);
-      const bundledReport = JSON.parse(bundledDoctor.stdout);
-      assert.equal(bundledReport.payload, "PASS");
-      assert.equal(bundledReport.integrity.handoff.status, "PASS");
-      assert.equal(bundledReport.integrity.scientificVisualization.status, "PASS");
-      const diagramRoot = join(pluginPath, "skills", "lit-diagram-drawer");
-      for (const file of ["SKILL.md", "scripts/verify-diagram.mjs", "scripts/export.mjs", "scripts/doctor.mjs", "assets/fonts/PretendardVariable.woff2", "assets/fonts/OFL.txt"]) {
-        assertFile(join(diagramRoot, file), `lit-diagram-drawer ${file}`);
+      // The figures skills are same-name stubs; lit-diagram-drawer also keeps the Pretendard pair frontend-ui-ux reuses.
+      // The scientific-visualization source and its doctor left with them for the figures plugin.
+      for (const file of ["skills/lit-diagram-drawer/SKILL.md", "skills/lit-diagram-drawer/assets/fonts/PretendardVariable.woff2", "skills/lit-diagram-drawer/assets/fonts/OFL.txt", "skills/lit-schematic/SKILL.md"]) {
+        assertFile(join(pluginPath, file), `figures ${file}`);
       }
-      const installedDiagram = spawnSync(
-        process.execPath,
-        [join(diagramRoot, "scripts", "verify-diagram.mjs"), join(diagramRoot, "examples", "07-deployment-boundary", "after.html")],
-        { cwd: home, encoding: "utf8" },
-      );
-      assert.equal(installedDiagram.status, 0, installedDiagram.stderr);
-      assert.match(installedDiagram.stdout, /DIAGRAM_PASS .* humanizer-block=0/u);
+      for (const id of ["lit-diagram-drawer", "lit-schematic", "lit-scientific-visualization"]) {
+        assert.match(readFileSync(join(pluginPath, "skills", id, "SKILL.md"), "utf8"), /figures@wjgoarxiv-skills/u, `installed ${id} stub carries the install line`);
+      }
+      for (const gone of ["skills/lit-diagram-drawer/scripts", "skills/lit-schematic/scripts", "vendor/scientific-visualization", "bin/litclaude-scientific-visualization-doctor.js"]) {
+        assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the figures plugin`);
+      }
       // lit-pptx and lit-docx are same-name stubs: their SKILL.md files and the Pretendard pair lit-typographic-motion
       // reuses. The office runtime left with lit-docx for the documents plugin.
       for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-pptx/fonts/pretendard/Pretendard-Regular.otf", "skills/lit-pptx/fonts/pretendard/Pretendard-Bold.otf", "skills/lit-pptx/fonts/pretendard/OFL.txt",
@@ -569,7 +555,7 @@ describe("portable LitClaude install layout", () => {
       assert.match(doctor.stdout, /CLAUDE_VERSION: Claude Code 2\.1\.158/u);
       assert.match(doctor.stdout, /CLAUDE_PLUGIN_VALIDATE_PASS/u);
       assert.match(doctor.stdout, /CLAUDE_PLUGIN_DETAILS_PASS/u);
-      assert.match(doctor.stdout, /SCIENTIFIC_VISUALIZATION_(?:RUNTIME_PASS|DEGRADED)/u);
+      assert.match(doctor.stdout, /BUNDLED_SKILLS_INTEGRITY_PASS: handoff=4\/4/u);
       assert.match(doctor.stdout, /BUNDLED_SKILLS_PAYLOAD_PASS/u);
       assert.match(doctor.stdout, /DOCTOR_PASS/u);
 

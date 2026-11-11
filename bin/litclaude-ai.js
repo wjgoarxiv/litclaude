@@ -1443,12 +1443,9 @@ const verifyInstalledPayload = ({ home, litClaudeHome, targetPlugin }) => {
     "lib/start-work-cli.mjs",
     ...canonicalSkillResourceFiles,
     "commands/start-work.md",
-    "bin/litclaude-scientific-visualization-doctor.js",
     "commands/lit-handoff.md",
     "vendor/handoff/SKILL.md",
     "commands/lit-scientific-visualization.md",
-    "vendor/scientific-visualization/SKILL.md",
-    "vendor/scientific-visualization/scripts/style_presets.py",
     "commands/autoresearch.md",
     "commands/autoconference.md",
     "commands/wikify.md",
@@ -1718,7 +1715,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write("Would check global Claude settings permissions.allow/deny and LitClaude ownership-safe removal metadata\n");
     process.stdout.write(`Would inspect automatic-update receipt/journal under: ${join(automaticUpdateRoot(litHome()), "receipt.json")}\n`);
     for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
-    process.stdout.write(`Would run: node ${join(pluginPath, "bin", "litclaude-scientific-visualization-doctor.js")}\n`);
+    process.stdout.write("Would verify the bundled handoff snapshot hashes\n");
     process.stdout.write(`Would report: node ${join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")} (Chrome, ffmpeg, WebGL2 renderer, software-GL warning, motion pre-warm)\n`);
     process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
     writeAutoHandoffDoctorLines();
@@ -1748,15 +1745,8 @@ const doctor = ({ dryRun }) => {
     "vendor/handoff/examples/HANDOFF-example-generic-auth-refactor.md",
     "vendor/handoff/templates/HANDOFF.md",
     "commands/lit-scientific-visualization.md",
-    "bin/litclaude-scientific-visualization-doctor.js",
-    "vendor/scientific-visualization/SKILL.md",
-    "vendor/scientific-visualization/scripts/style_presets.py",
-    "vendor/scientific-visualization/scripts/figure_export.py",
-    "vendor/scientific-visualization/assets/color_palettes.py",
     "vendor/provenance/022_handoff.md",
-    "vendor/provenance/045_scientific-visualization.md",
     "vendor/licenses/022_handoff-MIT.txt",
-    "vendor/licenses/045_scientific-visualization-MIT.txt",
     "commands/autoresearch.md",
     "commands/autoconference.md",
     "commands/wikify.md",
@@ -1793,16 +1783,12 @@ const doctor = ({ dryRun }) => {
 
   printLspDiagnostics(pluginPath, registry);
 
-  const scientificVisualizationDoctor = spawnSync(
-    process.execPath,
-    [join(pluginPath, "bin", "litclaude-scientific-visualization-doctor.js")],
-    { encoding: "utf8" },
-  );
-  if (scientificVisualizationDoctor.stdout) process.stdout.write(scientificVisualizationDoctor.stdout);
-  if (scientificVisualizationDoctor.stderr) process.stderr.write(scientificVisualizationDoctor.stderr);
-  if (scientificVisualizationDoctor.status !== 0) {
+  const bundledSkills = verifyBundledSkillsIntegrity(pluginPath);
+  if (bundledSkills.status !== "PASS") {
+    process.stderr.write(`BUNDLED_SKILLS_INTEGRITY_FAIL: ${JSON.stringify(bundledSkills)}\n`);
     fail("LitClaude bundled-skills payload is incomplete or hash-invalid. Run `litclaude install` again.");
   }
+  process.stdout.write("BUNDLED_SKILLS_INTEGRITY_PASS: handoff=4/4\n");
   process.stdout.write("BUNDLED_SKILLS_PAYLOAD_PASS\n");
 
   writeAutoHandoffDoctorLines();

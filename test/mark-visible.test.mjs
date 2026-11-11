@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
@@ -49,53 +49,7 @@ describe("the shared wordmark", () => {
   });
 });
 
-describe("lit-diagram-drawer: the exporter adds a corner mark clear of the drawing", () => {
-  const probe = spawnSync(process.execPath, [join(skills, "lit-diagram-drawer", "scripts", "doctor.mjs")], { encoding: "utf8" });
-  const ready = probe.status === 0 && !/"status":\s*"fail"/u.test(probe.stdout) && /"export":\s*true/u.test(probe.stdout);
-  it("PNG and office SVG carry it in on, not in meta or off; the visible-text check passes on the marked SVG", { skip: ready ? false : "diagram renderer not ready" }, () => {
-    const dir = work();
-    try {
-      const source = join(skills, "lit-diagram-drawer", "examples", "01-service-architecture", "after.html");
-      const png = {};
-      for (const mode of ["on", "meta", "off"]) {
-        const out = join(dir, mode);
-        const r = node(dir, mode, [join(skills, "lit-diagram-drawer", "scripts", "export.mjs"), "--input", source, "--out", out, "--scale", "1", "--office-safe"]);
-        assert.equal(r.status, 0, r.stderr + r.stdout);
-        const svg = readFileSync(join(out, "after-office.svg"), "utf8");
-        png[mode] = readFileSync(join(out, "after-1x.png"));
-        if (mode === "on") {
-          assert.match(r.stdout, /^MARK \{"x":[\d.]+,"y":[\d.]+,"fontSize":[\d.]+,"ink":\[\d+,\d+,\d+\]\}$/mu);
-          assert.equal((svg.match(/<text data-litclaude-mark="1"[^>]*>made with LitClaude<\/text>/gu) ?? []).length, 1);
-          const check = spawnSync(process.execPath, [join(skills, "lit-diagram-drawer", "scripts", "check-visible-text.mjs"), join(out, "after-office.svg")], { encoding: "utf8" });
-          assert.equal(check.status, 0, check.stdout + check.stderr);
-          assert.equal(JSON.parse(check.stdout.trim().split("\n").at(-1)).block, 0);
-        } else {
-          assert.doesNotMatch(r.stdout, /^MARK /mu);
-          assert.ok(!svg.includes("data-litclaude-mark"), `${mode}: no mark in the office SVG`);
-        }
-      }
-      // Two browser sessions may anti-alias a few pixels differently, so compare counts: meta and off differ by a
-      // negligible number of pixels anywhere, while on adds a block of changed pixels in the bottom quarter.
-      const decode = (buf) => spawnSync("ffmpeg", ["-loglevel", "error", "-i", "pipe:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { input: buf, maxBuffer: 1 << 28 }).stdout;
-      const width = png.off.readUInt32BE(16), height = png.off.readUInt32BE(20);
-      const changed = (a, b) => {
-        const [x, y] = [decode(a), decode(b)];
-        let all = 0, bottom = 0;
-        for (let i = 0; i < x.length; i += 3) {
-          if (Math.abs(x[i] - y[i]) + Math.abs(x[i + 1] - y[i + 1]) + Math.abs(x[i + 2] - y[i + 2]) <= 24) continue;
-          all += 1;
-          if (Math.floor(i / 3 / width) >= 0.72 * height) bottom += 1;
-        }
-        return { all, bottom };
-      };
-      const metaOff = changed(png.meta, png.off);
-      const onOff = changed(png.on, png.off);
-      assert.ok(metaOff.all < 0.001 * width * height, `meta and off differ in ${metaOff.all} pixels`);
-      assert.ok(onOff.bottom > 200 && onOff.bottom > 0.9 * onOff.all, `on adds the mark in the bottom quarter (${onOff.bottom} of ${onOff.all} changed pixels)`);
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  });
-});
-
+// The lit-diagram-drawer and lit-schematic marks moved with those skills to the figures extras plugin.
 describe("lit-typographic-motion cover: a static corner mark on every frame", () => {
   const motion = join(skills, "lit-typographic-motion", "scripts", "motion.mjs");
   const engine = join(skills, "lit-typographic-motion", "engine");
@@ -223,31 +177,6 @@ describe("lit-typographic-motion films: a silent end card after the last beat", 
           assert.equal(manifest.endCard, null);
           assert.equal(rule(report, "END-CARD"), undefined);
         }
-      }
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  });
-});
-
-describe("lit-schematic: the mark sits in the title block's OWNER cell", () => {
-  it("drawn in on, absent in meta and off, and the sheet passes its own QA with it", () => {
-    const dir = work();
-    try {
-      for (const mode of ["on", "meta", "off"]) {
-        const out = join(dir, mode);
-        const built = node(dir, mode, [join(skills, "lit-schematic", "examples", "pid-dosing-skid", "build.mjs"), out]);
-        assert.equal(built.status, 0, built.stderr);
-        const svgFile = join(out, readdirSync(out).find((f) => f.endsWith(".svg")));
-        const svg = readFileSync(svgFile, "utf8");
-        const marks = svg.match(/<text\b[^>]*data-label="litclaude-mark"[^>]*>([^<]*)<\/text>/gu) ?? [];
-        if (mode === "on") {
-          assert.equal(marks.length, 1, "one mark");
-          assert.match(marks[0], />made with LitClaude</u);
-          const owner = svg.match(/<g data-titleblock-field="owner">[\s\S]*?<\/g>/u)[0];
-          const within = owner.match(/<path d="M([\d.]+) ([\d.]+)L([\d.]+)/u);
-          assert.match(marks[0], new RegExp(`data-within="${within[1]} ${within[2]} ${within[3]} `, "u"), "the mark is bound to the OWNER cell");
-        } else assert.equal(marks.length, 0, `${mode}: no visible mark`);
-        const qa = node(dir, mode, [join(skills, "lit-schematic", "scripts", "qa.mjs"), svgFile]);
-        assert.equal(qa.status, 0, `${mode} QA: ${qa.stdout}${qa.stderr}`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });

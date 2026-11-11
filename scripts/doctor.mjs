@@ -11,6 +11,7 @@ import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-re
 import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
+import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -34,7 +35,6 @@ run("CLI dry-run", process.execPath, ["bin/litclaude-ai.js", "--dry-run", "docto
 run("Plugin validation", process.execPath, ["scripts/validate-plugin.mjs"]);
 run("Workflow readiness", process.execPath, ["bin/litclaude-ai.js", "workflow-check", "--json"]);
 run("LSP doctor", process.execPath, ["plugins/litclaude/bin/litclaude-lsp-doctor.js"]);
-run("Scientific visualization capability", process.execPath, ["plugins/litclaude/bin/litclaude-scientific-visualization-doctor.js"]);
 // Readiness only, never fatal: the six lit-typographic-motion probes (Chrome, ffmpeg, WebGL2
 // renderer, software-GL warning, pre-warm state with its fix command, cover encoder).
 run("Motion runtime (lit-typographic-motion)", process.execPath, ["plugins/litclaude/skills/lit-typographic-motion/scripts/motion-doctor.mjs"]);
@@ -53,14 +53,8 @@ for (const file of [
   "plugins/litclaude/vendor/handoff/examples/HANDOFF-example-generic-auth-refactor.md",
   "plugins/litclaude/vendor/handoff/templates/HANDOFF.md",
   "plugins/litclaude/commands/lit-scientific-visualization.md",
-  "plugins/litclaude/vendor/scientific-visualization/SKILL.md",
-  "plugins/litclaude/vendor/scientific-visualization/scripts/style_presets.py",
-  "plugins/litclaude/vendor/scientific-visualization/scripts/figure_export.py",
-  "plugins/litclaude/vendor/scientific-visualization/assets/color_palettes.py",
   "plugins/litclaude/vendor/provenance/022_handoff.md",
-  "plugins/litclaude/vendor/provenance/045_scientific-visualization.md",
   "plugins/litclaude/vendor/licenses/022_handoff-MIT.txt",
-  "plugins/litclaude/vendor/licenses/045_scientific-visualization-MIT.txt",
 ]) {
   if (!existsSync(join(root, file))) {
     process.stderr.write(`Runtime payload missing: ${file}\n`);
@@ -102,6 +96,12 @@ process.stdout.write(`CANONICAL_RUNTIME_CLOSURES_PASS: ${runtimeClosures.familie
 process.stdout.write("\nLITGOAL_RUNTIME_PASS\n");
 process.stdout.write("START_WORK_LIFECYCLE_PASS: schema-3 bounded-authority runtime enrolled\n");
 process.stdout.write("START_WORK_HOST_HOOKS_PASS: PreToolUse, SubagentStart, SubagentStop, SessionEnd, and Stop enrolled\n");
+const bundledSkills = verifyBundledSkillsIntegrity(join(root, "plugins/litclaude"));
+if (bundledSkills.status !== "PASS") {
+  process.stderr.write(`BUNDLED_SKILLS_INTEGRITY_FAIL: ${JSON.stringify(bundledSkills)}\n`);
+  process.exit(1);
+}
+process.stdout.write("BUNDLED_SKILLS_INTEGRITY_PASS: handoff=4/4\n");
 process.stdout.write("BUNDLED_SKILLS_PAYLOAD_PASS\n");
 for (const line of officialBuildLines(JSON.parse(readFileSync(join(root, "package.json"), "utf8")))) process.stdout.write(`${line}\n`);
 process.stdout.write("\nDOCTOR_PASS\n");

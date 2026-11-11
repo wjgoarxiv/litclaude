@@ -421,7 +421,8 @@ describe("Claude hook runner", () => {
     symlinkSync(join(root, "plugins", "litclaude"), hostilePluginRoot, "dir");
 
     try {
-      for (const prompt of ["handoff", "lit-scientific-visualization"]) {
+      // lit-scientific-visualization no longer injects a canonical source root: it moved to the figures plugin.
+      for (const prompt of ["handoff"]) {
         const result = spawnSync(
           process.execPath,
           ["--preserve-symlinks-main", join(hostilePluginRoot, "bin", "litclaude-hook.js"), "user-prompt-submit"],

@@ -1,5 +1,5 @@
 // Headless Chrome dies with the process that launched it. A probe or render killed mid-run used to
-// leave Chrome alive under PID 1; both launchers now tie it to their parent. A fake `chrome` that
+// leave Chrome alive under PID 1; the launcher now ties it to its parent. A fake `chrome` that
 // records its PID and sleeps stands in for the browser, so no real Chrome is needed.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -70,14 +70,8 @@ const { ChromeSession } = await import(${JSON.stringify(motionChrome)});
 const [chrome, dir] = process.argv.slice(1);
 await ChromeSession.launch({ chrome, flags: [], profileDir: dir + "/profile", routes: [], timeoutMs: 60000 });
 `;
-const schematicRender = pathToFileURL(join(skills, "lit-schematic", "scripts", "render.mjs")).href;
-const schematicSource = `
-const { renderPng } = await import(${JSON.stringify(schematicRender)});
-const [chrome, dir] = process.argv.slice(1);
-renderPng({ chrome, svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10mm" height="10mm"/>', out: dir + "/out.png", verify: false });
-`;
-
-for (const [name, source] of [["lit-typographic-motion ChromeSession", motionSource], ["lit-schematic render", schematicSource]]) {
+// The lit-schematic renderer, the other launcher this file used to cover, moved to the figures extras plugin.
+for (const [name, source] of [["lit-typographic-motion ChromeSession", motionSource]]) {
   for (const signal of ["SIGTERM", "SIGKILL"]) {
     test(`${name}: Chrome dies when its launcher gets ${signal}`, { skip: !posix && "process groups are POSIX" }, async () => {
       const pid = await launchAndKill(source, signal);
