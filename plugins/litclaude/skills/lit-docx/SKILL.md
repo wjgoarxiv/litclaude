@@ -102,6 +102,7 @@ claude plugin install documents@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/documents/skills/lit-docx` folder; the install line installs the whole `documents` plugin.
 The installed skill answers as `documents:lit-docx`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:0b57a89dd9d6 -->

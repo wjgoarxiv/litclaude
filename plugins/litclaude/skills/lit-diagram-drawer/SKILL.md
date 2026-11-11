@@ -98,6 +98,7 @@ claude plugin install figures@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-diagram-drawer` folder; the install line installs the whole `figures` plugin.
 The installed skill answers as `figures:lit-diagram-drawer`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:53e2c8138952 -->

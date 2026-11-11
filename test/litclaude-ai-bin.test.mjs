@@ -1201,6 +1201,8 @@ describe("litclaude-ai CLI", () => {
       assert.match(result.stdout, /DRY_RUN/u);
       assert.match(result.stdout, /doctor LitClaude/i);
       assert.match(result.stdout, /claude plugin validate/u);
+      assert.match(result.stdout, /^Would verify three canonical runtime closures$/mu);
+      assert.doesNotMatch(result.stdout, /canonical frontend corpus|legal companions/u, "the corpus check left with the design skills");
       assert.doesNotMatch(result.stdout, /\bbunx\b/u);
       assert.deepEqual(readdirSync(home), [], "dry-run must not create install files");
     } finally {

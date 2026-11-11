@@ -23,7 +23,7 @@ const MAX_SCREEN_BYTES = 61_440;
 // What each picture must quote in its alt text, in the language of the page.
 const quotes = {
   "install-plan": ["INSTALL PLAN", "05 · Verify confirm every installed surface", "Model selection: host-owned · unrelated Claude settings preserved"],
-  "install-done": ["INSTALL RECEIPT", "Status Ready for Claude Code", "MOTION_RUNTIME: pre-warmed (engine deps and fonts ready)"],
+  "install-done": ["INSTALL RECEIPT", "Status Ready for Claude Code", "HUD: LitClaude statusLine installed (cyan)"],
   "session-start": ["litclaude vX.Y.Z"],
   activation: ["LIT IGNITED · lit-loop", "O5.5 │ ctx [▊░░] 23%/200k", "└─ lit"],
   doctor: ["PERMISSION_MODE: safe", "HUD_STATUSLINE_PASS", "DOCTOR_PASS"],
@@ -71,6 +71,7 @@ test("both guides show every capture with alt text that quotes what it shows", (
       assert.ok(quotes[name], `${file}: unknown picture ${html.slice(0, 80)}`);
       assert.ok(alt.length > 60, `${file}: ${name} needs descriptive alt text`);
       for (const quote of quotes[name]) assert.ok(alt.includes(quote), `${file}: alt of ${name} must quote "${quote}"`);
+      assert.doesNotMatch(alt, /MOTION_RUNTIME|pre-warm/u, `${file}: the installer no longer pre-warms the motion runtime`);
       assert.match(html, /width="\d{3,4}"/u, `${file}: ${name} keeps its natural width`);
       if (themedNames.includes(name)) {
         assert.ok(html.includes("<picture>"), `${file}: ${name} follows the page theme`);

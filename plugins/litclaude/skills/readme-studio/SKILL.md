@@ -108,6 +108,7 @@ claude plugin install video-covers@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/video-covers/skills/readme-studio` folder; the install line installs the whole `video-covers` plugin.
 The installed skill answers as `video-covers:readme-studio`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:f487e12194ad -->

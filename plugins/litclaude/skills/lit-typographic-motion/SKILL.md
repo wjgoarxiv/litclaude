@@ -114,6 +114,7 @@ claude plugin install video-covers@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/video-covers/skills/lit-typographic-motion` folder; the install line installs the whole `video-covers` plugin.
 The installed skill answers as `video-covers:lit-typographic-motion`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:10c6f3985f09 -->

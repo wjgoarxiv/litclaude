@@ -18,9 +18,7 @@
   copied byte for byte with what they reach outside their folders: `strict-json`, `rename-aliases` and
   `secret-shapes` under `lib/`, browser-drive's capability probe, and the Pretendard and JetBrains Mono font pairs
   the design kit copies by hash. LitClaude keeps a same-name stub for each, so `Skill(frontend-ui-ux)`,
-  `Skill(visual-qa)`, their bare and `# Changelog
-
- routes, the interface-intent route, the polish, audit and harden modes,
+  `Skill(visual-qa)`, their bare and `$` routes, the interface-intent route, the polish, audit and harden modes,
   the PostToolUse interface hint and the reviewer agents' preload still route: with the design plugin installed they
   load `design:frontend-ui-ux` and `design:visual-qa`, and without it a direct request gets the install lines
   (`claude plugin marketplace add <path>`, then `claude plugin install design@wjgoarxiv-skills`). The frontend-ui-ux

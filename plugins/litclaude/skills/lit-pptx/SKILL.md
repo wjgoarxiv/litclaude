@@ -100,6 +100,7 @@ claude plugin install decks@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/decks/skills/lit-pptx` folder; the install line installs the whole `decks` plugin.
 The installed skill answers as `decks:lit-pptx`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:c2168ba74efe -->

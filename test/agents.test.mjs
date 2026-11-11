@@ -184,6 +184,11 @@ describe("Claude agents", () => {
         `${name} must remain read-only for visual review`,
       );
       assert.match(meta, /\bRead\b/u, `${name} must be able to inspect immutable evidence`);
+      assert.match(
+        text,
+        /When `design:visual-qa` is not installed, report the `visual-qa` review as blocked on the missing skill instead of returning a schema verdict\./u,
+        `${name} must not ask for a schema the stub no longer carries`,
+      );
     }
   });
 

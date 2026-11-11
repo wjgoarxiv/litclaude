@@ -102,6 +102,7 @@ claude plugin install figures@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-scientific-visualization` folder; the install line installs the whole `figures` plugin.
 The installed skill runs as `/figures:lit-scientific-visualization` (skill id `figures:lit-scientific-visualization`).
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:df87d26bdbf3 -->

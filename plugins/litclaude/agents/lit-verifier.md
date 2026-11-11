@@ -99,5 +99,6 @@ verify immutable source identity, evidence freshness, capability receipts,
 schema validity, bounded PNG or TUI analysis, reference comparability, reviewer
 independence, and cleanup. Return your own schema-valid verdict without seeing
 the other reviewer's draft or allowing an advisory metric to replace evidence.
+When `design:visual-qa` is not installed, report the `visual-qa` review as blocked on the missing skill instead of returning a schema verdict.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:ee0572d4f7f5 -->

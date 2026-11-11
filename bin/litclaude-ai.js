@@ -1688,7 +1688,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write(`Would inspect automatic-update receipt/journal under: ${join(automaticUpdateRoot(litHome()), "receipt.json")}\n`);
     for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
     process.stdout.write("Would verify the bundled handoff snapshot hashes\n");
-    process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
+    process.stdout.write("Would verify three canonical runtime closures\n");
     writeAutoHandoffDoctorLines();
     process.stdout.write(`${iconFontDoctorLine()}\n`);
     return;

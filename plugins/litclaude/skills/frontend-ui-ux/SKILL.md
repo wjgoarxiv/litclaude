@@ -124,6 +124,7 @@ claude plugin install design@wjgoarxiv-skills
 ```
 
 After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+In the wjgoarxiv-skills repository the skill sits in the `plugins/design/skills/frontend-ui-ux` folder; the install line installs the whole `design` plugin.
 The installed skill answers as `design:frontend-ui-ux`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:b7e5648fc713 -->
