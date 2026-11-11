@@ -56,10 +56,11 @@ Claude settings stay as they are. This picture shows a dark terminal.
 The five stages each print a short block that ends in a check mark, and then the installer
 prints a receipt. It names the version, the plugin, the folder the files went to, the HUD
 accent, the permission mode (safe adds no permission rules) and the command that starts Claude
-Code. The last lines cover the video tools. In this run they were already on disk, so that line
-came back at once; a first install downloads them first, as described under [Install](#install).
+Code. The last lines show the display options, confirm that the Claude desktop app's Code tab
+reads the same settings, give the commit attribution setting and the agent file LitClaude wrote,
+and repeat the launch command.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. INSTALL RECEIPT: Status Ready for Claude Code; Version X.Y.Z; Model route host-owned (Claude Code picks models); Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; HUD cyan accent; Permissions safe; global settings allow/deny; ownership-safe removal; Launch claude; Installation complete. Then the lines Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, the Marketplace and Plugin path locations under ~, HUD: LitClaude statusLine installed (cyan), the global settings permissions line, and Launch with: claude." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. INSTALL RECEIPT: Status Ready for Claude Code; Version X.Y.Z; Model route host-owned (Claude Code picks models); Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; HUD cyan accent; Permissions safe; global settings allow/deny; ownership-safe removal; Launch claude; Installation complete. Then the lines Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, the Marketplace and Plugin path locations under ~, HUD: LitClaude statusLine installed (cyan), the global settings permissions line, MOD_OPTIONS: motion full · glyphs auto · band always · notify off · club on, DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there, ATTRIBUTION: keep, AGENT_FILE: created ~/.claude/CLAUDE.md, and Launch with: claude." /></picture></p>
 
 *Captured from the installer.*
 

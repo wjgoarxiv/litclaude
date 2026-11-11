@@ -52,11 +52,11 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 
 다섯 단계는 각각 체크 표시로 끝나는 짧은 블록을 출력하고, 그다음에 설치 영수증이 나옵니다. 영수증에는
 버전, 플러그인, 파일이 들어간 폴더, HUD 강조색, 권한 모드(safe는 권한 규칙을 더하지 않습니다),
-Claude Code를 시작하는 명령이 적힙니다. 마지막 줄들은 영상 도구에 관한 내용입니다. 이번 실행에서는
-도구가 이미 디스크에 있어서 그 줄이 바로 나왔고, 처음 설치할 때는 먼저 내려받습니다.
-자세한 내용은 [설치](#설치)에 있습니다.
+Claude Code를 시작하는 명령이 적힙니다. 마지막 줄들은 표시 옵션, Claude 데스크톱 앱의 Code 탭이 같은
+설정을 읽는다는 확인, 커밋 attribution 설정, LitClaude가 만든 에이전트 파일을 차례로 보여 주고,
+시작 명령을 한 번 더 적습니다.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. INSTALL RECEIPT: Status Ready for Claude Code, Version X.Y.Z, Model route host-owned (Claude Code picks models), Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, HUD cyan accent, Permissions safe; global settings allow/deny; ownership-safe removal, Launch claude, Installation complete. 그 아래에 Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, ~ 아래의 Marketplace와 Plugin path 위치, HUD: LitClaude statusLine installed (cyan), 전역 설정 권한 줄, Launch with: claude 줄이 이어집니다." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. INSTALL RECEIPT: Status Ready for Claude Code, Version X.Y.Z, Model route host-owned (Claude Code picks models), Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, HUD cyan accent, Permissions safe; global settings allow/deny; ownership-safe removal, Launch claude, Installation complete. 그 아래에 Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, ~ 아래의 Marketplace와 Plugin path 위치, HUD: LitClaude statusLine installed (cyan), 전역 설정 권한 줄, MOD_OPTIONS: motion full · glyphs auto · band always · notify off · club on, DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there, ATTRIBUTION: keep, AGENT_FILE: created ~/.claude/CLAUDE.md, Launch with: claude 줄이 이어집니다." /></picture></p>
 
 *설치 프로그램에서 캡처*
 
