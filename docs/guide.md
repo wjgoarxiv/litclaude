@@ -298,8 +298,8 @@ and how, and picks a look to match. The reply names that look, says why it fits,
 two others that would also suit, so a wrong first guess costs you one sentence.
 
 `lit-pptx` now ships as the `decks` plugin of the wjgoarxiv-skills marketplace. Install it with
-`claude plugin marketplace add <path to your wjgoarxiv-skills clone>` and
-`claude plugin install decks@wjgoarxiv-skills` (the GitHub form follows publication). Without it,
+`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills` and
+`claude plugin install decks@wjgoarxiv-skills`. Without it,
 a deck request gets those two lines back instead of a deck. The rest of this section describes the
 skill as the decks plugin ships it.
 

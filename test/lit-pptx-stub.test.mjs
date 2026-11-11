@@ -30,11 +30,11 @@ describe("lit-pptx is a same-name stub for the decks extras plugin", () => {
     assert.match(stub, /^---\nname: lit-pptx\n/u);
     assert.match(stub, /PowerPoint deck/u);
     assert.match(stub, /wjgoarxiv-skills/u);
-    assert.match(stub, /claude plugin marketplace add <path to your wjgoarxiv-skills clone>/u);
-    assert.match(stub, /not (?:been )?published yet/iu, "says plainly the public marketplace is not published yet");
+    assert.match(stub, /^claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills$/mu, "installs from the public GitHub marketplace");
+    assert.doesNotMatch(stub, /not (?:been )?published yet/iu, "no longer calls the public marketplace unpublished");
     assert.match(stub, /claude plugin install decks@wjgoarxiv-skills/u);
     assert.match(stub, /decks:lit-pptx/u);
-    assert.match(stub, /after (?:it is )?publi/iu, "says the GitHub form comes after publication");
+    assert.match(stub, /Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`\./u, "keeps the local clone as the offline form");
     assert.doesNotMatch(stub, /\/Users\/[a-z]/u, "no private home path");
     assert.doesNotMatch(stub, /install lines above/u, "the install lines sit below, in What moved");
   });
@@ -65,8 +65,8 @@ describe("lit-pptx is a same-name stub for the decks extras plugin", () => {
       assert.match(context, /name="lit-pptx"/u, prompt);
       assert.match(context, /decks@wjgoarxiv-skills/u, prompt);
       assert.match(context, /decks:lit-pptx/u, prompt);
-      assert.match(context, /<path to your wjgoarxiv-skills clone>/u, prompt);
-      assert.match(context, /not published yet/u, prompt);
+      assert.match(context, /claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills/u, prompt);
+      assert.doesNotMatch(context, /not published yet|<path to your wjgoarxiv-skills clone>/u, prompt);
       assert.ok(Buffer.byteLength(context, "utf8") <= 4096, `${Buffer.byteLength(context, "utf8")} bytes`);
     }
   });

@@ -94,14 +94,14 @@ The adapter, that source (with its provenance and MIT licence) and the doctor no
 LitClaude keeps this stub so that `/litclaude:lit-scientific-visualization` and the exact bare prompt still lead
 somewhere useful.
 
-The public marketplace is not published yet, so for now it installs from a local clone of wjgoarxiv-skills:
+It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
-claude plugin marketplace add <path to your wjgoarxiv-skills clone>
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
 claude plugin install figures@wjgoarxiv-skills
 ```
 
-After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-scientific-visualization` folder; the install line installs the whole `figures` plugin.
 The installed skill runs as `/figures:lit-scientific-visualization` (skill id `figures:lit-scientific-visualization`).
 

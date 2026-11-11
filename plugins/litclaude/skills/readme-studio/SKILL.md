@@ -100,14 +100,14 @@ That whole skill, its references, templates and validator, now lives in the `vid
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside lit-typographic-motion. LitClaude keeps
 this stub so that `Skill(readme-studio)` and the `readme-studio` prompt route still lead somewhere useful.
 
-The public marketplace is not published yet, so for now it installs from a local clone of wjgoarxiv-skills:
+It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
-claude plugin marketplace add <path to your wjgoarxiv-skills clone>
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
 claude plugin install video-covers@wjgoarxiv-skills
 ```
 
-After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/video-covers/skills/readme-studio` folder; the install line installs the whole `video-covers` plugin.
 The installed skill answers as `video-covers:readme-studio`.
 

@@ -16,9 +16,9 @@
   then run `/reload-plugins` or open a new session. The moved skills answer as `decks:lit-pptx`,
   `figures:lit-schematic` and so on, and `/figures:lit-scientific-visualization` is the plot command. LitClaude
   keeps a same-name stub for each, so the old routes still work: with the plugin installed the stub loads it, and
-  without it you get the install lines instead of a file. The stubs in this release still print a local-clone line
-  (`claude plugin marketplace add <path to your wjgoarxiv-skills clone>`) and call the marketplace unpublished;
-  the GitHub line above works in its place.
+  without it you get the install lines instead of a file. The stubs, the hook prompts and
+  `/litclaude:lit-scientific-visualization` print the GitHub line above; a local clone
+  (`claude plugin marketplace add <path to your wjgoarxiv-skills clone>`) still works offline.
 - Removed with them: the `litclaude-ai motion-runtime` command, the motion pre-warm that `npm install -g` ran, the
   office runtime installer, the canonical frontend corpus and its verifier, the scientific-visualization doctor,
   the Stop hook's film render gate, and the `qa:cover-recipes` script. `litclaude doctor` no longer prints the
@@ -35,7 +35,7 @@
   stub for each, so `/litclaude:lit-typographic-motion`, `Skill(lit-typographic-motion)`, the bare-lit film route,
   `Skill(readme-studio)` and the `readme-studio` and `$` routes still route: with the video-covers plugin installed
   they load `video-covers:lit-typographic-motion` and `video-covers:readme-studio`, and without it the reply gives the
-  install lines (`claude plugin marketplace add <path>`, then `claude plugin install video-covers@wjgoarxiv-skills`).
+  install lines (`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`, then `claude plugin install video-covers@wjgoarxiv-skills`).
   The motion checks left with the engine: the Stop hook no longer holds a film turn until a gated render is done,
   `litclaude-ai motion-runtime` is gone, `npm install -g` no longer pre-warms the motion runtime, and `litclaude
   doctor` and `npm run doctor` print no motion line. The LIT card no longer shows a motion gate. The lit-pptx stub's
@@ -48,7 +48,7 @@
   `Skill(visual-qa)`, their bare and `$` routes, the interface-intent route, the polish, audit and harden modes,
   the PostToolUse interface hint and the reviewer agents' preload still route: with the design plugin installed they
   load `design:frontend-ui-ux` and `design:visual-qa`, and without it a direct request gets the install lines
-  (`claude plugin marketplace add <path>`, then `claude plugin install design@wjgoarxiv-skills`). The frontend-ui-ux
+  (`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`, then `claude plugin install design@wjgoarxiv-skills`). The frontend-ui-ux
   stub keeps `scripts/interface-probe.mjs` and its five modules, so the Stop hook still holds a lit-loop, litwork or
   litgoal turn that edited a web page until the probe runs clean. Interface prompts no longer carry the old kit,
   design-contract or evidence rules. The canonical frontend corpus verifier left with the corpus, so the doctors, the
@@ -63,7 +63,7 @@
   request, `/litclaude:lit-scientific-visualization` and the exact bare `lit-scientific-visualization` still route:
   with the figures plugin installed the first two load `figures:lit-diagram-drawer` and `figures:lit-schematic`, and
   the plot route points at `/figures:lit-scientific-visualization` (it is user-invoked only); without it, the reply
-  gives the install lines (`claude plugin marketplace add <path>`, then `claude plugin install
+  gives the install lines (`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`, then `claude plugin install
   figures@wjgoarxiv-skills`). Drawing and plot prompts no longer carry the old procedures or the canonical source.
   The lit-diagram-drawer stub keeps the Pretendard variable font and its licence for the frontend-ui-ux design kit.
   `litclaude doctor` and `npm run doctor` no longer run the scientific-visualization doctor; they check the handoff
@@ -72,7 +72,7 @@
   byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
   `/litclaude:lit-docx`, `Skill(lit-docx)` and a bare `lit` document request still route: with the documents plugin
   installed they load `documents:lit-docx`, and without it the reply gives the install lines
-  (`claude plugin marketplace add <path>`, then `claude plugin install documents@wjgoarxiv-skills`). Document
+  (`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`, then `claude plugin install documents@wjgoarxiv-skills`). Document
   prompts no longer carry the old style gate, bare-lit defaults or helper paths. With both office skills gone,
   LitClaude no longer ships the office runtime: its installer, lockfiles, Python bootstrap and data, integrity and
   render helpers left, and `litclaude doctor` and `npm run doctor` no longer print an office runtime line. The
@@ -80,9 +80,8 @@
 - lit-pptx moved out of LitClaude into the `decks` plugin of the new wjgoarxiv-skills marketplace, copied byte for
   byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
   `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` slide request still route: with the decks plugin
-  installed they load `decks:lit-pptx`, and without it the reply gives the install lines. For now the marketplace is
-  a local clone (`claude plugin marketplace add <path>`, then `claude plugin install decks@wjgoarxiv-skills`); the
-  GitHub form is in the first entry above. The stub keeps `fonts/pretendard/`, which lit-typographic-motion and
+  installed they load `decks:lit-pptx`, and without it the reply gives the install lines
+  (`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`, then `claude plugin install decks@wjgoarxiv-skills`). The stub keeps `fonts/pretendard/`, which lit-typographic-motion and
   lit-schematic read by path. lit-docx is unchanged and keeps LitClaude's own office runtime. The deck engine's
   tests, fixtures and pins left with the body. The office runtime's `firstUse` status now reads `ready` once the
   Python half that lit-docx uses is installed.

@@ -42,11 +42,11 @@ describe("the figures skills are same-name stubs for the figures extras plugin",
       const md = stub(id);
       assert.match(md, new RegExp(`^---\\nname: ${id}\\n`, "u"));
       assert.match(md, /wjgoarxiv-skills/u);
-      assert.match(md, /claude plugin marketplace add <path to your wjgoarxiv-skills clone>/u);
-      assert.match(md, /not (?:been )?published yet/iu, "says plainly the public marketplace is not published yet");
+      assert.match(md, /^claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills$/mu, "installs from the public GitHub marketplace");
+      assert.doesNotMatch(md, /not (?:been )?published yet/iu, "no longer calls the public marketplace unpublished");
       assert.match(md, /claude plugin install figures@wjgoarxiv-skills/u);
       assert.match(md, new RegExp(`figures:${id}`, "u"));
-      assert.match(md, /after (?:it is )?publi/iu, "says the GitHub form comes after publication");
+      assert.match(md, /Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`\./u, "keeps the local clone as the offline form");
       assert.doesNotMatch(md, /\/Users\/[a-z]/u, "no private home path");
       assert.doesNotMatch(md, /install lines above/u, "the install lines sit below, in What moved");
       assert.ok(Buffer.byteLength(md) < 9000, `${Buffer.byteLength(md)} bytes`);
@@ -76,8 +76,8 @@ describe("the figures skills are same-name stubs for the figures extras plugin",
       assert.match(context, new RegExp(`name="${id}"`, "u"), prompt);
       assert.match(context, /figures@wjgoarxiv-skills/u, prompt);
       assert.match(context, new RegExp(`figures:${id}`, "u"), prompt);
-      assert.match(context, /<path to your wjgoarxiv-skills clone>/u, prompt);
-      assert.match(context, /not published yet/u, prompt);
+      assert.match(context, /claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills/u, prompt);
+      assert.doesNotMatch(context, /not published yet|<path to your wjgoarxiv-skills clone>/u, prompt);
       assert.ok(Buffer.byteLength(context, "utf8") <= 4096, `${prompt}: ${Buffer.byteLength(context, "utf8")} bytes`);
     }
   });

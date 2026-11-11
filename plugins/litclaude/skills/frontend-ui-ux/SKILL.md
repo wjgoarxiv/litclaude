@@ -116,14 +116,14 @@ That whole skill, its kit, data, schemas, references and scripts, now lives in t
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside visual-qa. LitClaude keeps this stub so that
 `Skill(frontend-ui-ux)`, the interface routes and the lit workflows' interface check still lead somewhere useful.
 
-The public marketplace is not published yet, so for now it installs from a local clone of wjgoarxiv-skills:
+It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
-claude plugin marketplace add <path to your wjgoarxiv-skills clone>
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
 claude plugin install design@wjgoarxiv-skills
 ```
 
-After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/design/skills/frontend-ui-ux` folder; the install line installs the whole `design` plugin.
 The installed skill answers as `design:frontend-ui-ux`.
 

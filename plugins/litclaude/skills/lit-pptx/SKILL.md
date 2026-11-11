@@ -92,14 +92,14 @@ That whole skill, its engine and the office runtime it needs now live in the `de
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude. LitClaude keeps this stub so that
 `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` deck request still lead somewhere useful.
 
-The public marketplace is not published yet, so for now it installs from a local clone of wjgoarxiv-skills:
+It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
-claude plugin marketplace add <path to your wjgoarxiv-skills clone>
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
 claude plugin install decks@wjgoarxiv-skills
 ```
 
-After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/decks/skills/lit-pptx` folder; the install line installs the whole `decks` plugin.
 The installed skill answers as `decks:lit-pptx`.
 

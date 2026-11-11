@@ -36,8 +36,8 @@ verdicts: [PASS, BLOCKED]
 
 1. Print the exact lit-scientific-visualization banner.
 2. Follow the stub: say what moved (the skill that makes a publication-ready figure of measured data), give the
-   install lines `claude plugin marketplace add <path to your wjgoarxiv-skills clone>` and
-   `claude plugin install figures@wjgoarxiv-skills` (the public marketplace is not published yet), then
+   install lines `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills` and
+   `claude plugin install figures@wjgoarxiv-skills`, then
    `/reload-plugins`.
 3. Tell the user to run `/figures:lit-scientific-visualization` with the same arguments.
 

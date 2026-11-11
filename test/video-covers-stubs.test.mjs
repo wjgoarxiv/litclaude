@@ -42,11 +42,11 @@ describe("the video-covers skills are same-name stubs for the video-covers extra
       const md = stub(id);
       assert.match(md, new RegExp(`^---\\nname: ${id}\\n`, "u"));
       assert.match(md, /wjgoarxiv-skills/u);
-      assert.match(md, /claude plugin marketplace add <path to your wjgoarxiv-skills clone>/u);
-      assert.match(md, /not (?:been )?published yet/iu, "says plainly the public marketplace is not published yet");
+      assert.match(md, /^claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills$/mu, "installs from the public GitHub marketplace");
+      assert.doesNotMatch(md, /not (?:been )?published yet/iu, "no longer calls the public marketplace unpublished");
       assert.match(md, /claude plugin install video-covers@wjgoarxiv-skills/u);
       assert.match(md, new RegExp(`video-covers:${id}`, "u"));
-      assert.match(md, /after (?:it is )?publi/iu, "says the GitHub form comes after publication");
+      assert.match(md, /Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`\./u, "keeps the local clone as the offline form");
       assert.match(md, /lit workflow/u, "says what happens when a lit workflow reaches it");
       assert.match(md, /fp:[0-9a-f]{12} -->\n$/u, "keeps the notice line with its fingerprint");
       assert.doesNotMatch(md, /\/Users\/[a-z]/u, "no private home path");
@@ -93,8 +93,8 @@ describe("the video-covers skills are same-name stubs for the video-covers extra
       assert.match(context, new RegExp(`name="${id}"`, "u"), prompt);
       assert.match(context, /video-covers@wjgoarxiv-skills/u, prompt);
       assert.match(context, new RegExp(`video-covers:${id}`, "u"), prompt);
-      assert.match(context, /<path to your wjgoarxiv-skills clone>/u, prompt);
-      assert.match(context, /not published yet/u, prompt);
+      assert.match(context, /claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills/u, prompt);
+      assert.doesNotMatch(context, /not published yet|<path to your wjgoarxiv-skills clone>/u, prompt);
       assert.ok(Buffer.byteLength(context, "utf8") <= 4096, `${prompt}: ${Buffer.byteLength(context, "utf8")} bytes`);
     }
   });
