@@ -14,7 +14,7 @@ import { createTimeline, glintWait, sampleTimeline } from "../plugins/litclaude/
 import { buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 
 const NOW = 30_000_000;
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const usage = { context: { percent: 42 }, rateLimits: [{ kind: "five_hour", percentUsed: 31 }] };
 const model = (extra = {}) => buildBandModel({ snapshot: idle(), now: NOW, usage, git: "feat/invite", ...extra });
 const club = (extra = {}) => model({ club: true, invitedBy: "octocat", ...extra });

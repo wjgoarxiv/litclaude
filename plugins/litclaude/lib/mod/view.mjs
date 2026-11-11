@@ -403,7 +403,6 @@ const gatesOf = (snapshot) => {
     else if (probe.issue && probe.issueAt >= probe.editAt) gates.push({ id: "probe", state: "fail", label: "ui probe failed" });
     else gates.push({ id: "probe", state: "pending", label: "ui probe pending" });
   }
-  if (snapshot.motion?.blockCount > 0) gates.push({ id: "motion", state: "pending", label: "motion gate pending" });
   if (snapshot.handoff) {
     gates.push(snapshot.handoff.firedAt !== null
       ? { id: "handoff", state: "ok", label: `handoff written at ${snapshot.handoff.firedAtPercent ?? snapshot.handoff.percent}%` }
@@ -582,10 +581,6 @@ export const diffNotices = (previous, next, previousModel = null, nextModel = nu
     notices.push({ id: `probe-fail:${probe.issueAt}`, tone: "red", title: "interface probe failed", detail: probe.issue });
   } else if (probe && probe.blockCount > (previous.probe?.blockCount ?? 0)) {
     notices.push({ id: `probe:${probe.editAt}:${probe.blockCount}`, tone: "amber", title: "interface probe pending", detail: `run the interface probe before finishing · stop ${probe.blockCount}/${GATE_LIMITS.probe}` });
-  }
-  const motion = next.motion;
-  if (motion && motion.blockCount > (previous.motion?.blockCount ?? 0)) {
-    notices.push({ id: `motion:${motion.blockCount}:${motion.runs}`, tone: "amber", title: "motion gate: the film is not done", detail: `stop ${motion.blockCount}/${GATE_LIMITS.motion}` });
   }
   const handoff = next.handoff;
   if (handoff?.firedAt !== null && handoff?.firedAt !== undefined && handoff.firedAt !== previous.handoff?.firedAt) {

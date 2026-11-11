@@ -277,10 +277,10 @@ test("README documents local Claude plugin usage and safety boundaries", async (
   assert.match(readme, /explicit user approval/i);
 });
 
-test("both READMEs state the install-time network pre-warm and the switches the code reads", async () => {
+test("both guides state the automatic setup and the switches the code reads", async () => {
   const postinstall = await text("scripts/postinstall.mjs");
   const cli = await text("bin/litclaude-ai.js");
-  const switches = ["LITCLAUDE_MOTION_PREWARM=0", "LITCLAUDE_AUTO_INSTALL=0", "LITCLAUDE_POSTINSTALL_SKIP=1"];
+  const switches = ["LITCLAUDE_AUTO_INSTALL=0", "LITCLAUDE_POSTINSTALL_SKIP=1"];
   for (const name of switches) {
     const [key, value] = name.split("=");
     assert.ok(`${postinstall}\n${cli}`.includes(`process.env.${key} === "${value}"`), `code still reads ${name}`);
@@ -290,7 +290,7 @@ test("both READMEs state the install-time network pre-warm and the switches the 
     const start = readme.indexOf(heading);
     assert.notEqual(start, -1, `${path} has an install section`);
     const install = readme.slice(start, readme.indexOf("\n## ", start + 1));
-    for (const phrase of [...switches, "npm ci", "npm install -g", "scripts/postinstall.mjs", "--ignore-scripts", "litclaude-ai motion-runtime install"]) {
+    for (const phrase of [...switches, "npm install -g", "scripts/postinstall.mjs", "--ignore-scripts", "video-covers"]) {
       assert.ok(install.includes(phrase), `${path} install section names ${phrase}`);
     }
   }

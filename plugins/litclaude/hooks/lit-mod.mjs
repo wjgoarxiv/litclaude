@@ -57,7 +57,7 @@ const TABS = Object.freeze([
   { id: "lanes", label: "lanes", hotkey: "2" },
   { id: "gates", label: "gates", hotkey: "3" },
 ]);
-const NO_SNAPSHOT = Object.freeze({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null, workflow: null });
+const NO_SNAPSHOT = Object.freeze({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null, workflow: null });
 // A LIT turn at least this long notifies when it ends, under `notify`.
 const LONG_TURN_MS = 3 * 60 * 1000;
 

@@ -67,27 +67,19 @@ the reply, for example when the decks plugin is listed but fails to load.
 
 ## #contract.evidence
 
-The routing is checked by `test/lit-pptx-stub.test.mjs`: the stub's install lines, the deck route of the prompt
-hook, and the hashes of the Pretendard files lit-typographic-motion reuses from `fonts/pretendard/`.
+The routing is checked by `test/lit-pptx-stub.test.mjs`: the stub's install lines and the deck route of the prompt
+hook.
 
 ## #contract.hard_stops
 
 - Never run the install lines yourself: they change the user's Claude Code configuration. The user runs them.
 - Never build a deck from memory, from another skill or with a library the stub does not ship.
-- Never delete or move `fonts/pretendard/`: lit-typographic-motion reads those files by path and checks their
-  hashes, and Pretendard Bold has no download fallback there.
 
 ## #contract.anti_patterns
 
 - Writing a .pptx with python-pptx or another tool because the real skill is missing.
 - Quoting the old lit-pptx procedure from memory as if this stub still held it.
 - Treating the stub as an error: the user gets a working install line, not a failure.
-
-## Files kept here
-
-`fonts/pretendard/` holds Pretendard Regular and Bold (official files, SIL Open Font License 1.1 in `OFL.txt`).
-They stay in LitClaude until the video and covers family moves, because lit-typographic-motion uses them
-(lit-schematic, the other reader, moved to the figures plugin).
 
 ## What moved
 

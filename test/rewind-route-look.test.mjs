@@ -20,7 +20,7 @@ import { buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
 const SESSION = "rewind-route-01";
-const snapshotOf = (ignition) => ({ ignition, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const snapshotOf = (ignition) => ({ ignition, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const frameOf = (model) => {
   const profile = motionProfile("full");
   return composeBand(model, sampleTimeline(createTimeline(model, 0, profile), 1000, profile), { columns: 100, glyphs: "basic", accent: "#5fd7ff" });

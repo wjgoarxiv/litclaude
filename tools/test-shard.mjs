@@ -33,8 +33,6 @@ export const TEST_RUN_FLAGS = [
   '--test-force-exit',
   '--import',
   './test/helpers/scrub-ambient-env.mjs',
-  '--import',
-  './test/helpers/motion-offline-prewarm.mjs',
 ];
 
 export function listTestFiles(root = ROOT) {

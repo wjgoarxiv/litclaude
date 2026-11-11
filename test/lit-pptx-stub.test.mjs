@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, it } from "node:test";
@@ -8,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 // lit-pptx moved to the `decks` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub:
 // the id, the `lit` deck route and the slash command still work, and they lead to the install line. The stub
-// keeps fonts/pretendard/ because lit-typographic-motion reuses those files by path.
+// is SKILL.md alone: the Pretendard trio it kept for lit-typographic-motion left when that skill moved.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginRoot = join(root, "plugins", "litclaude");
 const stubRoot = join(pluginRoot, "skills", "lit-pptx");
@@ -53,23 +52,10 @@ describe("lit-pptx is a same-name stub for the decks extras plugin", () => {
     assert.deepEqual(offenders, []);
   });
 
-  it("is a stub, not the body: small, and the only other files are the reused Pretendard pair", () => {
+  it("is a stub, not the body: small, and SKILL.md alone", () => {
     assert.ok(Buffer.byteLength(stub) < 9000, `${Buffer.byteLength(stub)} bytes`);
     const files = walk(stubRoot).map((f) => relative(stubRoot, f)).sort();
-    assert.deepEqual(files, ["SKILL.md", "fonts/pretendard/OFL.txt", "fonts/pretendard/Pretendard-Bold.otf", "fonts/pretendard/Pretendard-Regular.otf"]);
-  });
-
-  it("keeps the font bytes lit-typographic-motion checks by hash", () => {
-    const manifest = JSON.parse(readFileSync(join(pluginRoot, "skills", "lit-typographic-motion", "fonts", "manifest.json"), "utf8"));
-    const motionFonts = join(pluginRoot, "skills", "lit-typographic-motion", "fonts");
-    for (const key of ["pretendard-400", "pretendard-700"]) {
-      const font = manifest.fonts?.[key] ?? manifest[key] ?? Object.values(manifest).find((v) => v && typeof v === "object" && v[key])?.[key];
-      assert.ok(font, key);
-      for (const f of [{ path: font.path, sha256: font.sha256 }, ...font.licence]) {
-        const sha = createHash("sha256").update(readFileSync(resolve(motionFonts, f.path))).digest("hex");
-        assert.equal(sha, f.sha256, f.path);
-      }
-    }
+    assert.deepEqual(files, ["SKILL.md"]);
   });
 
   it("the bare-lit deck route and the explicit skill name still reach the stub and carry the install line", () => {

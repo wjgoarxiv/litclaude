@@ -22,24 +22,17 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 있습니다. 평소 환경을 건드리기 전에 먼저 써 보고 싶다면
 [별도 체험 프로필](./migration.md#separate-trial-profile)부터 준비하세요.
 
-설치할 때는 플러그인 말고도 조금 더 내려받습니다. 영상 만들기 스킬(lit-typographic-motion)에는
-렌더링 엔진과 글꼴이 필요한데, 영상을 만드는 도중에는 이것을 내려받지 않기 때문에 설치할 때
-미리 받아 둡니다.
-플러그인을 등록한 다음, 버전을 고정한 엔진 패키지를 `npm ci`로 설치하고 역시 고정된 글꼴을
-내려받아 하나하나 sha256으로 확인합니다. 저장 위치는 `$LITCLAUDE_MOTION_RUNTIME`이고, 이 값을
-설정하지 않았으면 `${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime`입니다. 이 준비가 실패해도
-설치는 끝나고, 나중에 직접 실행할 명령을 알려 줍니다.
+설치할 때 내려받는 것은 플러그인뿐입니다. 예전 릴리스는 영상 만들기 스킬(lit-typographic-motion)이
+쓰는 렌더링 엔진과 글꼴도 함께 받았습니다. 이 스킬은 이제 wjgoarxiv-skills 마켓플레이스의
+`video-covers` 플러그인으로 옮겨 갔고 엔진도 그 플러그인이 챙기므로, LitClaude는 더 이상 이것을
+준비하지 않습니다.
 
-`npm install -g @litfamily/litclaude`로 전역 설치하면 이 과정도 자동으로 함께 실행됩니다. 설치 뒤에
-도는 스크립트(`scripts/postinstall.mjs`)가 `litclaude install`을 실행하기 때문입니다. 이 스크립트는
-전역 설치에서만 돌고, 전역이 아닌 설치나 `CI` 환경, 소스 checkout에서는 건너뜁니다. 자동 설정을
-원하지 않으면 두 가지 방법이 있습니다.
-
-- 영상 도구만 나중으로 미루고 싶다면 `LITCLAUDE_MOTION_PREWARM=0`을 설정하세요. 필요해지면
-  `litclaude-ai motion-runtime install`로 그때 받으면 됩니다.
-- 자동 설정을 통째로 끄고 싶다면 `LITCLAUDE_AUTO_INSTALL=0`(또는 `LITCLAUDE_POSTINSTALL_SKIP=1`)을
-  설정하거나 npm 명령에 `--ignore-scripts`를 붙이세요. 이때도 패키지는 내려받으니, 준비가 되면
-  `litclaude install`을 직접 실행하면 됩니다.
+`npm install -g @litfamily/litclaude`로 전역 설치하면 설정까지 자동으로 끝납니다. 설치 뒤에 도는
+스크립트(`scripts/postinstall.mjs`)가 `litclaude install`을 실행하기 때문입니다. 이 스크립트는 전역
+설치에서만 돌고, 전역이 아닌 설치나 `CI` 환경, 소스 checkout에서는 건너뜁니다. 자동 설정을 원하지
+않으면 `LITCLAUDE_AUTO_INSTALL=0`(또는 `LITCLAUDE_POSTINSTALL_SKIP=1`)을 설정하거나 npm 명령에
+`--ignore-scripts`를 붙이세요. 이때도 패키지는 내려받으니, 준비가 되면 `litclaude install`을 직접
+실행하면 됩니다.
 
 ## 화면에 나오는 모습
 
@@ -365,6 +358,12 @@ decks·documents 플러그인과 함께 배포되므로 `litclaude doctor`는 �
 `frontend-ui-ux build <대상>`은 허용된 범위에서 화면을 구현하고 실제 렌더까지 확인합니다.
 중요한 방향이 모호하면 하나씩 묻고, 그 답을 이어받아 구현합니다. 검토나 계획만 요청했다면
 파일을 고치지 않습니다.
+
+`readme-studio`와 `lit-typographic-motion`은 이제 같은 마켓플레이스의 `video-covers` 플러그인으로
+설치합니다(`claude plugin install video-covers@wjgoarxiv-skills`). 플러그인이 없으면 README나 영상
+요청에는 표지나 영상 대신 설치 명령이 돌아옵니다. LitClaude는 더 이상 렌더가 끝날 때까지 영상 차례를
+Stop에서 붙잡지 않고, 끝났는지는 옮겨 간 스킬의 검사가 정합니다. 아래 문단은 video-covers 플러그인에
+들어 있는 readme-studio를 설명합니다.
 
 `readme-studio <저장소 또는 README 범위>`나 `$readme-studio`는 저장소에서 사실을 확인해
 README를 쓰고, 표지는 로컬에서 만듭니다. 이미지를 생성할 수 있는지는 Claude Code가 가진

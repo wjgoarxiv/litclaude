@@ -26,7 +26,6 @@ const idle = () => ({
   autoloop: null,
   litPlan: null,
   probe: null,
-  motion: null,
   handoff: null,
 });
 const working = (overrides = {}) => ({
@@ -113,8 +112,6 @@ test("gate notices come from changes only, never from the first look", () => {
   assert.equal(probeFailed[0].tone, "red");
   const probePending = diffNotices(working(), working({ probe: { editAt: 1, probeAt: null, issue: null, issueAt: null, paths: [], blockCount: 1 } }));
   assert.equal(probePending[0].title, "interface probe pending");
-  const motion = diffNotices(working(), working({ motion: { blockCount: 1, runs: 2, notified: false } }));
-  assert.equal(motion[0].title, "motion gate: the film is not done");
   const handoff = diffNotices(working({ handoff: { percent: 80, firedAt: null, firedAtPercent: null, pending: false } }), working({ handoff: { percent: 80, firedAt: 9, firedAtPercent: 81, pending: true } }));
   assert.equal(handoff[0].title, "auto-handoff fired at 81%");
   const ctx = diffNotices(working(), working(), { ctxWarning: null }, { ctxWarning: { percent: 76, threshold: 80 } });

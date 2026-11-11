@@ -34,12 +34,6 @@ jobs:
       - name: ffmpeg for the motion and audio tests
         run: brew install ffmpeg
 
-      # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
-      # pre-warmed"). The fast tier keeps a few render-capable files, so it is warmed here, once per
-      # job, before any test starts.
-      - name: Pre-warm the motion runtime for the render tests
-        run: node bin/litclaude-ai.js motion-runtime install
-
       - name: Unit and integration tests (fast tier)
         run: npm test
 

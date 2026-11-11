@@ -17,7 +17,7 @@ const SID = "11111111-aaaa-bbbb-cccc-000000000001";
 const OTHER = "22222222-aaaa-bbbb-cccc-000000000002";
 const PLAN = "plans/2026-11-01-litclaude-lit-lanes.md";
 const iso = (ms) => new Date(ms).toISOString();
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const startWork = () => ({ skill: "start-work", family: "main", stage: "work", role: "side", status: "active", verdicts: {}, at: iso(NOW - 2000), ref: { plan: PLAN }, n: 5, total: 11 });
 const otherSession = (extra = {}) => ({
   sessionId: OTHER,

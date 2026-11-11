@@ -21,7 +21,6 @@ import { recordContextUsage } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { recordInterfaceProbeTurn } from "../plugins/litclaude/lib/interface-probe-gate.mjs";
 import { recordLitPlanTurn } from "../plugins/litclaude/lib/lit-plan-persistence.mjs";
 import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
-import { MOTION_DISCIPLINE, recordMotionTurn } from "../plugins/litclaude/lib/motion-render-gate.mjs";
 import { writeSessionState } from "../plugins/litclaude/lib/rules/session-state.mjs";
 import { acquireStartWorkLock, releaseStartWorkLock } from "../plugins/litclaude/lib/start-work-lifecycle.mjs";
 import { writeCaptureSettings } from "../plugins/litclaude/lib/wikify-knowledge.mjs";
@@ -115,7 +114,6 @@ describe("project state folder stays out of the user's commits", () => {
     "litgoal autoloop": (root) => writeAutoloopState(root, { blockCount: 0, firstBlockAt: 1 }),
     "litgoal cli": (root) => runLitgoalCli(["create-goals", "--brief", "Ship it", "--json"], quiet, root),
     "start-work lock": (root) => releaseStartWorkLock(root, acquireStartWorkLock(root)),
-    "motion turn": (root) => recordMotionTurn(root, { sessionId: "s1", discipline: MOTION_DISCIPLINE }),
     "interface-probe turn": (root) => recordInterfaceProbeTurn(root, { sessionId: "s1", discipline: "lit-loop" }),
     "lit-plan turn": (root) => recordLitPlanTurn(root, { sessionId: "s1" }),
     "auto-handoff context": (root) => recordContextUsage({ stateRoot: root, sessionId: "s1", percent: 10, window: 200000 }),

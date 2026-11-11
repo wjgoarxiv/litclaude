@@ -219,4 +219,6 @@ LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개
 
 이제 lit-diagram-drawer, lit-schematic, lit-scientific-visualization은 wjgoarxiv-skills 마켓플레이스의 `figures` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 그림 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
 
+이제 lit-typographic-motion과 readme-studio는 wjgoarxiv-skills 마켓플레이스의 `video-covers` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 영상과 README 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
 이제 frontend-ui-ux와 visual-qa는 wjgoarxiv-skills 마켓플레이스의 `design` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 화면 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다. frontend-ui-ux 안내 스킬에는 lit 워크플로가 만든 웹 페이지를 검사하는 인터페이스 프로브가 남아 있습니다.

@@ -25,7 +25,7 @@ import { installModH } from "./helpers/mod-h.mjs";
 
 const NOW = 10_000_000;
 const CYAN = "#5fd7ff";
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const goalOf = (passed, total, status = "active") => ({
   objective: "ship the card",
   status,

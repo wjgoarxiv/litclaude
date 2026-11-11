@@ -414,7 +414,7 @@ requests are muted grey pills.
 - The bottom edge carries the live figures from the status line: context fill, the five-hour
   and weekly rate windows and the Git branch (read from `HEAD`, across a linked worktree).
 - A notice takes the chips row for a few seconds, with a toast, when a gate fires: lit-plan not
-  saved, interface probe pending or failed, motion gate, context near the auto-handoff percent,
+  saved, interface probe pending or failed, context near the auto-handoff percent,
   auto-handoff fired. The completion moment takes it when the last task is checked, the work
   completes or the goal is met: a light passes over the brand, embers scatter, and `COMPLETE`
   shows for about a second.
@@ -555,7 +555,7 @@ The mod is read-only. It reads LitClaude's own state, the Git `HEAD` of the work
 the merged settings (for the status line's accent) and nothing else: the ignition record in the
 per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
 linked worktree), and under the outermost Git root's `.litclaude/` the litgoal goal, autoloop
-counter and ledger, the lit-plan, interface-probe and motion turn records, the auto-handoff
+counter and ledger, the lit-plan and interface-probe turn records, the auto-handoff
 settings and session record, and `invite.json` under `LITCLAUDE_HOME` (else `~/.litclaude`) while
 the `club` option is on. Each file must be a regular file under its size cap that resolves
 exactly where its path says, so a symlinked file or state folder is skipped. It writes nothing,
@@ -1088,12 +1088,12 @@ blocks at most twice per turn, then warns once and allows; unreadable state allo
 scripts, servers, command-line tools or docs, and turns outside a lit workflow, are never held.
 lit-loop's SURFACE step and lit-plan's Verification rows say the same in prose.
 
-Leading `readme-studio` / `$readme-studio` selects the plugin's README skill and embeds
-its body. Incidental, quoted and near-miss tokens do not enroll that route. There is
-no dedicated command file, new hook event or bundled image-generation service.
-Actual Claude Code capability governs generation; absent tools produce
-`IMAGE_GENERATION_UNAVAILABLE`, followed by composition from a supplied inspected
-background if available. Integrity checks include its nested templates and helpers.
+Leading `readme-studio` / `$readme-studio` selects the README skill. It is now a same-name stub
+for the `video-covers` plugin of wjgoarxiv-skills: the hook adds its mode contract, which tells the
+model to load `Skill(video-covers:readme-studio)` when the session lists it and otherwise to reply
+with the install lines and build no cover, and the exact installed `SKILL.md` path. Incidental,
+quoted and near-miss tokens do not enroll that route. There is no dedicated command file. The
+integrity check covers the stub's `SKILL.md`; the templates and helpers left with the body.
 
 Leading `lit-diagram-drawer` / `$lit-diagram-drawer` selects the diagram skill. It is now a
 same-name stub for the `figures` plugin of wjgoarxiv-skills: the hook adds its mode contract,
@@ -1140,19 +1140,9 @@ and interface routes, so "발표 영상" and "타이포그래피 영상" reach t
 footage, a video placed in a page or in slides, a script, thumbnail or summary about a video, UI
 motion (hover, motion tokens), video as a software feature (a player, an upload), or a bare 모션 /
 motion / 인트로 / intro. There is no token-free motion route, and the token-free interface fallback
-no longer claims a video prompt. The hook adds a neutral film context (a film request, the
-treatment first, the path rule between the type and stage renderers, never which path applies, the
-house style, format and length fixed by the treatment's rules, the scaffold, and the board round),
-the exact installed `SKILL.md` path and the installed `motion.mjs` named once with its `scaffold`,
-`stage`, `cover`, `make`, `sound`, `look` and `gate` subcommands, within 4,096 bytes, plus one line that
-sends a README, hero, banner or cover loop to cover mode. A type-led cue (a type
-compound, a kinetic-type or lyric request, or a quoted span of two or more words) adds one
-`type-led cue found` hint line. PostToolUse records every `motion.mjs` run, and the Stop hook holds
-the turn until the film is done: a valid treatment, gate PASS, at least two look rounds (the board
-round with its change, then a round stamped with the final render's stills manifest), and every
-frame of that last round, the storyboard included, opened with Read. A treatment with `preview: true`
-is done at a passed, viewed board. A cover (treatment `mode: cover`) is done when the
-decoded cover reached every TARGET gate and the last of at least two look rounds viewed the contact
-sheet, the poster and the seam pair. A missing or unreadable `treatment.json` or `look.json`
-blocks with a named reason. After two reminders the hook tells the model to say in the reply that
-the film is not done and why.
+no longer claims a video prompt. The hook adds the stub's mode contract, which tells the model to load
+`Skill(video-covers:lit-typographic-motion)` when the session lists it and otherwise to reply with
+the install lines and render nothing, and the exact installed `SKILL.md` path, within 4,096 bytes.
+The film director moved to the `video-covers` plugin of wjgoarxiv-skills, and the motion completion
+gate left with it: PostToolUse no longer records `motion.mjs` runs and the Stop hook no longer holds a
+film turn, so the moved skill's own gate decides when a film is done.

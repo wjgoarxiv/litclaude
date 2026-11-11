@@ -460,20 +460,17 @@ describe("litclaude-ai CLI", () => {
     ]);
   });
 
-  it("refuses an unknown motion-runtime install flag without installing", () => {
-    const cache = mkdtempSync(join(tmpdir(), "litclaude-motion-flag-"));
+  it("no longer has a motion-runtime command: the film runtime left with lit-typographic-motion", () => {
+    const cache = mkdtempSync(join(tmpdir(), "litclaude-motion-gone-"));
     try {
-      for (const flag of ["--dry-run", "-n"]) {
-        const result = runCliWithEnv(["motion-runtime", "install", flag], {
-          LITCLAUDE_MOTION_RUNTIME: cache,
-          npm_config_registry: "http://127.0.0.1:9/",
-          LITCLAUDE_NO_AUTO_UPDATE: "1",
-        });
-        assert.equal(result.status, 2, `${flag}: ${result.stdout}${result.stderr}`);
-        assert.match(result.stderr, new RegExp(`unknown install option: ${flag}`, "u"));
-        assert.doesNotMatch(result.stderr, /MOTION_RUNTIME_INSTALL_FAIL|motion-runtime: /u);
-        assert.deepEqual(readdirSync(cache), [], `${flag} must not touch the motion cache`);
-      }
+      const result = runCliWithEnv(["motion-runtime", "install"], {
+        XDG_CACHE_HOME: cache,
+        npm_config_registry: "http://127.0.0.1:9/",
+        LITCLAUDE_NO_AUTO_UPDATE: "1",
+      });
+      assert.equal(result.status, 64, `${result.stdout}${result.stderr}`);
+      assert.match(result.stderr, /Unknown command: motion-runtime/u);
+      assert.deepEqual(readdirSync(cache), [], "nothing is written to the cache");
     } finally {
       rmSync(cache, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }

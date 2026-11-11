@@ -18,7 +18,7 @@ import { installModH } from "./helpers/mod-h.mjs";
 const NOW = 10_000_000;
 const SID = "11111111-aaaa-bbbb-cccc-000000000001";
 const iso = (ms) => new Date(ms).toISOString();
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const frame = (skill, family, stage, extra = {}) => ({ skill, family, stage, role: "spine", status: "active", verdicts: {}, at: iso(NOW - 2000), ...extra });
 const stackOf = (frames) => parseWorkflowStack({ version: 1, sessionId: SID, frames, history: [] }, SID);
 const snapshotWith = (frames, extra = {}) => ({

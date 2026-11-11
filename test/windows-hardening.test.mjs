@@ -9,15 +9,14 @@ import { fileURLToPath } from "node:url";
 
 import { npmInvocation, quoteForCmd } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import { runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
-import * as motionHost from "../plugins/litclaude/skills/lit-typographic-motion/engine/node/host.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const libRoot = join(root, "plugins", "litclaude", "lib");
 const NPM_CLI = "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js";
 
+// The motion engine's own host.mjs, the other copy this loop covered, moved to the video-covers extras plugin.
 for (const [label, invocation] of [
   ["lib/npm-invocation.mjs", npmInvocation],
-  ["motion engine host.mjs", motionHost.npmInvocation],
 ]) {
   describe(`npm on win32 (${label})`, () => {
     it("runs npm-cli.js through this Node when npm_execpath names it, with no shell", () => {
@@ -45,7 +44,6 @@ for (const [label, invocation] of [
 describe("cmd.exe argument quoting", () => {
   it("refuses an argument cmd.exe would still expand or split inside quotes", () => {
     for (const bad of ["%PATH%", "a\"b", "a\r\nb"]) assert.throws(() => quoteForCmd(bad), /refusing to pass/u);
-    assert.throws(() => motionHost.quoteForCmd("%x%"), /refusing to pass/u);
   });
 
   it("quotes shell metacharacters and leaves plain words alone", () => {
@@ -56,22 +54,6 @@ describe("cmd.exe argument quoting", () => {
   it("an explicit .cmd override goes through the shell, an .exe does not", () => {
     assert.equal(npmInvocation(["ci"], { command: "C:\\tools\\npm.cmd", platform: "win32", env: {} }).shell, true);
     assert.deepEqual(npmInvocation(["ci"], { command: "C:\\tools\\fake-npm.exe", platform: "win32", env: {} }), { command: "C:\\tools\\fake-npm.exe", args: ["ci"], shell: false });
-  });
-});
-
-describe("which on win32", () => {
-  it("drops the \\r of CRLF `where` output and returns the first match", () => {
-    const calls = [];
-    const spawn = (command, args) => {
-      calls.push([command, ...args]);
-      return { status: 0, stdout: "C:\\ffmpeg\\bin\\ffmpeg.exe\r\nC:\\other\\ffmpeg.exe\r\n" };
-    };
-    assert.equal(motionHost.which("ffmpeg", {}, { platform: "win32", spawn }), "C:\\ffmpeg\\bin\\ffmpeg.exe");
-    assert.deepEqual(calls, [["where", "ffmpeg"]]);
-  });
-
-  it("is null when the lookup fails", () => {
-    assert.equal(motionHost.which("ffmpeg", {}, { platform: "win32", spawn: () => ({ status: 1, stdout: "" }) }), null);
   });
 });
 

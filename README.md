@@ -83,6 +83,8 @@ lit-typographic-motion writes a treatment first, then renders the film frame by 
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/film-hero.webp" width="400" alt="Poster frame of the film: a glowing flame keycap on a dark teal field of keys, the word LitClaude, and a stage bar reading PROMPT, PLAN, WORK 2/2, REVIEW and DONE." /><br /><b>lit-typographic-motion</b> · 13-second hero film, poster<br /><code>lit LitClaude 히어로 영상 13초짜리 만들어줘. LIT 불꽃 키가 주인공으로, 프롬프트 → 계획 → 작업 → 리뷰 → 완료로 lit-loop가 돌아가는 세계를 고퀄리티 3D로 보여줘.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/film-frames.webp" width="400" alt="Twelve frames of the hero film in a grid: the keycap lights up, Korean captions for each stage appear, and the last row lands on the LitClaude title." /><br /><b>lit-typographic-motion</b> · frames from the same film<br /><sub>Twelve frames of that film, from the dark opening to the LitClaude title.</sub></td></tr>
 </table>
 
+lit-typographic-motion and readme-studio now ship separately as the `video-covers` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes film and README requests to it and gives the install line when it is missing.
+
 ### Keep track of it
 
 When two workflows and three helpers run at once, the LIT card draws them as threads under the prompt. Type <code>lit adhd</code> after a scattered day and you get one brief: what you asked, what got done, what is paused and the next step. <code>go</code> then picks up the single open plan.

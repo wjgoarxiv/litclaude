@@ -186,7 +186,6 @@ test("the snapshot reads every LitClaude state file for this session and nothing
     writeJson(join(project, ".litclaude", "litgoal", "autoloop.json"), { blockCount: 3, firstBlockAt: 1000 });
     writeJson(join(project, ".litclaude", "lit-plan", "turn.json"), { sessionId, promptAt: 5, blockCount: 1, warned: false });
     writeJson(join(project, ".litclaude", "interface-probe", "turn.json"), { sessionId, editAt: 10, probeAt: null, issue: "a HIGH finding remains", issueAt: 12, paths: ["a.css"], blockCount: 1 });
-    writeJson(join(project, ".litclaude", "motion", "turn.json"), { sessionId: "someone-else", runs: [], blockCount: 2 });
     writeJson(join(project, ".litclaude", "auto-handoff", "settings.json"), { enabled: true, percent: 80 });
     writeJson(join(project, ".litclaude", "auto-handoff", `session-${sessionId}.json`), { armed: false, pending: true, firedAt: 99, firedAtPercent: 81 });
 
@@ -202,7 +201,7 @@ test("the snapshot reads every LitClaude state file for this session and nothing
     assert.deepEqual(snapshot.autoloop, { blockCount: 3, firstBlockAt: 1000 });
     assert.equal(snapshot.litPlan.blockCount, 1);
     assert.equal(snapshot.probe.issue, "a HIGH finding remains");
-    assert.equal(snapshot.motion, null, "another session's motion turn is not ours");
+    assert.equal("motion" in snapshot, false, "the motion gate left with lit-typographic-motion, so the card reads no motion turn");
     assert.deepEqual(snapshot.handoff, { percent: 80, firedAt: 99, firedAtPercent: 81, pending: true });
 
     const stranger = await readLitSnapshot(realIo(), { cwd: project, sessionId: "other", env: { LITCLAUDE_HUD_STATE_ROOT: hud } });

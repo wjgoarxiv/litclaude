@@ -9,7 +9,6 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'plugins/litclaude/skills/lit-typographic-motion/**'
       - 'plugins/litclaude/lib/mark.mjs'
       - 'plugins/litclaude/lib/canonical-*.mjs'
       - 'bin/**'
@@ -19,9 +18,7 @@ on:
       - 'tools/test-shard.mjs'
       - 'tools/test-shard-timings.json'
       - 'package.json'
-      - 'test/lit-typographic-motion-*.test.mjs'
       - 'test/mark-visible.test.mjs'
-      - 'test/mark-engines.test.mjs'
       - 'test/installer-ownership.test.mjs'
       - 'test/installer-terminal-policy.test.mjs'
       - 'test/portable-install.test.mjs'
@@ -59,11 +56,6 @@ jobs:
 
       - name: ffmpeg for the motion and audio tests
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      # The render tests skip themselves when the motion runtime cache is cold ("motion runtime not
-      # pre-warmed"), so it is warmed here, once per job, before any test starts.
-      - name: Pre-warm the motion runtime for the render tests
-        run: node bin/litclaude-ai.js motion-runtime install
 
       - name: Render and installer tests (heavy shard ${{ matrix.shard }})
         run: npm run test:shard -- --tier heavy ${{ matrix.shard }}

@@ -267,7 +267,6 @@ const runCli = (args, sandbox, extra = {}) => {
     LITCLAUDE_NO_UPDATE_CHECK: "1",
     NO_COLOR: "1",
     LITCLAUDE_SPINNER: "0",
-    LITCLAUDE_MOTION_PREWARM: "0",
     ...extra,
   };
   for (const name of ["LITCLAUDE_ICON_FONT_SOURCE", "LITCLAUDE_ICON_FONT_PROMPT", "TERM_PROGRAM"]) if (!Object.hasOwn(extra, name)) delete env[name];

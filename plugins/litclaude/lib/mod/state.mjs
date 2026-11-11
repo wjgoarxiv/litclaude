@@ -26,7 +26,7 @@ export const STATE_CAPS = Object.freeze({
 // Mirrors PROJECT_MARKERS in rules/constants.mjs, the fallback when no Git root exists.
 const PROJECT_MARKERS = Object.freeze([".git", "pnpm-workspace.yaml", "package.json", "pyproject.toml", "Cargo.toml", "go.mod", ".venv"]);
 export const AUTOLOOP_LIMITS = Object.freeze({ blocks: 8, ms: 30 * 60 * 1000 });
-export const GATE_LIMITS = Object.freeze({ litPlan: 2, probe: 2, motion: 2 });
+export const GATE_LIMITS = Object.freeze({ litPlan: 2, probe: 2 });
 
 const splitPath = (path) => String(path).replaceAll("\\", "/").split("/").filter((part, index) => part !== "" || index === 0);
 
@@ -297,11 +297,6 @@ export const parseProbeTurn = (state, sessionId) => {
   };
 };
 
-export const parseMotionTurn = (state, sessionId) => {
-  const turn = forSession(state, sessionId);
-  return turn ? { blockCount: int(turn.blockCount), runs: Array.isArray(turn.runs) ? turn.runs.length : 0, notified: turn.notified === true } : null;
-};
-
 const percentOf = (raw) => {
   const text = typeof raw === "number" ? String(raw) : raw;
   if (typeof text !== "string" || !/^(?:[1-9]\d?)$/u.test(text.trim())) return null;
@@ -507,14 +502,13 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
   const lifecycleRoot = await resolveLifecycleRoot(io, cwd, stateRoot, sessionId);
   const state = (relative, cap = STATE_CAPS.small) => readGuardedJson(io, stateRoot, joinPath(".litclaude", relative), cap);
   const handoffId = handoffSessionId(sessionId);
-  const [ignition, boulder, goals, autoloop, litPlan, probe, motion, handoffSettings, handoffSession] = await Promise.all([
+  const [ignition, boulder, goals, autoloop, litPlan, probe, handoffSettings, handoffSession] = await Promise.all([
     readGuardedJson(io, ignitionRoot(env), ignitionFileName(sessionId), STATE_CAPS.small),
     readGuardedJson(io, lifecycleRoot, joinPath(".litclaude", "boulder.json"), STATE_CAPS.boulder),
     state("litgoal/goals.json", STATE_CAPS.goals),
     state("litgoal/autoloop.json"),
     state("lit-plan/turn.json"),
     state("interface-probe/turn.json"),
-    state("motion/turn.json"),
     state("auto-handoff/settings.json"),
     handoffId ? state(`auto-handoff/session-${handoffId}.json`) : null,
   ]);
@@ -531,7 +525,6 @@ export const readLitSnapshot = async (io, { cwd, sessionId, env = {} }) => {
     autoloop: parseAutoloop(autoloop),
     litPlan: parseLitPlanTurn(litPlan, sessionId),
     probe: parseProbeTurn(probe, sessionId),
-    motion: parseMotionTurn(motion, sessionId),
     handoff: parseAutoHandoff(handoffSettings, handoffSession, env),
     workflow,
   };

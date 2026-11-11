@@ -1539,9 +1539,8 @@ describe("design-production routes", () => {
       assert.equal(result.status, 0, result.stderr);
       const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
       assert.match(context, /Skill\(readme-studio\)/u);
-      assert.match(context, /IMAGE_GENERATION_UNAVAILABLE/u);
-      assert.match(context, /review-only.*read-only/iu);
-      assert.match(pointedSkillBody(context, prompt), /name: readme-studio/u);
+      assert.match(context, /video-covers@wjgoarxiv-skills/u, "the stub route carries the install line");
+      assert.match(context, /same-name pointer stub/u);
     }
     for (const prompt of ["Explain the readme-studio identifier", "`readme-studio`", "readme-studioish create this", "Please quote readme-studio, do not run it"]) {
       const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", cwd: root, prompt });

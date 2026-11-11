@@ -177,41 +177,6 @@
       "version": "1.0.0",
       "occurrences": 1,
       "why": "Frozen semantic-version comparison operand; not the product release."
-    },
-    {
-      "path": "plugins/litclaude/skills/readme-studio/templates/hyperframes-cover/package-lock.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 7,
-      "why": "npm-pinned third-party dependency versions in the README Studio template lockfile; not the product release."
-    },
-    {
-      "path": "plugins/litclaude/skills/readme-studio/templates/remotion-cover/package-lock.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 13,
-      "why": "npm-pinned third-party dependency versions in the README Studio template lockfile; not the product release. Its @types/estree range also matches the current release by coincidence and must not move with a bump."
-    },
-    {
-      "path": "plugins/litclaude/skills/readme-studio/templates/typography/package-lock.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 1,
-      "why": "npm-pinned third-party dependency versions in the README Studio template lockfile; not the product release."
-    },
-    {
-      "path": "plugins/litclaude/skills/lit-typographic-motion/engine/package.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 1,
-      "why": "private package version of the lit-typographic-motion engine lock holder; not the product release."
-    },
-    {
-      "path": "plugins/litclaude/skills/lit-typographic-motion/engine/package-lock.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 2,
-      "why": "npm-pinned dependency lockfile of the lit-typographic-motion engine; not the product release."
     }
   ]
 }

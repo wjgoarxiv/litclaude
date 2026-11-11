@@ -202,7 +202,7 @@ describe("installer, doctor, config and project surfaces", () => {
   const cli = (args, { litHome, claudeHome, cwd = root, env = {} }) => spawnSync(process.execPath, [binPath, "--no-auto-update", ...args], {
     cwd,
     encoding: "utf8",
-    env: { ...baseEnv, HOME: join(litHome, ".."), LITCLAUDE_MOTION_PREWARM: "0", LITCLAUDE_HOME: litHome, CLAUDE_HOME: claudeHome, ...env },
+    env: { ...baseEnv, HOME: join(litHome, ".."), LITCLAUDE_HOME: litHome, CLAUDE_HOME: claudeHome, ...env },
   });
   const homes = (dir) => ({ litHome: join(dir, "lit"), claudeHome: join(dir, "claude") });
 

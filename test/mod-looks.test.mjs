@@ -26,7 +26,7 @@ const NOW = 10_000_000;
 const SID = "looks-session-01";
 const ACCENT = "#5fd7ff";
 const iso = (ms) => new Date(ms).toISOString();
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const reviewSnapshot = (verdicts) => {
   const stack = parseWorkflowStack({ version: 1, sessionId: SID, frames: [{ skill: "review-work", family: "main", stage: "review", role: "spine", status: "active", verdicts, at: iso(NOW - 2000) }], history: [] }, SID);
   return { ...idle(), ignition: { discipline: "review-work", at: NOW - 1000 }, workflow: { stack, record: stack.record } };

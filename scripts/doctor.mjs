@@ -34,9 +34,6 @@ run("CLI dry-run", process.execPath, ["bin/litclaude-ai.js", "--dry-run", "docto
 run("Plugin validation", process.execPath, ["scripts/validate-plugin.mjs"]);
 run("Workflow readiness", process.execPath, ["bin/litclaude-ai.js", "workflow-check", "--json"]);
 run("LSP doctor", process.execPath, ["plugins/litclaude/bin/litclaude-lsp-doctor.js"]);
-// Readiness only, never fatal: the six lit-typographic-motion probes (Chrome, ffmpeg, WebGL2
-// renderer, software-GL warning, pre-warm state with its fix command, cover encoder).
-run("Motion runtime (lit-typographic-motion)", process.execPath, ["plugins/litclaude/skills/lit-typographic-motion/scripts/motion-doctor.mjs"]);
 
 for (const file of [
   "plugins/litclaude/lib/litgoal/paths.mjs",

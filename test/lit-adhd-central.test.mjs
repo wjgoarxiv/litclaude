@@ -18,7 +18,7 @@ import { projectSlug } from "../plugins/litclaude/lib/rewind/transcripts.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const plugin = join(root, "plugins", "litclaude");
 const NOW = 50_000_000;
-const idle = { ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null };
+const idle = { ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null };
 const cardAfter = (awayMs, columns = 100) => {
   const model = buildBandModel({ snapshot: idle, now: NOW, skills: [{ id: "lit-loop", at: NOW - awayMs, state: "recent" }], lastDiscipline: "lit-loop" });
   return { model, text: composeBand(model, settledSample(model), { columns, glyphs: "basic", accent: "#5fd7ff" }).rows.map(rowText).join("\n") };

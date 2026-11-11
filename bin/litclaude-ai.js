@@ -14,7 +14,7 @@ import { cp, mkdir, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   canonicalSkillFiles,
   canonicalSkillIds,
@@ -84,26 +84,9 @@ import {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const motionSkillScripts = join(root, "plugins", "litclaude", "skills", "lit-typographic-motion", "scripts");
-
-// lit-typographic-motion pre-warm, attempted by install (and so by the global npm postinstall).
-// A failure never fails the install: it prints one receipt line naming the command. The cache is
-// only ever written by this step or by \`litclaude-ai motion-runtime install\`, never by a render.
-const prewarmMotionRuntime = () => {
-  if (process.env.LITCLAUDE_MOTION_PREWARM === "0") {
-    return "MOTION_RUNTIME: pre-warm skipped (LITCLAUDE_MOTION_PREWARM=0); run: litclaude-ai motion-runtime install";
-  }
-  const result = spawnSync(process.execPath, [join(motionSkillScripts, "motion-runtime.mjs"), "install"], {
-    encoding: "utf8",
-    timeout: Number(process.env.LITCLAUDE_MOTION_PREWARM_TIMEOUT_MS ?? 600000),
-  });
-  if (result.status === 0) return "MOTION_RUNTIME: pre-warmed (engine deps and fonts ready)";
-  const why = `${result.stderr || result.error?.message || "unknown error"}`.trim().split(/\r?\n/u).filter(Boolean).pop()?.slice(0, 200) ?? "unknown error";
-  return `MOTION_RUNTIME: not pre-warmed (${why}); run: litclaude-ai motion-runtime install`;
-};
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read|motion-runtime> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read> [...args]
        litclaude-ai --version
 
 Commands:
@@ -141,8 +124,6 @@ Commands:
                 Draw the lit-adhd brief: what recent sessions in this project's
                 worktrees asked, did and wait on, with plan gauges and one next step.
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
-  motion-runtime Pre-warm (install [--audio] [--word-timing]) or report (status) the
-                lit-typographic-motion runtime cache. Run it outside a sandboxed session.
   update        Reinstall this package version and refresh the Claude plugin registry.
   uninstall     Remove LitClaude-managed install state.
 
@@ -174,7 +155,6 @@ Install options:
                 of that archive can be named with LITCLAUDE_ICON_FONT_SOURCE.
                 An interactive install asks instead (default No).
 
-Typographic-motion engine adapted from mexicat/pdoom-video (MIT, Giacomo Magnanini), commit \`ca251e3\`.
 `;
 
 const dryRunAfterCommand = new Set(["install", "update", "uninstall", "doctor"]);
@@ -1558,7 +1538,6 @@ const install = async ({ dryRun, rest }) => {
       : permissionModes.has(existingLitClaude.permissionMode) ? "preserved" : "default";
     process.stdout.write(`Would mutate global Claude settings permissions.allow/deny: ${permissionMode} (${permissionSource})\n`);
     process.stdout.write(`Permission profile: ${permissionProfile(permissionMode).description}\n`);
-    process.stdout.write("Would pre-warm the lit-typographic-motion runtime: litclaude-ai motion-runtime install\n");
     const fontPlan = planIconFontInstall(iconFontPaths());
     if (iconFont) {
       process.stdout.write(fontPlan.supported
@@ -1682,7 +1661,6 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`);
   process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)\n`);
   process.stdout.write("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n");
-  process.stdout.write(`${prewarmMotionRuntime()}\n`);
   if (wantsIconFont) await runIconFontInstall();
   await installAttribution({ assumeYes });
   await installAgentFile({ assumeYes, agentFile });
@@ -1710,7 +1688,6 @@ const doctor = ({ dryRun }) => {
     process.stdout.write(`Would inspect automatic-update receipt/journal under: ${join(automaticUpdateRoot(litHome()), "receipt.json")}\n`);
     for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
     process.stdout.write("Would verify the bundled handoff snapshot hashes\n");
-    process.stdout.write(`Would report: node ${join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")} (Chrome, ffmpeg, WebGL2 renderer, software-GL warning, motion pre-warm)\n`);
     process.stdout.write("Would verify exact canonical frontend corpus bytes, legal companions, no extras, and three canonical runtime closures\n");
     writeAutoHandoffDoctorLines();
     process.stdout.write(`${iconFontDoctorLine()}\n`);
@@ -1787,13 +1764,6 @@ const doctor = ({ dryRun }) => {
   process.stdout.write(`AGENT_FILE: ${agentFileMode === "off" ? "off" : agentFileState({ path: agentFilePath(), version })} (${agentFilePath()}; change: litclaude-ai config agentFile <on|off>)\n`);
   process.stdout.write(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })} (change: litclaude-ai config attribution <keep|off>)\n`);
   for (const line of officialBuildLines(packageJson)) process.stdout.write(`${line}\n`);
-
-  // lit-typographic-motion: the seven readiness probes, every run. Read-only and never fatal; a
-  // missing pre-warm names the command that fixes it.
-  const motionDoctor = spawnSync(process.execPath, [join(pluginPath, "skills", "lit-typographic-motion", "scripts", "motion-doctor.mjs")], { encoding: "utf8", timeout: 120000 });
-  const motionLines = `${motionDoctor.stdout || ""}`.trim().split(/\r?\n/u).filter(Boolean);
-  if (motionLines.length) for (const line of motionLines) process.stdout.write(`${line}\n`);
-  else process.stdout.write(`MOTION_DOCTOR_WARNING: probes did not run (${`${motionDoctor.stderr || motionDoctor.error?.message || "no output"}`.trim().split(/\r?\n/u)[0]})\n`);
 
   const claude = spawnTool("claude", ["--version"], { encoding: "utf8" });
   if (claude.error) {
@@ -2057,11 +2027,6 @@ const main = async () => {
     case "start-work":
       exitAfterFlush(runStartWorkCli(parsed.rest, undefined, process.cwd()));
       break;
-    case "motion-runtime": {
-      const { main: motionRuntime } = await import(pathToFileURL(join(motionSkillScripts, "motion-runtime.mjs")).href);
-      exitAfterFlush(await motionRuntime(parsed.rest));
-      break;
-    }
     case "uninstall":
       uninstall(parsed);
       break;

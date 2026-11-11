@@ -31,7 +31,6 @@ const routes = [
   ["refactor the parser module", 3_500],
   ["debugging why does the build hang", 3_500],
   ["litgoal show", 3_500],
-  ["readme-studio improve README", 3_500],
   ["lit start-work", 3_500],
   // lit-recap inlines its whole body; 9,200 makes room for the one-sentence lit-adhd cross-link.
   ["lit recap", 9_200],
@@ -53,6 +52,8 @@ const otherRoutes = [
   "browser-drive open the pricing page",
   "lit-humanizer 이 문단 다듬어줘",
   "lit-code add the parser",
+  // readme-studio is a same-name stub now; its route sends the 4,096-byte stub context every time.
+  "readme-studio improve README",
 ];
 
 let temp;

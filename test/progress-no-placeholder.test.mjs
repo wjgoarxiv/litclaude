@@ -17,7 +17,7 @@ const NOW = 10_000_000;
 const SID = "11111111-aaaa-bbbb-cccc-000000000001";
 // `?/?`, `[???]`, `7/?`, `10+/?`: any question-mark run standing for a number.
 const PLACEHOLDER = /\?\/\?|\[\?+\]|\d\+?\/\?|\?\/\d/u;
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const iso = (ms) => new Date(ms).toISOString();
 const frame = (skill, family, stage, extra = {}) => ({ skill, family, stage, role: "spine", status: "active", verdicts: {}, at: iso(NOW - 4 * 60_000), ...extra });
 const stackOf = (frames) => parseWorkflowStack({ version: 1, sessionId: SID, frames, history: [] }, SID);

@@ -10,7 +10,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const skip = (reason) => {
   process.stdout.write(`LitClaude postinstall skipped: ${reason}\n`);
   process.stdout.write("Run `litclaude install` to register the Claude Code plugin and HUD.\n");
-  process.stdout.write("MOTION_RUNTIME: not pre-warmed (postinstall skipped); run: litclaude-ai motion-runtime install\n");
   process.exit(0);
 };
 

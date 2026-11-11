@@ -16,7 +16,7 @@ import { REWIND_LINGER_MS, buildBandModel } from "../plugins/litclaude/lib/mod/v
 const NOW = 10_000_000;
 const CYAN = "#5fd7ff";
 const CARD_BG = "#0d1117";
-const snapshotOf = (discipline, at) => ({ ignition: discipline ? { discipline, at } : null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const snapshotOf = (discipline, at) => ({ ignition: discipline ? { discipline, at } : null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 // The card after the brief's turn ended: not working, the lit-adhd chip settled to recent.
 const afterTurn = (discipline = "lit-adhd", sinceIgnition = 60_000) => buildBandModel({
   snapshot: snapshotOf(discipline, NOW - sinceIgnition),

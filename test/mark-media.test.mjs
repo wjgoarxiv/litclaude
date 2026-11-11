@@ -7,7 +7,6 @@ import { describe, it } from "node:test";
 import zlib from "node:zlib";
 
 import { ffmpegMetadataArgs, generatorString, svgWithMetadata, tagFile, tagGifBuffer, tagPdfBuffer, tagPngBuffer, tagWebpBuffer } from "../plugins/litclaude/lib/mark.mjs";
-import { parseWebp } from "../plugins/litclaude/skills/lit-typographic-motion/engine/node/webp.mjs";
 
 const GEN = generatorString();
 const has = (tool) => spawnSync(tool, ["-version"], { encoding: "utf8" }).status === 0 || spawnSync(tool, ["-h"], { encoding: "utf8" }).status === 0;
@@ -113,7 +112,7 @@ describe("generator tag in media outputs", () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
-  it("animated WebP: XMP chunk and VP8X flag set; the motion engine still parses every frame", { skip: has("img2webp") ? false : "img2webp not on PATH" }, () => {
+  it("animated WebP: XMP chunk and VP8X flag set, RIFF size updated", { skip: has("img2webp") ? false : "img2webp not on PATH" }, () => {
     const dir = mkdtempSync(join(tmpdir(), "litclaude-mark-webp-"));
     try {
       writeFileSync(join(dir, "1.png"), tinyPng());
@@ -128,9 +127,7 @@ describe("generator tag in media outputs", () => {
       const xmp = chunks.filter((c) => c.type === "XMP ");
       assert.equal(xmp.length, 1);
       assert.match(xmp[0].body.toString("utf8"), new RegExp(`<xmp:CreatorTool>${GEN.replace(/[.]/gu, "\\.")}</xmp:CreatorTool>`, "u"));
-      const a = parseWebp(before), b = parseWebp(tagged);
-      assert.equal(b.frames.length, a.frames.length);
-      assert.deepEqual([b.width, b.height, b.loop], [a.width, a.height, a.loop]);
+      assert.equal(chunks.filter((c) => c.type === "ANMF").length, webpChunks(before).filter((c) => c.type === "ANMF").length, "every frame kept");
       assert.ok(tagWebpBuffer(tagged, GEN).equals(tagged), "idempotent");
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });

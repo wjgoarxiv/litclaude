@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { parseMotionCommand, exitCodeOf } from "../plugins/litclaude/lib/motion-render-gate.mjs";
+// lit-typographic-motion moved to the video-covers extras plugin; the bare-lit film route below still leads to its
+// same-name stub, so the routing corpus stays here.
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -108,54 +107,12 @@ describe("lit-typographic-motion bare-lit routing (real hook)", () => {
     assert.equal(routeOf("lit-typographic-motion 봄 축제 오프닝"), "Skill(lit-typographic-motion)");
   });
 
-  it("the route context names the exact installed entrypoint and the CLI once, with its subcommands, within 4096 bytes", () => {
+  it("the route context names the installed stub and the install line, within 4096 bytes", () => {
     const context = contextFor("이 시 구절로 키네틱 타이포 영상 만들어줘 lit");
     assert.ok(Buffer.byteLength(context, "utf8") <= 4096, `${Buffer.byteLength(context, "utf8")} bytes`);
     assert.ok(context.includes(JSON.stringify(join(skillRoot, "SKILL.md"))), "installed SKILL.md path");
-    const cli = JSON.stringify(join(skillRoot, "scripts", "motion.mjs"));
-    assert.ok(context.includes(`M=node ${cli}\n`), "the installed CLI, named once");
-    assert.ok(context.includes("$M make <brief.json> --out <dir> --round <N> [--stills-only]"));
-    assert.ok(context.includes("$M stage --out <dir> --round <N> [--stills-only]"));
-    assert.ok(context.includes("$M gate <dir>"));
-    assert.match(context, /ask no questions/u);
-    assert.doesNotMatch(context, /Soft-confirm/u);
-  });
-});
-
-// The done semantics themselves (treatment, gate, look rounds, frames opened) are tested in
-// test/lit-typographic-motion-look.test.mjs; here: the command parser and the hook wiring.
-describe("lit-typographic-motion completion contract (Stop hook)", () => {
-  it("parses the installed command and its exit line; a PostToolUse run arms the Stop block", () => {
-    const parsed = parseMotionCommand(`node "${join(skillRoot, "scripts", "motion.mjs")}" make brief.json --out ./film --round 2 --viewed 3`, "/work");
-    assert.deepEqual({ ...parsed }, { mode: "make", brief: "/work/brief.json", out: "/work/film", round: 2, stillsOnly: false });
-    assert.deepEqual({ ...parseMotionCommand(`node "${join(skillRoot, "scripts", "motion.mjs")}" stage --out ./film --round 1 --stills-only`, "/work") }, { mode: "stage", brief: null, out: "/work/film", round: 1, stillsOnly: true });
-    assert.equal(parseMotionCommand(`node "${join(skillRoot, "scripts", "motion.mjs")}" look --out ./film --round 2 --answers a.json`, "/work").out, "/work/film");
-    // A shell variable set earlier in the same command is expanded; one the command never sets leaves no output to judge.
-    const motion = join(skillRoot, "scripts", "motion.mjs");
-    assert.equal(parseMotionCommand(`D=./motion-cover; node "${motion}" look --out $D --round 2 --answers a.json`, "/work").out, "/work/motion-cover");
-    assert.equal(parseMotionCommand(`D="/abs/film" && node "${motion}" stage --out "\${D}" --round 2`, "/work").out, "/abs/film");
-    assert.equal(parseMotionCommand(`node "${motion}" stage --out "$D" --round 2`, "/work").out, null);
-    assert.equal(exitCodeOf("…\nexit 13 GATE_FAIL_QA\n"), 13);
-    const project = mkdtempSync(join(tmpdir(), "lit-motion-stop-"));
-    try {
-      writeFileSync(join(project, "package.json"), "{}");
-      const session = "motion-stop-session";
-      hook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "이 시 구절로 키네틱 타이포 영상 만들어줘 lit", session_id: session }, project);
-      const blocked = hook("stop", { hook_event_name: "Stop", session_id: session }, project);
-      assert.equal(blocked.decision, "block", "a motion turn with no render cannot end");
-      hook("post-tool-use", { hook_event_name: "PostToolUse", session_id: session, tool_name: "Bash", tool_input: { command: `node "${join(skillRoot, "scripts", "motion.mjs")}" make brief.json --out out --stills-only` }, tool_response: { stdout: "STILLS_ONLY\nexit 0 OK\n" } }, project);
-      const again = hook("stop", { hook_event_name: "Stop", session_id: session }, project);
-      assert.equal(again.decision, "block", "stills-only is not done");
-      assert.match(again.reason, /not done/u);
-      const capped = hook("stop", { hook_event_name: "Stop", session_id: session }, project);
-      assert.equal(capped.decision, "block", "after two reminders the hook blocks once more to have the reply say the film is not done");
-      assert.match(capped.reason, /say in the reply, in plain words, that the film is not done and why/u);
-      assert.deepEqual(hook("stop", { hook_event_name: "Stop", session_id: session }, project), {}, "then the stop passes");
-      hook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "thanks", session_id: session }, project);
-      assert.deepEqual(hook("stop", { hook_event_name: "Stop", session_id: session }, project), {}, "a non-motion turn clears the gate");
-    } finally {
-      rmSync(project, { recursive: true, force: true });
-    }
-    assert.ok(statSync(hookPath).isFile());
+    assert.match(context, /same-name pointer stub/u);
+    assert.match(context, /video-covers@wjgoarxiv-skills/u);
+    assert.doesNotMatch(context, /motion\.mjs|Soft-confirm/u);
   });
 });

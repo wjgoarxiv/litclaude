@@ -123,9 +123,7 @@ describe('test shards: the workflows split fast and heavy', () => {
       const text = readFileSync(join(ROOT, '.github', 'workflows', name), 'utf8');
       assert.doesNotMatch(text, /test:shard/u, `${name} still shards the fast tier`);
       assert.match(text, /run: npm test\s*$/mu, `${name} does not run the fast tier`);
-      const warm = text.indexOf('run: node bin/litclaude-ai.js motion-runtime install');
-      assert.ok(warm > -1 && warm < text.indexOf('run: npm test'),
-        `${name}: the fast tier must pre-warm the motion runtime before its tests, or render tests skip`);
+      assert.doesNotMatch(text, /motion-runtime/u, `${name}: the motion runtime left with lit-typographic-motion`);
       assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test, gates\]/mu, `${name}: verify must need the fast tier and the gates`);
       assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, `${name}: verify must run even when the tests fail`);
     });
@@ -138,9 +136,7 @@ describe('test shards: the workflows split fast and heavy', () => {
     const specs = matrix.split(',').map((s) => s.trim().replace(/^["']|["']$/gu, ''));
     assert.deepEqual(specs, Array.from({ length: SHARD_COUNT }, (_, i) => `${i + 1}/${SHARD_COUNT}`));
     assert.match(text, /run: npm run test:shard -- --tier heavy \$\{\{ matrix\.shard \}\}/u);
-    const warm = text.indexOf('run: node bin/litclaude-ai.js motion-runtime install');
-    assert.ok(warm > -1 && warm < text.indexOf('run: npm run test:shard'),
-      'ci-heavy.yml: a shard must pre-warm the motion runtime before its tests, or the render tests skip');
+    assert.doesNotMatch(text, /motion-runtime/u, 'ci-heavy.yml: the motion runtime left with lit-typographic-motion');
     assert.match(text, /^ {2}verify:\n(?:.*\n)*? {4}needs: \[test\]/mu, 'ci-heavy.yml: verify must need the heavy shards');
     assert.match(text, /^ {4}if: \$\{\{ always\(\) \}\}/mu, 'ci-heavy.yml: verify must run even when a shard fails');
   });

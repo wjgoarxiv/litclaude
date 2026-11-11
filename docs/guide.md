@@ -24,25 +24,17 @@ pick them. The [installation reference](#installation-reference) covers those ch
 how to pin a version. If you want to try LitClaude before it touches your usual setup,
 start with a [separate trial profile](./migration.md#separate-trial-profile).
 
-The install downloads a little more than the plugin. The video skill,
-lit-typographic-motion, needs a rendering engine and fonts, and it never downloads them in
-the middle of a render, so the installer fetches them up front. Once the plugin is registered, it
-runs `npm ci` for the pinned engine packages and downloads pinned fonts, checking each one
-against its sha256. Everything goes into `$LITCLAUDE_MOTION_RUNTIME`, or into
-`${XDG_CACHE_HOME:-~/.cache}/litclaude/motion-runtime` if that variable isn't set. If the
-download fails, the install still finishes and prints the command to run later.
+The install fetches nothing beyond the plugin itself. Earlier releases also downloaded a
+rendering engine and fonts for the video skill, lit-typographic-motion. That skill now lives in
+the `video-covers` plugin of the wjgoarxiv-skills marketplace, and its runtime comes with that
+plugin, so LitClaude no longer prepares it.
 
-`npm install -g @litfamily/litclaude` does all of this by itself: its
-`scripts/postinstall.mjs` hook runs `litclaude install`, download included. Only a global
-install runs that hook. A local install, a `CI` environment or a source checkout skips it.
-If you'd rather not have the automatic setup, you have two ways out:
-
-- To put off just the video tools, set `LITCLAUDE_MOTION_PREWARM=0`. When you need them,
-  run `litclaude-ai motion-runtime install`.
-- To switch off the whole automatic setup of a global install, set
-  `LITCLAUDE_AUTO_INSTALL=0` (or `LITCLAUDE_POSTINSTALL_SKIP=1`), or add `--ignore-scripts`
-  to the npm command. npm still downloads the package, and you run `litclaude install`
-  yourself when you're ready.
+`npm install -g @litfamily/litclaude` sets everything up by itself: its
+`scripts/postinstall.mjs` hook runs `litclaude install`. Only a global install runs that hook.
+A local install, a `CI` environment or a source checkout skips it. If you'd rather not have the
+automatic setup, set `LITCLAUDE_AUTO_INSTALL=0` (or `LITCLAUDE_POSTINSTALL_SKIP=1`), or add
+`--ignore-scripts` to the npm command. npm still downloads the package, and you run
+`litclaude install` yourself when you're ready.
 
 ## What you will see on screen
 
@@ -388,6 +380,12 @@ ends. The paragraph below describes the skill as the design plugin ships it.
 `frontend-ui-ux build <target>` builds an interface you have authorized and inspects it
 rendered. When a choice that matters is unclear, it asks one targeted question and
 carries the answer into the build. A request to only review or plan stays read-only.
+
+`readme-studio` and `lit-typographic-motion` now ship as the `video-covers` plugin of the same
+marketplace (`claude plugin install video-covers@wjgoarxiv-skills`). Without the plugin, a README
+or film request gets the install lines back instead of a cover or a film. LitClaude no longer
+holds a film turn at Stop until a render is done; the moved skill's own gate decides that. The
+paragraph below describes readme-studio as the video-covers plugin ships it.
 
 `readme-studio <repository or README scope>`, or `$readme-studio`, writes a README from
 facts it checks in the repository and makes a cover on your machine. Whether it can

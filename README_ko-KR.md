@@ -83,6 +83,8 @@ lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/film-hero.webp" width="400" alt="영상의 포스터 프레임. 어두운 청록 키보드 들판 위에 빛나는 불꽃 키캡, LitClaude 글자, PROMPT, PLAN, WORK 2/2, REVIEW, DONE 단계 막대가 있다." /><br /><b>lit-typographic-motion</b> · 13초 히어로 영상, 포스터<br /><code>lit LitClaude 히어로 영상 13초짜리 만들어줘. LIT 불꽃 키가 주인공으로, 프롬프트 → 계획 → 작업 → 리뷰 → 완료로 lit-loop가 돌아가는 세계를 고퀄리티 3D로 보여줘.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/film-frames.webp" width="400" alt="히어로 영상의 프레임 열두 장. 키캡에 불이 들어오고 단계마다 한국어 자막이 나오며 마지막 줄에서 LitClaude 제목에 도착한다." /><br /><b>lit-typographic-motion</b> · 같은 영상의 프레임<br /><sub>그 영상의 프레임 열두 장입니다. 어두운 도입부부터 LitClaude 제목까지.</sub></td></tr>
 </table>
 
+이제 lit-typographic-motion과 readme-studio는 wjgoarxiv-skills 마켓플레이스의 `video-covers` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 영상과 README 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
 ### 흐름 놓치지 않기
 
 워크플로 두 개와 도우미 세 개가 함께 돌면 LIT 카드가 프롬프트 아래에 그 흐름을 줄로 그립니다. 정신없던 하루 끝에 <code>lit adhd</code>를 치면 무엇을 물었고, 무엇이 끝났고, 무엇이 멈춰 있고, 다음은 무엇인지 한 장으로 정리해 줍니다. 이어서 <code>go</code>를 치면 열려 있는 계획 하나를 이어서 시작합니다.

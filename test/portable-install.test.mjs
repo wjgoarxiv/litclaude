@@ -215,16 +215,21 @@ describe("portable LitClaude install layout", () => {
       for (const gone of ["skills/lit-diagram-drawer/scripts", "skills/lit-diagram-drawer/assets", "skills/lit-schematic/scripts", "vendor/scientific-visualization", "bin/litclaude-scientific-visualization-doctor.js"]) {
         assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the figures plugin`);
       }
-      // lit-pptx and lit-docx are same-name stubs: their SKILL.md files and the Pretendard pair lit-typographic-motion
-      // reuses. The office runtime left with lit-docx for the documents plugin.
-      for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-pptx/fonts/pretendard/Pretendard-Regular.otf", "skills/lit-pptx/fonts/pretendard/Pretendard-Bold.otf", "skills/lit-pptx/fonts/pretendard/OFL.txt",
-        "skills/lit-docx/SKILL.md"]) {
+      // lit-pptx and lit-docx are same-name stubs, SKILL.md alone. The office runtime left with lit-docx for the
+      // documents plugin, and the Pretendard trio with lit-typographic-motion for the video-covers plugin.
+      for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-docx/SKILL.md"]) {
         assertFile(join(pluginPath, file), `office ${file}`);
       }
       assert.match(readFileSync(join(pluginPath, "skills", "lit-pptx", "SKILL.md"), "utf8"), /decks@wjgoarxiv-skills/u, "installed stub carries the install line");
       assert.match(readFileSync(join(pluginPath, "skills", "lit-docx", "SKILL.md"), "utf8"), /documents@wjgoarxiv-skills/u, "installed stub carries the install line");
       for (const gone of ["skills/lit-docx/scripts", "lib/office-runtime.mjs", "lib/office-runtime-lock"]) {
         assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the documents plugin`);
+      }
+      for (const id of ["lit-typographic-motion", "readme-studio"]) {
+        assert.match(readFileSync(join(pluginPath, "skills", id, "SKILL.md"), "utf8"), /video-covers@wjgoarxiv-skills/u, `installed ${id} stub carries the install line`);
+      }
+      for (const gone of ["skills/lit-pptx/fonts", "skills/lit-typographic-motion/engine", "skills/lit-typographic-motion/scripts", "skills/readme-studio/scripts", "skills/readme-studio/templates", "lib/motion-render-gate.mjs"]) {
+        assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the video-covers plugin`);
       }
       assertFile(join(pluginPath, "bin", "litclaude-hud.js"), "HUD bin");
       assertFile(join(pluginPath, "lib", "litgoal", "paths.mjs"), "litgoal paths runtime");
@@ -770,31 +775,21 @@ describe("portable LitClaude install layout", () => {
 
 
 describe("design-production installed resources", () => {
-  it("installs and executes README helpers and refuses tampered nested assets", () => {
+  it("installs the readme-studio stub and refuses a tampered copy of it", () => {
     const home = realpathSync(makeHome());
     const claudeHome = realpathSync(makeClaudeHome());
     try {
       const install = runCli(["install", "--yes"], home, claudeHome);
       assert.equal(install.status, 0, install.stderr);
       const plugin = join(claudeHome, "plugins/cache/litclaude-ai/litclaude", version);
-      const helper = join(plugin, "skills/readme-studio/scripts/validate-readme-facts.mjs");
-      assertFile(helper, "README facts checker");
-      writeFileSync(join(home, "package.json"), '{"name":"fixture"}');
-      const facts = join(home, "facts.json");
-      writeFileSync(facts, JSON.stringify({ claims: [{ id: "package", value: "deliberately false", source: "package.json" }], badges: [] }));
-      const checked = spawnSync(process.execPath, [helper, "--project-root", home, "--facts", facts], { encoding: "utf8", cwd: home });
-      assert.equal(checked.status, 0, checked.stderr);
-      const report = JSON.parse(checked.stdout);
-      assert.equal(report.validation_scope, "structure-only");
-      assert.equal(report.source_contents_compared, false);
-      assert.equal(report.badge_truth_checked, false);
-      const template = join(plugin, "skills/readme-studio/templates/hyperframes-cover/index.motion.json");
-      assertFile(template, "installed motion sidecar");
-      writeFileSync(template, '{}');
+      const stubFile = join(plugin, "skills/readme-studio/SKILL.md");
+      assertFile(stubFile, "installed readme-studio stub");
+      assert.equal(existsSync(join(plugin, "skills/readme-studio/scripts")), false, "the README helpers left with the video-covers plugin");
+      writeFileSync(stubFile, `${readFileSync(stubFile, "utf8")}\ntampered\n`);
       const doctor = runCliWithEnv(["doctor"], home, claudeHome, { PATH: "" });
       assert.notEqual(doctor.status, 0);
       assert.match(doctor.stderr, /SKILL_RESOURCE_INTEGRITY_FAIL/u);
-      assert.match(doctor.stderr, /readme-studio.*index\.motion\.json/u);
+      assert.match(doctor.stderr, /readme-studio.*SKILL\.md/u);
     } finally {
       rmSync(home, { recursive: true, force: true });
       rmSync(claudeHome, { recursive: true, force: true });

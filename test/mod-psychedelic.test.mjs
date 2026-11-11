@@ -23,7 +23,6 @@ const snapshotOf = (discipline) => ({
   autoloop: null,
   litPlan: null,
   probe: null,
-  motion: null,
   handoff: null,
 });
 const modelOf = (discipline, extra = {}) => buildBandModel({

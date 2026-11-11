@@ -27,8 +27,6 @@ const EXPECTED_FLAGS = [
   '--test-force-exit',
   '--import',
   './test/helpers/scrub-ambient-env.mjs',
-  '--import',
-  './test/helpers/motion-offline-prewarm.mjs',
 ];
 
 describe('test tiers: every test file runs in exactly one tier', () => {

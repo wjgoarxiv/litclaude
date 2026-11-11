@@ -14,7 +14,7 @@ const NOW = 10_000_000;
 const SID = "idle-lanes-0001";
 const iso = (ms) => new Date(ms).toISOString();
 const MIN = 60_000;
-const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, motion: null, handoff: null });
+const idle = () => ({ ignition: null, work: null, completedWorkIds: [], goal: null, autoloop: null, litPlan: null, probe: null, handoff: null });
 const entry = (steps, last) => ({ steps, todos: null, tasks: {}, latest: null, last });
 
 // The card the user saw: start-work finished its eight tasks and handed over to review-work, which

@@ -494,14 +494,15 @@ describe("Claude skills", () => {
 
 
 describe("design-production enrollment", () => {
-  it("enrolls README Studio with pinned executable and template closure", async () => {
+  it("keeps the README Studio and film stubs enrolled and pinned after the video-covers move", async () => {
     const { canonicalSkillIds, canonicalSkillResourceFiles } = await import("../plugins/litclaude/lib/canonical-skill-catalog.mjs");
-    assert.ok(canonicalSkillIds.includes("readme-studio"), "README Studio must be discoverable by the installed catalog");
-    const body = readFileSync(join(skillsRoot, "readme-studio", "SKILL.md"), "utf8");
-    assertLlmContract(body, "readme-studio");
-    assert.match(body, /^name: readme-studio$/mu);
-    for (const leaf of ["scripts/validate-readme-facts.mjs", "templates/typography/shape-text-to-svg.mjs", "templates/typography/package-lock.json", "templates/remotion-cover/package-lock.json", "templates/remotion-cover/src/index.tsx", "templates/hyperframes-cover/index.motion.json"]) {
-      assert.ok(canonicalSkillResourceFiles.includes(`skills/readme-studio/${leaf}`), `uninstalled resource: ${leaf}`);
+    for (const id of ["readme-studio", "lit-typographic-motion"]) {
+      assert.ok(canonicalSkillIds.includes(id), `${id} must stay discoverable by the installed catalog`);
+      const body = readFileSync(join(skillsRoot, id, "SKILL.md"), "utf8");
+      assertLlmContract(body, id);
+      assert.match(body, new RegExp(`^name: ${id}$`, "mu"));
+      assert.ok(canonicalSkillResourceFiles.includes(`skills/${id}/SKILL.md`), `${id} stub is a pinned resource`);
+      assert.deepEqual(canonicalSkillResourceFiles.filter((file) => file.startsWith(`skills/${id}/`)), [`skills/${id}/SKILL.md`], `${id} pins only its stub`);
     }
   });
 });

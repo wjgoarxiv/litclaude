@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- lit-typographic-motion and readme-studio moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills
+  marketplace, copied byte for byte with what they reach outside their folders: the mark helper and its modules under
+  `lib/`, and the Pretendard Regular and Bold pair the film engine's font manifest reads. LitClaude keeps a same-name
+  stub for each, so `/litclaude:lit-typographic-motion`, `Skill(lit-typographic-motion)`, the bare-lit film route,
+  `Skill(readme-studio)` and the `readme-studio` and `$` routes still route: with the video-covers plugin installed
+  they load `video-covers:lit-typographic-motion` and `video-covers:readme-studio`, and without it the reply gives the
+  install lines (`claude plugin marketplace add <path>`, then `claude plugin install video-covers@wjgoarxiv-skills`).
+  The motion checks left with the engine: the Stop hook no longer holds a film turn until a gated render is done,
+  `litclaude-ai motion-runtime` is gone, `npm install -g` no longer pre-warms the motion runtime, and `litclaude
+  doctor` and `npm run doctor` print no motion line. The LIT card no longer shows a motion gate. The lit-pptx stub's
+  Pretendard trio left too, so that stub is `SKILL.md` alone. The bodies' tests, fixtures, cover-recipe QA and pins
+  left with them.
 - frontend-ui-ux and visual-qa moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace,
   copied byte for byte with what they reach outside their folders: `strict-json`, `rename-aliases` and
   `secret-shapes` under `lib/`, browser-drive's capability probe, and the Pretendard and JetBrains Mono font pairs
