@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, it } from "node:test";
@@ -9,8 +8,8 @@ import { fileURLToPath } from "node:url";
 // The figures family (lit-diagram-drawer, lit-schematic, lit-scientific-visualization and the scientific-visualization
 // source it adapts) moved to the `figures` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name
 // stub for each of the three skill ids: the ids, the `lit` routes, the slash command and the exact-bare route still
-// work, and they lead to the install line. The lit-diagram-drawer stub keeps the Pretendard variable font and its
-// licence, because frontend-ui-ux's design kit copies them by path and hash.
+// work, and they lead to the install line. The Pretendard pair the lit-diagram-drawer stub kept for frontend-ui-ux's
+// design kit left when that kit moved with the design family.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginRoot = join(root, "plugins", "litclaude");
 const hookPath = join(pluginRoot, "bin", "litclaude-hook.js");
@@ -54,21 +53,11 @@ describe("the figures skills are same-name stubs for the figures extras plugin",
     });
   }
 
-  it("each stub is SKILL.md alone, except the Pretendard pair frontend-ui-ux reuses from lit-diagram-drawer", () => {
+  it("each stub is SKILL.md alone", () => {
     const files = (id) => walk(stubRoot(id)).map((f) => relative(stubRoot(id), f)).sort();
-    assert.deepEqual(files("lit-diagram-drawer"), ["SKILL.md", "assets/fonts/OFL.txt", "assets/fonts/PretendardVariable.woff2"]);
+    assert.deepEqual(files("lit-diagram-drawer"), ["SKILL.md"]);
     assert.deepEqual(files("lit-schematic"), ["SKILL.md"]);
     assert.deepEqual(files("lit-scientific-visualization"), ["SKILL.md"]);
-  });
-
-  it("keeps the font bytes the frontend-ui-ux design kit checks by hash", () => {
-    const kit = join(pluginRoot, "skills", "frontend-ui-ux", "kit");
-    const manifest = JSON.parse(readFileSync(join(kit, "fonts.json"), "utf8"));
-    const pretendard = manifest.fonts.find((f) => f.family === "Pretendard");
-    for (const f of [pretendard, pretendard.licence]) {
-      const sha = createHash("sha256").update(readFileSync(resolve(kit, f.source))).digest("hex");
-      assert.equal(sha, f.sha256, f.source);
-    }
   });
 
   it("the scientific-visualization source, its doctor and their doctor lines left with it", () => {

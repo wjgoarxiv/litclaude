@@ -1059,20 +1059,19 @@ The former `shadow` option is accepted but has no effect on this flat design.
 
 ### Design production skills
 
-Leading `frontend-ui-ux` / `$frontend-ui-ux` and the existing interface-intent route
-supply action guidance: implement an authorized build, resolve material ambiguity,
-then inspect actual renders. The evolving beta2 contract supports execution; it is
-not a contract-only stopping point. Review-only and plan-only requests remain read-only.
-PostToolUse reminders never widen the requested design scope.
+Leading `frontend-ui-ux` / `$frontend-ui-ux`, leading `visual-qa` / `$visual-qa` and the existing
+interface-intent route select the interface skills. Both are now same-name stubs for the `design`
+plugin of wjgoarxiv-skills: the hook adds each stub's mode contract, which tells the model to load
+`Skill(design:frontend-ui-ux)` or `Skill(design:visual-qa)` when the session lists it and otherwise to
+reply to a direct request with the install lines and build or verify nothing, and the exact installed
+`SKILL.md` path. PostToolUse reminders still name both ids and never widen the requested design scope.
 
 The same route also fires on polish, audit and harden wording (polish, tighten up, 다듬어;
 audit, read-only, just check, 점검, 검토만; harden, stress-test, hold up under, 튼튼하게,
 견고하게) when the prompt names an interface surface. `lib/interface-mode.mjs` picks the mode
-(`build` by default), and the activation context names it together with
-`references/craft-floor.md`, `references/slop-register.md` and the
-`scripts/interface-probe.mjs` loop. `audit` stays read-only and hands its findings table to
-`visual-qa`, which keeps the verdict. Prose, documents, servers and pipelines never match, and
-video, 영상, 모션 and 발표 wording never widens the route.
+(`build` by default), and the activation context names a non-default mode for the moved skill to
+take over. Prose, documents, servers and pipelines never match, and video, 영상, 모션 and 발표
+wording never widens the route.
 
 UI work inside the other lit workflows reaches the same skill. A lit-loop, litwork,
 litgoal, native-workflow or frontend-ui-ux turn is armed at UserPromptSubmit
@@ -1080,7 +1079,8 @@ litgoal, native-workflow or frontend-ui-ux turn is armed at UserPromptSubmit
 as the interface (`.html`, `.css` and its preprocessors, `.vue`, `.svelte`, `.astro`, `.tsx`,
 `.jsx`) and every `node … interface-probe.mjs` run. The Stop hook then holds the turn until a
 clean run follows the last interface edit, and its reason hands the interface part to
-`frontend-ui-ux`. A clean run shows `Verdict: Approve (0 HIGH)` and no `BLOCKED:` line, or, when
+`frontend-ui-ux`. The frontend-ui-ux stub keeps `scripts/interface-probe.mjs` and its five modules for
+this gate, so the probe runs with or without the design plugin installed. A clean run shows `Verdict: Approve (0 HIGH)` and no `BLOCKED:` line, or, when
 its output went to a file, leaves an `--out` manifest newer than the edit with exit code 0, all
 seven matrix rows and no HIGH finding. Empty output, a BLOCKED run and anything unreadable are
 not clean. The gate

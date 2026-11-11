@@ -119,38 +119,10 @@ describe("Claude hook runner", () => {
       assert.equal(result.status, 0, result.stderr);
       const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
       assert.ok(Buffer.byteLength(context, "utf8") <= 4096, `${skillId} activation is ${Buffer.byteLength(context, "utf8")} bytes`);
-      assert.match(context, /references\/complete-contract\.md/u);
+      // The body moved to the design extras plugin; the context points at the same-name stub.
+      assert.match(context, /same-name pointer stub/u);
+      assert.match(context, new RegExp(`design:${skillId}`, "u"));
     }
-  });
-
-  it("injects the v1beta2 Design Contract authority and preserves v1beta1 compatibility", () => {
-    const result = runHook("user-prompt-submit", {
-      hook_event_name: "UserPromptSubmit",
-      prompt: "design a new settings page UI",
-      cwd: root,
-    });
-
-    assert.equal(result.status, 0, result.stderr);
-    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-    assert.match(context, /litfamily\.design-contract\/v1beta2/u);
-    assert.match(context, /authoritative/u);
-    assert.match(context, /litfamily\.design-contract\/v1beta1[\s\S]{0,120}compatibility/u);
-    assert.doesNotMatch(context, /For v1beta1, the beta contract is authoritative/u);
-  });
-
-  it("replays the visual-qa hook contract with separate design and evidence schemas", () => {
-    const result = runHook("user-prompt-submit", {
-      hook_event_name: "UserPromptSubmit",
-      prompt: "visual-qa inspect the rendered settings page",
-      cwd: root,
-    });
-
-    assert.equal(result.status, 0, result.stderr);
-    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-    assert.match(context, /canonical[^.]*litfamily\.design-contract\/v1beta2/iu);
-    assert.match(context, /litfamily\.design-contract\/v1beta1[^.]*compatibility-only/iu);
-    assert.match(context, /litfamily\.evidence-manifest\/v1beta1[^.]*separate[^.]*design contract/iu);
-    assert.doesNotMatch(context, /for v1beta1, beta evidence is authoritative/iu);
   });
 
   it("keeps final lazy UI activation within 4096 UTF-8 bytes after adversarial prompt rules", () => {
@@ -1574,17 +1546,6 @@ describe("design-production routes", () => {
     for (const prompt of ["Explain the readme-studio identifier", "`readme-studio`", "readme-studioish create this", "Please quote readme-studio, do not run it"]) {
       const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", cwd: root, prompt });
       assert.doesNotMatch(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /Skill\(readme-studio\)/u);
-    }
-  });
-  it("emits production and read-only boundaries without a contract-first stall", () => {
-    for (const prompt of ["frontend-ui-ux build this page", "frontend-ui-ux review only; do not edit"]) {
-      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", cwd: root, prompt });
-      assert.equal(result.status, 0, result.stderr);
-      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-      assert.match(context, /authorized.*implement/iu);
-      assert.match(context, /review-only.*read-only/iu);
-      assert.match(context, /material ambiguity/iu);
-      assert.doesNotMatch(context, /produce a finite Design Contract before implementing|Implement only after approval/u);
     }
   });
 });

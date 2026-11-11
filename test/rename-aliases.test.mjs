@@ -5,9 +5,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { REVIEWERS, reviewShapeValid, validateReviewSet } from "../plugins/litclaude/skills/visual-qa/scripts/review-rules.mjs";
-import { reviewReceipt, sha256, stableJson } from "./helpers/strict-contract-fixtures.mjs";
-import { schemaAccepts } from "./helpers/schema-runtime-parity.mjs";
 import { assertNoWorkflowActivationContext } from "./helpers/hook-context.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -128,23 +125,3 @@ for (const command of ["install", "update"]) {
   });
 }
 
-test("saved verifier alias receipts preserve hashes and cannot count as independent reviewers", () => {
-  const inputs = Object.fromEntries(["design_contract_hash", "source_hash", "capture_hash", "artifacts_hash"].map((key) => [key, "a".repeat(64)]));
-  const legacy = reviewReceipt("oracle-verifier", "context:legacy", inputs);
-  const current = reviewReceipt("lit-verifier", "context:current", inputs);
-  const quality = reviewReceipt("quality-reviewer", "context:quality", inputs);
-  const schema = JSON.parse(readFileSync(join(plugin, "skills", "visual-qa", "schemas", "review-receipt-v1alpha1.schema.json"), "utf8"));
-  const bytes = stableJson(legacy);
-  assert.equal(reviewShapeValid(legacy), true);
-  assert.equal(schemaAccepts(schema, legacy), true);
-  assert.deepEqual(REVIEWERS, ["quality-reviewer", "lit-verifier"]);
-  const validate = (receipts) => validateReviewSet(receipts, receipts.map((receipt) => sha256(stableJson(receipt))), inputs, legacy.reviewed_inventory, new Set(), Date.parse(legacy.ended_at), 3600);
-  assert.deepEqual(validate([quality, legacy]), { blocked: [], failures: [] });
-  assert.ok(validate([legacy, current]).failures.includes("REVIEW_RECEIPT_INDEPENDENCE_INVALID"));
-  assert.equal(stableJson(legacy), bytes, "historical receipt bytes and their hashes must not be rewritten");
-  for (const id of ["unknown-reviewer", "__proto__", null, { toString: "inert" }]) {
-    const unknown = { ...legacy, reviewer_capability: id };
-    assert.equal(reviewShapeValid(unknown), false);
-    assert.equal(schemaAccepts(schema, unknown), false);
-  }
-});

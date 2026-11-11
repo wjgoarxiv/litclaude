@@ -53,7 +53,6 @@ import {
 } from "../plugins/litclaude/lib/agent-file/attribution.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
-import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
 import { runStartWorkContinuationCli } from "../plugins/litclaude/lib/start-work-continuation.mjs";
@@ -1450,7 +1449,6 @@ const verifyInstalledPayload = ({ home, litClaudeHome, targetPlugin }) => {
     "commands/autoconference.md",
     "commands/wikify.md",
     "vendor/canonical-runtime-closures.json",
-    "skills/frontend-ui-ux/references/_canonical-corpus/manifest.json",
   ]) {
     if (!existsSync(join(targetPlugin, relativePath))) {
       throw new Error(`installed plugin is missing ${relativePath}`);
@@ -1463,10 +1461,6 @@ const verifyInstalledPayload = ({ home, litClaudeHome, targetPlugin }) => {
   const resourceIntegrity = verifyCanonicalSkillResources(targetPlugin);
   if (resourceIntegrity.status !== "PASS") {
     throw new Error(`SKILL_RESOURCE_INTEGRITY_FAIL ${JSON.stringify(resourceIntegrity.failures)}`);
-  }
-  const canonicalFrontend = verifyCanonicalFrontendCorpus(targetPlugin);
-  if (canonicalFrontend.status !== "PASS") {
-    throw new Error(`CANONICAL_FRONTEND_CORPUS_FAIL ${JSON.stringify(canonicalFrontend.failures)}`);
   }
   const runtimeClosures = verifyCanonicalRuntimeClosures(targetPlugin);
   if (runtimeClosures.status !== "PASS") {
@@ -1751,7 +1745,6 @@ const doctor = ({ dryRun }) => {
     "commands/autoconference.md",
     "commands/wikify.md",
     "vendor/canonical-runtime-closures.json",
-    "skills/frontend-ui-ux/references/_canonical-corpus/manifest.json",
   ];
 
   for (const file of requiredFiles) {
@@ -1770,11 +1763,6 @@ const doctor = ({ dryRun }) => {
     fail(`SKILL_RESOURCE_INTEGRITY_FAIL ${JSON.stringify(resourceIntegrity.failures)}`);
   }
   process.stdout.write(`SKILL_RESOURCE_INTEGRITY_PASS: ${resourceIntegrity.checked} resources\n`);
-  const canonicalFrontend = verifyCanonicalFrontendCorpus(pluginPath);
-  if (canonicalFrontend.status !== "PASS") {
-    fail(`CANONICAL_FRONTEND_CORPUS_FAIL ${JSON.stringify(canonicalFrontend.failures)}`);
-  }
-  process.stdout.write(`CANONICAL_FRONTEND_CORPUS_PASS: ${canonicalFrontend.checkedFiles} files; ${canonicalFrontend.corpusBytes} corpus bytes\n`);
   const runtimeClosures = verifyCanonicalRuntimeClosures(pluginPath);
   if (runtimeClosures.status !== "PASS") {
     fail(`CANONICAL_RUNTIME_CLOSURES_FAIL ${JSON.stringify(runtimeClosures.failures)}`);

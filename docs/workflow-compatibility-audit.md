@@ -18,7 +18,7 @@ make the missing LitClaude target obvious.
 | hook trigger safety | `hooks/hooks.json`, `bin/litclaude-hook.js`, `test/hooks.test.mjs`, `docs/hooks.md` | Implemented | Hooks use `UserPromptSubmit` trigger detection, exact workflow aliases, near-miss fixtures, prompt injection safe context, and no auto-type behavior for slash commands. |
 | bundled handoff | `skills/lit-handoff`, `commands/lit-handoff.md`, `vendor/handoff`, exact-bare hook | Implemented | Four canonical files remain byte-identical; exact bare `handoff` injects the complete source while mentions, compounds, slash text, and secret-bearing prompts remain inert. |
 | bundled scientific visualization | `skills/lit-scientific-visualization` (same-name stub), `commands/lit-scientific-visualization.md`, exact-bare hook | Moved | The adapter, its sixteen-file canonical source and the capability doctor moved unchanged to the `figures` plugin of wjgoarxiv-skills; the exact-bare hook and the typed command still display the banner and inject the stub, which gives the install lines and `/figures:lit-scientific-visualization`, while mixed and generic prompts stay inert. |
-| canonical frontend library | `skills/frontend-ui-ux/references/{design,designpowers,perfection,ui-ux-db}`, `_canonical-corpus/manifest.json`, scanner, doctor, package guard | Implemented | Exact paths, sizes, hashes, legal companions, aggregate, entry types, no extras, scanner snapshot scope, and produced-tarball bytes are checked; imported content is inert and independent from the normalized dataset. |
+| canonical frontend library | `skills/frontend-ui-ux` (same-name stub keeping the interface probe), `skills/visual-qa` (same-name stub) | Moved | The reference corpus with its legal companions, the normalized design dataset and both skill bodies moved unchanged to the `design` plugin of wjgoarxiv-skills; the scanner, doctors and package guard no longer carry a frontend corpus check. |
 | autoresearch family | `skills/autoresearch`, `commands/autoresearch.md`, `vendor/autoresearch`, hook/doctor/package surfaces | Implemented | One Claude-native skill routes ten nested modes through plan, explicit budget/authority approval, start-work, bounded evidence loops, and review-work. Its reviewed commit is independently bound to a hardcoded tree commitment outside the generated closure manifest. |
 | autoconference family | `skills/autoconference`, `commands/autoconference.md`, `vendor/autoconference`, hook/doctor/package surfaces | Implemented | One skill routes seven modes, requires autoresearch and root multi-agent capability, keeps shared state root-owned, and blocks rather than simulating concurrency. Its reviewed commit is independently bound to a hardcoded tree commitment outside the generated closure manifest. |
 | wikify family | `skills/wikify`, `commands/wikify.md`, `vendor/llm-wikify`, hook/doctor/package surfaces | Implemented | One task-local skill routes five modes from litresearch through inert local sources to review-work and continuity. Its reviewed commit is independently bound to a hardcoded tree commitment outside the generated closure manifest. |
@@ -33,18 +33,16 @@ live tree remained clean after capture; a later tree state requires another run,
 while package and tarball guards independently bind their own exact payloads.
 Capture is bounded to 8 MiB per file and 64 MiB in aggregate, and the zero-entry
 allowlist is parsed from the captured bytes rather than a pre-capture pathname read.
-Legal companion paths, source paths, sizes, hashes, and aggregate are hard-pinned
-outside the generated manifest; the legal files are scanned normally and the package
-guard compares size and SHA-256 for every canonical frontend corpus file, legal companion,
-runtime closure, manifest, and family adapter between a verified pre-pack snapshot and its
-produced temporary tarball. This rejects lifecycle mutation and coordinated legal-byte/manifest
+Source paths, sizes, hashes, and aggregate are hard-pinned outside the generated manifest,
+and the package guard compares size and SHA-256 for every runtime closure, manifest, and
+family adapter between a verified pre-pack snapshot and its
+produced temporary tarball. This rejects lifecycle mutation and coordinated byte/manifest
 repinning rather than trusting path presence. Each verifier returns an immutable expected file
 map bound to manifest verification or independent commitments; capture checks each exact buffer
 against that map, so mutation in the verifier-to-capture interval fails. Expected entries also bind
 regular non-executable semantics across source reads and tar headers. Any execute bit fails, while
-secure non-executable modes such as `0600` remain valid without requiring exact `0644`. Canonical frontend preflight
-uses an 8 MiB per-file and 32 MiB aggregate budget, while runtime closure preflight uses
-the same 8 MiB per-file and 32 MiB aggregate budget before any whole-file read.
+secure non-executable modes such as `0600` remain valid without requiring exact `0644`. Runtime closure preflight uses
+an 8 MiB per-file and 32 MiB aggregate budget before any whole-file read.
 
 ## Runtime Concepts
 

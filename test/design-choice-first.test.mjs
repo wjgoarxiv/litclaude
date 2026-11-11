@@ -21,13 +21,9 @@ const BLOCK_CHARS = 4200;
 // For each skill: `build` is a robust anchor for the step that builds, renders or writes the
 // artifact, `choices` are tokens only that skill ships (a real preset, theme, template or path),
 // and `prompt` is a natural activation prompt for the hook-context check. lit-schematic and lit-diagram-drawer
-// left with the figures family; their stubs ask nothing (test/figures-stubs.test.mjs).
+// left with the figures family, and frontend-ui-ux with the design family; their stubs ask nothing
+// (test/figures-stubs.test.mjs, test/design-stubs.test.mjs).
 const skills = {
-  "frontend-ui-ux": {
-    build: /design-lock\.mjs" init/u,
-    choices: [/field-notes/u, /graphite/u, /meadow/u, /computational-brutalism/u, /neo-brutalism/u, /landing/u, /workspace/u, /settings/u],
-    prompt: "frontend-ui-ux build a settings page",
-  },
   "readme-studio": {
     build: /^6\. Compose a distinctive cover/mu,
     choices: [/Remotion/u, /HyperFrames/u, /poster/iu, /plain-Markdown/iu],

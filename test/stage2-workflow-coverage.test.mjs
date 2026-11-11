@@ -16,18 +16,6 @@ describe("bounded task workflow coverage", () => {
     assert.match(skill, /after the last behavior change[\s\S]*inspect every\s+named deliverable/i);
   });
 
-  it("maps every multi-item UI brief to independently verified acceptance criteria", () => {
-    const skill = readSkill("frontend-ui-ux");
-
-    assert.match(skill, /prompt-to-implementation coverage/i);
-    assert.match(skill, /every enumerated requirement/i);
-    assert.match(skill, /component or behavior and a direct verification action/i);
-    assert.match(skill, /recheck each requirement in the actual render and\s+interaction/i);
-    assert.match(skill, /feature-first build order/i);
-    assert.match(skill, /before\s+detailed visual\s+polish/i);
-    assert.match(skill, /observable state change triggered by real scroll/i);
-  });
-
   it("carries every material source fact into source-based deliverables", () => {
     const skill = readSkill("lit-humanizer");
 

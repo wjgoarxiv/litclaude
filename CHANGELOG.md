@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- frontend-ui-ux and visual-qa moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace,
+  copied byte for byte with what they reach outside their folders: `strict-json`, `rename-aliases` and
+  `secret-shapes` under `lib/`, browser-drive's capability probe, and the Pretendard and JetBrains Mono font pairs
+  the design kit copies by hash. LitClaude keeps a same-name stub for each, so `Skill(frontend-ui-ux)`,
+  `Skill(visual-qa)`, their bare and `# Changelog
+
+ routes, the interface-intent route, the polish, audit and harden modes,
+  the PostToolUse interface hint and the reviewer agents' preload still route: with the design plugin installed they
+  load `design:frontend-ui-ux` and `design:visual-qa`, and without it a direct request gets the install lines
+  (`claude plugin marketplace add <path>`, then `claude plugin install design@wjgoarxiv-skills`). The frontend-ui-ux
+  stub keeps `scripts/interface-probe.mjs` and its five modules, so the Stop hook still holds a lit-loop, litwork or
+  litgoal turn that edited a web page until the probe runs clean. Interface prompts no longer carry the old kit,
+  design-contract or evidence rules. The canonical frontend corpus verifier left with the corpus, so the doctors, the
+  plugin validator, the pack payload guard and the legacy-token scanner no longer check it; `qa:matrix` keeps its
+  three install and pack rows. The Pretendard pair the lit-diagram-drawer stub kept for the design kit left too. The
+  bodies' tests, fixtures, QA scenarios and pins left with them.
 - lit-diagram-drawer, lit-schematic and lit-scientific-visualization moved out of LitClaude into the `figures` plugin
   of the wjgoarxiv-skills marketplace, copied byte for byte with what they reach outside their folders: the
   scientific-visualization source (16 files, with its provenance and MIT licence) and its read-only doctor, the mark

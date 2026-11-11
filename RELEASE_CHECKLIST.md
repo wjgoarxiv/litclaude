@@ -114,11 +114,11 @@ No npm publication is required for this track.
 
 ## v0.3.37 Canonical Frontend Corpus and Workflow-Family Gates
 
-Before requesting publication approval, confirm the `design`, `designpowers`,
-`perfection`, and `ui-ux-db` frontend roots match their path/size/SHA-256
-manifest, exact legal companions, independent commitments, no-extra inventory,
-regular non-executable modes, and bounded read budgets. The unchanged
-34-source/2,277-record normalized design dataset remains independently verified.
+The canonical frontend corpus and its 2,277-record design dataset moved with
+frontend-ui-ux to the `design` plugin of wjgoarxiv-skills, and LitClaude no longer
+verifies them. Confirm the corpus verifier is gone from `litclaude doctor`,
+`npm run doctor`, `npm run validate:plugin`, the pack payload guard and the
+legacy-token scanner.
 
 Confirm the complete `autoresearch`, `autoconference`, and `wikify` source
 closures match their canonical manifest and independent tree commitments. Their
@@ -130,50 +130,20 @@ use root multi-agent capability.
 Run `npm run check:runtime-closures`, `npm run check:skill-resources`,
 `npm run validate:plugin`, and `npm run pack:payload-guard`. The payload guard
 must compare the verified source snapshot with the temporary tarball by size,
-SHA-256, and executable semantics for every canonical corpus file, legal
-companion, source-closure file, manifest, and family adapter.
+SHA-256, and executable semantics for every source-closure file, manifest, and
+family adapter.
 
 ## v0.3.34 Evidence-First UI/UX and Visual QA Gates
 
-Before requesting publication approval, confirm `frontend-ui-ux` ships the
-2,277-record offline dataset, pinned source manifest, provenance, license
-records, strict Design Contract schema, and bounded retrieval/import tools.
-Confirm `visual-qa` ships strict Evidence Manifest and Review Receipt schemas,
-bounded PNG and TUI analyzers, and stable capability blocker codes.
-
-Smoke evidence must contain zero independent review receipts. Full and
-reference-fidelity evidence must contain exactly two independent receipts from
-the declared reviewer capabilities. A blocking P1 finding must invalidate
-`PASS`, and the reviewer agents must expose only `Read`, `Grep`, and `Glob`.
-TUI captures must reject inputs above 1 MiB or 4,096 lines before emitting
-unbounded result arrays.
-
-Confirm the source-checkout-only adversarial replay is labeled honestly while
-the installed package can run its packaged visual CLI against caller-owned
-captures. Source doctor, isolated install, installed doctor, canonical resource
-integrity, scenario replay, and package-payload guards must all pass.
-
-Confirm both interface reference packs ship and stay reachable. `npm run
-validate:plugin` must print `SKILL_REFERENCE_ROUTER_PASS` with every shipped
-`references/*.md` named in its own `SKILL.md`; a reference that is pinned and
-installed but unreachable from its entrypoint is dead payload and blocks the
-release. Run `npm run gen:skill-resources` after touching any reference, schema,
-or script under either skill, and confirm `npm run check:skill-resources`
-reports no drift.
-
-Confirm the visual evidence lane still imports nothing from a sibling skill:
-`grep -rn "frontend-ui-ux" plugins/litclaude/skills/visual-qa/` must return no
-hits. The lane keeps its own Design Contract schema copy and its own shape
-validator on purpose, so a manifest remains checkable from a partial install and
-two independent readings of one shape can disagree visibly.
-
-Confirm the blocker vocabulary is complete and honest. `BLOCKED_AUTH_UNAVAILABLE`,
-`BLOCKED_RENDERER_UNAVAILABLE`, `BLOCKED_INDEPENDENT_REVIEW_UNAVAILABLE`,
-`BLOCKED_TEST_ACCOUNT_UNSAFE`, `BLOCKED_RENDERER_OWNERSHIP_UNVERIFIED`,
-`BLOCKED_EVIDENCE_STALE`, `BLOCKED_EVIDENCE_FUTURE`, and
-`BLOCKED_CLEANUP_INCOMPLETE` must each be emittable by the shipped validator,
-not merely documented. A reviewer that returns a non-`PASS` verdict must produce
-`FAIL`, never a blocker, and `BLOCKED` must outrank `FAIL` when both apply.
+frontend-ui-ux and visual-qa moved to the `design` plugin of wjgoarxiv-skills, with
+the dataset, the Design Contract, Evidence Manifest and Review Receipt schemas, the
+PNG and TUI analyzers and their blocker codes; their gates travel with them. In
+LitClaude, confirm both ids are same-name stubs that give the install lines, that
+the frontend-ui-ux stub still ships `scripts/interface-probe.mjs` and its five
+modules for the Stop hook's interface gate, and that the reviewer agents expose
+only `Read`, `Grep`, and `Glob`. Run `npm run gen:skill-resources` after touching
+any file under either stub, and confirm `npm run check:skill-resources` reports no
+drift.
 
 ## Real-Surface QA Gates
 
@@ -182,17 +152,12 @@ It runs three probes that drive the shipped runtime rather than importing a
 reimplementation, so they survive a packaged install and outlive any test-tree
 cleanup:
 
-- `npm run qa:matrix` must print `NEGATIVE_GATE_MATRIX_PASS` with 17 rows and
-  zero `FAIL` or `BLOCKED` rows. The matrix drives the real
-  `validate-design-contract` CLI, the real `visual-qa` CLI, the shipped
-  installer and doctor, and `tools/check-pack-payload.mjs`. It proves each
-  blocker code above by emitting it from the shipped validator: a valid contract
-  and evidence bundle pass; a duplicate-key contract, capture bytes changed after
-  the manifest, and a same-context self-review fail; missing capture, stale and
-  future-dated evidence, unavailable auth, unverified renderer ownership,
-  incomplete cleanup, an unavailable reviewer, and an unsafe test account each
-  block with their exact code; bounded PNG, TUI, and CJK cases pass; and the
-  pack payload guard reports zero forbidden paths.
+- `npm run qa:matrix` must print `NEGATIVE_GATE_MATRIX_PASS` with 3 rows and
+  zero `FAIL` or `BLOCKED` rows. The matrix drives the shipped installer and
+  doctor and `tools/check-pack-payload.mjs`: a tampered installed resource fails
+  with `RESOURCE_HASH_MISMATCH`, its restoration passes, and the pack payload
+  guard reports zero forbidden paths. The design-contract, evidence and PNG/TUI
+  rows left with the design plugin.
 - `npm run qa:tamper` must print `INSTALLED_TAMPER_REPAIR_PASS`. It installs
   into isolated temp roots, proves the installed doctor passes, produces
   `RESOURCE_HASH_MISMATCH` from every byte tamper, and names the exact deleted

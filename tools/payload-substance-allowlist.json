@@ -1,6 +1,14 @@
 {
   "schema": "litfamily.payload-substance/v1",
   "parityDivergences": {
+    "frontend-ui-ux": {
+      "date": "2026-11-11",
+      "reason": "LitClaude's copy is a same-name pointer stub that keeps only the interface probe the Stop gate runs (six scripts and their credits): the kit, data, schemas, references and other scripts moved to the design plugin of wjgoarxiv-skills, while the siblings still ship the full payload until their own stubs land."
+    },
+    "visual-qa": {
+      "date": "2026-11-11",
+      "reason": "LitClaude's copy is a same-name pointer stub: the evidence checker, schemas, references and scripts moved to the design plugin of wjgoarxiv-skills, so its packed closure is the one SKILL.md while the siblings still ship the full payload until their own stubs land."
+    },
     "lit-scientific-visualization": {
       "date": "2026-11-11",
       "reason": "LitClaude's copy is a same-name pointer stub: the adapter, its scientific-visualization source and doctor moved to the figures plugin of wjgoarxiv-skills, so its packed closure is the one SKILL.md while the siblings still ship the full payload until their own stubs land."
@@ -11,6 +19,8 @@
     }
   },
   "skills": {
+    "visual-qa": "A same-name pointer stub: the visual verification skill moved to the design plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
+    "lit-diagram-drawer": "A same-name pointer stub: the diagram skill moved to the figures plugin of wjgoarxiv-skills, and the Pretendard pair it kept for the design kit left with the design family, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-schematic": "A same-name pointer stub: the schematic skill moved to the figures plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-docx": "A same-name pointer stub: the document skill moved to the documents plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-burnoff-file": "The single file gives a bounded smell taxonomy, preservation rules, process, and report shape; no corpus is needed for this review.",

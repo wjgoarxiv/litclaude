@@ -118,33 +118,29 @@ describe("portable LitClaude install layout", () => {
         assertFile(join(pluginPath, relativePath), `installed canonical resource ${relativePath}`);
       }
 
-      const queryCli = join(pluginPath, "skills", "frontend-ui-ux", "scripts", "query-design-intelligence.mjs");
-      const query = spawnSync(
-        process.execPath,
-        [queryCli, "--query", "CJK terminal dashboard", "--domain", "ux-guidelines", "--limit", "1", "--json"],
-        { cwd: pluginPath, encoding: "utf8", timeout: 5000 },
-      );
-      assert.equal(query.signal, null);
-      assert.equal(query.status, 0, query.stderr);
-      assert.equal(JSON.parse(query.stdout).schema_id, "litfamily.design-intelligence-query/v1alpha1");
-
-      const visualCli = join(pluginPath, "skills", "visual-qa", "scripts", "cli.mjs");
-      const capturePath = join(home, "installed-capture.txt");
-      writeFileSync(capturePath, "┌──┐\n│한│\n└──┘\n");
-      const visual = spawnSync(process.execPath, [visualCli, "tui-check", capturePath, "--cols", "4"], {
+      // The design skills are same-name stubs; frontend-ui-ux keeps the interface probe the Stop gate runs, and it
+      // still loads from the installed payload.
+      const probeCli = join(pluginPath, "skills", "frontend-ui-ux", "scripts", "interface-probe.mjs");
+      const probe = spawnSync(process.execPath, ["--input-type=module", "-e", `await import(${JSON.stringify(probeCli)});`], {
         cwd: pluginPath,
         encoding: "utf8",
         timeout: 5000,
       });
-      assert.equal(visual.signal, null);
-      assert.equal(visual.status, 0, visual.stderr);
-      assert.equal(JSON.parse(visual.stdout).maxWidth, 4);
+      assert.equal(probe.signal, null);
+      assert.equal(probe.status, 0, probe.stderr);
+      for (const id of ["frontend-ui-ux", "visual-qa"]) {
+        assert.match(readFileSync(join(pluginPath, "skills", id, "SKILL.md"), "utf8"), /design@wjgoarxiv-skills/u, `installed ${id} stub carries the install line`);
+      }
+      for (const gone of ["skills/frontend-ui-ux/kit", "skills/frontend-ui-ux/references", "skills/visual-qa/scripts"]) {
+        assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the design plugin`);
+      }
 
-      writeFileSync(queryCli, `${readFileSync(queryCli, "utf8")}\n// tampered nested resource\n`);
+      const tampered = join(pluginPath, "skills", "frontend-ui-ux", "scripts", "interface-probe-rules.mjs");
+      writeFileSync(tampered, `${readFileSync(tampered, "utf8")}\n// tampered nested resource\n`);
       const doctor = runCliWithEnv(["doctor"], home, claudeHome, { PATH: "" });
       assert.notEqual(doctor.status, 0, "doctor must reject a hash-tampered nested skill resource");
       assert.match(doctor.stderr, /SKILL_RESOURCE_INTEGRITY_FAIL/u);
-      assert.match(doctor.stderr, /skills\/frontend-ui-ux\/scripts\/query-design-intelligence\.mjs/u);
+      assert.match(doctor.stderr, /skills\/frontend-ui-ux\/scripts\/interface-probe-rules\.mjs/u);
     } finally {
       rmSync(home, { recursive: true, force: true });
       rmSync(claudeHome, { recursive: true, force: true });
@@ -208,15 +204,15 @@ describe("portable LitClaude install layout", () => {
       assertFile(join(pluginPath, "lib", "wikify-knowledge.mjs"), "Wikify knowledge runtime");
       assertFile(join(pluginPath, "lib", "wikify-knowledge-cli.mjs"), "Wikify knowledge CLI");
       assertFile(join(pluginPath, "bin", "litclaude-lsp-doctor.js"), "LSP doctor bin");
-      // The figures skills are same-name stubs; lit-diagram-drawer also keeps the Pretendard pair frontend-ui-ux reuses.
-      // The scientific-visualization source and its doctor left with them for the figures plugin.
-      for (const file of ["skills/lit-diagram-drawer/SKILL.md", "skills/lit-diagram-drawer/assets/fonts/PretendardVariable.woff2", "skills/lit-diagram-drawer/assets/fonts/OFL.txt", "skills/lit-schematic/SKILL.md"]) {
+      // The figures skills are same-name stubs. The scientific-visualization source and its doctor left with them for
+      // the figures plugin, and the Pretendard pair the diagram stub kept for frontend-ui-ux left with the design plugin.
+      for (const file of ["skills/lit-diagram-drawer/SKILL.md", "skills/lit-schematic/SKILL.md"]) {
         assertFile(join(pluginPath, file), `figures ${file}`);
       }
       for (const id of ["lit-diagram-drawer", "lit-schematic", "lit-scientific-visualization"]) {
         assert.match(readFileSync(join(pluginPath, "skills", id, "SKILL.md"), "utf8"), /figures@wjgoarxiv-skills/u, `installed ${id} stub carries the install line`);
       }
-      for (const gone of ["skills/lit-diagram-drawer/scripts", "skills/lit-schematic/scripts", "vendor/scientific-visualization", "bin/litclaude-scientific-visualization-doctor.js"]) {
+      for (const gone of ["skills/lit-diagram-drawer/scripts", "skills/lit-diagram-drawer/assets", "skills/lit-schematic/scripts", "vendor/scientific-visualization", "bin/litclaude-scientific-visualization-doctor.js"]) {
         assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the figures plugin`);
       }
       // lit-pptx and lit-docx are same-name stubs: their SKILL.md files and the Pretendard pair lit-typographic-motion

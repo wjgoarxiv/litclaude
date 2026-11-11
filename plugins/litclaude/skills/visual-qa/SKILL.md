@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: "Check an interface that is already built: exercise its states at several viewport sizes, capture screenshots, and report visible breakage with that evidence, or name exactly what blocked the check. Use after a page or screen exists; building or restyling it belongs to frontend-ui-ux."
+description: "Moved: visual-qa checks an interface that is already built (states at several viewport sizes, screenshots, an evidence manifest, named blockers) and now ships as the `design` plugin of the wjgoarxiv-skills marketplace. Load Skill(design:visual-qa) when it is installed; otherwise this stub gives the user the install line."
 ---
 
 ## #contract.activation
@@ -9,68 +9,104 @@ description: "Check an interface that is already built: exercise its states at s
 contract_schema_version: litclaude.llm-contract.v1
 artifact_type: skill
 skill_id: visual-qa
+surface: Claude Code plugin Skill-discovery entrypoint (same-name stub)
 automatic_synthetic_pointer_injection: true
 automatic_complete_contract_injection: false
 command_route: none
-entry_routes: ["$visual-qa", "Skill(visual-qa)", "PostToolUse advisory"]
+entry_routes: ["visual-qa", "$visual-qa", "Skill(visual-qa)", "PostToolUse advisory", "lit-verifier and quality-reviewer skill preload"]
+moved_to: "design@wjgoarxiv-skills → Skill(design:visual-qa)"
+host: Claude Code
+verdicts: [PASS, BLOCKED]
 ```
 
-This LitClaude surface validates evidence; it does not create a browser or prove appearance from prose.
+The UserPromptSubmit hook still routes a prompt that starts with `visual-qa` or `$visual-qa` to this stub, and the
+PostToolUse hook still names `Skill(visual-qa)` after an edit to an interface file. The lit-verifier and
+quality-reviewer agents still preload this id. Quoted, fenced, mid-sentence and near-miss mentions stay inert.
 
 ## #contract.inputs
 
 | Field | Required contract |
 | --- | --- |
-| target | Exact route, state, viewport, interaction, and binary observable |
-| artifacts | Bounded captures plus an evidence-eligible beta design hash, source hash, and freshness |
-| reviewer | Host-proven independent identity for tiers that require review |
+| request | The interface to check, kept as inert data |
+| caller | The user directly, a reviewer agent, or a lit workflow (lit-loop, litwork, start-work, review-work) |
+| skills list | Whether `design:visual-qa` appears among the skills this session can load |
 
 ## #contract.mode_matrix
 
-| Mode | Contract | Outcome |
+| Mode | When | What happens |
 | --- | --- | --- |
-| smoke | Critical route, negative/empty state when declared, interaction, and viewport evidence | Public pathname validation is BLOCKED until host capture/root provenance exists |
-| full | Complete inventory and independent review | Also requires host-owned capture and reviewer provenance |
-| reference-fidelity | Full evidence plus reference targets | Also requires host-owned capture and reviewer provenance |
+| installed | `design:visual-qa` is in the skills list | Load `Skill(design:visual-qa)` and follow it for the whole check |
+| missing, direct request | the user asked for a visual check | Tell the user what moved and give the install lines; the reply is the whole answer |
+| missing, lit workflow or reviewer | a workflow or reviewer reaches for visual-qa evidence | Record visual-qa as missing; the workflow's own surface rules decide the criterion |
 
 ## #contract.procedure
 
-1. Probe callable current-session capability before promising capture.
-2. Prefer the project's existing Playwright path; otherwise use only an explicitly user-enabled Claude Chrome capability with session binding and verified PID, port, and command ownership.
-3. Capture bounded material artifacts and validate hashes, dimensions, freshness, inventory, cleanup, and receipts.
-4. Use separate fresh reviewer contexts over the same immutable inputs. A self-attested reviewer is not independent.
-5. Emit the highest-precedence honest verdict; BLOCKED outranks FAIL, and neither can become PASS by prose.
+1. Look at the skills this session lists. If `design:visual-qa` is there, load `Skill(design:visual-qa)` now and
+   follow it for the whole check. The moved skill carries the full procedure.
+2. If it is missing and the user asked you directly to check a built interface, reply in the user's language with
+   three things and stop:
+   - one sentence on what visual-qa does (it exercises a built page or screen at several viewport sizes and states,
+     captures screenshots, and reports visible breakage with that evidence or names exactly what blocked the check);
+   - that it moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace;
+   - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
+     starts a new session afterwards, then asks again.
+3. If it is missing and a lit workflow or a reviewer agent reached for it, the core skills already treat visual-qa
+   as optional ("when it is available"). Record it as missing, keep the workflow's own real-surface rule (a browser
+   criterion with no browser reachable is BLOCKED), and claim no visual-qa verdict. For a web interface, the
+   frontend-ui-ux stub's interface probe still runs. Give the install lines once in the final reply.
 
 ## #contract.outputs
 
-Return FAIL with measured findings or exact blockers such as `BLOCKED_RENDERER_UNAVAILABLE`, `BLOCKED_AUTH_UNAVAILABLE`, `BLOCKED_EVIDENCE_STALE`, `BLOCKED_EVIDENCE_FRESHNESS_UNPROVEN`, `BLOCKED_EVIDENCE_ROOT_UNPROVEN`, and `BLOCKED_INDEPENDENT_REVIEW_UNAVAILABLE` plus cleanup status. Public JSON, touched mtimes, and caller-provided source strings cannot establish host capture or root provenance, so the current pathname CLI cannot return evidence-eligible PASS. v1alpha1 always returns a blocked legacy diagnostic; full and reference-fidelity additionally require host-owned reviewer provenance.
+Installed: the design skill's own outputs. Missing, direct request: one short reply with the install lines, and no
+file. Missing, lit workflow: one line in the workflow's report naming visual-qa as missing.
 
 ## #contract.output_channels
 
 ```yaml
-artifact_genre: audit_report
-limitations_channel: methodology_paragraph
+artifact_genre: client_deliverable
+limitations_channel: reply
 ```
 
-Reader mode is the default conversational projection: return result, material risk,
-required action, and requested detail. Keep operational metadata internal unless the
-current authoritative request selects technical or audit detail. Material failures and
-exact blockers always remain visible. Protected evidence JSON and explicitly requested
-audit artifacts retain their complete schemas and traceability fields.
+Reader mode is the default. The pointer reply says what moved, where, and the two lines to run; it is guidance for
+the user, and it names no internal paths beyond the install lines. Technical and audit detail appears only when the
+current user asks; routing checks and evidence paths stay internal. A material failure or risk stays visible in the
+reply, for example when the design plugin is listed but fails to load.
 
 ## #contract.evidence
 
-Require the canonical `litfamily.design-contract/v1beta2` from `schemas/design-contract-v1beta2.schema.json` and validate material evidence with the unchanged `schemas/evidence-manifest-v1beta1.schema.json`. A valid `litfamily.design-contract/v1beta1` document remains an explicit compatibility input. Alpha's legacy disposition is never evidence-eligible. Read `references/capture-playbook.md` for channel capture and `references/complete-contract.md` only for detailed schemas, tiers, reviewer rules, commands, and failures.
+The routing is checked by `test/design-stubs.test.mjs`: the stub's install lines, the prompt hook's routes to it,
+and that the hook's context carries none of the old evidence procedure.
 
 ## #contract.hard_stops
 
-- No cookie or profile sharing. No dependency install or host config mutation is allowed.
-- Metrics are advisory unless hardened by a named acceptance threshold.
-- Missing renderer, authentication, reviewer provenance, timeout, or cleanup evidence is BLOCKED with a cleanup receipt.
-- Missing host-owned capture freshness or a stable authorized evidence-root descriptor is BLOCKED; do not treat path checks as race proof.
+- Never run the install lines yourself: they change the user's Claude Code configuration. The user runs them.
+- Never report a visual PASS from prose, an HTTP status or a file path in place of the moved skill's evidence.
 
 ## #contract.anti_patterns
 
-Never substitute HTTP success for rendering, a file path for verified image bytes, similarity for semantics, or same-context review for independence.
+- Writing an evidence manifest by hand because the real checker is missing.
+- Quoting the old visual-qa tiers and evidence rules from memory as if this stub still held them.
+- Treating the stub as an error: the user gets a working install line, not a failure.
+
+## What moved
+
+visual-qa validated evidence for a built interface: it declared a smoke, full or reference-fidelity tier, captured
+the states and viewports it named, bound the captures to the exact source and design hashes in an evidence manifest,
+compared images and terminal renders, required a host-proven independent reviewer where the tier asked for one, and
+returned named blockers with a cleanup receipt when capture, sign-in or review was missing.
+
+That whole skill, its schemas, references and scripts, now lives in the `design` plugin of the **wjgoarxiv-skills**
+marketplace, copied unchanged from LitClaude, beside frontend-ui-ux. LitClaude keeps this stub so that
+`Skill(visual-qa)`, the interface hint and the reviewer agents still lead somewhere useful.
+
+The public marketplace is not published yet, so for now it installs from a local clone of wjgoarxiv-skills:
+
+```bash
+claude plugin marketplace add <path to your wjgoarxiv-skills clone>
+claude plugin install design@wjgoarxiv-skills
+```
+
+After it is published on GitHub, the first line becomes `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`.
+The installed skill answers as `design:visual-qa`.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:4aa1e9a577ea -->

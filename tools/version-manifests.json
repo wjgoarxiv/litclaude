@@ -161,7 +161,7 @@
       "path": "test/next-version-canonical.test.mjs",
       "kind": "compatibility",
       "version": "1.0.0",
-      "occurrences": 7,
+      "occurrences": 4,
       "why": "Frozen synthetic package and consumer versions in canonical tamper and umask fixtures; not release pins."
     },
     {

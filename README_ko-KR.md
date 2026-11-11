@@ -73,6 +73,8 @@ frontend-ui-ux는 마크업을 쓰기 전에 하우스 스타일부터 정하고
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/ui-landing-brutalist.webp" width="400" alt="사양서처럼 만든 Ledgerline 랜딩 페이지. 격자 배경, 대문자로 쌓은 제목, 예산 115% 초과를 보여 주는 프로젝트 모니터 패널." /><br /><b>frontend-ui-ux</b> · 랜딩 페이지, 컴퓨테이셔널 브루탈리즘<br /><code>Build the marketing landing page for Ledgerline … Make it retro-futurist computational brutalism: raw, mechanical, like an instrument or a spec sheet.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/readme-cover.webp" width="400" alt="예시 프로젝트 hydrate-kit의 어두운 README 표지. 라벨 줄, 외곽선으로 바꾼 큰 제목, 주황 줄, 부제가 흐린 반응기 그림 위에 있고 오른쪽에 픽셀 노트 모티프가 있다." /><br /><b>readme-studio</b> · README 표지<br /><sub>스킬의 HyperFrames 표지 템플릿에 스킬의 글꼴 도구로 모든 글자를 외곽선으로 바꿔 넣은, 예시 프로젝트용 표지입니다.</sub></td></tr>
 </table>
 
+이제 frontend-ui-ux와 visual-qa는 wjgoarxiv-skills 마켓플레이스의 `design` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 화면 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다. frontend-ui-ux 안내 스킬에는 인터페이스 프로브가 남아 있어서 lit-loop와 litwork는 만든 웹 페이지를 계속 검사합니다.
+
 ### 영상 만들기
 
 lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레임 단위로 렌더링한 뒤 깜빡임, 가독성, 루프 이음매를 검사합니다. 아래 프롬프트에는 도구 이름도, 빽빽하게 채워 달라는 말도 없습니다. 겹겹의 화면, 색, 소리는 기본값에서 나왔습니다.

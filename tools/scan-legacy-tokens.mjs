@@ -27,15 +27,10 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  existsSync,
   readFileSync,
 } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  canonicalFrontendManifestPath,
-  verifyCanonicalFrontendCorpus,
-} from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import {
   MAX_BOUNDED_FILE_BYTES,
   readDirectoryStable,
@@ -558,35 +553,12 @@ export function runScan(opts) {
   const files = inventory.files;
   const trackedPaths = new Set(files);
 
-  // The imported 167-file frontend library is the sole scanner exception. It is not an
-  // allowlist: every exempt corpus file must first match its exact path, size, SHA-256,
-  // aggregate, and entry type. The independently committed legal companions and the
-  // manifest are scanned normally. A failed preflight grants zero exemptions.
-  let protectedPaths = new Set();
-  let protectedSnapshots = new Map();
-  const pluginRoot = resolve(opts.repoRoot, "plugins", "litclaude");
-  if (existsSync(join(pluginRoot, canonicalFrontendManifestPath))) {
-    const canonical = verifyCanonicalFrontendCorpus(pluginRoot);
-    if (canonical.status === "PASS") {
-      protectedPaths = canonical.protectedPaths;
-      protectedSnapshots = canonical.protectedSnapshots;
-    } else {
-      errors.push({
-        code: "LITCLAUDE_CANONICAL_CORPUS_INVALID",
-        message: "canonical frontend corpus preflight failed; no scanner exemption was applied",
-        details: { failures: canonical.failures },
-      });
-    }
-  }
-
   let snapshot;
   try {
     snapshot = captureRepoSnapshot({
       repoRoot: opts.repoRoot,
       files,
       rootSnapshot: inventory.rootSnapshot,
-      protectedPaths,
-      protectedSnapshots,
       ordinaryErrorCode: "LITCLAUDE_SCAN_FILE_READ_FAILED",
       protectedErrorCode: "LITCLAUDE_PROTECTED_FILE_DRIFT",
       fileTooLargeCode: "LITCLAUDE_SCAN_FILE_TOO_LARGE",

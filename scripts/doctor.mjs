@@ -8,7 +8,6 @@ import {
   canonicalSkillResourceFiles,
 } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
-import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
@@ -80,12 +79,6 @@ if (skillResourceIntegrity.status !== "PASS") {
   process.exit(1);
 }
 process.stdout.write(`SKILL_RESOURCE_INTEGRITY_PASS: ${skillResourceIntegrity.checked} resources\n`);
-const canonicalFrontend = verifyCanonicalFrontendCorpus(join(root, "plugins/litclaude"));
-if (canonicalFrontend.status !== "PASS") {
-  process.stderr.write(`CANONICAL_FRONTEND_CORPUS_FAIL ${JSON.stringify(canonicalFrontend.failures)}\n`);
-  process.exit(1);
-}
-process.stdout.write(`CANONICAL_FRONTEND_CORPUS_PASS: ${canonicalFrontend.checkedFiles} files; ${canonicalFrontend.corpusBytes} corpus bytes\n`);
 const runtimeClosures = verifyCanonicalRuntimeClosures(join(root, "plugins/litclaude"));
 if (runtimeClosures.status !== "PASS") {
   process.stderr.write(`CANONICAL_RUNTIME_CLOSURES_FAIL ${JSON.stringify(runtimeClosures.failures)}\n`);

@@ -133,7 +133,6 @@ test("npm pack dry-run includes runtime payload and excludes local state", () =>
     "plugins/litclaude/lib/public-source-reader/reader.mjs",
     "plugins/litclaude/lib/public-source-reader/validator.mjs",
     "plugins/litclaude/lib/workflow-check.mjs",
-    "plugins/litclaude/lib/canonical-frontend-corpus.mjs",
     "plugins/litclaude/lib/canonical-runtime-closures.mjs",
     "plugins/litclaude/lib/deliverable-hedge-guard.mjs",
     "plugins/litclaude/skills/deep-interview/SKILL.md",
@@ -294,21 +293,12 @@ test("uiux.package-assets", async () => {
 
   const inventory = resources.join("\n");
   for (const pattern of [
-    /^skills\/frontend-ui-ux\/data\/.+\.json$/mu,
-    /^skills\/frontend-ui-ux\/schemas\/design-contract-v1alpha1\.schema\.json$/mu,
-    /^skills\/frontend-ui-ux\/schemas\/design-contract-v1beta1\.schema\.json$/mu,
-    /^skills\/frontend-ui-ux\/schemas\/design-contract-v1beta2\.schema\.json$/mu,
-    /^skills\/frontend-ui-ux\/scripts\/import-design-intelligence\.mjs$/mu,
-    /^skills\/frontend-ui-ux\/scripts\/query-design-intelligence\.mjs$/mu,
-    /^skills\/frontend-ui-ux\/PROVENANCE\.json$/mu,
-    /^skills\/frontend-ui-ux\/THIRD-PARTY-NOTICE\.txt$/mu,
-    /^skills\/frontend-ui-ux\/LICENSE[^/]*$/mu,
-    /^skills\/visual-qa\/schemas\/evidence-manifest-v1alpha1\.schema\.json$/mu,
-    /^skills\/visual-qa\/schemas\/evidence-manifest-v1beta1\.schema\.json$/mu,
-    /^skills\/visual-qa\/schemas\/design-contract-v1beta1\.schema\.json$/mu,
-    /^skills\/visual-qa\/schemas\/design-contract-v1beta2\.schema\.json$/mu,
-    /^skills\/visual-qa\/schemas\/review-receipt-v1alpha1\.schema\.json$/mu,
-    /^skills\/visual-qa\/scripts\/cli\.mjs$/mu,
+    // The design bodies moved to the design extras plugin; the frontend-ui-ux stub keeps the interface probe.
+    /^skills\/frontend-ui-ux\/scripts\/interface-probe\.mjs$/mu,
+    /^skills\/frontend-ui-ux\/scripts\/interface-probe-page\.mjs$/mu,
+    /^skills\/frontend-ui-ux\/scripts\/interface-probe-rules\.mjs$/mu,
+    /^skills\/frontend-ui-ux\/ATTRIBUTION\.md$/mu,
+    /^skills\/visual-qa\/SKILL\.md$/mu,
   ]) {
     assert.match(inventory, pattern, `canonical nested-resource inventory must include ${pattern}`);
   }

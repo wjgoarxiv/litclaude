@@ -78,8 +78,6 @@ test("the first-party autoconference adapter applies reader-facing humanizer rul
 
 test("standalone research reports keep decision-changing limitations in the chat reply", () => {
   const research = readFileSync(join(plugin, "skills/litresearch/SKILL.md"), "utf8");
-  const motion = readFileSync(join(plugin, "skills/frontend-ui-ux/references/interaction-motion.md"), "utf8");
   assert.match(research, /limitation once in the chat reply/iu);
   assert.match(research, /include a caveat in the report only when its evidence or requested format requires it/iu);
-  assert.match(motion, /In the chat reply,\s*mention only the limitation/u);
 });

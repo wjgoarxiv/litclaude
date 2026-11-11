@@ -5,7 +5,6 @@ import { constants } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { verifyCanonicalFrontendCorpus } from "../plugins/litclaude/lib/canonical-frontend-corpus.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { inspectClaudeNativeSurface } from "../tools/check-model-routing.mjs";
 import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
@@ -33,34 +32,6 @@ async function readJson(path) {
 
 async function exists(path) {
   await access(path, constants.R_OK);
-}
-
-// Skills that ship a reference pack. A reference document nobody can reach from the skill's
-// entrypoint is dead payload: it is hash-pinned, installed, and never opened. This gate makes
-// that state unshippable by requiring every references/*.md to be named in its own SKILL.md.
-const referenceRouterSkills = ["frontend-ui-ux", "visual-qa"];
-
-async function assertReferenceRouters() {
-  let routed = 0;
-  for (const skillId of referenceRouterSkills) {
-    const skillRoot = join(pluginRoot, "skills", skillId);
-    const entrypoint = await readFile(join(skillRoot, "SKILL.md"), "utf8");
-    const references = (await readdir(join(skillRoot, "references")))
-      .filter((name) => name.endsWith(".md"))
-      .sort();
-    assert.ok(
-      references.length > 0,
-      `SKILL_REFERENCE_ROUTER_FAIL ${skillId} ships no reference documents`,
-    );
-    const unrouted = references.filter((name) => !entrypoint.includes(`references/${name}`));
-    assert.deepEqual(
-      unrouted,
-      [],
-      `SKILL_REFERENCE_ROUTER_FAIL ${skillId}/SKILL.md does not route ${unrouted.join(", ")}`,
-    );
-    routed += references.length;
-  }
-  process.stdout.write(`SKILL_REFERENCE_ROUTER_PASS: ${routed} reference(s) routed\n`);
 }
 
 async function main() {
@@ -93,10 +64,6 @@ async function main() {
   assert.ok(skills.length >= 7, "expected at least seven skills");
   assert.ok(agents.length >= expectedAgentExports.length, `expected at least ${expectedAgentExports.length} agents`);
 
-  await assertReferenceRouters();
-  const canonicalFrontend = verifyCanonicalFrontendCorpus(pluginRoot);
-  assert.equal(canonicalFrontend.status, "PASS", `CANONICAL_FRONTEND_CORPUS_FAIL ${JSON.stringify(canonicalFrontend.failures)}`);
-  process.stdout.write(`CANONICAL_FRONTEND_CORPUS_PASS: ${canonicalFrontend.checkedFiles} files\n`);
   const runtimeClosures = verifyCanonicalRuntimeClosures(pluginRoot);
   assert.equal(runtimeClosures.status, "PASS", `CANONICAL_RUNTIME_CLOSURES_FAIL ${JSON.stringify(runtimeClosures.failures)}`);
   process.stdout.write(`CANONICAL_RUNTIME_CLOSURES_PASS: ${runtimeClosures.families.length} families\n`);

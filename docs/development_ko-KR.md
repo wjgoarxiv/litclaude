@@ -9,8 +9,8 @@ LitClaude 자체를 고치는 사람을 위한 페이지입니다. 패키지 gua
 
 스캐너 통과는 한 시점의 스냅샷에 대한 결과입니다. 캡처한 파일 수와 그 바이트의 SHA-256
 다이제스트를 알려 주지만, 그 뒤에도 mutable live tree가 깨끗하다는 것까지 입증하지는 않습니다.
-파일이 바뀌었다면 검사를 다시 돌리세요. 법적 동반 파일은 생성된 manifest 밖에 있고 정상적으로
-검사합니다. Canonical 및 runtime 캡처는 파일당 8 MiB, 전체 32 MiB까지입니다.
+파일이 바뀌었다면 검사를 다시 돌리세요. 검토한 소스 commitment는 생성된 manifest 밖에 있습니다.
+Runtime closure 캡처는 파일당 8 MiB, 전체 32 MiB까지입니다.
 패키지 guard는 `immutable expected file map`을 `verifier-to-capture interval` 안에서 확인하고,
 만들어진 tarball과도 비교합니다. `0600` 같은 `non-executable` 항목도 유효합니다.
 

@@ -29,8 +29,6 @@ const MANIFEST_PATH = `${PLUGIN_ROOT}/lib/canonical-skill-resources.mjs`;
 // package-wide manifest would duplicate those mechanisms.
 const PINNED_FILES = [
   "lib/added-comment-lines.mjs",
-  "lib/canonical-frontend-commitments.mjs",
-  "lib/canonical-frontend-corpus.mjs",
   "lib/canonical-runtime-commitments.mjs",
   "lib/canonical-runtime-closures.mjs",
   "lib/deliverable-hedge-guard.mjs",
@@ -85,14 +83,6 @@ const PINNED_TREES = [
   "skills/wikify",
 ];
 
-const SEPARATELY_MANIFESTED_PREFIXES = [
-  "skills/frontend-ui-ux/references/_canonical-corpus/legal/",
-  "skills/frontend-ui-ux/references/design/",
-  "skills/frontend-ui-ux/references/designpowers/",
-  "skills/frontend-ui-ux/references/perfection/",
-  "skills/frontend-ui-ux/references/ui-ux-db/",
-];
-
 function walk(relDir) {
   const out = [];
   for (const entry of readdirSync(path.join(PLUGIN_ROOT, relDir), { withFileTypes: true })) {
@@ -104,9 +94,7 @@ function walk(relDir) {
 }
 
 function collect() {
-  const paths = [...PINNED_FILES, ...PINNED_TREES.flatMap(walk)]
-    .filter((rel) => !SEPARATELY_MANIFESTED_PREFIXES.some((prefix) => rel.startsWith(prefix)))
-    .sort();
+  const paths = [...PINNED_FILES, ...PINNED_TREES.flatMap(walk)].sort();
   return paths.map((rel) => [
     rel,
     createHash("sha256").update(readFileSync(path.join(PLUGIN_ROOT, rel))).digest("hex"),

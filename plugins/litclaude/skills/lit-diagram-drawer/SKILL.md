@@ -45,7 +45,7 @@ stub. The words "diagram", "chart" and "visualization" alone still route nowhere
    - that it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
-3. An interface page or dashboard still belongs to frontend-ui-ux in LitClaude.
+3. An interface page or dashboard belongs to frontend-ui-ux, which LitClaude routes to its own stub.
 
 ## #contract.outputs
 
@@ -78,11 +78,6 @@ and that no drawing procedure from the old body is left in the hook's context.
 - Hand-writing SVG or Mermaid because the real skill is missing.
 - Quoting the old lit-diagram-drawer procedure from memory as if this stub still held it.
 - Treating the stub as an error: the user gets a working install line, not a failure.
-
-## Files kept here
-
-`assets/fonts/` holds the official Pretendard variable font and its SIL Open Font License 1.1 (`OFL.txt`). They
-stay in LitClaude because the frontend-ui-ux design kit copies them by path and checks their hashes.
 
 ## What moved
 

@@ -23,8 +23,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const pluginRoot = join(root, "plugins", "litclaude");
-const frontendRoot = join(pluginRoot, "skills", "frontend-ui-ux", "references");
-const manifestPath = join(frontendRoot, "_canonical-corpus", "manifest.json");
 const checkoutClaudeProfileExisted = existsSync(join(root, ".claude"));
 const maxCanonicalFileBytes = 8 * 1024 * 1024;
 
@@ -39,14 +37,6 @@ function runHook(prompt) {
   });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-}
-
-function copyFrontendFixture() {
-  const temp = mkdtempSync(join(tmpdir(), "litclaude-canonical-frontend-"));
-  const target = join(temp, "skills", "frontend-ui-ux", "references");
-  mkdirSync(dirname(target), { recursive: true });
-  cpSync(frontendRoot, target, { recursive: true, preserveTimestamps: true });
-  return { temp, target };
 }
 
 function copyCanonicalPluginFixture(prefix = "litclaude-canonical-plugin-") {
@@ -109,7 +99,7 @@ if (process.argv[2] === "prepack") {
   return fixture;
 }
 
-function runVerifierAncestorRace(kind, verifier) {
+function runVerifierAncestorRace(kind) {
   const fixture = copyCanonicalPluginFixture("litclaude-ancestor-race-");
   const outside = join(fixture.temp, "outside-plugin");
   cpSync(fixture.target, outside, { recursive: true, preserveTimestamps: true });
@@ -133,9 +123,8 @@ fs.closeSync = function(descriptor, ...args) {
 };
 syncBuiltinESMExports();
 `);
-  const moduleUrl = pathToFileURL(join(pluginRoot, "lib", verifier === "frontend" ? "canonical-frontend-corpus.mjs" : "canonical-runtime-closures.mjs")).href;
-  const exportName = verifier === "frontend" ? "verifyCanonicalFrontendCorpus" : "verifyCanonicalRuntimeClosures";
-  const driver = `import { ${exportName} } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(${exportName}(process.env.LITCLAUDE_PLUGIN_ROOT)));`;
+  const moduleUrl = pathToFileURL(join(pluginRoot, "lib", "canonical-runtime-closures.mjs")).href;
+  const driver = `import { verifyCanonicalRuntimeClosures } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(verifyCanonicalRuntimeClosures(process.env.LITCLAUDE_PLUGIN_ROOT)));`;
   const result = spawnSync(process.execPath, ["--import", preload, "--input-type=module", "-e", driver], {
     encoding: "utf8",
     env: {
@@ -238,18 +227,18 @@ function runScannerAncestorRace(scanKind, ancestor) {
   const replacement = ancestor === "intermediate" ? join(outside, "ordinary") : outside;
   const inventoryRacePreload = scanKind === "legacy" ? `
 import fs from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
-const originalExists = fs.existsSync;
+import crypto from "node:crypto";
+const hashProto = Object.getPrototypeOf(crypto.createHash("sha256"));
+const originalUpdate = hashProto.update;
 let swapped = false;
-fs.existsSync = function(path, ...args) {
-  if (!swapped && String(path).endsWith("_canonical-corpus/manifest.json")) {
+hashProto.update = function(data, ...args) {
+  if (!swapped && data === "litclaude-scanner-snapshot-v1\0") {
     swapped = true;
     fs.renameSync(process.env.LITCLAUDE_RACE_ANCESTOR, process.env.LITCLAUDE_RACE_DISPLACED);
     fs.renameSync(process.env.LITCLAUDE_RACE_REPLACEMENT, process.env.LITCLAUDE_RACE_ANCESTOR);
   }
-  return originalExists.call(this, path, ...args);
+  return originalUpdate.call(this, data, ...args);
 };
-syncBuiltinESMExports();
 ` : `
 import fs from "node:fs";
 const originalMap = Array.prototype.map;
@@ -370,53 +359,6 @@ String.prototype.split = function(separator, ...args) {
   }
 }
 
-function runProtectedPostReadMutation(carrier) {
-  const temp = mkdtempSync(join(tmpdir(), "litclaude-protected-post-read-"));
-  const harness = mkdtempSync(join(tmpdir(), "litclaude-protected-post-read-harness-"));
-  const targetRoot = join(temp, "plugins", "litclaude", "skills", "frontend-ui-ux", "references");
-  const target = join(targetRoot, carrier.entry.path);
-  const allowlist = join(temp, "tools", "legacy-token-allowlist.json");
-  const preload = join(harness, "mutate-protected-after-read.mjs");
-  mkdirSync(dirname(targetRoot), { recursive: true });
-  mkdirSync(dirname(allowlist), { recursive: true });
-  cpSync(frontendRoot, targetRoot, { recursive: true, preserveTimestamps: true });
-  writeFileSync(allowlist, '{"version":1,"entries":[]}\n');
-  writeFileSync(preload, `
-import fs from "node:fs";
-const originalSplit = String.prototype.split;
-let mutated = false;
-String.prototype.split = function(separator, ...args) {
-  if (!mutated && separator instanceof RegExp && separator.source.includes("\\\\r\\\\n")) {
-    mutated = true;
-    const bytes = fs.readFileSync(process.env.LITCLAUDE_RACE_TARGET);
-    bytes[0] = bytes[0] === 65 ? 66 : 65;
-    fs.writeFileSync(process.env.LITCLAUDE_RACE_TARGET, bytes);
-  }
-  return originalSplit.call(this, separator, ...args);
-};
-`);
-  spawnSync("git", ["init", "-q"], { cwd: temp });
-  const scannerUrl = pathToFileURL(join(root, "tools", "scan-legacy-tokens.mjs")).href;
-  const driver = `import { runScan } from ${JSON.stringify(scannerUrl)}; process.stdout.write(JSON.stringify(runScan({ repoRoot: process.env.LITCLAUDE_RACE_ROOT, allowlistPath: process.env.LITCLAUDE_RACE_ALLOWLIST })));`;
-  const result = spawnSync(process.execPath, ["--import", preload, "--input-type=module", "-e", driver], {
-    cwd: temp,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      LITCLAUDE_RACE_ALLOWLIST: allowlist,
-      LITCLAUDE_RACE_ROOT: temp,
-      LITCLAUDE_RACE_TARGET: target,
-    },
-  });
-  try {
-    assert.equal(result.status, 0, result.stderr);
-    return JSON.parse(result.stdout);
-  } finally {
-    rmSync(temp, { recursive: true, force: true });
-    rmSync(harness, { recursive: true, force: true });
-  }
-}
-
 function runAllowlistCaptureRace() {
   const temp = mkdtempSync(join(tmpdir(), "litclaude-allowlist-capture-race-"));
   const harness = mkdtempSync(join(tmpdir(), "litclaude-allowlist-capture-harness-"));
@@ -456,380 +398,6 @@ syncBuiltinESMExports();
     rmSync(harness, { recursive: true, force: true });
   }
 }
-
-function runScannerPreflightDriftCase(kind, carrier) {
-  const temp = mkdtempSync(join(tmpdir(), "litclaude-scanner-preflight-"));
-  const targetRoot = join(temp, "plugins", "litclaude", "skills", "frontend-ui-ux", "references");
-  mkdirSync(dirname(targetRoot), { recursive: true });
-  cpSync(frontendRoot, targetRoot, { recursive: true, preserveTimestamps: true });
-  const fixture = { temp, target: targetRoot };
-  const harness = mkdtempSync(join(tmpdir(), "litclaude-scanner-race-"));
-  const target = join(fixture.target, carrier.entry.path);
-  const outside = join(harness, "outside.md");
-  const preload = join(harness, "mutate-after-preflight.mjs");
-  const allowlist = join(fixture.temp, "tools", "legacy-token-allowlist.json");
-  mkdirSync(dirname(allowlist), { recursive: true });
-  writeFileSync(allowlist, '{"version":1,"entries":[]}\n');
-  writeFileSync(outside, `${carrier.hit.token}\n`);
-  writeFileSync(preload, `
-import fs from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
-const target = process.env.LITCLAUDE_RACE_TARGET;
-const outside = process.env.LITCLAUDE_RACE_OUTSIDE;
-const kind = process.env.LITCLAUDE_RACE_KIND;
-const original = fs.readFileSync(target);
-const originalOpen = fs.openSync;
-let targetOpenCount = 0;
-let mutated = false;
-fs.openSync = function(path, ...args) {
-  if (path === target) targetOpenCount += 1;
-  if (!mutated && path === target && targetOpenCount === 2) {
-    mutated = true;
-    if (kind === "changed-bytes") fs.writeFileSync(target, process.env.LITCLAUDE_RACE_WITNESS + "\\n");
-    else if (kind === "deleted") fs.rmSync(target);
-    else if (kind === "unreadable") fs.chmodSync(target, 0o000);
-    else if (kind === "symlink-substitution") { fs.rmSync(target); fs.symlinkSync(outside, target); }
-    else if (kind === "same-bytes-substitution") {
-      const replacement = target + ".replacement";
-      fs.writeFileSync(replacement, original);
-      fs.renameSync(replacement, target);
-    }
-  }
-  return originalOpen.call(this, path, ...args);
-};
-syncBuiltinESMExports();
-`);
-  spawnSync("git", ["init", "-q"], { cwd: fixture.temp });
-  const scannerUrl = pathToFileURL(join(root, "tools", "scan-legacy-tokens.mjs")).href;
-  const driver = `import { runScan } from ${JSON.stringify(scannerUrl)}; const report = runScan({ repoRoot: process.env.LITCLAUDE_RACE_ROOT, allowlistPath: process.env.LITCLAUDE_RACE_ALLOWLIST }); process.stdout.write(JSON.stringify(report));`;
-  const result = spawnSync(process.execPath, ["--import", preload, "--input-type=module", "-e", driver], {
-    cwd: fixture.temp,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      LITCLAUDE_RACE_ALLOWLIST: allowlist,
-      LITCLAUDE_RACE_KIND: kind,
-      LITCLAUDE_RACE_OUTSIDE: outside,
-      LITCLAUDE_RACE_ROOT: fixture.temp,
-      LITCLAUDE_RACE_TARGET: target,
-      LITCLAUDE_RACE_WITNESS: carrier.hit.token,
-    },
-  });
-  try {
-    assert.equal(result.status, 0, result.stderr);
-    return JSON.parse(result.stdout);
-  } finally {
-    if (existsSync(target) && !statSync(target).isSymbolicLink()) chmodSync(target, 0o644);
-    rmSync(fixture.temp, { recursive: true, force: true });
-    rmSync(harness, { recursive: true, force: true });
-  }
-}
-
-describe("canonical frontend corpus", () => {
-  it("anchors exact legal paths, source paths, sizes, hashes, and aggregate outside the generated manifest", async () => {
-    const commitmentPath = join(pluginRoot, "lib", "canonical-frontend-commitments.mjs");
-    assert.equal(existsSync(commitmentPath), true, "frontend legal commitments must live outside the generated manifest");
-    const { CANONICAL_FRONTEND_LEGAL_COMMITMENT } = await import(pathToFileURL(commitmentPath).href);
-    assert.deepEqual(CANONICAL_FRONTEND_LEGAL_COMMITMENT, {
-      fileCount: 3,
-      byteCount: 24439,
-      treeSha256: "2b7174f0662a5e41259b922fd1d94c24670df66894c7b9f81c9595ebd35fbc52",
-      files: [
-        {
-          path: "_canonical-corpus/legal/frontend-ATTRIBUTION.md",
-          sourcePath: "frontend/ATTRIBUTION.md",
-          size: 12075,
-          sha256: "a73cd147a533442218a9adef53d99e0eaf15c10d8db4819d9d1542727f077b92",
-        },
-        {
-          path: "_canonical-corpus/legal/frontend-LICENSE-Apache-2.0.txt",
-          sourcePath: "frontend/LICENSE-Apache-2.0.txt",
-          size: 11296,
-          sha256: "9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da",
-        },
-        {
-          path: "_canonical-corpus/legal/root-LICENSE",
-          sourcePath: "LICENSE",
-          size: 1068,
-          sha256: "b083425948376611de9b92b0aeb7377e604505756ea427e541a34d9b030d4dc1",
-        },
-      ],
-    });
-  });
-
-  it("rejects coordinated legal-byte and generated-manifest repinning", async () => {
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const fixture = copyFrontendFixture();
-    try {
-      const localManifestPath = join(fixture.target, "_canonical-corpus", "manifest.json");
-      const manifest = json(localManifestPath);
-      const legal = manifest.legal[0];
-      const legalPath = join(fixture.target, legal.path);
-      const changed = readFileSync(legalPath);
-      changed[0] ^= 1;
-      writeFileSync(legalPath, changed);
-      legal.sha256 = createHash("sha256").update(changed).digest("hex");
-      writeFileSync(localManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-      const report = verifyCanonicalFrontendCorpus(fixture.temp);
-      assert.equal(report.status, "FAIL");
-      assert.ok(
-        report.failures.some(({ code }) => code === "LEGAL_COMMITMENT_MISMATCH"),
-        JSON.stringify(report.failures),
-      );
-    } finally {
-      rmSync(fixture.temp, { recursive: true, force: true });
-    }
-  });
-
-  it("bounds the canonical manifest, each canonical file, and declared aggregate before whole-file reads", async () => {
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const cases = [
-      ["manifest", (fixture) => truncateSync(join(fixture.target, "_canonical-corpus", "manifest.json"), maxCanonicalFileBytes + 1), "CANONICAL_FRONTEND_MANIFEST_TOO_LARGE"],
-      ["file", (fixture) => {
-        const manifest = json(join(fixture.target, "_canonical-corpus", "manifest.json"));
-        truncateSync(join(fixture.target, manifest.files[0].path), maxCanonicalFileBytes + 1);
-      }, "CANONICAL_FRONTEND_FILE_TOO_LARGE"],
-      ["aggregate", (fixture) => {
-        const localManifestPath = join(fixture.target, "_canonical-corpus", "manifest.json");
-        const manifest = json(localManifestPath);
-        for (const entry of manifest.files) entry.size = maxCanonicalFileBytes;
-        writeFileSync(localManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-      }, "CANONICAL_FRONTEND_AGGREGATE_TOO_LARGE"],
-    ];
-
-    for (const [label, mutate, expectedCode] of cases) {
-      const fixture = copyFrontendFixture();
-      try {
-        mutate(fixture);
-        const report = verifyCanonicalFrontendCorpus(fixture.temp);
-        assert.equal(report.status, "FAIL", label);
-        assert.ok(report.failures.some(({ code }) => code === expectedCode), `${label}: ${JSON.stringify(report.failures)}`);
-      } finally {
-        rmSync(fixture.temp, { recursive: true, force: true });
-      }
-    }
-  });
-
-  it("ships the pinned exact manifest and preserves the independent normalized dataset", async () => {
-    assert.equal(existsSync(manifestPath), true, "canonical corpus manifest must exist");
-    const manifest = json(manifestPath);
-    assert.equal(manifest.source.commit, "8ec16c5129df7b9778959e8367657d0e79c2c3bb");
-    assert.equal(manifest.source.reference_tree, "9188410be0af35f2421ba300d91a0d7a7341caf0");
-    assert.equal(manifest.file_count, 167);
-    assert.equal(manifest.byte_count, 2_596_349);
-    assert.equal(manifest.aggregate_sha256, "f6959eeae02685102df9fbedafb2c437be4d51df8e102f9fcf32298f7674e7d7");
-    assert.equal(manifest.files.length, 167);
-    assert.equal(manifest.legal.length, 3);
-    assert.deepEqual(manifest.independent_normalized_dataset, {
-      source_count: 34,
-      record_count: 2277,
-      sha256: "a89011236a6ff14e12ec55fccbfab1bbd40ae34614cea5710c022121aa841bb8",
-    });
-
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const report = verifyCanonicalFrontendCorpus(pluginRoot);
-    assert.equal(report.status, "PASS", JSON.stringify(report.failures));
-    assert.equal(report.checkedFiles, 170);
-    assert.equal(report.corpusBytes, 2_596_349);
-    assert.equal(report.aggregateSha256, manifest.aggregate_sha256);
-    assertImmutableExpectedMap(report.expectedPackageFiles, 171);
-    assert.deepEqual(report.expectedPackageFiles.get("plugins/litclaude/skills/frontend-ui-ux/references/_canonical-corpus/legal/root-LICENSE"), {
-      executable: false,
-      size: 1068,
-      sha256: "b083425948376611de9b92b0aeb7377e604505756ea427e541a34d9b030d4dc1",
-    });
-    const { canonicalSkillResourceManifest } = await import("../plugins/litclaude/lib/canonical-skill-resources.mjs");
-    const immutableMapPath = join(pluginRoot, "lib", "immutable-expected-file-map.mjs");
-    assert.equal(
-      canonicalSkillResourceManifest.get("lib/immutable-expected-file-map.mjs"),
-      createHash("sha256").update(readFileSync(immutableMapPath)).digest("hex"),
-      "the security-critical immutable map helper must be enrolled in installed integrity",
-    );
-  });
-
-  it("fails closed for missing, extra, changed, symlink, special, unreadable, and malformed-manifest entries", async () => {
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const first = json(manifestPath).files[0].path;
-    const cases = [
-      ["missing", (fixture) => rmSync(join(fixture.target, first)), "CORPUS_MISSING"],
-      ["extra", (fixture) => writeFileSync(join(fixture.target, "design", "extra.md"), "extra\n"), "CORPUS_EXTRA"],
-      ["changed", (fixture) => writeFileSync(join(fixture.target, first), "changed\n"), "CORPUS_HASH_MISMATCH"],
-      ["executable manifest", (fixture) => chmodSync(join(fixture.target, "_canonical-corpus", "manifest.json"), 0o755), "MANIFEST_MODE_MISMATCH"],
-      ["executable corpus", (fixture) => chmodSync(join(fixture.target, first), 0o755), "CORPUS_MODE_MISMATCH"],
-      ["executable legal", (fixture) => {
-        const legal = json(join(fixture.target, "_canonical-corpus", "manifest.json")).legal[0].path;
-        chmodSync(join(fixture.target, legal), 0o755);
-      }, "CORPUS_MODE_MISMATCH"],
-      ["symlink", (fixture) => { rmSync(join(fixture.target, first)); symlinkSync(manifestPath, join(fixture.target, first)); }, "CORPUS_NON_REGULAR"],
-      ["unreadable", (fixture) => chmodSync(join(fixture.target, first), 0o000), "CORPUS_UNREADABLE"],
-      ["manifest carrier", (fixture) => {
-        const path = join(fixture.target, "_canonical-corpus", "manifest.json");
-        const value = json(path);
-        value.carrier = "unexpected";
-        writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
-      }, "MANIFEST_SCHEMA_INVALID"],
-    ];
-    if (process.platform !== "win32") {
-      cases.push(["special", (fixture) => {
-        const special = join(fixture.target, "design", "special.pipe");
-        const result = spawnSync("mkfifo", [special], { encoding: "utf8" });
-        assert.equal(result.status, 0, result.stderr);
-      }, "CORPUS_NON_REGULAR"]);
-    }
-
-    for (const [label, mutate, expectedCode] of cases) {
-      const fixture = copyFrontendFixture();
-      try {
-        mutate(fixture);
-        const report = verifyCanonicalFrontendCorpus(fixture.temp);
-        assert.equal(report.status, "FAIL", `${label} must fail`);
-        assert.ok(report.failures.some(({ code }) => code === expectedCode), `${label}: ${JSON.stringify(report.failures)}`);
-      } finally {
-        if (existsSync(join(fixture.target, first))) chmodSync(join(fixture.target, first), 0o644);
-        rmSync(fixture.temp, { recursive: true, force: true });
-      }
-    }
-  });
-
-  it("accepts secure non-executable frontend, legal, and manifest modes without requiring exact 0644", async () => {
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const fixture = copyFrontendFixture();
-    try {
-      const fixtureManifest = join(fixture.target, "_canonical-corpus", "manifest.json");
-      const manifest = json(fixtureManifest);
-      chmodSync(fixtureManifest, 0o600);
-      chmodSync(join(fixture.target, manifest.files[0].path), 0o600);
-      chmodSync(join(fixture.target, manifest.legal[0].path), 0o600);
-      const report = verifyCanonicalFrontendCorpus(fixture.temp);
-      assert.equal(report.status, "PASS", JSON.stringify(report.failures));
-    } finally {
-      rmSync(fixture.temp, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects hash-identical frontend roots reached through persistent ancestor symlinks", async () => {
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    for (const ancestor of ["root", "skills"]) {
-      const fixture = copyCanonicalPluginFixture("litclaude-frontend-ancestor-");
-      const outside = join(fixture.temp, "outside-plugin");
-      cpSync(fixture.target, outside, { recursive: true, preserveTimestamps: true });
-      const target = ancestor === "root" ? fixture.target : join(fixture.target, "skills");
-      const replacement = ancestor === "root" ? outside : join(outside, "skills");
-      try {
-        rmSync(target, { recursive: true });
-        symlinkSync(replacement, target);
-        const report = verifyCanonicalFrontendCorpus(fixture.target);
-        assert.equal(report.status, "FAIL", `${ancestor} symlink must fail`);
-        assert.ok(report.failures.some(({ code }) => code.includes("ANCESTOR")), JSON.stringify(report.failures));
-      } finally {
-        rmSync(fixture.temp, { recursive: true, force: true });
-      }
-    }
-  });
-
-  it("detects a hash-identical frontend root substitution race", () => {
-    const report = runVerifierAncestorRace("root", "frontend");
-    assert.equal(report.status, "FAIL");
-    assert.ok(report.failures.some(({ code }) => code.includes("ANCESTOR")), JSON.stringify(report.failures));
-  });
-
-  it("enumerates through a bound Dir handle and rejects a transient restored directory substitution", () => {
-    const fixture = mkdtempSync(join(tmpdir(), "litclaude-bound-opendir-"));
-    const target = join(fixture, "target");
-    const outside = join(fixture, "outside");
-    const preload = join(fixture, "transient-opendir-swap.mjs");
-    mkdirSync(target);
-    mkdirSync(outside);
-    writeFileSync(join(target, "same.md"), "same bytes\n");
-    writeFileSync(join(outside, "same.md"), "same bytes\n");
-    writeFileSync(preload, `
-import fs from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
-const original = fs.opendirSync;
-let swapped = false;
-fs.opendirSync = function(path, ...args) {
-  if (!swapped && path === process.env.LITCLAUDE_RACE_TARGET) {
-    swapped = true;
-    fs.renameSync(path, process.env.LITCLAUDE_RACE_DISPLACED);
-    fs.renameSync(process.env.LITCLAUDE_RACE_OUTSIDE, path);
-    const handle = original.call(this, path, ...args);
-    fs.renameSync(path, process.env.LITCLAUDE_RACE_OUTSIDE);
-    fs.renameSync(process.env.LITCLAUDE_RACE_DISPLACED, path);
-    return handle;
-  }
-  return original.call(this, path, ...args);
-};
-syncBuiltinESMExports();
-`);
-    const moduleUrl = pathToFileURL(join(pluginRoot, "lib", "secure-path-read.mjs")).href;
-    const driver = `import { readDirectoryStable } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(readDirectoryStable(process.env.LITCLAUDE_RACE_ROOT, process.env.LITCLAUDE_RACE_TARGET)));`;
-    const result = spawnSync(process.execPath, ["--import", preload, "--input-type=module", "-e", driver], {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        LITCLAUDE_RACE_DISPLACED: `${target}.displaced`,
-        LITCLAUDE_RACE_OUTSIDE: outside,
-        LITCLAUDE_RACE_ROOT: fixture,
-        LITCLAUDE_RACE_TARGET: target,
-      },
-    });
-    try {
-      assert.equal(result.status, 0, result.stderr);
-      const report = JSON.parse(result.stdout);
-      assert.ok(report.failure?.includes("ANCESTOR"), JSON.stringify(report));
-      const source = read(join(pluginRoot, "lib", "secure-path-read.mjs"));
-      assert.match(source, /opendirSync/u);
-      assert.doesNotMatch(source, /readdirSync/u);
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects subsequent regular-directory and hardlinked-file parent replacements", async () => {
-    const { readDirectoryStable, readRegularStable } = await import("../plugins/litclaude/lib/secure-path-read.mjs");
-    const fixture = mkdtempSync(join(tmpdir(), "litclaude-expected-ancestors-"));
-    const directory = join(fixture, "parent");
-    const file = join(directory, "same.md");
-    mkdirSync(directory);
-    writeFileSync(file, "same bytes\n");
-    try {
-      const directoryFirst = readDirectoryStable(fixture, directory);
-      assert.equal(directoryFirst.failure, undefined);
-      renameSync(directory, `${directory}.original`);
-      cpSync(`${directory}.original`, directory, { recursive: true });
-      const directorySecond = readDirectoryStable(fixture, directory, { ancestors: directoryFirst.ancestors });
-      assert.ok(directorySecond.failure?.includes("ANCESTOR"), JSON.stringify(directorySecond));
-
-      rmSync(directory, { recursive: true });
-      renameSync(`${directory}.original`, directory);
-      const fileFirst = readRegularStable(fixture, file);
-      assert.equal(fileFirst.failure, undefined);
-      renameSync(directory, `${directory}.original`);
-      mkdirSync(directory);
-      linkSync(join(`${directory}.original`, "same.md"), file);
-      const fileSecond = readRegularStable(fixture, file, fileFirst.snapshot);
-      assert.ok(fileSecond.failure?.includes("ANCESTOR"), JSON.stringify(fileSecond));
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  it("preserves canonical bytes as -text and routes the inert library without changing normalized data", () => {
-    const attributes = read(join(root, ".gitattributes"));
-    for (const directory of ["design", "designpowers", "perfection", "ui-ux-db", "_canonical-corpus/legal"]) {
-      assert.match(attributes, new RegExp(`frontend-ui-ux/references/${directory.replaceAll("/", "\\/")}.*-text`, "u"));
-    }
-    const skill = read(join(pluginRoot, "skills", "frontend-ui-ux", "SKILL.md"));
-    assert.match(skill, /canonical library/iu);
-    assert.match(skill, /inert reference data/iu);
-    assert.match(skill, /2,277/u);
-    assert.match(skill, /independent/iu);
-    assert.match(skill, /no execution|never execute/iu);
-    assert.match(skill, /no fetch|never fetch/iu);
-    assert.match(skill, /dependency install/iu);
-  });
-});
 
 describe("canonical source families", () => {
   it("anchors each reviewed source commit to an independent tree commitment", async () => {
@@ -1171,7 +739,7 @@ describe("canonical source families", () => {
       rmSync(fixture.temp, { recursive: true, force: true });
     }
 
-    const raced = runVerifierAncestorRace("intermediate", "runtime");
+    const raced = runVerifierAncestorRace("intermediate");
     assert.equal(raced.status, "FAIL");
     assert.ok(raced.failures.some(({ code }) => code.includes("ANCESTOR")), JSON.stringify(raced.failures));
   });
@@ -1226,94 +794,6 @@ describe("canonical source families", () => {
 });
 
 describe("scanner, package, docs, and workspace boundaries", () => {
-  it("makes the executable package guard reject coordinated legal-byte and manifest repinning", () => {
-    const fixture = mkdtempSync(join(tmpdir(), "litclaude-pack-legal-repin-"));
-    try {
-      mkdirSync(join(fixture, "tools"), { recursive: true });
-      cpSync(join(root, "plugins"), join(fixture, "plugins"), { recursive: true, preserveTimestamps: true });
-      cpSync(join(root, "tools", "check-pack-payload.mjs"), join(fixture, "tools", "check-pack-payload.mjs"));
-      writeFileSync(join(fixture, "package.json"), `${JSON.stringify({
-        name: "litclaude-pack-legal-repin",
-        version: "1.0.0",
-        type: "module",
-        files: ["plugins"],
-      })}\n`);
-
-      const localFrontend = join(fixture, "plugins/litclaude/skills/frontend-ui-ux/references");
-      const localManifestPath = join(localFrontend, "_canonical-corpus/manifest.json");
-      const manifest = json(localManifestPath);
-      const legal = manifest.legal[0];
-      const legalPath = join(localFrontend, legal.path);
-      const changed = readFileSync(legalPath);
-      changed[0] ^= 1;
-      writeFileSync(legalPath, changed);
-      legal.sha256 = createHash("sha256").update(changed).digest("hex");
-      writeFileSync(localManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-      const result = spawnSync(process.execPath, [join(fixture, "tools/check-pack-payload.mjs")], {
-        cwd: fixture,
-        encoding: "utf8",
-      });
-      assert.equal(result.status, 1, result.stdout);
-      assert.match(result.stderr, /CANONICAL_FRONTEND_CORPUS_FAIL/u);
-      assert.match(result.stderr, /LEGAL_COMMITMENT_MISMATCH/u);
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  it("makes the package guard hash exact legal bytes from the produced tarball", () => {
-    const fixture = mkdtempSync(join(tmpdir(), "litclaude-pack-legal-tar-"));
-    try {
-      mkdirSync(join(fixture, "tools"), { recursive: true });
-      cpSync(join(root, "plugins"), join(fixture, "plugins"), { recursive: true, preserveTimestamps: true });
-      cpSync(join(root, "tools", "check-pack-payload.mjs"), join(fixture, "tools", "check-pack-payload.mjs"));
-      const legalPath = "plugins/litclaude/skills/frontend-ui-ux/references/_canonical-corpus/legal/root-LICENSE";
-      writeFileSync(join(fixture, "mutate-legal.mjs"), `
-import { readFileSync, writeFileSync } from "node:fs";
-const path = new URL(${JSON.stringify(`./${legalPath}`)}, import.meta.url);
-const bytes = readFileSync(path);
-bytes[0] ^= 1;
-writeFileSync(path, bytes);
-`);
-      writeFileSync(join(fixture, "package.json"), `${JSON.stringify({
-        name: "litclaude-pack-legal-tar",
-        version: "1.0.0",
-        type: "module",
-        scripts: { prepack: "node mutate-legal.mjs" },
-        files: ["plugins"],
-      })}\n`);
-
-      const result = spawnSync(process.execPath, [join(fixture, "tools/check-pack-payload.mjs")], {
-        cwd: fixture,
-        encoding: "utf8",
-      });
-      assert.equal(result.status, 1, result.stdout);
-      assert.match(result.stderr, /LEGAL_PACKAGE_HASH_MISMATCH/u);
-      assert.match(result.stderr, new RegExp(legalPath.replaceAll("/", "\\/"), "u"));
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects a frontend corpus tarball mutation even when postpack restores the verified source", () => {
-    const corpusPath = `plugins/litclaude/skills/frontend-ui-ux/references/${json(manifestPath).files[0].path}`;
-    const fixture = writeRestoredPrepackMutationFixture("litclaude-pack-frontend-tar-", corpusPath);
-    try {
-      const before = readFileSync(join(fixture, corpusPath));
-      const result = spawnSync(process.execPath, [join(fixture, "tools/check-pack-payload.mjs")], {
-        cwd: fixture,
-        encoding: "utf8",
-      });
-      assert.equal(result.status, 1, result.stdout);
-      assert.match(result.stderr, /CANONICAL_PACKAGE_BYTES_MISMATCH/u);
-      assert.match(result.stderr, new RegExp(corpusPath.replaceAll("/", "\\/"), "u"));
-      assert.deepEqual(readFileSync(join(fixture, corpusPath)), before, "postpack must restore the source before the guard compares the tarball");
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
   it("rejects a runtime closure tarball mutation even when postpack restores the verified source", () => {
     const runtimeManifest = json(join(pluginRoot, "vendor", "canonical-runtime-closures.json"));
     const firstFamily = runtimeManifest.families[0];
@@ -1378,51 +858,6 @@ if (process.argv[2] === "prepack") {
     }
   });
 
-  it("rejects a deterministic canonical mutation between verifier completion and pre-pack capture", () => {
-    const fixture = mkdtempSync(join(tmpdir(), "litclaude-pack-interval-race-"));
-    const corpusPath = `plugins/litclaude/skills/frontend-ui-ux/references/${json(manifestPath).files[0].path}`;
-    try {
-      mkdirSync(join(fixture, "tools"), { recursive: true });
-      cpSync(join(root, "plugins"), join(fixture, "plugins"), { recursive: true, preserveTimestamps: true });
-      cpSync(join(root, "tools", "check-pack-payload.mjs"), join(fixture, "tools", "check-pack-payload.mjs"));
-      writeFileSync(join(fixture, "package.json"), `${JSON.stringify({
-        name: "litclaude-pack-interval-race",
-        version: "1.0.0",
-        type: "module",
-        files: ["plugins"],
-      })}\n`);
-      const preload = join(fixture, "mutate-after-verifiers.mjs");
-      writeFileSync(preload, `
-import fs from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
-const original = fs.mkdtempSync;
-let mutated = false;
-fs.mkdtempSync = function(prefix, ...args) {
-  const directory = original.call(this, prefix, ...args);
-  if (!mutated && String(prefix).includes("litclaude-pack-guard-")) {
-    mutated = true;
-    const bytes = fs.readFileSync(process.env.LITCLAUDE_RACE_TARGET);
-    bytes[0] ^= 1;
-    fs.writeFileSync(process.env.LITCLAUDE_RACE_TARGET, bytes);
-  }
-  return directory;
-};
-syncBuiltinESMExports();
-`);
-
-      const result = spawnSync(process.execPath, ["--import", preload, join(fixture, "tools/check-pack-payload.mjs")], {
-        cwd: fixture,
-        encoding: "utf8",
-        env: { ...process.env, LITCLAUDE_RACE_TARGET: join(fixture, corpusPath) },
-      });
-      assert.equal(result.status, 1, result.stdout);
-      assert.match(result.stderr, /CANONICAL_PREPACK_SNAPSHOT_MISMATCH/u);
-      assert.match(result.stderr, new RegExp(corpusPath.replaceAll("/", "\\/"), "u"));
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
   it("rejects executable mode drift between verifier completion and pre-pack capture", { skip: process.platform === "win32" }, () => {
     const fixture = mkdtempSync(join(tmpdir(), "litclaude-pack-mode-interval-race-"));
     const closurePath = "plugins/litclaude/vendor/autoresearch/scripts/autoresearch-loop.sh";
@@ -1472,87 +907,6 @@ syncBuiltinESMExports();
     assert.ok(report.errors.some(({ code }) => code === "LITCLAUDE_SCAN_ALLOWLIST_NONEMPTY"), JSON.stringify(report.errors));
   });
 
-  it("keeps allowlists empty and exempts only exact verified protected paths", async () => {
-    assert.deepEqual(json(join(root, "tools", "legacy-token-allowlist.json")).entries, []);
-    const scanner = await import("../tools/scan-legacy-tokens.mjs");
-    const report = scanner.runScan({
-      repoRoot: root,
-      allowlistPath: join(root, "tools", "legacy-token-allowlist.json"),
-    });
-    assert.equal(report.ok, true, JSON.stringify(report.offenders.slice(0, 3)));
-    assert.ok(report.protectedHits > 0, "canonical corpus must exercise the exact hash-scoped exemption");
-    assert.equal(report.allowlistedHits, 0);
-    const { verifyCanonicalFrontendCorpus } = await import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs");
-    const canonical = verifyCanonicalFrontendCorpus(pluginRoot);
-    assert.equal([...canonical.protectedPaths].some((path) => path.includes("/_canonical-corpus/legal/")), false,
-      "clean legal companions must be scanned normally rather than exempted");
-
-    const manifest = json(manifestPath);
-    let carrier;
-    for (const entry of [...manifest.files, ...manifest.legal]) {
-      const text = read(join(frontendRoot, entry.path));
-      const hit = scanner.scanText(entry.path, text)[0];
-      if (hit) { carrier = { entry, hit }; break; }
-    }
-    assert.ok(carrier, "fixture corpus should contain a guarded-token witness");
-
-    const temp = mkdtempSync(join(tmpdir(), "litclaude-scanner-scope-"));
-    try {
-      mkdirSync(join(temp, "tools"), { recursive: true });
-      writeFileSync(join(temp, "tools", "legacy-token-allowlist.json"), '{"version":1,"entries":[]}\n');
-      const target = join(temp, "plugins", "litclaude", "skills", "frontend-ui-ux", "references");
-      mkdirSync(dirname(target), { recursive: true });
-      cpSync(frontendRoot, target, { recursive: true });
-      spawnSync("git", ["init", "-q"], { cwd: temp });
-
-      writeFileSync(join(temp, "copied-protected-file.md"), readFileSync(join(frontendRoot, carrier.entry.path)));
-      let scoped = scanner.runScan({ repoRoot: temp, allowlistPath: join(temp, "tools", "legacy-token-allowlist.json") });
-      assert.equal(scoped.ok, false);
-      assert.ok(scoped.offenders.some(({ path }) => path === "copied-protected-file.md"));
-
-      rmSync(join(temp, "copied-protected-file.md"));
-      const localManifestPath = join(target, "_canonical-corpus", "manifest.json");
-      const altered = json(localManifestPath);
-      altered.carrier = carrier.hit.token;
-      writeFileSync(localManifestPath, `${JSON.stringify(altered, null, 2)}\n`);
-      scoped = scanner.runScan({ repoRoot: temp, allowlistPath: join(temp, "tools", "legacy-token-allowlist.json") });
-      assert.equal(scoped.ok, false);
-      assert.ok(scoped.errors.some(({ code }) => code === "LITCLAUDE_CANONICAL_CORPUS_INVALID"));
-      assert.ok(scoped.offenders.some(({ path }) => path.endsWith("manifest.json")));
-
-      cpSync(manifestPath, localManifestPath);
-      const termsPath = join(temp, "terms.json");
-      writeFileSync(termsPath, `${JSON.stringify({
-        version: 1,
-        terms: [{ id: "external-witness", value: carrier.hit.token, matchMode: carrier.hit.mode }],
-      })}\n`);
-      const external = scanner.runExternalTermScan({ repoRoot: temp, termsPath });
-      assert.equal(external.ok, false);
-      assert.ok(external.offenders.some(({ path }) => path.includes("frontend-ui-ux/references/")));
-    } finally {
-      rmSync(temp, { recursive: true, force: true });
-    }
-  });
-
-  it("fails protected-file replacement, deletion, unreadability, and substitution after preflight", async () => {
-    const scanner = await import("../tools/scan-legacy-tokens.mjs");
-    const manifest = json(manifestPath);
-    let carrier;
-    for (const entry of [...manifest.files, ...manifest.legal]) {
-      const hit = scanner.scanText(entry.path, read(join(frontendRoot, entry.path)))[0];
-      if (hit) { carrier = { entry, hit }; break; }
-    }
-    assert.ok(carrier, "canonical corpus must contain a guarded-token race witness");
-    for (const kind of ["changed-bytes", "deleted", "unreadable", "symlink-substitution", "same-bytes-substitution"]) {
-      const report = runScannerPreflightDriftCase(kind, carrier);
-      assert.equal(report.ok, false, `${kind} must fail closed`);
-      assert.ok(
-        report.errors.some(({ code }) => code === "LITCLAUDE_PROTECTED_FILE_DRIFT"),
-        `${kind}: ${JSON.stringify(report.errors)}`,
-      );
-    }
-  });
-
   it("fails closed when any enumerated ordinary file cannot be read unchanged", () => {
     for (const scanKind of ["legacy", "external"]) {
       for (const mutation of ["deleted", "unreadable", "symlink-substitution", "same-bytes-substitution"]) {
@@ -1598,22 +952,6 @@ syncBuiltinESMExports();
     }
   });
 
-  it("keeps protected verdicts bound to bytes captured before later live mutation", async () => {
-    const scanner = await import("../tools/scan-legacy-tokens.mjs");
-    const manifest = json(manifestPath);
-    let carrier;
-    for (const entry of [...manifest.files, ...manifest.legal]) {
-      const hit = scanner.scanText(entry.path, read(join(frontendRoot, entry.path)))[0];
-      if (hit) { carrier = { entry, hit }; break; }
-    }
-    assert.ok(carrier);
-    const report = runProtectedPostReadMutation(carrier);
-    assert.equal(report.ok, true, JSON.stringify(report.errors));
-    assert.equal(report.errors.length, 0);
-    assert.equal(report.snapshotScope, "captured-enumerated-files");
-    assert.match(report.snapshotDigest, /^[0-9a-f]{64}$/u);
-  });
-
   it("documents that scanner success is snapshot-scoped rather than post-return live-tree proof", () => {
     for (const path of [join(root, "docs", "development.md"), join(root, "docs", "development_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
       const text = read(path);
@@ -1624,13 +962,10 @@ syncBuiltinESMExports();
     }
   });
 
-  it("documents independent commitments, immutable package expectations, interval protection, and bounded canonical preflights", () => {
+  it("documents independent commitments, immutable package expectations, interval protection, and bounded runtime preflights", () => {
     for (const path of [join(root, "docs", "development.md"), join(root, "docs", "development_ko-KR.md"), join(root, "docs", "workflow-compatibility-audit.md")]) {
       const text = read(path);
-      assert.match(text, /legal companion|legal 파일|법적 동반/iu, path);
       assert.match(text, /outside[\s\S]{0,80}manifest|manifest[\s\S]{0,80}(?:외부|밖)/iu, path);
-      assert.match(text, /scan(?:ned|s)?[\s\S]{0,40}normally|일반[\s\S]{0,40}검사|정상[\s\S]{0,40}검사/iu, path);
-      assert.match(text, /canonical[\s\S]{0,100}(?:8 MiB|32 MiB)/iu, path);
       assert.match(text, /runtime[\s\S]{0,100}(?:8 MiB|32 MiB)/iu, path);
       assert.match(text, /immutable expected\s+(?:file\s+)?map/iu, path);
       assert.match(text, /verifier-to-capture interval/iu, path);

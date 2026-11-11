@@ -117,9 +117,9 @@ describe("interface modes: routing through the hook", () => {
     }
   });
 
-  it("names a non-default mode and where its contract lives, and adds nothing for build", () => {
+  it("names a non-default mode and the moved skill it passes to, and adds nothing for build", () => {
     const text = context("이 화면 점검만 해줘, 코드는 건드리지 말고.");
-    assert.match(text, /Interface mode: audit \(references\/craft-floor\.md section 3\)\./u);
+    assert.match(text, /Interface mode: audit \(pass it on to design:frontend-ui-ux when it is installed\)\./u);
     assert.ok(Buffer.byteLength(text, "utf8") <= 4096);
     assert.doesNotMatch(context("design a new settings page UI"), /Interface mode/u);
   });

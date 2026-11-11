@@ -73,6 +73,8 @@ frontend-ui-ux locks a house style before it writes markup, builds the page, the
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/ui-landing-brutalist.webp" width="400" alt="Ledgerline landing page as a spec sheet: a grid background, a stacked capital headline, and a project monitor panel reading 115% over budget." /><br /><b>frontend-ui-ux</b> · landing page, computational brutalism<br /><code>Build the marketing landing page for Ledgerline … Make it retro-futurist computational brutalism: raw, mechanical, like an instrument or a spec sheet.</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/readme-cover.webp" width="400" alt="Dark README cover for a sample project, hydrate-kit: a label line, a large outlined title, an orange rule and a subtitle over a blurred reactor drawing, with a pixel notebook motif on the right." /><br /><b>readme-studio</b> · README cover<br /><sub>The skill's HyperFrames cover template with every letter outlined by its own type tool, for a sample project.</sub></td></tr>
 </table>
 
+frontend-ui-ux and visual-qa now ship separately as the `design` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes interface requests to it and gives the install line when it is missing; the frontend-ui-ux stub keeps the interface probe, so lit-loop and litwork still check the web pages they build.
+
 ### Film it
 
 lit-typographic-motion writes a treatment first, then renders the film frame by frame with a sound bed and checks flashes, legibility and the loop seam. The prompt below names no tool and never asks for a dense look; the layering, colour and sound came from the defaults.

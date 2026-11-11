@@ -126,87 +126,36 @@ it('keeps the second light visible in open background outside the foreground pan
   assert.match(remotion, /height: mobile \? 56 : 200/u);
 });
 
-it('uses the pixel profile without asking when a brief gives no visual direction', () => {
-  const profile = JSON.parse(readFileSync(join(skill,'../frontend-ui-ux/references/default-editorial-pixel.json'),'utf8'));
-  const pixel = profile.pixel_art;
-  const frontendRoot = fileURLToPath(new URL('../plugins/litclaude/skills/frontend-ui-ux/', import.meta.url));
-  const frontendSkill = readFileSync(join(frontendRoot, 'SKILL.md'), 'utf8');
-  const frontendInterview = readFileSync(join(frontendRoot, 'references/production-interview.md'), 'utf8');
-
-  assert.equal(pixel.default_when_unspecified, true);
-  assert.equal(Object.hasOwn(pixel, 'default_when_delegated'), false);
-  assert.equal(pixel.primary_visual_anchor, true);
-  assert.match(pixel.description, /when the brief gives no visual direction.*without asking/iu);
-  assert.match(frontendSkill, /when a new brief supplies no visual direction, apply `references\/default-editorial-pixel\.json` without asking/iu);
-  assert.match(frontendInterview, /no visual direction in the brief, apply the authored default pixel profile without asking/iu);
-  assert.ok(pixel.minimum_rendered_cell_size_css_px >= 6);
-  assert.match(pixel.rendering, /crisp.*non-smoothed/iu);
-});
-
-it('keeps the pixel profile out of the first viewport of work surfaces', () => {
-  const frontendRoot = fileURLToPath(new URL('../plugins/litclaude/skills/frontend-ui-ux/', import.meta.url));
-  const profile = JSON.parse(readFileSync(join(frontendRoot, 'references/default-editorial-pixel.json'), 'utf8'));
-  const frontendSkill = readFileSync(join(frontendRoot, 'SKILL.md'), 'utf8');
-  const work = profile.work_surfaces;
-
-  assert.match(work.applies_to, /work in repeatedly[\s\S]*read once/iu);
-  assert.match(work.first_viewport, /working content/iu);
-  assert.match(work.first_viewport, /no hero/iu);
-  assert.match(work.pixel_art, /small accent/iu);
-  assert.match(frontendSkill, /work in rather than read once[^.]*`work_surfaces`/iu);
-});
-
 it('asks before choosing among named competing visual directions left undecided', () => {
-  const frontendRoot = fileURLToPath(new URL('../plugins/litclaude/skills/frontend-ui-ux/', import.meta.url));
-  const frontendSkill = readFileSync(join(frontendRoot, 'SKILL.md'), 'utf8');
-  const frontendInterview = readFileSync(join(frontendRoot, 'references/production-interview.md'), 'utf8');
   const readmeSkill = readFileSync(join(skill, 'SKILL.md'), 'utf8');
   const readmeInterview = readFileSync(join(skill, 'references/production-interview.md'), 'utf8');
 
   for (const [name, interview] of [
-    ['frontend-ui-ux', frontendInterview],
     ['readme-studio', readmeInterview],
   ]) {
     assert.match(interview, /both (?:directions|options) (?:are )?acceptable.{0,180}(?:unresolved|not selected|not a selection)/isu,
       `${name} must keep material choices open when the brief says both are acceptable`);
     assert.match(interview, /(?:own|separate) round.{0,180}(?:higher[- ]impact|higher priority).{0,100}(?:resolved|answered)/isu,
       `${name} must ask about each open axis after higher-impact choices are answered`);
-    if (name === 'frontend-ui-ux') {
-      assert.match(interview, /do not treat that recommendation as a selection or begin work.{0,120}before the user selects or delegates/isu,
-        `${name} must not treat a recommendation as permission to implement an unresolved material choice`);
-    } else {
-      assert.match(interview, /(?:do not|don't) (?:announce|choose|apply) a default.{0,180}(?:before|until).{0,100}(?:answer|resolved)/isu,
-        `${name} must not default or implement an unresolved material choice`);
-    }
+    assert.match(interview, /(?:do not|don't) (?:announce|choose|apply) a default.{0,180}(?:before|until).{0,100}(?:answer|resolved)/isu,
+      `${name} must not default or implement an unresolved material choice`);
     assert.match(interview, /default (?:is (?:valid|allowed) )?only.{0,180}(?:delegat|settled|resolv|materially change)/isu,
       `${name} must limit defaults to settled, delegated, or immaterial choices`);
   }
 
-  assert.match(frontendInterview, /brief itself names competing directions.{0,180}different from a brief that gives no visual direction at all/isu,
-    'frontend-ui-ux must distinguish explicitly named unresolved alternatives from absent visual direction');
-  assert.match(frontendInterview, /recommendation in a concrete alternatives question.{0,180}do not treat that recommendation as a selection/isu,
-    'frontend-ui-ux may recommend an alternative while still waiting for the user to choose');
-  assert.match(frontendSkill, /when the brief names competing visual directions and leaves them undecided, ask before selecting a direction or implementing it/isu,
-    'frontend-ui-ux must ask before acting on explicitly competing visual directions');
   assert.doesNotMatch(readmeSkill, /when the brief already bounds the work, state the default and proceed/u,
     'readme-studio must qualify defaults by the remaining material decisions');
   assert.match(readmeSkill, /default.{0,180}(?:material|resolved|delegat)/isu,
     'readme-studio must limit defaults to resolved, delegated, or immaterial choices');
 });
 
-it('routes bounded multi-round interviews from both production skills into installed references', () => {
-  const frontendRoot = fileURLToPath(new URL('../plugins/litclaude/skills/frontend-ui-ux/', import.meta.url));
-  const frontendSkill = readFileSync(join(frontendRoot, 'SKILL.md'), 'utf8');
-  const frontendInterviewPath = join(frontendRoot, 'references/production-interview.md');
-  const frontendInterview = readFileSync(frontendInterviewPath, 'utf8');
+it('routes bounded multi-round interviews into installed references', () => {
   const readmeSkill = readFileSync(join(skill, 'SKILL.md'), 'utf8');
   const readmeInterviewPath = join(skill, 'references/production-interview.md');
   const readmeInterview = readFileSync(readmeInterviewPath, 'utf8');
 
-  assert.match(frontendSkill, /references\/production-interview\.md/u);
   assert.match(readmeSkill, /references\/production-interview\.md/u);
   for (const [name, interview] of [
-    ['frontend-ui-ux', frontendInterview],
     ['readme-studio', readmeInterview],
   ]) {
     for (const phrase of [
@@ -225,8 +174,6 @@ it('routes bounded multi-round interviews from both production skills into insta
   }
 
   for (const [relative, absolute] of [
-    ['skills/frontend-ui-ux/SKILL.md', join(frontendRoot, 'SKILL.md')],
-    ['skills/frontend-ui-ux/references/production-interview.md', frontendInterviewPath],
     ['skills/readme-studio/SKILL.md', join(skill, 'SKILL.md')],
     ['skills/readme-studio/references/production-interview.md', readmeInterviewPath],
   ]) {

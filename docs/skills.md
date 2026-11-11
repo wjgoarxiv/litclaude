@@ -218,3 +218,5 @@ lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills mark
 lit-docx now ships separately as the `documents` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes document requests to it and gives the install line when it is missing.
 
 lit-diagram-drawer, lit-schematic and lit-scientific-visualization now ship separately as the `figures` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes drawing and figure requests to it and gives the install line when it is missing.
+
+frontend-ui-ux and visual-qa now ship separately as the `design` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes interface requests to it and gives the install line when it is missing; the frontend-ui-ux stub keeps the interface probe the lit workflows run on the web pages they build.

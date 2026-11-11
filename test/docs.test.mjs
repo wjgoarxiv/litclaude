@@ -516,20 +516,12 @@ test("tracked product documentation contains no private home paths", async () =>
   assert.equal(tracked.status, 0, tracked.stderr);
 
   const pluginRoot = fileURLToPath(new URL("plugins/litclaude/", root));
-  const [{ verifyCanonicalFrontendCorpus }, { verifyCanonicalRuntimeClosures }] = await Promise.all([
-    import("../plugins/litclaude/lib/canonical-frontend-corpus.mjs"),
-    import("../plugins/litclaude/lib/canonical-runtime-closures.mjs"),
-  ]);
-  const frontend = verifyCanonicalFrontendCorpus(pluginRoot);
+  const { verifyCanonicalRuntimeClosures } = await import("../plugins/litclaude/lib/canonical-runtime-closures.mjs");
   const runtime = verifyCanonicalRuntimeClosures(pluginRoot);
-  assert.equal(frontend.status, "PASS", JSON.stringify(frontend.failures));
   assert.equal(runtime.status, "PASS", JSON.stringify(runtime.failures));
 
   const trackedDocs = tracked.stdout.split("\0").filter(Boolean);
-  const protectedDocs = new Set([
-    ...frontend.protectedPaths,
-    ...runtime.expectedPackageFiles.keys(),
-  ]);
+  const protectedDocs = new Set(runtime.expectedPackageFiles.keys());
   const localStatePrefixes = [".litclaude/", ".omc/", "evidence/", "plans/", "test/evidence/"];
   const productDocs = trackedDocs
     .filter((path) => path !== "HANDOFF.md" && path !== "HANDOFF_litclaude.md")

@@ -10,9 +10,9 @@ live.
 
 A passing scanner speaks for one snapshot. It reports how many files it captured and a
 SHA-256 digest of those bytes, and it does not prove that the mutable live tree stayed
-clean afterwards; if files change, run it again. Legal companion files sit outside the
-generated manifest and are scanned normally.
-Canonical and runtime captures are capped at 8 MiB per file and 32 MiB in total. The
+clean afterwards; if files change, run it again. The reviewed source commitments sit outside
+the generated manifest.
+Runtime closure captures are capped at 8 MiB per file and 32 MiB in total. The
 package guards compare each immutable expected file map across the
 verifier-to-capture interval and against the produced tarball, and secure non-executable
 entries such as `0600` stay valid.

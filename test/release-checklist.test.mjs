@@ -18,11 +18,9 @@ test("release checklist documents the current release candidate and blocks accid
   assert.match(checklist, /SKILL_CATALOG_PASS/u);
   assert.match(checklist, /DOCTOR_FAIL/u);
   assert.match(checklist, /2,277-record/u);
-  assert.match(checklist, /zero independent review receipts/iu);
-  assert.match(checklist, /exactly two independent receipts/iu);
-  assert.match(checklist, /1 MiB/u);
-  assert.match(checklist, /4,096 lines/u);
-  assert.match(checklist, /source-checkout-only/u);
+  // The evidence-tier, PNG/TUI and replay gates left with frontend-ui-ux and visual-qa for the design plugin.
+  assert.match(checklist, /`design` plugin of wjgoarxiv-skills/u);
+  assert.match(checklist, /scripts\/interface-probe\.mjs/u);
   assert.doesNotMatch(checklist, /next `0\.1\.2` patch/u);
   assert.match(checklist, /explicit user approval/i);
   assert.match(checklist, /DO NOT publish a new version/i);

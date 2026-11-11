@@ -356,6 +356,12 @@ decks·documents 플러그인과 함께 배포되므로 `litclaude doctor`는 �
 크기, 색 대비를 검사하고, Chrome으로 PDF와 600 dpi PNG를 만든 뒤 Claude가 이미지를 열어 보고
 나서 보고합니다. Chrome이 없으면 SVG 검사까지 하고 설치 안내를 돌려줍니다.
 
+`frontend-ui-ux`와 `visual-qa`는 이제 같은 마켓플레이스의 `design` 플러그인으로 설치합니다
+(`claude plugin install design@wjgoarxiv-skills`). 플러그인이 없으면 화면 요청이나 시각 검사 요청에
+페이지 대신 설치 명령이 돌아옵니다. frontend-ui-ux 안내 스킬에는 인터페이스 프로브가 남아 있어서,
+웹 페이지를 고친 lit-loop나 litwork 차례는 끝나기 전에 계속 프로브를 실행합니다. 아래 문단은 design
+플러그인에 들어 있는 스킬을 설명합니다.
+
 `frontend-ui-ux build <대상>`은 허용된 범위에서 화면을 구현하고 실제 렌더까지 확인합니다.
 중요한 방향이 모호하면 하나씩 묻고, 그 답을 이어받아 구현합니다. 검토나 계획만 요청했다면
 파일을 고치지 않습니다.

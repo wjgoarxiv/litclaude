@@ -168,23 +168,10 @@ describe("Claude agents", () => {
   });
 
   it("visualqa.review-independence", () => {
-    const visualQaRoot = join(root, "plugins", "litclaude", "skills", "visual-qa");
-    const visualQa = [
-      readFileSync(join(visualQaRoot, "SKILL.md"), "utf8"),
-      readFileSync(join(visualQaRoot, "references", "complete-contract.md"), "utf8"),
-    ].join("\n");
+    // visual-qa's review-independence rules moved with its body to the design extras plugin; the two reviewer
+    // agents that preload it stay here and must stay read-only.
     const qualityReviewer = readFileSync(join(agentsRoot, "quality-reviewer.md"), "utf8");
     const oracleVerifier = readFileSync(join(agentsRoot, "lit-verifier.md"), "utf8");
-
-    assert.match(visualQa, /\bquality-reviewer\b/u);
-    assert.match(visualQa, /\blit-verifier\b/u);
-    assert.match(visualQa, /same immutable inputs/iu);
-    assert.match(visualQa, /separate fresh contexts/iu);
-    assert.match(visualQa, /do not receive each other's (?:draft|verdict)/iu);
-    assert.match(visualQa, /maximum concurrent reviewers?:\s*two/iu);
-    assert.match(visualQa, /ten minutes? per reviewer/iu);
-    assert.match(visualQa, /maximum fresh-review rounds?:\s*two/iu);
-    assert.match(visualQa, /\bBLOCKED_INDEPENDENT_REVIEW_UNAVAILABLE\b/u);
 
     for (const [name, text] of [
       ["quality-reviewer", qualityReviewer],

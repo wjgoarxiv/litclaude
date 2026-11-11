@@ -117,12 +117,12 @@ function portableInstallLayout() {
   const requiredPayload = [
     ".claude-plugin/plugin.json", ".mcp.json", ".lsp.json", "hooks/hooks.json",
     "bin/litclaude-hook.js", "bin/litclaude-mcp.js", "bin/litclaude-hud.js",
-    "bin/litclaude-lsp-doctor.js", "bin/litclaude-scientific-visualization-doctor.js",
+    "bin/litclaude-lsp-doctor.js",
     "lib/litgoal/paths.mjs", "lib/litgoal/state.mjs", "lib/litgoal/ledger.mjs", "lib/litgoal/cli.mjs",
     "lib/strict-json.mjs",
     "scripts/scaffold-plan.mjs",
-    "skills/frontend-ui-ux/scripts/validate-design-contract.mjs",
-    "skills/visual-qa/scripts/cli.mjs",
+    "skills/frontend-ui-ux/scripts/interface-probe.mjs",
+    "skills/visual-qa/SKILL.md",
     "agents/lit-planner.md", "agents/quality-reviewer.md",
   ];
   const missingPayload = requiredPayload.filter((file) => !existsSync(join(pluginPath, file)));

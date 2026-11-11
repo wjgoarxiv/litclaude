@@ -9,7 +9,6 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { basename, resolve, dirname, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { verifyCanonicalFrontendCorpus } from '../plugins/litclaude/lib/canonical-frontend-corpus.mjs';
 import { verifyCanonicalRuntimeClosures } from '../plugins/litclaude/lib/canonical-runtime-closures.mjs';
 import { canonicalSkillIds } from '../plugins/litclaude/lib/canonical-skill-catalog.mjs';
 import { npmInvocation } from '../plugins/litclaude/lib/npm-invocation.mjs';
@@ -282,20 +281,12 @@ if (isMainModule()) main();
 function main() {
 
 const pluginRoot = resolve(ROOT, 'plugins/litclaude');
-const canonicalFrontend = verifyCanonicalFrontendCorpus(pluginRoot);
-if (canonicalFrontend.status !== 'PASS') {
-  process.stderr.write(`[check-pack-payload] CANONICAL_FRONTEND_CORPUS_FAIL ${JSON.stringify(canonicalFrontend.failures)}\n`);
-  process.exit(1);
-}
 const runtimeClosures = verifyCanonicalRuntimeClosures(pluginRoot);
 if (runtimeClosures.status !== 'PASS') {
   process.stderr.write(`[check-pack-payload] CANONICAL_RUNTIME_CLOSURES_FAIL ${JSON.stringify(runtimeClosures.failures)}\n`);
   process.exit(1);
 }
-const expectedCanonicalFiles = mergeExpectedPackageFiles(
-  canonicalFrontend.expectedPackageFiles,
-  runtimeClosures.expectedPackageFiles,
-);
+const expectedCanonicalFiles = mergeExpectedPackageFiles(runtimeClosures.expectedPackageFiles);
 const requiredCanonicalPaths = new Set(expectedCanonicalFiles.keys());
 
 let packData;
@@ -365,9 +356,7 @@ const canonicalByteFailures = [...canonicalPrepackSnapshot].flatMap(([path, expe
 });
 if (canonicalByteFailures.length > 0) {
   for (const { path, expected, actual } of canonicalByteFailures) {
-    const code = canonicalFrontend.legalPaths.has(path)
-      ? 'LEGAL_PACKAGE_HASH_MISMATCH'
-      : 'CANONICAL_PACKAGE_BYTES_MISMATCH';
+    const code = 'CANONICAL_PACKAGE_BYTES_MISMATCH';
     process.stderr.write(`[check-pack-payload] ${code}: ${path} (expected ${expected.size} bytes sha256 ${expected.sha256}, packed ${actual?.size ?? 'missing'} bytes sha256 ${actual?.sha256 ?? 'missing'})\n`);
   }
   process.exit(1);
@@ -390,7 +379,7 @@ if (canonicalModeFailures.length > 0) {
 const offenders = findOffenders(files);
 
 if (offenders.length === 0) {
-  process.stdout.write(`pack-payload-guard OK: ${files.length} file(s) checked, none forbidden; ${requiredCanonicalPaths.size} canonical file(s) matched verifier-bound size/SHA-256 and non-executable regular-file semantics in pre-pack capture and produced tarball; ${canonicalFrontend.legalFiles.length} legal companion(s), ${canonicalFrontend.legalByteCount} bytes, sha256 ${canonicalFrontend.legalTreeSha256} exact\n`);
+  process.stdout.write(`pack-payload-guard OK: ${files.length} file(s) checked, none forbidden; ${requiredCanonicalPaths.size} canonical file(s) matched verifier-bound size/SHA-256 and non-executable regular-file semantics in pre-pack capture and produced tarball\n`);
   process.exit(0);
 } else {
   for (const { filePath, pattern } of offenders) {

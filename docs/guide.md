@@ -379,6 +379,12 @@ A QA gate checks overlaps, lines through symbols, dangling line ends, tags, text
 colour contrast, and Chrome renders a PDF and a 600 dpi PNG that Claude opens before
 reporting. Without Chrome the SVG is still checked and you get the setup line.
 
+`frontend-ui-ux` and `visual-qa` now ship as the `design` plugin of the same marketplace
+(`claude plugin install design@wjgoarxiv-skills`). Without the plugin, an interface request or
+a visual check gets the install lines back instead of a page. The frontend-ui-ux stub keeps the
+interface probe, so a lit-loop or litwork turn that edits a web page still runs it before it
+ends. The paragraph below describes the skill as the design plugin ships it.
+
 `frontend-ui-ux build <target>` builds an interface you have authorized and inspects it
 rendered. When a choice that matters is unclear, it asks one targeted question and
 carries the answer into the build. A request to only review or plan stays read-only.

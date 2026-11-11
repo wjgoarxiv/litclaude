@@ -20,8 +20,7 @@ import { cleanupAll, formatCleanupReceipt, isolatedInstall } from "./qa-real-sur
 // One executable or injected resource from each managed runtime lane, so a manifest that drifts
 // for only one lane cannot hide behind the others.
 const TARGETS = [
-  "skills/visual-qa/scripts/evidence.mjs",
-  "skills/frontend-ui-ux/scripts/design-contract-rules.mjs",
+  "skills/frontend-ui-ux/scripts/interface-probe-rules.mjs",
   "lib/added-comment-lines.mjs",
   "lib/rules/engine.mjs",
   "scripts/scaffold-plan.mjs",

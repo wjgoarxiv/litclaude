@@ -141,8 +141,6 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/bundled-rules/windows-git-bash.md', '# fixture\n');
     write('plugins/litclaude/bundled-rules/lit-humanizer.md', readFileSync(join(ROOT, 'plugins', 'litclaude', 'bundled-rules', 'lit-humanizer.md')));
     write('plugins/litclaude/lib/added-comment-lines.mjs', 'export const extract = () => [];\n');
-    write('plugins/litclaude/lib/canonical-frontend-commitments.mjs', 'export const commitments = {};\n');
-    write('plugins/litclaude/lib/canonical-frontend-corpus.mjs', 'export const verify = () => true;\n');
     write('plugins/litclaude/lib/canonical-runtime-commitments.mjs', 'export const commitments = {};\n');
     write('plugins/litclaude/lib/canonical-runtime-closures.mjs', 'export const verify = () => true;\n');
     write('plugins/litclaude/lib/deliverable-hedge-guard.mjs', 'export const guard = () => true;\n');

@@ -7,18 +7,6 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { noNetworkNoWrite, retrievalDeterministic } from "./helpers/uiux-contract-cases.mjs";
-import { forgedEvidenceZeroPass, strictEvidenceSchemas } from "./helpers/forged-evidence-cases.mjs";
-import { eightScenarioDriver, importerCheckContract } from "./helpers/importer-scenario-cases.mjs";
-import { pngStructureAndMetrics, tuiTopologyAndControls } from "./helpers/png-tui-hardening-cases.mjs";
-import { strictDesignContract, strictQueryArguments } from "./helpers/strict-design-contract-cases.mjs";
-import { blockedCapabilities, evidenceContract } from "./helpers/visual-evidence-cases.mjs";
-import { pngResourceBounds, tuiUnicodeOsc } from "./helpers/visual-media-cases.mjs";
-import {
-  designContract as realSurfaceDesignContract,
-  writeEvidenceBundle,
-} from "../scripts/qa-real-surface-lib.mjs";
-
 const root = new URL("../", import.meta.url);
 const rootPath = fileURLToPath(root);
 
@@ -146,76 +134,21 @@ test("lsp-setup verify-lsp resolves a command string plus args from .lsp.json", 
   }
 });
 
-test("visual-qa CLI provides a non-mutating TUI advisory probe", () => {
-  const dir = mkdtempSync(join(tmpdir(), "litclaude-visual-probe-"));
-  const capturePath = join(dir, "capture.txt");
-  const visualCli = join(rootPath, "plugins", "litclaude", "skills", "visual-qa", "scripts", "cli.ts");
-  try {
-    writeFileSync(capturePath, "┌──┐\n│한│\n└──┘\n");
-    const result = spawnSync(
-      process.execPath,
-      ["--experimental-strip-types", visualCli, "tui-check", capturePath, "--cols", "4"],
-      { cwd: rootPath, encoding: "utf8" },
-    );
-    assert.equal(result.status, 0, result.stderr);
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.command, "tui-check");
-    assert.equal(report.maxWidth, 4);
-    assert.deepEqual(report.overflowLines, []);
-    assert.deepEqual(report.wideCharColumns, [1]);
-    assert.equal(readFileSync(capturePath, "utf8"), "┌──┐\n│한│\n└──┘\n");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("uiux.retrieval-deterministic", retrievalDeterministic);
-test("uiux.no-network-no-write", noNetworkNoWrite);
-test("visualqa.evidence-v1alpha1", evidenceContract);
-test("visualqa.blocked-capabilities", blockedCapabilities);
-test("visualqa.png-resource-bounds", pngResourceBounds);
-test("real-surface valid fixtures use beta contracts and material PNG evidence", () => {
-  const dir = mkdtempSync(join(tmpdir(), "litclaude-real-surface-beta-"));
-  try {
-    const contract = realSurfaceDesignContract();
-    assert.equal(contract.schema_id, "litfamily.design-contract/v1beta2");
-    const bundle = writeEvidenceBundle(dir, { tier: "smoke" });
-    assert.equal(bundle.manifest.schema_id, "litfamily.evidence-manifest/v1beta1");
-    const captures = bundle.manifest.artifacts.filter(({ kind }) => kind === "capture");
-    assert.ok(captures.length >= 2);
-    for (const artifact of captures) {
-      assert.match(artifact.path, /\.png$/u);
-      assert.deepEqual(readFileSync(join(dir, artifact.path)).subarray(0, 8),
-        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-test("real-surface missing-capture row removes the artifact and requires the exact missing code", () => {
+test("real-surface matrix exercises the installed resource pins and the pack payload guard", () => {
   const result = spawnSync(process.execPath, [
     join(rootPath, "scripts", "qa-negative-gate-matrix.mjs"),
     "--json",
-  ], { cwd: rootPath, encoding: "utf8", timeout: 120_000 });
+  ], { cwd: rootPath, encoding: "utf8", timeout: 300_000 });
   assert.equal(result.status, 0, result.stderr);
   const receiptEnd = result.stdout.lastIndexOf("\nNEGATIVE_GATE_MATRIX_PASS");
   assert.notEqual(receiptEnd, -1, result.stdout);
   const report = JSON.parse(result.stdout.slice(0, receiptEnd));
-  const row = report.rows.find(({ id }) => id === "missing-capture");
-  assert.equal(row.status, "PASS");
-  assert.equal(row.expected, "EVIDENCE_ARTIFACT_MISSING");
-  assert.equal(row.observed, "EVIDENCE_ARTIFACT_MISSING");
-  assert.match(row.detail, /EVIDENCE_ARTIFACT_MISSING/u);
+  assert.deepEqual(report.rows.map(({ id, status }) => [id, status]), [
+    ["tampered-installed-resource", "PASS"],
+    ["restored-installed-resource", "PASS"],
+    ["forbidden-package-paths", "PASS"],
+  ]);
 });
-test("visualqa.tui-unicode-osc", tuiUnicodeOsc);
-test("uiux.strict-contract-boundary", strictDesignContract);
-test("uiux.strict-query-arguments", strictQueryArguments);
-test("visualqa.strict-evidence-schemas", strictEvidenceSchemas);
-test("visualqa.forged-evidence-zero-pass", forgedEvidenceZeroPass);
-test("visualqa.png-structure-metrics", pngStructureAndMetrics);
-test("visualqa.tui-topology-controls", tuiTopologyAndControls);
-test("uiux.importer-check-contract", importerCheckContract);
-test("integration.uiux-visual-eight-scenarios", eightScenarioDriver);
 
 test("plan checkbox audit accepts valid plans without hard-coded task counts", () => {
   const dir = mkdtempSync(join(tmpdir(), "litclaude-plan-audit-"));

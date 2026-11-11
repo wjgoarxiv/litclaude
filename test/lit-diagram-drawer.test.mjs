@@ -47,10 +47,6 @@ describe("lit-diagram-drawer stub enrollment", () => {
       assert.match(readFileSync(join(root, doc), "utf8"), /lit-diagram-drawer/u, `${doc} must document the skill`);
     }
   });
-
-  it("frontend-ui-ux still sends standalone diagrams to it", () => {
-    assert.match(readFileSync(join(pluginRoot, "skills", "frontend-ui-ux", "SKILL.md"), "utf8"), /`lit-diagram-drawer`/u);
-  });
 });
 
 describe("lit-diagram-drawer routing boundary", () => {

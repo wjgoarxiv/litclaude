@@ -571,7 +571,6 @@ describe("release integrity — parity and canonical runtime assets", () => {
     const required = [
       "bundled-rules/windows-git-bash.md",
       "lib/added-comment-lines.mjs",
-      "lib/canonical-frontend-commitments.mjs",
       "lib/canonical-runtime-commitments.mjs",
       "lib/deliverable-hedge-guard.mjs",
       "lib/durable-plan.mjs",
@@ -602,8 +601,6 @@ describe("release integrity — parity and canonical runtime assets", () => {
     const approvedExact = new Set([
       "lib/strict-json.mjs",
       "lib/added-comment-lines.mjs",
-      "lib/canonical-frontend-commitments.mjs",
-      "lib/canonical-frontend-corpus.mjs",
       "lib/canonical-runtime-commitments.mjs",
       "lib/canonical-runtime-closures.mjs",
       "lib/deliverable-hedge-guard.mjs",
