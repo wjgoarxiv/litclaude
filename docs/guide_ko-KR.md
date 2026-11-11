@@ -77,7 +77,7 @@ lit-loop입니다. 상태 줄에도 브랜드 이름 옆에 같은 마크가 붙
 *프롬프트 훅과 상태 줄에서 캡처*
 
 `litclaude doctor`는 설치된 플러그인을 점검하는데 보고서가 길어서, 그림에는 마지막 줄들을
-실었습니다. 영상 도구, Claude Code 버전, 플러그인 검증, 권한 모드, 상태 줄 점검이 나오고
+실었습니다. Claude Code 버전, 플러그인 검증, 권한 모드, 상태 줄 점검이 나오고
 DOCTOR_PASS로 끝납니다. 창 너비는 100칸이고, 가장 긴 줄은 터미널이 줄을 바꾸는 방식대로
 접혀 있습니다.
 
@@ -533,13 +533,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 설치를 재현하려면 registry에서 현재 package version을 조회한 뒤 고정합니다.
 
 ```bash
-npm view @litfamily/litclaude@1.0.49 version
+npm view @litfamily/litclaude@1.0.50 version
 ```
 
-조회 결과가 `1.0.49`이면 exact install을 사용할 수 있습니다.
+조회 결과가 `1.0.50`이면 exact install을 사용할 수 있습니다.
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.49 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.50 -- litclaude install
 ```
 
 그렇지 않으면 명시적인 human publication을 기다립니다. Pin은 그 뒤에 사용합니다.

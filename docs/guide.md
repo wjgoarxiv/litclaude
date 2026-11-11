@@ -81,7 +81,7 @@ easy to read on a small screen. This picture shows a dark terminal.
 *Captured from the prompt hook and the status line.*
 
 `litclaude doctor` checks the installed plugin, and its report is long, so the picture shows the
-last lines: the video tools, the Claude Code version, plugin validation, the permission mode and
+last lines: the Claude Code version, plugin validation, the permission mode and
 the status line check, ending in DOCTOR_PASS. The window is 100 columns wide, and the longest
 line wraps the way a terminal wraps it.
 
@@ -561,13 +561,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 For a reproducible install, pin the current package version:
 
 ```bash
-npm view @litfamily/litclaude@1.0.49 version
+npm view @litfamily/litclaude@1.0.50 version
 ```
 
-If that lookup returns `1.0.49`, the exact install is available:
+If that lookup returns `1.0.50`, the exact install is available:
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.49 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.50 -- litclaude install
 ```
 
 Otherwise, wait for explicit human publication before using that pin. Check the

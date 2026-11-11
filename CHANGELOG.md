@@ -1,7 +1,34 @@
 # Changelog
 
-## Unreleased
+## 1.0.50 - 2026-11-11
 
+- Ten content skills left LitClaude for the new wjgoarxiv-skills marketplace
+  (https://github.com/wjgoarxiv/wjgoarxiv-skills, public now), one plugin per family: `decks` (lit-pptx),
+  `documents` (lit-docx), `figures` (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), `design`
+  (frontend-ui-ux, visual-qa) and `video-covers` (lit-typographic-motion, readme-studio). Each one is the same
+  skill as before, copied unchanged. To keep using one, add the marketplace once and install its plugin:
+
+  ```bash
+  claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
+  claude plugin install decks@wjgoarxiv-skills   # or documents, figures, design, video-covers
+  ```
+
+  then run `/reload-plugins` or open a new session. The moved skills answer as `decks:lit-pptx`,
+  `figures:lit-schematic` and so on, and `/figures:lit-scientific-visualization` is the plot command. LitClaude
+  keeps a same-name stub for each, so the old routes still work: with the plugin installed the stub loads it, and
+  without it you get the install lines instead of a file. The stubs in this release still print a local-clone line
+  (`claude plugin marketplace add <path to your wjgoarxiv-skills clone>`) and call the marketplace unpublished;
+  the GitHub line above works in its place.
+- Removed with them: the `litclaude-ai motion-runtime` command, the motion pre-warm that `npm install -g` ran, the
+  office runtime installer, the canonical frontend corpus and its verifier, the scientific-visualization doctor,
+  the Stop hook's film render gate, and the `qa:cover-recipes` script. `litclaude doctor` no longer prints the
+  motion, office runtime or frontend corpus lines. The core workflows (lit, lit-loop, lit-plan, start-work,
+  review-work, litgoal, lit-adhd, lit-handoff, lit-humanizer and the rest) are unchanged.
+- To update, run `npm exec --yes --package @litfamily/litclaude@latest -- litclaude install` (or
+  `litclaude update`), then install the plugins you use from the lines above. Nothing else needs migrating. The
+  caches under `~/.cache/litclaude/` (`office-runtime` and `motion-runtime`, or the same folders under
+  `$XDG_CACHE_HOME`) are what the decks, documents and video-covers plugins use too, so keep them if you install
+  those plugins; if you do not, you can delete them.
 - lit-typographic-motion and readme-studio moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills
   marketplace, copied byte for byte with what they reach outside their folders: the mark helper and its modules under
   `lib/`, and the Pretendard Regular and Bold pair the film engine's font manifest reads. LitClaude keeps a same-name
@@ -55,7 +82,7 @@
   `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` slide request still route: with the decks plugin
   installed they load `decks:lit-pptx`, and without it the reply gives the install lines. For now the marketplace is
   a local clone (`claude plugin marketplace add <path>`, then `claude plugin install decks@wjgoarxiv-skills`); the
-  GitHub form follows its publication. The stub keeps `fonts/pretendard/`, which lit-typographic-motion and
+  GitHub form is in the first entry above. The stub keeps `fonts/pretendard/`, which lit-typographic-motion and
   lit-schematic read by path. lit-docx is unchanged and keeps LitClaude's own office runtime. The deck engine's
   tests, fixtures and pins left with the body. The office runtime's `firstUse` status now reads `ready` once the
   Python half that lit-docx uses is installed.
