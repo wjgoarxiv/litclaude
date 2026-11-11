@@ -56,6 +56,8 @@ lit src/dates.js의 날짜 파싱 버그를 테스트와 함께 고쳐줘
 
 lit-docx는 계속 고쳐 쓸 수 있는 Word 파일을 만듭니다. 표지, 근거가 붙은 핵심 수치, 숫자가 오른쪽 정렬된 표, 결정 상자를 넣고, 건네기 전에 페이지를 렌더링해 직접 봅니다.
 
+이제 lit-docx는 wjgoarxiv-skills 마켓플레이스의 `documents` 플러그인으로 따로 설치합니다. LitClaude에는 같은 이름의 안내용 스킬이 남아 문서 요청을 그쪽으로 보내고, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-report.webp" width="400" alt="한국어 운영 결과 보고서 세 쪽. 첫 쪽에 핵심 수치 세 개와 승인 요청 상자가 있고, 이어지는 쪽에는 괘선 표와 번호 붙은 절이 있다." /><br /><b>lit-docx</b> · 한국어 보고서, Report 톤<br /><sub>스킬에 들어 있는 예시 <code>references/examples/01-report-ko.md</code>를 스킬의 변환기로 만든 결과이며, 레이아웃 검사를 통과했습니다.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-mix.webp" width="400" alt="영어 분기 고객 지원 보고서와 한국어 시범 사업 제안서의 페이지. 표지 처리가 서로 다르다." /><br /><b>lit-docx</b> · 영어 보고서와 제안서<br /><sub>들어 있는 예시 두 개를 더 변환했습니다. <code>07-report-en.md</code>(Report), <code>04-proposal-ko.md</code>(Proposal).</sub></td></tr>
 </table>
@@ -468,8 +470,9 @@ flowchart LR
 
 ## 요구 사항, 업데이트, 제거
 
-Node.js와 npm, Claude Code가 있으면 됩니다. 발표자료와 문서 스킬은 처음 쓸 때 버전을 고정한
-도구를 `~/.cache/litclaude/office-runtime`에 설치합니다.
+Node.js와 npm, Claude Code가 있으면 됩니다. 이제 발표자료와 문서를 만드는 wjgoarxiv-skills의
+`decks`·`documents` 플러그인은 처음 쓸 때 버전을 고정한 도구를 `~/.cache/litclaude/office-runtime`에
+설치합니다.
 
 npm으로 설치했다면 관리는 명령 세 개로 합니다.
 

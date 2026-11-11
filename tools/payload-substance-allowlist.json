@@ -7,6 +7,7 @@
     }
   },
   "skills": {
+    "lit-docx": "A same-name pointer stub: the document skill moved to the documents plugin of wjgoarxiv-skills, so the file only routes to it or gives the install line and claims no packed corpus.",
     "lit-burnoff-file": "The single file gives a bounded smell taxonomy, preservation rules, process, and report shape; no corpus is needed for this review.",
     "autoconference": "The adapter names the packaged conference closure, whose modes, references, templates, scripts, and assets are included in the pack.",
     "autoresearch": "The adapter names the packaged research closure, whose bounded modes, references, templates, scripts, and assets are included in the pack.",

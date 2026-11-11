@@ -212,13 +212,6 @@
       "version": "1.0.0",
       "occurrences": 2,
       "why": "npm-pinned dependency lockfile of the lit-typographic-motion engine; not the product release."
-    },
-    {
-      "path": "plugins/litclaude/lib/office-runtime-lock/package-lock.json",
-      "kind": "compatibility",
-      "version": "1.0.0",
-      "occurrences": 8,
-      "why": "npm-pinned third-party dependency versions in the lit-pptx/lit-docx runtime lockfile; not the product release. Its pako 1.0.11 entry matched the 1.0.11 release by coincidence and must not move with a bump."
     }
   ]
 }

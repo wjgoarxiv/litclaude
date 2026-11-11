@@ -56,6 +56,8 @@ lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills mark
 
 lit-docx writes a Word file you can keep editing: a cover, key figures with their basis, tables with right-aligned numbers and a decision box, then renders the pages and looks at them before it hands the file over.
 
+lit-docx now ships separately as the `documents` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes document requests to it and gives the install line when it is missing.
+
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-report.webp" width="400" alt="Three pages of a Korean operations report: a title page with three key figures and an approval box, then pages with ruled tables and numbered sections." /><br /><b>lit-docx</b> · Korean report, Report tonality<br /><sub>Built from the skill's bundled example <code>references/examples/01-report-ko.md</code> by its own converter; the layout gate passed.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/docx-mix.webp" width="400" alt="Pages from an English quarterly support report and a Korean pilot-project proposal, each with its own cover treatment." /><br /><b>lit-docx</b> · English report and a proposal<br /><sub>Two more bundled examples: <code>07-report-en.md</code> (Report) and <code>04-proposal-ko.md</code> (Proposal).</sub></td></tr>
 </table>
@@ -480,8 +482,9 @@ skips it without any change to your own ignore files. Nothing runs between sessi
 
 ## Requirements, update and uninstall
 
-You need Node.js with npm, and Claude Code. Slides and documents install their pinned tools
-into `~/.cache/litclaude/office-runtime` the first time you use them.
+You need Node.js with npm, and Claude Code. The `decks` and `documents` plugins of wjgoarxiv-skills,
+which now make slides and documents, install their pinned tools into
+`~/.cache/litclaude/office-runtime` the first time you use them.
 
 Three commands look after an npm install:
 

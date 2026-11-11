@@ -1116,14 +1116,12 @@ so does a bare `lit` whose prompt both asks to make something (만들, 작성, �
 제안서, 계획서, 문서, 워드, report, doc, docx, document, proposal, memo). A prompt that names
 both activates both skills. `lit-pptx` is now a same-name stub for the `decks` plugin of
 wjgoarxiv-skills: its mode contract tells the model to load `Skill(decks:lit-pptx)` when the
-session lists it, and otherwise to reply with the install lines and build nothing. This check runs before the research, goal, and plan routes,
+session lists it, and otherwise to reply with the install lines and build nothing. `lit-docx` is
+the same kind of stub for the `documents` plugin (`Skill(documents:lit-docx)`). This check runs before the research, goal, and plan routes,
 because the prompt asks for a file. Code documentation (README, API docs, docstrings,
 `.md` files) and tool reports (bug, test, coverage, error) never take this route. The hook
-adds each skill's mode contract, the exact installed `SKILL.md` path, and, for lit-docx, the lit
-defaults (a document takes the tonality its direction step picks, and the reply names it with
-two alternatives; no style questions). An explicit token keeps the one-question style gate
-instead, whose first option is the direction step's choice. The lit-pptx stub gets neither: the
-deck's direction step belongs to the decks plugin.
+adds each stub's mode contract and the exact installed `SKILL.md` path, and nothing else: the
+bare-lit defaults and the style gate belong to the moved skills' own direction steps.
 
 Leading `lit-typographic-motion` / `$lit-typographic-motion` selects the film-director skill,
 and so does a bare `lit` whose prompt asks to make something (the office and interface verbs, plus

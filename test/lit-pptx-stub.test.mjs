@@ -94,15 +94,13 @@ describe("lit-pptx is a same-name stub for the decks extras plugin", () => {
     }
   });
 
-  it("a prompt for a deck and a document still routes both, and lit-docx keeps its own contract", () => {
+  it("a prompt for a deck and a document still routes both, each to its own stub", () => {
+    // lit-docx moved too (documents plugin); test/lit-docx-stub.test.mjs covers its half.
     const context = hook("lit 보고서랑 발표자료 둘 다 만들어줘");
     assert.match(context, /Skill\(lit-docx\)/u);
     assert.match(context, /Skill\(lit-pptx\)/u);
     assert.match(context, /Mode contract: lit-docx/u);
     assert.match(context, /decks@wjgoarxiv-skills/u);
-    // The docx half of the style gate and the docx skill body stay.
-    assert.match(context, /a document takes the tonality its direction step picks/u);
-    assert.match(context, /name="lit-docx">\nLoad this exact installed entrypoint [^\n]*SKILL_ROOT for scripts\/, references\/, templates\/ and fonts\//u);
     assert.doesNotMatch(context, /a deck takes the tonality/u);
   });
 });

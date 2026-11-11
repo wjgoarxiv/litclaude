@@ -233,16 +233,17 @@ describe("portable LitClaude install layout", () => {
       );
       assert.equal(installedDiagram.status, 0, installedDiagram.stderr);
       assert.match(installedDiagram.stdout, /DIAGRAM_PASS .* humanizer-block=0/u);
-      // lit-pptx is a same-name stub: its SKILL.md and the Pretendard pair lit-typographic-motion reuses.
+      // lit-pptx and lit-docx are same-name stubs: their SKILL.md files and the Pretendard pair lit-typographic-motion
+      // reuses. The office runtime left with lit-docx for the documents plugin.
       for (const file of ["skills/lit-pptx/SKILL.md", "skills/lit-pptx/fonts/pretendard/Pretendard-Regular.otf", "skills/lit-pptx/fonts/pretendard/Pretendard-Bold.otf", "skills/lit-pptx/fonts/pretendard/OFL.txt",
-        "skills/lit-docx/SKILL.md", "skills/lit-docx/NOTICE", "skills/lit-docx/scripts/convert_md_to_docx.py", "skills/lit-docx/scripts/qa_docx.py",
-        "skills/lit-docx/templates/docx/korean-generic.docx", "lib/office-runtime.mjs", "lib/office-runtime-lock/requirements.lock", "lib/ooxml_integrity.py", "lib/render_pages.py", "lib/office_data.py"]) {
+        "skills/lit-docx/SKILL.md"]) {
         assertFile(join(pluginPath, file), `office ${file}`);
       }
       assert.match(readFileSync(join(pluginPath, "skills", "lit-pptx", "SKILL.md"), "utf8"), /decks@wjgoarxiv-skills/u, "installed stub carries the install line");
-      const installedOfficeStatus = spawnSync(process.execPath, [join(pluginPath, "lib", "office-runtime.mjs"), "status", "--json"], { cwd: home, encoding: "utf8", env: { ...process.env, HOME: home, XDG_CACHE_HOME: join(home, ".cache"), LITCLAUDE_OFFICE_RUNTIME: "" } });
-      assert.equal(installedOfficeStatus.status, 0, installedOfficeStatus.stderr);
-      assert.equal(JSON.parse(installedOfficeStatus.stdout).root, join(home, ".cache", "litclaude", "office-runtime"));
+      assert.match(readFileSync(join(pluginPath, "skills", "lit-docx", "SKILL.md"), "utf8"), /documents@wjgoarxiv-skills/u, "installed stub carries the install line");
+      for (const gone of ["skills/lit-docx/scripts", "lib/office-runtime.mjs", "lib/office-runtime-lock"]) {
+        assert.equal(existsSync(join(pluginPath, gone)), false, `${gone} left with the documents plugin`);
+      }
       assertFile(join(pluginPath, "bin", "litclaude-hud.js"), "HUD bin");
       assertFile(join(pluginPath, "lib", "litgoal", "paths.mjs"), "litgoal paths runtime");
       assertFile(join(pluginPath, "lib", "litgoal", "state.mjs"), "litgoal state runtime");

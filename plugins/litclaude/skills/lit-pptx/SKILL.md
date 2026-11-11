@@ -20,8 +20,8 @@ verdicts: [PASS, BLOCKED]
 
 The UserPromptSubmit hook still routes a prompt that starts with `lit-pptx` or `$lit-pptx`, and a bare `lit` prompt
 that asks to make slides (발표자료, 발표, 슬라이드, 덱, PPT, 피피티, slides, deck, presentation, pptx), to this
-stub. When the same prompt also asks for a report, lit-docx runs beside it as before; lit-docx is still part of
-LitClaude.
+stub. When the same prompt also asks for a report, the lit-docx stub runs beside it; lit-docx moved too, to the
+`documents` plugin.
 
 ## #contract.inputs
 
@@ -46,8 +46,8 @@ LitClaude.
    - that it moved out of LitClaude into the `decks` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
-3. A request for a Word document in the same prompt is lit-docx's job; carry it out as usual and mention the
-   deck part in the same reply.
+3. A request for a Word document in the same prompt goes to the lit-docx stub; answer both parts in the same
+   reply.
 
 ## #contract.outputs
 

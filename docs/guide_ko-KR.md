@@ -177,7 +177,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. |
 | `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. 스킬 본체는 wjgoarxiv-skills의 `decks` 플러그인으로 옮겼고, LitClaude의 같은 이름 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
-| `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. |
+| `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. 이 스킬은 이제 wjgoarxiv-skills의 `documents` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `litclaude wikify <capture/save/review/query/config>` | 검토를 거친 프로젝트 지식을 로컬에 정리합니다. |
 | `browser-drive`, `$browser-drive` | 실제 웹 페이지를 조작합니다. 먼저 `vercel-labs/agent-browser` 0.34.0 이상이 있는지 확인하고, 0.34.0보다 새 버전이면 그대로 쓰되 `beyond-verified`로 표시합니다. 없거나 더 오래된 버전이면 설치 명령만 알려 주고, 실행은 사용자에게 맡깁니다. |
 
@@ -314,6 +314,10 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 대비, 절반쯤 빈 슬라이드, 표만 덩그러니 있는 슬라이드, 모든 장에 똑같이 놓인 제목, 잘린 장식,
 채우지 않은 빈칸을 찾아냅니다. 그다음 페이지를 그림으로 뽑아 눈으로 확인합니다.
 
+`lit-docx`는 이제 같은 마켓플레이스의 `documents` 플러그인으로 설치합니다(마켓플레이스를 추가한 뒤
+`claude plugin install documents@wjgoarxiv-skills`). 설치하지 않으면 문서 요청에는 파일 대신 설치
+명령이 돌아옵니다. 아래 설명은 documents 플러그인에 들어 있는 스킬 기준입니다.
+
 `lit-docx`에는 문서용 모양이 여섯 가지 있습니다. 결정할 사람이 읽는 네 쪽짜리 보고에는 Brief를,
 절차를 담은 문서에는 Manual을 고르고, 나머지는 Report, Proposal, Memo, Journal이 맡습니다. 여섯
 가지 모두 인쇄물처럼 절제된 지면을 지킵니다. 처음부터 끝까지 Pretendard를 쓰고, 본문은 종이에서
@@ -326,8 +330,8 @@ DOCX·PDF를 Markdown으로 바꾸거나 기존 `.docx`를 고치는 일도 맡�
 
 자료가 없는 요청이면 두 스킬 모두 멈추고 되묻는 대신, 그럴듯한 예시로 끝까지 만든 뒤
 예시라고 표시합니다. `lit`만 붙인 요청에서는 스타일도 묻지 않습니다. 필요한 Node·Python 패키지는
-처음 쓸 때 고정된 lockfile에서 `~/.cache/litclaude/office-runtime`에 설치되며,
-`litclaude doctor`가 그 준비 상태와 LibreOffice·pandoc·XeLaTeX 사용 가능 여부를 보여 줍니다.
+처음 쓸 때 고정된 lockfile에서 `~/.cache/litclaude/office-runtime`에 설치됩니다. 이 런타임은 이제
+decks·documents 플러그인과 함께 배포되므로 `litclaude doctor`는 더 이상 보고하지 않습니다.
 
 슬라이드와 문서에 넣을 구조도, 흐름도, 스키마, 일정표 같은 개념 다이어그램은
 `/litclaude:lit-diagram-drawer <요청>`으로 그립니다. 프롬프트를 `lit-diagram-drawer`나

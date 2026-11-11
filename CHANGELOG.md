@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- lit-docx moved out of LitClaude into the `documents` plugin of the wjgoarxiv-skills marketplace, copied byte for
+  byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
+  `/litclaude:lit-docx`, `Skill(lit-docx)` and a bare `lit` document request still route: with the documents plugin
+  installed they load `documents:lit-docx`, and without it the reply gives the install lines
+  (`claude plugin marketplace add <path>`, then `claude plugin install documents@wjgoarxiv-skills`). Document
+  prompts no longer carry the old style gate, bare-lit defaults or helper paths. With both office skills gone,
+  LitClaude no longer ships the office runtime: its installer, lockfiles, Python bootstrap and data, integrity and
+  render helpers left, and `litclaude doctor` and `npm run doctor` no longer print an office runtime line. The
+  document engine's tests, fixtures and pins left with the body.
 - lit-pptx moved out of LitClaude into the `decks` plugin of the new wjgoarxiv-skills marketplace, copied byte for
   byte with the 16 office-runtime files it reaches under `lib/`. LitClaude keeps a same-name stub, so
   `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` slide request still route: with the decks plugin

@@ -1,7 +1,6 @@
 // Windows behaviour without a Windows host: the platform and env are injected into the helpers, so
 // these cases run on any OS. What a real cmd.exe and npm.cmd do stays unproven here.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -124,71 +123,6 @@ describe("automatic update on win32", () => {
   });
 });
 
-describe("office bootstrap keeps the helper's exit code", () => {
-  const reexec = (platform) => spawnSync("python3", ["-B", "-c", [
-    "import os, sys",
-    `sys.path.insert(0, ${JSON.stringify(libRoot)})`,
-    "import office_runtime_bootstrap as b",
-    `b._reexec([sys.executable, "-c", "raise SystemExit(3)"], dict(os.environ), ${JSON.stringify(platform)})`,
-  ].join("\n")], { encoding: "utf8" });
-
-  it("on Windows it waits for the child and returns 3 when the child exits 3", () => {
-    const result = reexec("nt");
-    assert.equal(result.status, 3, result.stderr);
-  });
-
-  it("on POSIX it replaces the process, so the exit code is the child's too", () => {
-    const result = reexec("posix");
-    assert.equal(result.status, 3, result.stderr);
-  });
-});
-
-describe("publisher PDF preflight names a missing class font", () => {
-  const scripts = join(root, "plugins", "litclaude", "skills", "lit-docx", "scripts");
-  // The converter's runtime imports are stubbed, so this runs on the host Python with no runtime;
-  // pandoc, xelatex and kpsewhich are faked so only the font lookup decides.
-  const preflight = (documentclass, fonts, fcList) => spawnSync("python3", ["-B", "-c", [
-    "import sys, types",
-    "boot = types.ModuleType('office_runtime_bootstrap'); boot.ensure_runtime = lambda modules: None",
-    "docx = types.ModuleType('convert_md_to_docx')",
-    "for name in ('detect_locale', 'fix_dashes', 'fix_ellipsis', 'fix_quotes', 'fix_unit_spacing', 'load_publisher', 'normalize_double_spaces', 'parse_frontmatter'): setattr(docx, name, None)",
-    "sys.modules.update(office_runtime_bootstrap=boot, convert_md_to_docx=docx)",
-    `sys.path.insert(0, ${JSON.stringify(scripts)})`,
-    "import convert_md_to_pdf as m",
-    `fonts = set(${JSON.stringify(fonts)})`,
-    `m.command_path = lambda name: None if name == 'fc-list' and not ${fcList ? "True" : "False"} else '/bin/' + name`,
-    "m.kpsewhich_has = lambda target: not target.endswith('.ttf') or target[:-4] in fonts",
-    "m.run_checked = lambda command, workdir=None: types.SimpleNamespace(returncode=0, stdout='')",
-    `m.preflight_pdf_compile('korean-generic', {'latex': {'documentclass': ${JSON.stringify(documentclass)}}}, 'ko')`,
-    "print('PREFLIGHT_PASS')",
-  ].join("\n")], { encoding: "utf8" });
-
-  it("stops korean-generic before XeLaTeX when UnBatang is missing, naming the font and the install", () => {
-    const result = preflight("oblivoir", [], true);
-    assert.equal(result.status, 1, result.stdout + result.stderr);
-    assert.match(result.stderr, /BLOCKED: the oblivoir class of publisher 'korean-generic' needs the UnBatang font/u);
-    assert.match(result.stderr, /tlmgr install unfonts-core/u);
-  });
-
-  it("passes when the TeX tree has UnBatang, and never checks it for other classes", () => {
-    assert.match(preflight("oblivoir", ["UnBatang"], false).stdout, /PREFLIGHT_PASS/u);
-    assert.match(preflight("elsarticle", [], false).stdout, /PREFLIGHT_PASS/u);
-  });
-});
-
-describe("publisher LaTeX templates load what pandoc's body needs", () => {
-  const latex = join(root, "plugins", "litclaude", "skills", "lit-docx", "templates", "latex");
-  for (const profile of ["acs", "elsevier", "ieee", "korean-generic", "nature"]) {
-    it(`${profile}: tables (longtable, array, calc, the none counter), \\tightlist and \\pandocbounded`, () => {
-      const tex = readFileSync(join(latex, profile, "template.tex"), "utf8");
-      assert.match(tex, /\\usepackage\{longtable,array,calc\}/u);
-      assert.match(tex, /\\newcounter\{none\}/u);
-      assert.match(tex, /\\providecommand\{\\tightlist\}/u);
-      assert.match(tex, /\\providecommand\*\\pandocbounded/u);
-    });
-  }
-});
-
 describe("npm-installed CLIs run with no shell on win32", async () => {
   const { shellFreeCommand } = await import("../plugins/litclaude/lib/npm-invocation.mjs");
   const lspShellFree = (await import("../plugins/litclaude/skills/lsp-setup/scripts/verify-lsp.ts")).shellFreeCommand;
@@ -238,34 +172,6 @@ describe("npm-installed CLIs run with no shell on win32", async () => {
       assert.doesNotMatch(source, /spawn(?:Sync)?\(\s*(?:command|bin)\s*,/u, `${site} spawns a resolved server name directly`);
       assert.match(source, /shellFreeCommand|runAgentBrowser\(/u, `${site} must resolve through shellFreeCommand`);
     }
-  });
-});
-
-describe("office runtime picks a Python every pinned package has wheels for", async () => {
-  const { pickPython } = await import("../plugins/litclaude/lib/office-runtime.mjs");
-  const versions = (table) => (command) => table[command]
-    ? { command, version: table[command], ...rangeOf(table[command]) }
-    : { ok: false, command, detail: "not found" };
-  const rangeOf = (version) => {
-    const minor = Number(version.split(".")[1]);
-    return minor < 10 ? { ok: false, detail: `${version} is older than 3.10` } : minor > 14 ? { ok: false, detail: `${version} is newer than 3.14` } : { ok: true, detail: version };
-  };
-
-  it("skips a python3 that is 3.15 and takes the newest supported python3.X on PATH", () => {
-    const picked = pickPython({}, versions({ python3: "3.15.0", "python3.15": "3.15.0", "python3.13": "3.13.4" }));
-    assert.deepEqual([picked.ok, picked.command, picked.version], [true, "python3.13", "3.13.4"]);
-  });
-
-  it("honours LITCLAUDE_OFFICE_PYTHON and never falls back past it", () => {
-    const picked = pickPython({ LITCLAUDE_OFFICE_PYTHON: "/opt/py/bin/python3" }, versions({ "/opt/py/bin/python3": "3.15.0", "python3.13": "3.13.4" }));
-    assert.equal(picked.ok, false);
-    assert.match(picked.detail, /newer than 3\.14/u);
-  });
-
-  it("names every interpreter it tried when none fits", () => {
-    const picked = pickPython({}, versions({ python3: "3.15.0" }));
-    assert.equal(picked.ok, false);
-    assert.match(picked.detail, /no supported Python \(3\.10 to 3\.14\).*python3: 3\.15\.0 is newer than 3\.14/u);
   });
 });
 

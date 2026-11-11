@@ -149,16 +149,8 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/lib/durable-plan.mjs', 'export const resolve = () => undefined;\n');
     write('plugins/litclaude/lib/immutable-expected-file-map.mjs', 'export const immutable = () => true;\n');
     write('plugins/litclaude/lib/secure-path-read.mjs', 'export const read = () => true;\n');
-    write('plugins/litclaude/lib/office-runtime.mjs', 'export const status = {};\n');
     write('plugins/litclaude/lib/npm-invocation.mjs', 'export const npmInvocation = () => ({});\n');
-    write('plugins/litclaude/lib/office-runtime-lock/package.json', '{}\n');
-    write('plugins/litclaude/lib/office-runtime-lock/package-lock.json', '{}\n');
-    write('plugins/litclaude/lib/office-runtime-lock/requirements.lock', '# fixture\n');
-    write('plugins/litclaude/lib/office_runtime_bootstrap.py', '# fixture\n');
-    write('plugins/litclaude/lib/office_data.py', '# fixture\n');
-    write('plugins/litclaude/lib/ooxml_integrity.py', '# fixture\n');
     write('plugins/litclaude/lib/output_mark.py', '# fixture\n');
-    write('plugins/litclaude/lib/render_pages.py', '# fixture\n');
     write('plugins/litclaude/lib/owner-lock.mjs', 'export const lock = {};\n');
     write('plugins/litclaude/lib/lit-mark.mjs', 'export const standard = [];\n');
     write('plugins/litclaude/lib/mark.mjs', 'export const MARK_MODES = [];\n');

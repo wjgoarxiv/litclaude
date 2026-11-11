@@ -185,7 +185,7 @@ compare it with the files as they are now, and then carry on.
 | `/litclaude:lit-diagram-drawer <brief>` | Draw, check, and export a conceptual diagram; also `lit-diagram-drawer` and `$lit-diagram-drawer` |
 | `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic` |
 | `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx`. The skill now lives in the `decks` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
-| `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx` |
+| `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx`. The skill now lives in the `documents` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
 | `browser-drive`, `$browser-drive` | Drive a real page. It first checks for `vercel-labs/agent-browser` 0.34.0 or later; anything newer than 0.34.0 still works and is marked `beyond-verified`. If the driver is missing or older, it names the install commands and leaves running them to you |
 
@@ -330,6 +330,11 @@ overflows, weak contrast, slides that are half empty or only a table, one title 
 repeated on every slide, cropped decorations and blanks nobody filled. Then it renders the
 pages and checks them by eye.
 
+`lit-docx` now ships as the `documents` plugin of the same marketplace
+(`claude plugin install documents@wjgoarxiv-skills` after the marketplace line above). Without it,
+a document request gets the install lines back instead of a file. What follows describes the skill
+as the documents plugin ships it.
+
 `lit-docx` has six looks for documents. A four-page briefing for someone who has to decide
 gets the Brief look, a procedure gets the Manual, and Report, Proposal, Memo and Journal cover
 the rest. All six keep a restrained, print-grade page: Pretendard throughout, body text at a
@@ -344,8 +349,8 @@ to Markdown and edits an existing `.docx`.
 When the request gives no data, both skills build a complete file around a realistic
 example and label it as one instead of stopping to ask. Under a bare `lit`, neither asks
 style questions. Their Node and Python packages install on first use from pinned
-lockfiles into `~/.cache/litclaude/office-runtime`, and `litclaude doctor` shows whether
-that runtime and the optional LibreOffice, pandoc and XeLaTeX tools are ready.
+lockfiles into `~/.cache/litclaude/office-runtime`. That runtime now ships with the decks and
+documents plugins, so `litclaude doctor` no longer reports it.
 
 For architecture, process, schema, timeline and other conceptual diagrams meant for
 slides and documents, use `/litclaude:lit-diagram-drawer <brief>`, or start a prompt with
