@@ -33,6 +33,7 @@ npm run doctor
 npm run check:version         # package.json / plugin.json / MCP lockstep
 npm run scan:legacy-tokens
 npm run check:skill-resources
+npm run check:skills-lock      # skills.lock.json: skill sizes, budgets, pack list
 ```
 
 Do not pipe a suite through `| tail` — `$?` then reports tail's exit code, not the suite's,
@@ -43,6 +44,19 @@ and the failure detail is truncated away. Redirect to a file instead.
 A new skill that ships executable assets **must be listed in `PINNED_TREES`** inside
 `tools/gen-canonical-skill-resources.mjs`. Without that entry the installer silently never
 copies the assets, and every test still passes.
+
+## Skills lock
+
+`skills.lock.json` (repository root, tracked, not packed) pins every skill under
+`plugins/litclaude/skills` (SKILL.md size and hash, file count, folder bytes, one hash over all files)
+and the `npm pack --dry-run --json --ignore-scripts` file list. `npm run gen:skills-lock` rewrites
+those generated halves; `npm run check:skills-lock` and `test/skills-lock.test.mjs` only read.
+`budgets` is hand-owned and never changed by a run: a new skill needs
+`npm run gen:skills-lock -- --accept-new <id>`, a removed one `-- --drop <id>`, and while any skill
+sits outside its budget nothing is written. Only Git-tracked files count, and an untracked file
+npm would pack is refused, so `git add` a new file before regenerating. Raise a budget by hand when
+a skill grows on purpose; lowering a floor (for example for a same-name stub) is a hand edit in the
+same commit, never a regeneration.
 
 ## Do not touch
 

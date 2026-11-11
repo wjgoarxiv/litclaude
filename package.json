@@ -79,7 +79,9 @@
     "gen:runtime-closures": "node tools/gen-canonical-runtime-closures.mjs",
     "check:runtime-closures": "node tools/gen-canonical-runtime-closures.mjs --check",
     "gen:skill-resources": "node tools/gen-canonical-skill-resources.mjs",
-    "check:skill-resources": "node tools/gen-canonical-skill-resources.mjs --check"
+    "check:skill-resources": "node tools/gen-canonical-skill-resources.mjs --check",
+    "gen:skills-lock": "node tools/gen-skills-lock.mjs",
+    "check:skills-lock": "node tools/gen-skills-lock.mjs --check"
   },
   "publishConfig": {
     "access": "public"

@@ -89,6 +89,7 @@ describe('ci-hardening: every local gate is actually enforced in CI', () => {
     'npm run doctor',
     'npm run check:skill-resources',
     'npm run check:runtime-closures',
+    'npm run check:skills-lock',
     'npm run check:version',
     'npm run assert:ci',
     'npm run scan:legacy-tokens',

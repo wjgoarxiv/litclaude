@@ -179,7 +179,7 @@ describe("lit-brainstorm skill depth", () => {
 
   it("is a dense divergent-then-convergent workflow, not a stub", () => {
     const text = skill();
-    assert.ok(Buffer.byteLength(text, "utf8") >= 18_000, `SKILL.md is ${Buffer.byteLength(text, "utf8")} bytes`);
+    // The 18,000-byte SKILL.md floor lives in skills.lock.json (budgets, checked by test/skills-lock.test.mjs).
     assert.match(text, /^---\nname: lit-brainstorm\n/u);
     for (const heading of [
       "## When to use lit-brainstorm",

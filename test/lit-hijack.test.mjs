@@ -458,7 +458,7 @@ describe("lit-hijack skill depth", () => {
 
   it("is a dense phased workflow, not a stub", () => {
     const text = skill();
-    assert.ok(Buffer.byteLength(text, "utf8") >= 18_000, `SKILL.md is ${Buffer.byteLength(text, "utf8")} bytes`);
+    // The 18,000-byte SKILL.md floor lives in skills.lock.json (budgets, checked by test/skills-lock.test.mjs).
     assert.match(text, /^---\nname: lit-hijack\n/u);
     for (const heading of [
       "## When to use lit-hijack",

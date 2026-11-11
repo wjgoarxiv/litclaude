@@ -91,6 +91,7 @@ behavior.
 - `npm run check:version`
 - `npm run scan:legacy-tokens`
 - `npm run pack:payload-guard`
+- `npm run check:skills-lock` (`skills.lock.json`: skill sizes, budgets and the pack list)
 - `npm run qa:tmux`
 - `npm run qa:portable`
 - `npm run qa:matrix`

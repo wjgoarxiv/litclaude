@@ -65,6 +65,11 @@ jobs:
       - name: Canonical runtime-closure drift check
         run: npm run check:runtime-closures
 
+      # Skill sizes, budgets and the pack list (skills.lock.json). Budgets are hand-owned; a
+      # skill added or removed without --accept-new / --drop fails here.
+      - name: Skills lock check
+        run: npm run check:skills-lock
+
       - name: Version lockstep check
         run: npm run check:version
 
