@@ -25,7 +25,10 @@ const NOTICE = [
   "To update an installed extension, refresh the shelf first and then the plugin.",
   "claude plugin marketplace update wjgoarxiv-skills",
   "claude plugin update decks@wjgoarxiv-skills",
+  "`litclaude-ai extensions list` shows what is installed;",
+  "`litclaude-ai extensions install decks` (or update, remove) prints what it would run, and --yes runs it.",
 ];
+const CHECK_LINE = "`litclaude-ai extensions check` lists every such folder with its fix line; nothing changes on its own.";
 const SAME_NAME = "A skill of your own has the name of an extension";
 const UPGRADE = "Older versions left these behind.";
 
@@ -113,6 +116,7 @@ describe("LitFamily extensions notice", () => {
     assert.match(text, /Claude Code installs a new copy only when the plugin's version has changed/u);
     assert.match(text, /\/reload-plugins or in a new session/u);
     assert.ok(!text.includes(SAME_NAME), "nothing to move on a clean machine");
+    assert.ok(!text.includes("extensions check"), "no check pointer when nothing needs action");
   });
 
   it("names a personal or project skill that shares an extension's name, with a move line out of the skills folders", (t) => {
@@ -135,6 +139,7 @@ describe("LitFamily extensions notice", () => {
     assert.ok(stdout.includes(`d="$HOME/claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv "$HOME/claude/skills/lit-pptx" "$d"/`), stdout);
     assert.ok(stdout.includes(`d="$HOME/project/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv "$HOME/project/.claude/skills/lit-docx" "$d"/`), stdout);
     assert.ok(!stdout.includes("my-own-skill"), "a skill with another name is none of the notice's business");
+    assert.ok(stdout.includes(CHECK_LINE), "points existing users at the check verb");
 
     // The move line works as printed, in both shells, and leaves the skills folder without that name.
     const line = stdout.split("\n").find((row) => row.includes("mv \"$HOME/claude/skills/lit-pptx\"")).trim();
@@ -151,6 +156,17 @@ describe("LitFamily extensions notice", () => {
     const message = box.session("session-same-name").systemMessage;
     assert.ok(message.includes(SAME_NAME), message);
     assert.ok(message.includes("~/project/.claude/skills/visual-qa competes with design:visual-qa"), message);
+    assert.ok(message.includes(CHECK_LINE), message);
+  });
+
+  it("doctor prints one extensions line that points at the check verb when something needs action", (t) => {
+    const box = sandbox(t);
+    const clean = box.cliIn(box.project, "doctor", "--dry-run");
+    assert.equal(clean.status, 0, clean.stderr);
+    assert.match(clean.stdout, /^EXTENSIONS: none installed; nothing needs action \(litclaude-ai extensions list\)$/mu);
+    mkdirSync(join(box.env.CLAUDE_CONFIG_DIR, "skills", "lit-docx"), { recursive: true });
+    const flagged = box.cliIn(box.project, "doctor", "--dry-run").stdout;
+    assert.match(flagged, /^EXTENSIONS: none installed; 1 need\(s\) action - run litclaude-ai extensions check$/mu);
   });
 
   it("a dry run installs nothing and says nothing about extensions", (t) => {

@@ -70,3 +70,13 @@ test("each prompt-hook stub reply names a same-name personal skill and never mov
     assert.ok(contract.includes(`If ~/.claude/skills/${id} or .claude/skills/${id} exists, name it and say it competes with ${family}:${id} and should be moved out of the skills folder first (the stub has the line); never move it yourself.`), `${id} hook contract`);
   }
 });
+
+test("each extras stub names the extensions verbs after the update lines, keeping the lines as the manual route", () => {
+  for (const [id, family] of Object.entries(stubs)) {
+    const text = readFileSync(new URL(`../plugins/litclaude/skills/${id}/SKILL.md`, import.meta.url), "utf8");
+    const moved = text.slice(text.indexOf("## What moved"));
+    const verbs = `In your own terminal, \`npx @litfamily/litclaude extensions install ${family}\` runs these lines for you: it prints\nthe plan, stops at a same-name skill of your own, and runs it with \`--yes\`. \`update\`, \`remove\` and \`check\` work alike.`;
+    assert.ok(moved.includes(verbs), `${id} verbs`);
+    assert.ok(moved.indexOf(`claude plugin update ${family}@wjgoarxiv-skills`) < moved.indexOf(verbs), `${id}: verbs after the update lines`);
+  }
+});

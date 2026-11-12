@@ -116,12 +116,12 @@ The picture shows what that means in practice. On the left is the core: 33 skill
 plus the agents, hooks, LIT card, status line and the MCP and LSP servers around them. The middle column holds the
 nine stubs, which ship in the same package. Each keeps the old skill name, so a deck request or a bare `lit-pptx`
 still lands somewhere, and once the matching plugin on the right is installed the stub hands the request over to it.
-Until then the stub answers with the install line from the band at the bottom.
+Until then the stub answers with the install line. The band at the bottom shows the four steps an install takes and the `litclaude-ai extensions` commands that run them for you.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.en.dark.png" />
-    <img src="./docs/assets/readme/diagrams/core-extensions.en.light.png" width="900" alt="What ships in LitClaude, and what you add. Left, the LitClaude core of 33 skills in five groups: work loops (lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), code craft (lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), research and prose (litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), pick up later (lit-handoff, lit-recap, lit-adhd) and runs on its own (rules, lsp, comment-checker), with a card for 11 agents, hooks, the LIT card, the status line, MCP and LSP. Middle, nine same-name stubs inside LitClaude. Right, five extension plugins from wjgoarxiv-skills that the stubs hand off to: decks (lit-pptx), documents (lit-docx), figures (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design (frontend-ui-ux, visual-qa) and video-covers (lit-typographic-motion, readme-studio). A band at the bottom gives the three install steps, and a note says that a stub answers with the install line when its plugin is missing." />
+    <img src="./docs/assets/readme/diagrams/core-extensions.en.light.png" width="900" alt="What ships in LitClaude, and what you add. Left, the LitClaude core of 33 skills in five groups: work loops (lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), code craft (lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), research and prose (litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), pick up later (lit-handoff, lit-recap, lit-adhd) and runs on its own (rules, lsp, comment-checker), with a card for 11 agents, hooks, the LIT card, the status line, MCP and LSP. Middle, nine same-name stubs inside LitClaude. Right, five extension plugins from wjgoarxiv-skills that the stubs hand off to: decks (lit-pptx), documents (lit-docx), figures (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design (frontend-ui-ux, visual-qa) and video-covers (lit-typographic-motion, readme-studio). A band at the bottom gives the four install steps (check for a same-name skill of your own, move it aside into extension-backups, claude plugin install copies the plugin into Claude Code's cache, and Claude Code's installed_plugins.json records it), the litclaude-ai extensions verbs that run them (list, check, install, update, remove, prune-backups, the changing ones only with --yes), and a note that a stub answers with the install line when its plugin is missing." />
   </picture>
 </p>
 
@@ -166,6 +166,25 @@ The first line fetches the shelf's current catalog. The second installs a new co
 plugin's version number has changed, and otherwise says it is already at the latest version; without
 the first line it compares against the catalog it fetched last time. The new copy loads after
 `/reload-plugins` or in a new session. Updating LitClaude itself leaves the extension plugins alone.
+
+LitClaude's own CLI can also run all of this for you. It reads Claude Code's record of installed plugins,
+looks for a skill of your own with an extension's name, and then runs the same `claude plugin` lines in the
+same order. A command that would change something first prints the lines it would run and stops there; add
+`--yes` to run them. Install stops at a same-name skill of your own and prints its move line, and remove
+never touches such a folder:
+
+```bash
+litclaude-ai extensions list                  # what is installed, and any skill of yours with an extension's name
+litclaude-ai extensions check                 # what needs action, each with the line that fixes it
+litclaude-ai extensions install decks --yes   # adds the shelf if needed, then installs the plugin
+litclaude-ai extensions update --yes          # refreshes the shelf, then updates every installed plugin
+litclaude-ai extensions remove decks --yes    # uninstalls the plugin through Claude Code
+litclaude-ai extensions prune-backups         # lists the dated folders in extension-backups; --yes deletes them
+```
+
+Offline, `--from <path>` points the shelf at a local clone of wjgoarxiv-skills. `litclaude-ai doctor`
+prints one line about the extensions, and when the notice finds a same-name folder it also points at
+`litclaude-ai extensions check`. Nothing changes until you run a line.
 
 The installer prints the install and update lines after every install or update, and the first session on a new
 version shows them once. After an upgrade from a version that still had these skills built in, the

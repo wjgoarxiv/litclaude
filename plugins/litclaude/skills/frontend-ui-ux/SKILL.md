@@ -152,4 +152,7 @@ claude plugin marketplace update wjgoarxiv-skills
 claude plugin update design@wjgoarxiv-skills
 ```
 
+In your own terminal, `npx @litfamily/litclaude extensions install design` runs these lines for you: it prints
+the plan, stops at a same-name skill of your own, and runs it with `--yes`. `update`, `remove` and `check` work alike.
+
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:b7e5648fc713 -->

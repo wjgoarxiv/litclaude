@@ -116,12 +116,12 @@ LitClaude의 핵심 기능은 그 자체로 완성되어 있고 혼자서도 잘
 에이전트, 훅, LIT 카드, 상태 줄, MCP와 LSP 서버가 있습니다. 가운데 칸은 같은 패키지에 든 안내용
 스킬 아홉 개입니다. 이 스킬들은 예전 스킬 이름을 그대로 갖고 있어서, 발표자료를 부탁하거나
 `lit-pptx`라고만 쳐도 요청이 갈 곳을 잃지 않습니다. 오른쪽의 해당 플러그인을 설치하면 안내용 스킬이
-요청을 그쪽으로 넘기고, 설치하기 전에는 아래 띠에 있는 설치 명령을 대신 알려 줍니다.
+요청을 그쪽으로 넘기고, 설치하기 전에는 설치 명령을 대신 알려 줍니다. 아래 띠는 설치가 거치는 네 단계와, 이를 대신 실행하는 `litclaude-ai extensions` 명령을 보여 줍니다.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.ko.dark.png" />
-    <img src="./docs/assets/readme/diagrams/core-extensions.ko.light.png" width="900" alt="LitClaude에 들어 있는 것과 따로 더하는 것. 왼쪽은 LitClaude 핵심 스킬 33개를 다섯 묶음으로 나눈 것이다. 작업 루프(lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), 코드 다루기(lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), 조사와 글(litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), 이어서 하기(lit-handoff, lit-recap, lit-adhd), 알아서 도는 것(rules, lsp, comment-checker). 그 아래 카드에 에이전트 11개, 훅, LIT 카드, 상태 줄, MCP, LSP가 있다. 가운데는 LitClaude 안의 같은 이름의 안내용 스킬 아홉 개, 오른쪽은 안내용 스킬이 요청을 넘기는 wjgoarxiv-skills 확장 플러그인 다섯 개다. decks(lit-pptx), documents(lit-docx), figures(lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design(frontend-ui-ux, visual-qa), video-covers(lit-typographic-motion, readme-studio). 아래 띠에는 설치 세 단계가 있고, 플러그인이 없으면 안내용 스킬이 설치 명령을 알려 준다는 메모가 붙어 있다." />
+    <img src="./docs/assets/readme/diagrams/core-extensions.ko.light.png" width="900" alt="LitClaude에 들어 있는 것과 따로 더하는 것. 왼쪽은 LitClaude 핵심 스킬 33개를 다섯 묶음으로 나눈 것이다. 작업 루프(lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), 코드 다루기(lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), 조사와 글(litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), 이어서 하기(lit-handoff, lit-recap, lit-adhd), 알아서 도는 것(rules, lsp, comment-checker). 그 아래 카드에 에이전트 11개, 훅, LIT 카드, 상태 줄, MCP, LSP가 있다. 가운데는 LitClaude 안의 같은 이름의 안내용 스킬 아홉 개, 오른쪽은 안내용 스킬이 요청을 넘기는 wjgoarxiv-skills 확장 플러그인 다섯 개다. decks(lit-pptx), documents(lit-docx), figures(lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design(frontend-ui-ux, visual-qa), video-covers(lit-typographic-motion, readme-studio). 아래 띠에는 설치 네 단계(같은 이름의 내 스킬 확인, extension-backups로 옮겨 두기, claude plugin install이 Claude Code 캐시로 복사, Claude Code의 installed_plugins.json에 기록)와 이를 실행하는 litclaude-ai extensions 명령(list, check, install, update, remove, prune-backups, 바꾸는 명령은 --yes를 붙일 때만 실행)이 있고, 플러그인이 없으면 안내용 스킬이 설치 명령을 알려 준다는 메모가 붙어 있다." />
   </picture>
 </p>
 
@@ -166,6 +166,25 @@ claude plugin update decks@wjgoarxiv-skills   # 또는 설치한 플러그인
 설치하고, 그렇지 않으면 이미 최신 버전이라고 알려 줍니다. 첫 줄을 건너뛰면 지난번에 받아 둔 목록과
 비교합니다. 새 사본은 `/reload-plugins`를 실행하거나 새 세션을 열면 올라옵니다. LitClaude를
 업데이트해도 확장 플러그인은 건드리지 않습니다.
+
+이 과정은 LitClaude의 명령으로도 할 수 있습니다. LitClaude는 Claude Code가 기록해 둔 설치 플러그인
+목록을 읽고, 확장과 같은 이름의 내 스킬이 있는지 살핀 뒤, 위와 같은 `claude plugin` 명령을 같은
+순서로 실행합니다. 무언가를 바꾸는 명령은 먼저 실행할 줄을 보여 주고 거기서 멈추며, `--yes`를 붙여야
+실제로 실행합니다. 설치는 같은 이름의 내 스킬을 만나면 멈추고 그 폴더의 이동 명령을 알려 주며,
+제거는 그런 폴더를 건드리지 않습니다.
+
+```bash
+litclaude-ai extensions list                  # 설치된 것과, 확장과 같은 이름의 내 스킬
+litclaude-ai extensions check                 # 손봐야 할 것과 각각을 고치는 명령
+litclaude-ai extensions install decks --yes   # 필요하면 선반을 추가하고 플러그인을 설치
+litclaude-ai extensions update --yes          # 선반을 새로 받고 설치된 플러그인을 모두 업데이트
+litclaude-ai extensions remove decks --yes    # Claude Code를 통해 플러그인을 제거
+litclaude-ai extensions prune-backups         # extension-backups의 날짜 폴더 목록; --yes로 삭제
+```
+
+인터넷이 없으면 `--from <경로>`로 wjgoarxiv-skills 로컬 클론을 선반으로 쓸 수 있습니다.
+`litclaude-ai doctor`는 확장 상태를 한 줄로 알려 주고, 안내가 같은 이름의 폴더를 찾으면
+`litclaude-ai extensions check`도 함께 알려 줍니다. 명령을 직접 실행하기 전에는 아무것도 바뀌지 않습니다.
 
 설치 프로그램은 설치하거나 업데이트할 때마다 설치 명령과 업데이트 명령을 출력하고, 새 버전의 첫 세션에서도 한 번
 보여 줍니다. 이 스킬들이 아직 들어 있던 버전에서 업데이트했다면 같은 안내에 그 버전이 남긴 것도

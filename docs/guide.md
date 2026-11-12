@@ -308,6 +308,12 @@ and runtime caches the earlier version left. The old version folders can be dele
 sessions are closed; the extensions reuse the runtime caches, so delete those only if you do not
 install the extensions.
 
+`litclaude-ai extensions` runs these same lines for you. `list` and `check` only read: what is installed,
+and any same-name skill of your own with the line that moves it aside. `install`, `update` and `remove`
+print the `claude plugin` lines they would run and run them with `--yes`; install stops at a same-name
+skill, and remove never touches one. `prune-backups` lists the dated folders in `extension-backups` and
+deletes them with `--yes`. Offline, `--from <path>` uses a local clone of wjgoarxiv-skills.
+
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office
 files. Before either skill writes a slide or a paragraph, it works out who will read the file

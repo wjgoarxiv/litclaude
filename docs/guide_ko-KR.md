@@ -292,6 +292,13 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 캐시도 함께 알려 줍니다. 예전 버전 폴더는 이전 세션을 닫은 뒤 지워도 되고, 런타임 캐시는 확장이
 다시 쓰므로 확장을 설치하지 않을 때만 지우세요.
 
+`litclaude-ai extensions`로 같은 명령을 대신 실행할 수도 있습니다. `list`와 `check`는 읽기만 합니다.
+설치된 것과, 같은 이름의 내 스킬이 있으면 그 폴더를 옮기는 명령을 보여 줍니다. `install`, `update`,
+`remove`는 실행할 `claude plugin` 명령을 먼저 보여 주고 `--yes`를 붙이면 실행합니다. 설치는 같은
+이름의 내 스킬을 만나면 멈추고, 제거는 그런 폴더를 건드리지 않습니다. `prune-backups`는
+`extension-backups`의 날짜 폴더를 보여 주고 `--yes`를 붙이면 지웁니다. 인터넷이 없으면
+`--from <경로>`로 wjgoarxiv-skills 로컬 클론을 씁니다.
+
 발표자료나 보고서를 부탁하면서 끝에 `lit`을 붙이면(`팀 워크숍 발표자료 만들어줘 lit`,
 `사내 교육 결과 보고서 써줘 lit`) Office 파일을 받습니다. 두 스킬 모두 슬라이드나 문단을
 쓰기 전에 누가 어떻게 읽을 파일인지부터 따지고, 거기에 맞는 모양을 고릅니다. 답에서는 고른

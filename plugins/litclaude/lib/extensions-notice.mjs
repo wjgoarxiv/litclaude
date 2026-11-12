@@ -145,10 +145,13 @@ export const extensionsNoticeLines = ({ leftovers = [], sameName = [] } = {}) =>
   "  in a new session:",
   `    ${MARKETPLACE_UPDATE_LINE}`,
   `    ${updateLine("decks")}   # or the plugin you installed`,
+  "  LitClaude can run these lines for you. `litclaude-ai extensions list` shows what is installed;",
+  "  `litclaude-ai extensions install decks` (or update, remove) prints what it would run, and --yes runs it.",
   ...(sameName.length === 0 ? [] : [
     "  A skill of your own has the name of an extension, so Claude Code loads it beside the extension and",
     "  the two compete for the same requests. Move it whole into a dated folder Claude Code does not read:",
     ...sameName.flatMap((row) => [`    ${row.shown} competes with ${row.plugin}:${row.id}`, `      ${row.move}`]),
+    "  `litclaude-ai extensions check` lists every such folder with its fix line; nothing changes on its own.",
   ]),
   ...(leftovers.length === 0 ? [] : [
     "  Older versions left these behind. The old version folders can be deleted once older Claude Code",

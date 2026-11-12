@@ -53,6 +53,7 @@ import {
 } from "../plugins/litclaude/lib/agent-file/attribution.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
 import { extensionLeftovers, extensionsNoticeLines, sameNameSkills } from "../plugins/litclaude/lib/extensions-notice.mjs";
+import { extensionsDoctorLine, runExtensionsCli } from "./extensions.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
@@ -87,7 +88,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|extensions|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read> [...args]
        litclaude-ai --version
 
 Commands:
@@ -127,6 +128,14 @@ Commands:
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
   update        Reinstall this package version and refresh the Claude plugin registry.
   uninstall     Remove LitClaude-managed install state.
+  extensions <list|check|install|update|remove|prune-backups>
+                Manage the LitFamily extensions (decks, documents, figures, design,
+                video-covers) through Claude Code's own plugin commands. list and
+                check only read; install, update and remove print the claude
+                plugin lines they would run and run them with --yes. install stops
+                at a skill of your own with an extension's name and prints the line
+                that moves it aside. --from <path> uses a local wjgoarxiv-skills
+                clone. \`litclaude-ai extensions --help\` shows every option.
 
 Public read options:
   --json        Emit a machine-readable JSON result.
@@ -1678,6 +1687,15 @@ const install = async ({ dryRun, rest }) => {
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };
 
+const extensionsContext = () => ({
+  env: process.env,
+  cwd: process.cwd(),
+  claudeHome: claudeHome(),
+  litHome: litHome(),
+  cacheHome: process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
+  currentVersion: version,
+});
+
 // Automatic handoff is stored per project, so the doctor reads the project it was run in.
 const writeAutoHandoffDoctorLines = () => {
   for (const line of autoHandoffDoctorLines({ env: process.env, stateRoot: resolveProjectStateRoot(process.cwd()) })) {
@@ -1699,6 +1717,7 @@ const doctor = ({ dryRun }) => {
     for (const line of automaticUpdateDoctorLines({ env: process.env, litHome: litHome(), claudeHome: claudeHome() })) process.stdout.write(`${line}\n`);
     process.stdout.write("Would verify the bundled handoff snapshot hashes\n");
     process.stdout.write("Would verify three canonical runtime closures\n");
+    process.stdout.write(`${extensionsDoctorLine(extensionsContext())}\n`);
     writeAutoHandoffDoctorLines();
     process.stdout.write(`${iconFontDoctorLine()}\n`);
     return;
@@ -1773,6 +1792,7 @@ const doctor = ({ dryRun }) => {
   const agentFileMode = readAgentFileMode({ litHome: litHome() });
   process.stdout.write(`AGENT_FILE: ${agentFileMode === "off" ? "off" : agentFileState({ path: agentFilePath(), version })} (${agentFilePath()}; change: litclaude-ai config agentFile <on|off>)\n`);
   process.stdout.write(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })} (change: litclaude-ai config attribution <keep|off>)\n`);
+  process.stdout.write(`${extensionsDoctorLine(extensionsContext())}\n`);
   for (const line of officialBuildLines(packageJson)) process.stdout.write(`${line}\n`);
 
   const claude = spawnTool("claude", ["--version"], { encoding: "utf8" });
@@ -2042,6 +2062,9 @@ const main = async () => {
       break;
     case "agent-file":
       exitAfterFlush(runAgentFileCli(parsed.rest, { dryRun: parsed.dryRun }));
+      break;
+    case "extensions":
+      exitAfterFlush(runExtensionsCli(parsed.dryRun ? [...parsed.rest, "--dry-run"] : parsed.rest, extensionsContext()));
       break;
     default:
       printUsage();

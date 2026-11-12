@@ -17,6 +17,17 @@
   The first line fetches the shelf's current catalog, and the second installs a new copy only when the plugin's
   version number has changed (otherwise it says the plugin is already at the latest version). The new copy loads
   after `/reload-plugins` or in a new session. Updating LitClaude leaves the extension plugins alone.
+- LitClaude now manages the extensions itself: `litclaude-ai extensions list|check|install|update|remove|prune-backups`.
+  The verbs read Claude Code's own record of installed plugins and run Claude Code's own `claude plugin` lines in
+  the order the stubs give them, so the plugin cache stays Claude Code's to manage. `list` and `check` only read;
+  `check` names each same-name skill of your own, a shelf that points at a folder that is gone and a plugin whose
+  folder is gone, each with the line that fixes it, and exits 1 when something needs action. `install`, `update`
+  and `remove` print their plan and run it only with `--yes`. Install stops at a same-name skill of your own and
+  prints its move line (`--allow-shadow` goes on with a warning), remove refuses such a folder, and a shelf that
+  cannot be fetched stops everything before any plugin changes, with a hint to use `--from <path>` and a local
+  clone. `prune-backups` lists the dated folders under `extension-backups` with their sizes and deletes them only
+  with `--yes` (`--older-than <days>` narrows it). Help, `doctor` (one line), the notice, the nine stubs, the
+  README and the guide name the verbs; the `claude plugin` lines stay as the manual route.
 
 ## 1.0.50 - 2026-11-11
 
