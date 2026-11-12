@@ -1761,13 +1761,16 @@ describe("secrets and settings are refused outright during a run", () => {
   const work = (root) => JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")).works["work-1"];
 
   it("refuses secret and settings paths without a pause, grant or queue entry", () => {
+    const caseFolds = process.platform === "darwin" || process.platform === "win32";
     const { home, root, env } = setup();
     try {
       const refused = [
         ["Read", { file_path: join(home, ".ssh", "config") }],
-        ["Read", { file_path: join(home, ".SSH", "config") }],
+        // The hook folds case only where the filesystem does (macOS, Windows); on Linux `.SSH` and
+        // `.CLAUDE` are different folders, so those two rows apply there only.
+        ...(caseFolds ? [["Read", { file_path: join(home, ".SSH", "config") }]] : []),
         ["Write", { file_path: join(home, ".claude", "settings.json"), content: "{}" }],
-        ["Write", { file_path: join(home, ".CLAUDE", "settings.json"), content: "{}" }],
+        ...(caseFolds ? [["Write", { file_path: join(home, ".CLAUDE", "settings.json"), content: "{}" }]] : []),
         ["Read", { file_path: join(home, ".codex", "config.toml") }],
         ["Read", { file_path: join(home, ".zshrc") }],
         ["Read", { file_path: join(root, ".env") }],
