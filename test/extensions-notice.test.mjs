@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { extensionsNoticeLines } from "../plugins/litclaude/lib/extensions-notice.mjs";
 
 // Nine file-making skills are now LitFamily extensions on the wjgoarxiv-skills shelf. The installer says so
 // after every install or update, and the first session that runs a new version says so once. On an upgrade
@@ -22,7 +23,7 @@ const NOTICE = [
   "claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills",
   "claude plugin install decks@wjgoarxiv-skills",
 ];
-const UPGRADE = "you can delete all of these";
+const UPGRADE = "Older versions left these behind.";
 
 const sandbox = (t) => {
   const path = mkdtempSync(join(tmpdir(), "litclaude-extensions-"));
@@ -93,6 +94,14 @@ describe("LitFamily extensions notice", () => {
     assert.ok(stdout.includes("~/cache/litclaude/office-runtime"), stdout);
     assert.ok(stdout.includes("~/cache/litclaude/motion-runtime"), stdout);
     assert.ok(!stdout.includes(`old versions ${version}`), "the running version is never offered for deletion");
+  });
+
+  it("lets old version folders go whatever the user decides about the extensions", () => {
+    // Old version folders are dead weight either way; only the runtime caches serve the extensions.
+    const text = extensionsNoticeLines({ leftovers: ["~/.cache/litclaude/office-runtime"] }).join(" ").replace(/\s+/gu, " ");
+    assert.match(text, /old version folders can be deleted once older Claude Code sessions are closed/u);
+    assert.match(text, /extensions reuse the runtime caches, so delete those only if you do not install them/u);
+    assert.doesNotMatch(text, /delete all of these/u);
   });
 
   it("a dry run installs nothing and says nothing about extensions", (t) => {

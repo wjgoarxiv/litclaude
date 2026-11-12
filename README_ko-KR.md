@@ -131,8 +131,8 @@ claude plugin install decks@wjgoarxiv-skills   # 또는 documents, figures, desi
 보여 줍니다. 이 스킬들이 아직 들어 있던 버전에서 업데이트했다면 같은 안내에 그 버전이 남긴 것도
 나옵니다. `~/.claude/plugins/cache/litclaude-ai/litclaude/`와 `~/.litclaude/litclaude-ai/` 아래의
 예전 버전 폴더, 그리고 `~/.cache/litclaude/` 아래의 `office-runtime`과 `motion-runtime` 캐시입니다.
-decks, documents, video-covers 플러그인이 이 두 캐시를 다시 쓰므로, 확장을 설치하지 않을 거라면
-모두 지워도 됩니다.
+예전 버전 폴더는 이전 Claude Code 세션을 닫은 뒤 지워도 됩니다. 두 캐시는 decks, documents,
+video-covers 플러그인이 다시 쓰므로, 확장을 설치하지 않을 때만 지우세요.
 
 ## 왜 LitClaude인가요
 

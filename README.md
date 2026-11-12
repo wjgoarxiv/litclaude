@@ -131,9 +131,9 @@ The installer prints these lines after every install or update, and the first se
 version shows them once. After an upgrade from a version that still had these skills built in, the
 same notice also lists what that version left on disk: old version folders under
 `~/.claude/plugins/cache/litclaude-ai/litclaude/` and `~/.litclaude/litclaude-ai/`, and the
-`office-runtime` and `motion-runtime` caches under `~/.cache/litclaude/`. The decks, documents and
-video-covers plugins reuse those two caches, so if you do not install the extensions you can delete
-all of it.
+`office-runtime` and `motion-runtime` caches under `~/.cache/litclaude/`. The old version folders
+can be deleted once older Claude Code sessions are closed. The decks, documents and video-covers
+plugins reuse the two caches, so delete those only if you do not install the extensions.
 
 ## Why LitClaude
 

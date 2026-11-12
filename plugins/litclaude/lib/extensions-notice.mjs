@@ -78,8 +78,9 @@ export const extensionsNoticeLines = ({ leftovers = [] } = {}) => [
   `    ${MARKETPLACE_LINE}`,
   `    ${installLine("decks")}   # or documents, figures, design, video-covers`,
   ...(leftovers.length === 0 ? [] : [
-    "  Older versions left these behind. The extensions reuse the two runtime caches; if you do not",
-    "  install them, you can delete all of these once older Claude Code sessions are closed:",
+    "  Older versions left these behind. The old version folders can be deleted once older Claude Code",
+    "  sessions are closed. The extensions reuse the runtime caches, so delete those only if you do not",
+    "  install them:",
     ...leftovers.map((row) => `    ${row}`),
   ]),
 ];

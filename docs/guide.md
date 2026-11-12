@@ -298,8 +298,9 @@ LitClaude gives you the full LitFamily experience. Add the shelf once with
 `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`; each part below names the plugin to
 install after it. The installer prints the same lines after every install or update, and the first
 session on a new version shows them once. After an upgrade they also list the old version folders
-and runtime caches the earlier version left, which you can delete if you do not install the
-extensions.
+and runtime caches the earlier version left. The old version folders can be deleted once older
+sessions are closed; the extensions reuse the runtime caches, so delete those only if you do not
+install the extensions.
 
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office
