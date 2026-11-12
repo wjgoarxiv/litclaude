@@ -49,6 +49,10 @@ stub. When the same prompt also asks for a report, the lit-docx stub runs beside
 3. A request for a Word document in the same prompt goes to the lit-docx stub; answer both parts in the same
    reply.
 
+In either mode, also check, reading only, whether `~/.claude/skills/lit-pptx` or `.claude/skills/lit-pptx` exists.
+Such a folder competes with `decks:lit-pptx`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the decks skill's own outputs. Not installed: one short reply with the install lines, and no file.
@@ -95,6 +99,16 @@ That whole skill, its engine and the office runtime it needs now live in the `de
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `lit-pptx` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `decks:lit-pptx` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/lit-pptx .claude/skills/lit-pptx 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/lit-pptx "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/lit-pptx "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -105,5 +119,13 @@ claude plugin install decks@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/decks/skills/lit-pptx` folder; the install line installs the whole `decks` plugin.
 The installed skill answers as `decks:lit-pptx`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update decks@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:c2168ba74efe -->

@@ -282,8 +282,13 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 이 스킬 아홉 개는 이제 확장 선반인 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)에
 있습니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있습니다. 선반은
 `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`로 한 번 추가하고, 아래 각 부분에 적힌
-플러그인을 설치하면 됩니다. 설치 프로그램은 설치하거나 업데이트할 때마다 같은 안내를 출력하고, 새
-버전의 첫 세션에서도 한 번 보여 줍니다. 업데이트한 경우에는 예전 버전이 남긴 버전 폴더와 런타임
+플러그인을 설치하면 됩니다. 나중에 업데이트할 때는 `claude plugin marketplace update wjgoarxiv-skills`를
+먼저 실행하고 `claude plugin update <플러그인>@wjgoarxiv-skills`를 실행합니다. Claude Code는 플러그인의
+버전이 바뀌었을 때만 새 사본을 설치하고, 새 사본은 `/reload-plugins`를 실행하거나 새 세션을 열면
+올라옵니다. 처음 설치하기 전에는 같은 이름의 내 스킬을 `~/.claude/skills`나 `.claude/skills` 밖으로
+옮겨 두세요. 그대로 두면 확장과 다툽니다. 안내용 스킬마다 그런 폴더를 찾는 명령과
+`~/.claude/extension-backups/`로 옮기는 명령을 알려 줍니다. 설치 프로그램은 설치하거나 업데이트할
+때마다 설치 명령과 업데이트 명령을 출력하고, 새 버전의 첫 세션에서도 한 번 보여 줍니다. 업데이트한 경우에는 예전 버전이 남긴 버전 폴더와 런타임
 캐시도 함께 알려 줍니다. 예전 버전 폴더는 이전 세션을 닫은 뒤 지워도 되고, 런타임 캐시는 확장이
 다시 쓰므로 확장을 설치하지 않을 때만 지우세요.
 

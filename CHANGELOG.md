@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- Installing a LitFamily extension is now safe when a skill of your own already has its name. Claude Code reads
+  personal skills from `~/.claude/skills` and a project's skills from `.claude/skills`, and a folder there named
+  like an extension (an old copy of `lit-pptx`, say) loads beside `decks:lit-pptx` and competes with it for the
+  same requests. Each of the nine stubs now starts its install lines with a check
+  (`ls -d ~/.claude/skills/<skill> .claude/skills/<skill> 2>/dev/null`) and gives the line that moves such a
+  folder whole into a dated folder under `~/.claude/extension-backups/` (or the project's
+  `.claude/extension-backups/`), which Claude Code does not read. When a stub answers, it checks, reading only,
+  and names the folder it finds; it never moves anything itself. The LitFamily extensions notice that the
+  installer prints, and that the first session on a new version shows, names such a folder too, with the move
+  line filled in.
+- The stubs, the notice, the README and the guide now give the update lines for an installed extension:
+  `claude plugin marketplace update wjgoarxiv-skills`, then `claude plugin update <plugin>@wjgoarxiv-skills`.
+  The first line fetches the shelf's current catalog, and the second installs a new copy only when the plugin's
+  version number has changed (otherwise it says the plugin is already at the latest version). The new copy loads
+  after `/reload-plugins` or in a new session. Updating LitClaude leaves the extension plugins alone.
+
 ## 1.0.50 - 2026-11-11
 
 - Nine skills that make files are now LitFamily extensions. They left LitClaude for the extension shelf, the new

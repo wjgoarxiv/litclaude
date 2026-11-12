@@ -52,7 +52,7 @@ import {
   writeAttributionMode,
 } from "../plugins/litclaude/lib/agent-file/attribution.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
-import { extensionLeftovers, extensionsNoticeLines } from "../plugins/litclaude/lib/extensions-notice.mjs";
+import { extensionLeftovers, extensionsNoticeLines, sameNameSkills } from "../plugins/litclaude/lib/extensions-notice.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
@@ -1672,7 +1672,8 @@ const install = async ({ dryRun, rest }) => {
     cacheHome: process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
     currentVersion: version,
   });
-  process.stdout.write(`\n${extensionsNoticeLines({ leftovers }).join("\n")}\n\n`);
+  const sameName = sameNameSkills({ claudeHome: home, cwd: process.cwd() });
+  process.stdout.write(`\n${extensionsNoticeLines({ leftovers, sameName }).join("\n")}\n\n`);
   process.stdout.write("Launch with: claude\n");
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };

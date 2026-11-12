@@ -296,8 +296,14 @@ nine skills that make files now sit on the extension shelf,
 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills). Installing the ones you use beside
 LitClaude gives you the full LitFamily experience. Add the shelf once with
 `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`; each part below names the plugin to
-install after it. The installer prints the same lines after every install or update, and the first
-session on a new version shows them once. After an upgrade they also list the old version folders
+install after it. To update one later, run `claude plugin marketplace update wjgoarxiv-skills` and
+then `claude plugin update <plugin>@wjgoarxiv-skills`; Claude Code installs a new copy only when the
+plugin's version has changed, and it loads after `/reload-plugins` or in a new session. Before the
+first install, move any skill of your own that has the same name out of `~/.claude/skills` or
+`.claude/skills`, because it would compete with the extension; each stub gives the line that lists
+such a folder and the line that moves it into `~/.claude/extension-backups/`. The installer prints the
+install and update lines after every install or update, and the first session on a new version shows
+them once. After an upgrade they also list the old version folders
 and runtime caches the earlier version left. The old version folders can be deleted once older
 sessions are closed; the extensions reuse the runtime caches, so delete those only if you do not
 install the extensions.

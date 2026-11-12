@@ -63,6 +63,10 @@ an interface file. Quoted, fenced, mid-sentence and near-miss mentions stay iner
    - in the final reply, say once that the full design skill (house styles, kit, design contract) is missing and
      give the install lines. Keep the interface as the workflow built it.
 
+In either mode, also check, reading only, whether `~/.claude/skills/frontend-ui-ux` or `.claude/skills/frontend-ui-ux` exists.
+Such a folder competes with `design:frontend-ui-ux`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the design skill's own outputs. Missing, direct request: one short reply with the install lines, and no
@@ -119,6 +123,16 @@ That whole skill, its kit, data, schemas, references and scripts, now lives in t
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `frontend-ui-ux` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `design:frontend-ui-ux` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/frontend-ui-ux .claude/skills/frontend-ui-ux 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/frontend-ui-ux "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/frontend-ui-ux "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -129,5 +143,13 @@ claude plugin install design@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/design/skills/frontend-ui-ux` folder; the install line installs the whole `design` plugin.
 The installed skill answers as `design:frontend-ui-ux`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update design@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:b7e5648fc713 -->

@@ -47,6 +47,10 @@ to this stub. Quoted, fenced, mid-sentence and near-miss mentions stay inert.
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 
+In either mode, also check, reading only, whether `~/.claude/skills/lit-schematic` or `.claude/skills/lit-schematic` exists.
+Such a folder competes with `figures:lit-schematic`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the figures skill's own outputs. Not installed: one short reply with the install lines, and no file.
@@ -95,6 +99,16 @@ lead somewhere useful.
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `lit-schematic` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `figures:lit-schematic` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/lit-schematic .claude/skills/lit-schematic 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/lit-schematic "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/lit-schematic "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -105,5 +119,13 @@ claude plugin install figures@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-schematic` folder; the install line installs the whole `figures` plugin.
 The installed skill answers as `figures:lit-schematic`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update figures@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:a435673e729d -->

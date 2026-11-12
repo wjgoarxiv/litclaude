@@ -140,7 +140,34 @@ claude plugin install decks@wjgoarxiv-skills   # 또는 documents, figures, desi
 | `design` | frontend-ui-ux, visual-qa | 웹 화면과 만든 화면의 시각 검사 |
 | `video-covers` | lit-typographic-motion, readme-studio | 짧은 영상과 README 표지 |
 
-설치 프로그램은 설치하거나 업데이트할 때마다 이 안내를 출력하고, 새 버전의 첫 세션에서도 한 번
+처음 설치하기 전에, 같은 이름을 쓰는 내 스킬이 이미 있는지 확인하세요. Claude Code는 개인 스킬을
+`~/.claude/skills`에서, 프로젝트 스킬을 `.claude/skills`에서 읽습니다. 그곳에 확장과 같은 이름의
+폴더(예를 들어 예전 `lit-pptx`를 복사해 둔 것)가 있으면 `decks:lit-pptx` 옆에 함께 올라와 같은
+요청을 두고 다툽니다. 아래 줄은 스킬 하나에 대해 그런 폴더를 보여 주고, 없으면 아무것도 출력하지
+않습니다.
+
+```bash
+ls -d ~/.claude/skills/lit-pptx .claude/skills/lit-pptx 2>/dev/null
+```
+
+폴더가 나오면 그 폴더를 통째로 `~/.claude/extension-backups/` 아래 날짜 폴더로 옮기세요(프로젝트
+쪽 복사본이면 그 프로젝트의 `.claude/extension-backups/`). Claude Code는 이 폴더를 읽지 않고, 내
+파일은 그 안에 그대로 남습니다. 안내용 스킬마다 자기 스킬의 이동 명령을 알려 주고, 아래에서 말하는
+안내도 그런 폴더를 찾으면 같은 명령을 보여 줍니다.
+
+나중에 확장을 업데이트할 때는 선반을 먼저 새로 받고, 그다음 플러그인을 업데이트합니다.
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update decks@wjgoarxiv-skills   # 또는 설치한 플러그인
+```
+
+첫 줄은 선반의 최신 목록을 받아 옵니다. 둘째 줄은 플러그인의 버전 번호가 바뀌었을 때만 새 사본을
+설치하고, 그렇지 않으면 이미 최신 버전이라고 알려 줍니다. 첫 줄을 건너뛰면 지난번에 받아 둔 목록과
+비교합니다. 새 사본은 `/reload-plugins`를 실행하거나 새 세션을 열면 올라옵니다. LitClaude를
+업데이트해도 확장 플러그인은 건드리지 않습니다.
+
+설치 프로그램은 설치하거나 업데이트할 때마다 설치 명령과 업데이트 명령을 출력하고, 새 버전의 첫 세션에서도 한 번
 보여 줍니다. 이 스킬들이 아직 들어 있던 버전에서 업데이트했다면 같은 안내에 그 버전이 남긴 것도
 나옵니다. `~/.claude/plugins/cache/litclaude-ai/litclaude/`와 `~/.litclaude/litclaude-ai/` 아래의
 예전 버전 폴더, 그리고 `~/.cache/litclaude/` 아래의 `office-runtime`과 `motion-runtime` 캐시입니다.

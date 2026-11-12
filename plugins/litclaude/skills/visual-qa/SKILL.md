@@ -55,6 +55,10 @@ quality-reviewer agents still preload this id. Quoted, fenced, mid-sentence and 
    criterion with no browser reachable is BLOCKED), and claim no visual-qa verdict. For a web interface, the
    frontend-ui-ux stub's interface probe still runs. Give the install lines once in the final reply.
 
+In either mode, also check, reading only, whether `~/.claude/skills/visual-qa` or `.claude/skills/visual-qa` exists.
+Such a folder competes with `design:visual-qa`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the design skill's own outputs. Missing, direct request: one short reply with the install lines, and no
@@ -102,6 +106,16 @@ marketplace, copied unchanged from LitClaude, beside frontend-ui-ux. LitClaude k
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `visual-qa` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `design:visual-qa` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/visual-qa .claude/skills/visual-qa 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/visual-qa "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/visual-qa "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -112,5 +126,13 @@ claude plugin install design@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/design/skills/visual-qa` folder; the install line installs the whole `design` plugin.
 The installed skill answers as `design:visual-qa`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update design@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:4aa1e9a577ea -->

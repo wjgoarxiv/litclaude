@@ -2,7 +2,8 @@
 // marketplace; LitClaude keeps a same-name stub for each. The installer prints this notice after every
 // install or update, and the SessionStart hook shows it once in the first session that runs a new
 // version (recorded in LitClaude's own home, beside the update-notifier state). On an upgrade it also
-// names what older versions left on disk. Plain text only: no colour, never in a JSON result.
+// names what older versions left on disk, and any skill of the user's own that has an extension's name.
+// Plain text only: no colour, never in a JSON result.
 import { lstatSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, sep } from "node:path";
@@ -23,6 +24,8 @@ export const EXTENSION_SKILLS = Object.freeze({
 export const EXTENSIONS_SHELF = "github.com/wjgoarxiv/wjgoarxiv-skills";
 export const MARKETPLACE_LINE = "claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills";
 export const installLine = (plugin) => `claude plugin install ${plugin}@wjgoarxiv-skills`;
+export const MARKETPLACE_UPDATE_LINE = "claude plugin marketplace update wjgoarxiv-skills";
+export const updateLine = (plugin) => `claude plugin update ${plugin}@wjgoarxiv-skills`;
 
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const STATE_FILE = "extensions-notice.json";
@@ -68,8 +71,68 @@ export const extensionLeftovers = ({ claudeHome, litHome, cacheHome, currentVers
   return rows;
 };
 
-/** The notice as lines; `leftovers` comes from extensionLeftovers and adds the upgrade part. */
-export const extensionsNoticeLines = ({ leftovers = [] } = {}) => [
+const exists = (path) => {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// The real path of a folder, so a cwd reached through a symlink still reads as inside the home folder.
+const real = (path) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+// A path for a shell line: "$HOME/..." under the home folder, single-quoted otherwise.
+const shellPath = (path, home) => {
+  const rel = home ? relative(home, path) : "";
+  if (rel && !rel.startsWith("..") && !rel.startsWith(sep)) return `"$HOME/${rel.split(sep).join("/").replace(/["$`\\]/gu, "\\$&")}"`;
+  return `'${path.replaceAll("'", "'\\''")}'`;
+};
+
+// One line that moves a same-name skill whole into a dated folder Claude Code does not read.
+const moveAsideLine = (path, backups, home) => {
+  const folder = shellPath(backups, home);
+  const stamped = folder.startsWith('"') ? `${folder.slice(0, -1)}/$(date +%Y%m%d-%H%M%S)"` : `${folder}/"$(date +%Y%m%d-%H%M%S)"`;
+  return `d=${stamped}; mkdir -p "$d" && mv ${shellPath(path, home)} "$d"/`;
+};
+
+/**
+ * Skills of the user's own that carry an extension's name: `<claudeHome>/skills/<id>` (personal) and
+ * `<cwd>/.claude/skills/<id>` (project). Claude Code loads such a folder beside the extension's
+ * `<plugin>:<id>`, so the two compete for the same requests. Read only; each row carries the line that
+ * moves the folder into `extension-backups/<date>/` beside its skills folder, which Claude Code does not read.
+ */
+export const sameNameSkills = ({ claudeHome, cwd, home = homedir() }) => {
+  const realHome = real(home);
+  const bases = [{ scope: "personal", base: real(claudeHome) }];
+  if (typeof cwd === "string" && cwd) {
+    const project = join(real(cwd), ".claude");
+    if (project !== bases[0].base) bases.push({ scope: "project", base: project });
+  }
+  const rows = [];
+  for (const { scope, base } of bases) {
+    for (const [id, plugin] of Object.entries(EXTENSION_SKILLS)) {
+      const path = join(base, "skills", id);
+      if (!exists(path)) continue;
+      rows.push({
+        id, plugin, scope, path,
+        shown: homeRelative(path, realHome),
+        move: moveAsideLine(path, join(base, "extension-backups"), realHome),
+      });
+    }
+  }
+  return rows;
+};
+
+/** The notice as lines; `leftovers` adds the upgrade part and `sameName` (from sameNameSkills) the move lines. */
+export const extensionsNoticeLines = ({ leftovers = [], sameName = [] } = {}) => [
   "LitFamily extensions",
   "  LitClaude's core is complete and works on its own.",
   "  Nine skills that make files (decks, documents, figures, design, video covers) are now LitFamily",
@@ -77,6 +140,16 @@ export const extensionsNoticeLines = ({ leftovers = [] } = {}) => [
   "  you use beside LitClaude to get the full LitFamily experience:",
   `    ${MARKETPLACE_LINE}`,
   `    ${installLine("decks")}   # or documents, figures, design, video-covers`,
+  "  To update an installed extension, refresh the shelf first and then the plugin. Claude Code installs a",
+  "  new copy only when the plugin's version has changed, and the new copy loads after /reload-plugins or",
+  "  in a new session:",
+  `    ${MARKETPLACE_UPDATE_LINE}`,
+  `    ${updateLine("decks")}   # or the plugin you installed`,
+  ...(sameName.length === 0 ? [] : [
+    "  A skill of your own has the name of an extension, so Claude Code loads it beside the extension and",
+    "  the two compete for the same requests. Move it whole into a dated folder Claude Code does not read:",
+    ...sameName.flatMap((row) => [`    ${row.shown} competes with ${row.plugin}:${row.id}`, `      ${row.move}`]),
+  ]),
   ...(leftovers.length === 0 ? [] : [
     "  Older versions left these behind. The old version folders can be deleted once older Claude Code",
     "  sessions are closed. The extensions reuse the runtime caches, so delete those only if you do not",
@@ -109,7 +182,7 @@ const insideFolder = (path, folder) => {
  * plugin cache (a checkout or --plugin-dir), when this version already showed it, or when the record
  * cannot be written (so a broken record never repeats it every session).
  */
-export const claimSessionExtensionsNotice = ({ pluginRoot, version, env = process.env, now = Date.now() }) => {
+export const claimSessionExtensionsNotice = ({ pluginRoot, version, cwd, env = process.env, now = Date.now() }) => {
   try {
     if (typeof version !== "string" || !stableVersion.test(version)) return null;
     const homes = environmentHomes(env);
@@ -126,7 +199,8 @@ export const claimSessionExtensionsNotice = ({ pluginRoot, version, env = proces
     writeFileSync(staging, `${JSON.stringify({ version, shownAt: new Date(now).toISOString() })}\n`, { flag: "wx" });
     renameSync(staging, record);
     const leftovers = extensionLeftovers({ ...homes, currentVersion: version });
-    return extensionsNoticeLines({ leftovers }).join("\n");
+    const sameName = sameNameSkills({ claudeHome: homes.claudeHome, cwd, home: homes.home });
+    return extensionsNoticeLines({ leftovers, sameName }).join("\n");
   } catch {
     return null;
   }

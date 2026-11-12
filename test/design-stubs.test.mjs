@@ -51,7 +51,8 @@ describe("the design skills are same-name stubs for the design extras plugin", (
       assert.match(md, /Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`\./u, "keeps the local clone as the offline form");
       assert.match(md, /lit-loop|lit workflow/u, "says what happens when a lit workflow hands work to it");
       assert.doesNotMatch(md, /\/Users\/[a-z]/u, "no private home path");
-      assert.ok(Buffer.byteLength(md) < 9000, `${Buffer.byteLength(md)} bytes`);
+      // 9500: the frontend-ui-ux stub also carries the interface-probe procedure and the same-name check.
+      assert.ok(Buffer.byteLength(md) < 9500, `${Buffer.byteLength(md)} bytes`);
     });
   }
 

@@ -140,7 +140,34 @@ claude plugin install decks@wjgoarxiv-skills   # or documents, figures, design, 
 | `design` | frontend-ui-ux, visual-qa | web interfaces and the visual check of a built one |
 | `video-covers` | lit-typographic-motion, readme-studio | short films and README covers |
 
-The installer prints these lines after every install or update, and the first session on a new
+Before the first install, check for a skill of your own that already has one of these names. Claude Code
+reads personal skills from `~/.claude/skills` and a project's skills from `.claude/skills`, and a folder
+there named like an extension, an old copy of `lit-pptx` for example, loads beside `decks:lit-pptx` and
+competes with it for the same requests. This line lists such a folder for one skill and prints nothing
+when there is none:
+
+```bash
+ls -d ~/.claude/skills/lit-pptx .claude/skills/lit-pptx 2>/dev/null
+```
+
+If it lists one, move the folder whole into a dated folder under `~/.claude/extension-backups/` (or
+`.claude/extension-backups/` in the project for a project copy). Claude Code does not read those folders,
+and your files stay there as they were. Each stub prints the move line for its own skill, and so does the
+notice described below when it finds such a folder.
+
+To update an extension later, refresh the shelf first and then the plugin:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update decks@wjgoarxiv-skills   # or the plugin you installed
+```
+
+The first line fetches the shelf's current catalog. The second installs a new copy only when the
+plugin's version number has changed, and otherwise says it is already at the latest version; without
+the first line it compares against the catalog it fetched last time. The new copy loads after
+`/reload-plugins` or in a new session. Updating LitClaude itself leaves the extension plugins alone.
+
+The installer prints the install and update lines after every install or update, and the first session on a new
 version shows them once. After an upgrade from a version that still had these skills built in, the
 same notice also lists what that version left on disk: old version folders under
 `~/.claude/plugins/cache/litclaude-ai/litclaude/` and `~/.litclaude/litclaude-ai/`, and the

@@ -54,6 +54,10 @@ mid-sentence and near-miss mentions stay inert, and UI animation wording with no
    `video-covers:lit-typographic-motion`, keep the workflow's own evidence rules for everything else, and give the
    install lines once in the final reply. Claim no film, frame or cover that was not rendered.
 
+In either mode, also check, reading only, whether `~/.claude/skills/lit-typographic-motion` or `.claude/skills/lit-typographic-motion` exists.
+Such a folder competes with `video-covers:lit-typographic-motion`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the moved skill's own outputs. Missing, direct request: one short reply with the install lines, and no
@@ -109,6 +113,16 @@ somewhere useful.
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `lit-typographic-motion` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `video-covers:lit-typographic-motion` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/lit-typographic-motion .claude/skills/lit-typographic-motion 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/lit-typographic-motion "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/lit-typographic-motion "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -119,5 +133,13 @@ claude plugin install video-covers@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/video-covers/skills/lit-typographic-motion` folder; the install line installs the whole `video-covers` plugin.
 The installed skill answers as `video-covers:lit-typographic-motion`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update video-covers@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:10c6f3985f09 -->

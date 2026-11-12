@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { extensionsNoticeLines } from "../plugins/litclaude/lib/extensions-notice.mjs";
+import { extensionsNoticeLines, sameNameSkills } from "../plugins/litclaude/lib/extensions-notice.mjs";
 
 // Nine file-making skills are now LitFamily extensions on the wjgoarxiv-skills shelf. The installer says so
 // after every install or update, and the first session that runs a new version says so once. On an upgrade
@@ -22,7 +22,11 @@ const NOTICE = [
   "to get the full LitFamily experience",
   "claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills",
   "claude plugin install decks@wjgoarxiv-skills",
+  "To update an installed extension, refresh the shelf first and then the plugin.",
+  "claude plugin marketplace update wjgoarxiv-skills",
+  "claude plugin update decks@wjgoarxiv-skills",
 ];
+const SAME_NAME = "A skill of your own has the name of an extension";
 const UPGRADE = "Older versions left these behind.";
 
 const sandbox = (t) => {
@@ -102,6 +106,51 @@ describe("LitFamily extensions notice", () => {
     assert.match(text, /old version folders can be deleted once older Claude Code sessions are closed/u);
     assert.match(text, /extensions reuse the runtime caches, so delete those only if you do not install them/u);
     assert.doesNotMatch(text, /delete all of these/u);
+  });
+
+  it("says the update lines refresh only a changed version, which loads after a reload", () => {
+    const text = extensionsNoticeLines().join(" ").replace(/\s+/gu, " ");
+    assert.match(text, /Claude Code installs a new copy only when the plugin's version has changed/u);
+    assert.match(text, /\/reload-plugins or in a new session/u);
+    assert.ok(!text.includes(SAME_NAME), "nothing to move on a clean machine");
+  });
+
+  it("names a personal or project skill that shares an extension's name, with a move line out of the skills folders", (t) => {
+    const box = sandbox(t);
+    const personal = join(box.env.CLAUDE_CONFIG_DIR, "skills", "lit-pptx");
+    const project = join(box.project, ".claude", "skills", "lit-docx");
+    const unrelated = join(box.env.CLAUDE_CONFIG_DIR, "skills", "my-own-skill");
+    for (const dir of [personal, project, unrelated]) {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "SKILL.md"), "---\nname: x\ndescription: x\n---\n");
+    }
+    const found = sameNameSkills({ claudeHome: box.env.CLAUDE_CONFIG_DIR, cwd: box.project, home: box.path });
+    assert.deepEqual(found.map((row) => [row.id, row.plugin, row.scope]), [["lit-pptx", "decks", "personal"], ["lit-docx", "documents", "project"]]);
+
+    const stdout = box.cliIn(box.project, "install", "--yes").stdout;
+    assert.ok(hasNotice(stdout), stdout);
+    assert.ok(stdout.includes(SAME_NAME), stdout);
+    assert.ok(stdout.includes("~/claude/skills/lit-pptx competes with decks:lit-pptx"), stdout);
+    assert.ok(stdout.includes("~/project/.claude/skills/lit-docx competes with documents:lit-docx"), stdout);
+    assert.ok(stdout.includes(`d="$HOME/claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv "$HOME/claude/skills/lit-pptx" "$d"/`), stdout);
+    assert.ok(stdout.includes(`d="$HOME/project/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv "$HOME/project/.claude/skills/lit-docx" "$d"/`), stdout);
+    assert.ok(!stdout.includes("my-own-skill"), "a skill with another name is none of the notice's business");
+
+    // The move line works as printed, in both shells, and leaves the skills folder without that name.
+    const line = stdout.split("\n").find((row) => row.includes("mv \"$HOME/claude/skills/lit-pptx\"")).trim();
+    const moved = spawnSync("/bin/sh", ["-c", line], { env: { ...box.env, HOME: box.path }, encoding: "utf8" });
+    assert.equal(moved.status, 0, moved.stderr);
+    assert.equal(existsSync(personal), false);
+    assert.equal(sameNameSkills({ claudeHome: box.env.CLAUDE_CONFIG_DIR, cwd: box.path, home: box.path }).length, 0, "the backup folder is not a skills folder");
+  });
+
+  it("names a same-name skill in the first session's notice too", (t) => {
+    const box = sandbox(t);
+    install(box);
+    mkdirSync(join(box.project, ".claude", "skills", "visual-qa"), { recursive: true });
+    const message = box.session("session-same-name").systemMessage;
+    assert.ok(message.includes(SAME_NAME), message);
+    assert.ok(message.includes("~/project/.claude/skills/visual-qa competes with design:visual-qa"), message);
   });
 
   it("a dry run installs nothing and says nothing about extensions", (t) => {

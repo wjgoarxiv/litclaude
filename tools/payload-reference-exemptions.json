@@ -14,6 +14,10 @@
       "reason": "Claude Code's project configuration and skill directories are host-provided surfaces, not package files."
     },
     {
+      "prefix": "~/.claude/",
+      "reason": "Claude Code's user configuration and personal skill directories are host-provided surfaces in the user's home, not package files."
+    },
+    {
       "prefix": ".github/",
       "reason": "Repository workflow and Copilot instruction files belong to the consuming project's host checkout."
     },

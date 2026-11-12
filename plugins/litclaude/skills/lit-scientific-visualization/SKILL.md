@@ -49,6 +49,10 @@ Reply in the user's language with these things and stop:
 4. If it is not, the two install lines from "What moved" below, in a code block, then `/reload-plugins` or a new
    session, then that command.
 
+In either mode, also check, reading only, whether `~/.claude/skills/lit-scientific-visualization` or `.claude/skills/lit-scientific-visualization` exists.
+Such a folder competes with `figures:lit-scientific-visualization`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 One short reply with the command and the install lines, and no file.
@@ -97,6 +101,16 @@ somewhere useful.
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `lit-scientific-visualization` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `figures:lit-scientific-visualization` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/lit-scientific-visualization .claude/skills/lit-scientific-visualization 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/lit-scientific-visualization "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/lit-scientific-visualization "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -107,5 +121,13 @@ claude plugin install figures@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-scientific-visualization` folder; the install line installs the whole `figures` plugin.
 The installed skill runs as `/figures:lit-scientific-visualization` (skill id `figures:lit-scientific-visualization`).
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update figures@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:df87d26bdbf3 -->

@@ -47,6 +47,10 @@ stub. The words "diagram", "chart" and "visualization" alone still route nowhere
      starts a new session afterwards, then asks again.
 3. An interface page or dashboard belongs to frontend-ui-ux, which LitClaude routes to its own stub.
 
+In either mode, also check, reading only, whether `~/.claude/skills/lit-diagram-drawer` or `.claude/skills/lit-diagram-drawer` exists.
+Such a folder competes with `figures:lit-diagram-drawer`: name its path once and give its move line from "What moved".
+Never move it yourself.
+
 ## #contract.outputs
 
 Installed: the figures skill's own outputs. Not installed: one short reply with the install lines, and no file.
@@ -93,6 +97,16 @@ lit-scientific-visualization. LitClaude keeps this stub so that `/litclaude:lit-
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.
 
+First check that no skill of your own has this name. A `lit-diagram-drawer` folder in `~/.claude/skills` or in a
+project's `.claude/skills` would load beside `figures:lit-diagram-drawer` and compete with it. The first line lists one;
+the next two move a personal or a project copy whole into a dated folder Claude Code does not read:
+
+```bash
+ls -d ~/.claude/skills/lit-diagram-drawer .claude/skills/lit-diagram-drawer 2>/dev/null
+d="$HOME/.claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv ~/.claude/skills/lit-diagram-drawer "$d"/
+d=".claude/extension-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d" && mv .claude/skills/lit-diagram-drawer "$d"/
+```
+
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 
 ```bash
@@ -103,5 +117,13 @@ claude plugin install figures@wjgoarxiv-skills
 Offline, the first line can point at a local clone instead: `claude plugin marketplace add <path to your wjgoarxiv-skills clone>`.
 In the wjgoarxiv-skills repository the skill sits in the `plugins/figures/skills/lit-diagram-drawer` folder; the install line installs the whole `figures` plugin.
 The installed skill answers as `figures:lit-diagram-drawer`.
+
+To update, refresh the marketplace and then the plugin.
+Claude Code installs a new copy only when the plugin's version has changed; it loads after `/reload-plugins`:
+
+```bash
+claude plugin marketplace update wjgoarxiv-skills
+claude plugin update figures@wjgoarxiv-skills
+```
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:53e2c8138952 -->
