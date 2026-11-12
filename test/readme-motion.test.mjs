@@ -15,6 +15,11 @@ const coverAlts = {
   install: "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.",
   설치: "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상",
 };
+// Pictures that only the GitHub READMEs show. package.json "files" does not name them, so they never reach the tarball.
+const githubOnlyPictures = {
+  diagrams: ["core-extensions", "install-writes", "lit-route"].flatMap((name) => ["en", "ko"].flatMap((lang) => [`${name}.${lang}.dark.png`, `${name}.${lang}.light.png`])),
+  schematic: ["en", "ko"].flatMap((lang) => [`lit-column.${lang}.png`, `lit-column.${lang}.dark.png`, `lit-column-loop.${lang}.webp`, `lit-column-loop.${lang}.dark.webp`, `lit-plant.${lang}.png`, `lit-plant.${lang}.dark.png`]),
+};
 const ascii = lockup("claude", banner).map((row) => row.trimEnd()).join("\n");
 const assets = {
   "JetBrainsMono-OFL.txt": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
@@ -170,13 +175,25 @@ test("README assets retain the approved outlined mark, motion bytes, and used ic
   assert.equal(createHash("sha256").update(motionStill).digest("hex"), "f7cf140fb71518b44fdb28490c98a43481925a57e982dfe1390271d0c6bc55f2");
   assert.equal(motionStill.subarray(0, 4).toString(), "RIFF");
   assert.equal(motionStill.subarray(8, 12).toString(), "WEBP");
-  assert.deepEqual(readdirSync(assetRoot).sort(), [...Object.keys(assets), "badge-version.svg"].sort());
+  assert.deepEqual(readdirSync(assetRoot).sort(), [...Object.keys(assets), "badge-version.svg", ...Object.keys(githubOnlyPictures)].sort());
   for (const [name, expected] of Object.entries(assets)) {
     const path = new URL(name, assetRoot);
     assert.ok(lstatSync(path).isFile(), `${name} must be a regular file`);
     assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), expected, name);
   }
-  const svg = read("docs/assets/readme/ascii-readme.svg");
+  const readmes = read("README.md") + read("README_ko-KR.md");
+  const packageFiles = JSON.parse(read("package.json")).files;
+  for (const [folder, names] of Object.entries(githubOnlyPictures)) {
+    assert.deepEqual(readdirSync(new URL(`${folder}/`, assetRoot)).sort(), [...names].sort(), `docs/assets/readme/${folder}`);
+    assert.ok(!packageFiles.some((entry) => entry.startsWith(`docs/assets/readme/${folder}`) || entry === "docs/assets/readme" || entry === "docs/assets"), `${folder} stays out of the package`);
+    for (const name of names) {
+      const path = new URL(`${folder}/${name}`, assetRoot);
+      assert.ok(lstatSync(path).isFile(), `${folder}/${name} must be a regular file`);
+      assert.ok(lstatSync(path).size <= 2_621_440, `${folder}/${name} must stay under 2.5 MiB`);
+      assert.ok(readmes.includes(`./docs/assets/readme/${folder}/${name}"`), `${folder}/${name} is shown by a README`);
+    }
+  }
+  const svg =read("docs/assets/readme/ascii-readme.svg");
   assert.doesNotMatch(svg, /<(?:text|image|script|foreignObject|style)\b|\b(?:href|on\w+)\s*=|url\s*\(|data:/iu);
   assert.deepEqual([...svg.matchAll(/<g aria-label="([^"]*)">/gu)].map((match) => match[1]), ascii.split("\n").filter((row) => row.length > 0));
 });

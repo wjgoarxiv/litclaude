@@ -112,6 +112,19 @@ LitClaude의 핵심 기능은 그 자체로 완성되어 있고 혼자서도 잘
 예전에 싣던 그 스킬 그대로이고, LitClaude에 남은 같은 이름의 안내용 스킬이 설치된 확장으로 요청을
 넘기거나, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
 
+그림으로 보면 이렇습니다. 왼쪽은 핵심입니다. 스킬 33개를 하는 일에 따라 다섯 묶음으로 나눴고, 그 곁에
+에이전트, 훅, LIT 카드, 상태 줄, MCP와 LSP 서버가 있습니다. 가운데 칸은 같은 패키지에 든 안내용
+스킬 아홉 개입니다. 이 스킬들은 예전 스킬 이름을 그대로 갖고 있어서, 발표자료를 부탁하거나
+`lit-pptx`라고만 쳐도 요청이 갈 곳을 잃지 않습니다. 오른쪽의 해당 플러그인을 설치하면 안내용 스킬이
+요청을 그쪽으로 넘기고, 설치하기 전에는 아래 띠에 있는 설치 명령을 대신 알려 줍니다.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.ko.dark.png" />
+    <img src="./docs/assets/readme/diagrams/core-extensions.ko.light.png" width="900" alt="LitClaude에 들어 있는 것과 따로 더하는 것. 왼쪽은 LitClaude 핵심 스킬 33개를 다섯 묶음으로 나눈 것이다. 작업 루프(lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), 코드 다루기(lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), 조사와 글(litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), 이어서 하기(lit-handoff, lit-recap, lit-adhd), 알아서 도는 것(rules, lsp, comment-checker). 그 아래 카드에 에이전트 11개, 훅, LIT 카드, 상태 줄, MCP, LSP가 있다. 가운데는 LitClaude 안의 같은 이름의 안내용 스킬 아홉 개, 오른쪽은 안내용 스킬이 요청을 넘기는 wjgoarxiv-skills 확장 플러그인 다섯 개다. decks(lit-pptx), documents(lit-docx), figures(lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design(frontend-ui-ux, visual-qa), video-covers(lit-typographic-motion, readme-studio). 아래 띠에는 설치 세 단계가 있고, 플러그인이 없으면 안내용 스킬이 설치 명령을 알려 준다는 메모가 붙어 있다." />
+  </picture>
+</p>
+
 선반을 한 번 추가한 뒤 필요한 플러그인을 설치하고, `/reload-plugins`를 실행하거나 새 세션을 여세요.
 
 ```bash
@@ -188,6 +201,26 @@ npx @litfamily/litclaude@latest install
   먼저 살펴보고 싶을 때 쓰세요: `npx @litfamily/litclaude@latest --dry-run install`.
 
 [권한 모드, 버전 고정, 전역 설치와 나머지 스위치](./docs/guide_ko-KR.md#설치-상세)
+
+### 설치가 쓰는 곳
+
+Claude 설정을 건드리게 두기 전에, 설치 프로그램이 어디에 무엇을 쓰는지 알아 두면 마음이 편합니다. LitClaude 설치는
+번호가 붙은 다섯 단계로 돌고, 단계마다 직접 열어 볼 수 있는 폴더에 씁니다. 먼저 플러그인을 Claude Code의 플러그인
+캐시에 복사합니다. 다음으로 `~/.litclaude` 아래에 작은 로컬 마켓플레이스를 만들어서, GitHub 로그인 없이도 Claude Code가
+플러그인을 등록할 수 있게 합니다. 그다음 플러그인, 상태 줄, 권한 모드를 `~/.claude/settings.json`과 Claude Code의
+플러그인 목록 두 곳에 적습니다. `~/.litclaude/litclaude-ai/`에는 도우미 명령이 기댈 사본을 하나 더 두고, 마지막 단계에서
+네 곳을 모두 다시 읽어 본 뒤 `INSTALL_PASS`를 찍습니다. 짧은 LitFamily 구역을 `~/.claude/CLAUDE.md`에 넣는 일은 그
+뒤에, 그것도 먼저 물어본 다음에야 합니다.
+
+LitClaude는 자기가 쓴 항목을 하나하나 기록해 둡니다. 그래서 `uninstall`은 자기 항목만 걷어 내고 나머지 설정은 손대지
+않습니다. 아무것도 바꾸기 전에 같은 목록을 먼저 보고 싶다면 `--dry-run`을 쓰면 됩니다.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/install-writes.ko.dark.png" />
+    <img src="./docs/assets/readme/diagrams/install-writes.ko.light.png" width="900" alt="install이 쓰는 것과 그 위치. litclaude install에서 시작해 단계가 세로로 이어지고, 단계마다 쓰는 곳으로 화살표가 간다. 1 플러그인 본체는 ~/.claude/plugins/cache/litclaude-ai/litclaude/&lt;version&gt;/에 소유 영수증과 함께 복사한다. 2 로컬 마켓플레이스는 ~/.litclaude/marketplaces/litclaude-ai/에 .claude-plugin/marketplace.json으로 쓴다. 3 Claude 등록은 ~/.claude/settings.json(enabledPlugins, statusLine, permissions)과 plugins/installed_plugins.json, known_marketplaces.json에 한다. 4 호환용 사본은 ~/.litclaude/litclaude-ai/&lt;version&gt;/에 두고 ~/.litclaude/current가 그 폴더를 가리킨다. 5 설치 확인은 네 단계를 다시 읽고 INSTALL_PASS를 보인다. 이어서 먼저 물어본 뒤 ~/.claude/CLAUDE.md에 자기 표시 사이에만, 처음에는 백업을 남기고 CLAUDE.md 블록을 더한다. 마지막은 Claude Code 다시 시작이다. 아래 카드는 --dry-run, doctor, update, uninstall을 설명한다. ~/.claude 아래는 청록, ~/.litclaude 아래는 주황으로 칠했다." />
+  </picture>
+</p>
 
 상태 줄이나 설치 프로그램 없이 플러그인만 쓰고 싶다면 Claude Code에서 LitFamily 마켓플레이스로
 추가할 수도 있습니다.
@@ -488,24 +521,59 @@ go
 
 ## 작동 방식
 
-```mermaid
-flowchart LR
-    P["lit 프롬프트"] --> H["UserPromptSubmit hook<br/>작업 흐름 고르기"]
-    C["/litclaude:* 명령"] --> S["Claude가 스킬을 읽음"]
-    H --> S
-    S --> W["계획 · 구현 · 확인 · 검토"]
-    W --> F["프로젝트 파일과 확인 결과"]
-    W --> L[".litclaude/<br/>목표와 기록"]
-    L --> N["다음 세션을 위한 핸드오프 파일"]
-```
+LitClaude가 도는 턴마다 세 가지가 만납니다. 내가 입력한 글, Claude가 그 글을 읽기 전에 Claude Code가 돌리는 훅, 그리고
+Claude가 따르는 스킬입니다. 그림은 들어오는 길을 하나씩 따라갑니다. `lit`이 들어간 프롬프트는 UserPromptSubmit 훅을
+지나는데, 훅이 프롬프트를 읽고 어떤 워크플로가 맞는지 Claude에게 알려 줍니다. 변경 하나라면 lit-loop, 계획을
+부탁했다면 lit-plan입니다. 슬래시 명령은 해당 스킬을 바로 엽니다. 일을 멈출 때 `handoff`라고 치면 같은 훅을 거쳐
+lit-handoff로 갑니다.
 
-설치 프로그램은 플러그인을 Claude Code의 플러그인 폴더에 복사하고 등록합니다. 평범한 프롬프트를
-보내면 hook이 그것을 읽고 어떤 작업 흐름이 맞는지 짧게 적어 Claude에게 넘기고, 슬래시 명령은
-곧장 해당 스킬로 갑니다. 다른 hook은 세션을 시작할 때 프로젝트 규칙을 읽어 들이고, 파일을 고친
-뒤에는 무엇을 확인할지 Claude에게 일러 줍니다. 목표가 걸린 작업의 기록은 프로젝트의 `.litclaude/`
-폴더에 남습니다. 이 폴더에는 `*` 한 줄짜리 `.gitignore`가 들어 있어서, 사용자의 ignore 파일을
-바꾸지 않고도 Git이 이 폴더를 건너뜁니다. 세션과 세션 사이에 따로 돌아가는 것은 없습니다.
+오른쪽 칸은 프로젝트에 남는 것들입니다. lit-loop는 목표와 과제, 증거를 `.litclaude/`에 적습니다. 이 폴더 안에는 자기
+`.gitignore`가 있어서 Git에는 잡히지 않습니다. lit-plan은 내가 승인할 계획을 `plans/<slug>.md`에 쓰고, 핸드오프 파일은
+다음 세션이 시작하는 자리가 됩니다. 세션과 세션 사이에는 아무것도 돌지 않기 때문입니다. 아래 띠에는 Claude가 일하는
+동안 함께 도는 훅을 모았습니다. 세션을 시작할 때 프로젝트 규칙을 불러오고, 도구를 쓰기 전에 권한 범위를 확인하고,
+편집이 끝나면 무엇을 확인할지 알려 줍니다. Stop 훅은 계획과 목표가 정말 끝났는지 묻습니다.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/lit-route.ko.dark.png" />
+    <img src="./docs/assets/readme/diagrams/lit-route.ko.light.png" width="900" alt="lit를 입력하면 일어나는 일. 네 칸으로 되어 있다. 직접 입력: lit 프롬프트(lit fix the date bug), 슬래시 명령(/litclaude:start-work), 일을 멈출 때 치는 handoff. Claude Code 훅: UserPromptSubmit이 프롬프트를 읽고 워크플로를 골라 lit-loop로, lit plan이면 lit-plan으로 안내한다. Claude가 따르는 스킬: lit-loop(PIN, RED, GREEN, VERIFY, REVIEW, RECORD), lit-plan, 슬래시 명령이 바로 닿고 승인한 계획을 실행하는 start-work, 끝난 변경을 다섯 갈래(범위, 테스트, 패키지, 보안, 실제 화면)로 검토하는 review-work, 같은 훅이 연결하는 lit-handoff. 프로젝트에 남는 것: lit-loop가 목표, 과제, 증거를 기록하는 .litclaude/(안에 자기 .gitignore가 있음), lit-plan이 쓰는 plans/&lt;slug&gt;.md, lit-handoff가 쓰고 다음 세션이 읽는 핸드오프 파일. 메모 두 장은 훅은 제안만 한다는 것과 세션 사이에는 아무것도 돌지 않는다는 것을 말한다. 아래 띠에 다른 훅 SessionStart, PreToolUse, PostToolUse, Stop, SubagentStart와 SubagentStop, SessionEnd가 있다." />
+  </picture>
+</p>
+
+설치 프로그램은 플러그인을 Claude Code의 플러그인 폴더에 복사하고 등록합니다. 어디에 무엇을 쓰는지는
+[설치가 쓰는 곳](#설치가-쓰는-곳)에 모두 적었습니다. `.litclaude/` 안의 `.gitignore`에는 `*` 한 줄만 들어 있어서,
+사용자의 ignore 파일을 바꾸지 않고도 Git이 이 폴더를 건너뜁니다.
 [hook 자세히 보기](./docs/hooks.md)와 [네트워크로 오가는 것](./docs/privacy.md)
+
+### 같은 흐름을 공정도로
+
+공정도가 더 익숙하다면, 같은 흐름을 작은 플랜트로 그려 봤습니다. 프롬프트는 왼쪽에서 UserPromptSubmit 훅이 여닫는
+조절 밸브를 지나 들어옵니다. 위쪽의 교반 반응기가 lit-loop입니다. lit-plan은 수동 밸브를 거쳐 start-work로 이어지는데,
+계획을 내가 승인하기 전에는 아무것도 돌지 않기 때문입니다. 변경은 모두 review-work 칼럼으로 들어가고, 칼럼의 다섯 단이
+검토 다섯 갈래입니다. 칼럼 출구의 분석계가 삼방 밸브를 움직여서, 깨끗한 작업은 검증된 결과로 내보내고 지적 사항은
+start-work로 돌려보내 다시 손보게 합니다. 증거는 `.litclaude/` 탱크로 모이고 Stop 훅이 그 수위를 지켜봅니다.
+lit-handoff 펌프가 다음 세션을 위한 핸드오프 파일을 뽑아 냅니다. 도면 아래 스트림 표에는 번호 붙은 줄마다 무엇을
+나르고 어디에 남는지 적어 두었습니다.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-plant.ko.dark.png" />
+    <img src="./docs/assets/readme/schematic/lit-plant.ko.png" width="900" alt="LitClaude를 플랜트로 그린 공정 흐름도. 점선으로 두른 Claude Code 세션 안에서, 프롬프트가 왼쪽으로 들어와 UserPromptSubmit이라고 적힌 조절계의 밸브를 지나 lit-loop 반응기로 간다. 갈래 하나는 lit-plan 용기로 가고, 그 계획이 내가 승인이라고 적힌 수동 밸브를 지나 재킷 달린 start-work 반응기로 들어간다. lit-loop와 start-work는 모두 다섯 단짜리 review-work 칼럼으로 보낸다. 다섯 갈래 판정이라고 적힌 분석계가 삼방 밸브를 움직여, 한쪽은 검증된 결과로 나가고 다른 쪽은 지적 사항을 start-work로 돌려보낸다. lit-loop와 start-work의 증거는 .litclaude/ 탱크로 모이고, Stop 훅이라고 적힌 수위 조절계가 lit-handoff 펌프 뒤 밸브를 움직여 핸드오프 파일을 내보낸다. 스트림 표는 1부터 7까지 lit 프롬프트, lit plan, plans/&lt;slug&gt;.md의 승인한 계획, 내 파일의 변경, 지적 사항, .litclaude/의 증거, 남겨 두는 파일의 다음 단계를 적었다." />
+  </picture>
+</p>
+
+lit-loop 안쪽은 여섯 단짜리 칼럼처럼 움직입니다. 프롬프트가 아래로 들어와 PIN, RED, GREEN, VERIFY, REVIEW, RECORD를
+한 단씩 거쳐 올라가고, 꼭대기에 닿은 것은 장부 드럼으로 빠져나갑니다. 드럼 위 계기는 일이 끝났는지 묻는 Stop 훅이고,
+맨 끝 밸브로 핸드오프 파일이 나갑니다. 움직임 줄이기를 켜 두었다면 멈춘 그림이 보입니다.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-column.ko.dark.png" />
+    <source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/readme/schematic/lit-column.ko.png" />
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-column-loop.ko.dark.webp" />
+    <img src="./docs/assets/readme/schematic/lit-column-loop.ko.webp" width="900" alt="lit-loop 칼럼의 등각 단면도가 반복 재생된다. lit 프롬프트 투입이라고 적힌 배관을 따라 흐름 표시가 들어와, 여섯 단(PIN 목표 고정, 빨간 RED 실패하는 테스트, 초록 GREEN 가장 작은 수정, VERIFY 실제 화면 확인, REVIEW 한 번 더 검토, RECORD 증거 남김)을 지나 칼럼 위로 오르고, 위쪽 배관을 건너 .litclaude/ 장부라고 적힌 가로 드럼으로 내려간다. 드럼 위 계기에는 Stop 훅: 끝났나?, 밸브 달린 끝 출구에는 핸드오프 파일 배출이라고 적혀 있다." />
+  </picture>
+</p>
 
 ## 요구 사항, 업데이트, 제거
 

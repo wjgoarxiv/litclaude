@@ -112,6 +112,19 @@ installing the ones you use beside LitClaude gives you the full LitFamily experi
 same skill LitClaude used to ship, and LitClaude keeps a same-name stub that hands your request to it
 once it is installed, or gives you the install line when it is not.
 
+The picture shows what that means in practice. On the left is the core: 33 skills, grouped here by the job they do,
+plus the agents, hooks, LIT card, status line and the MCP and LSP servers around them. The middle column holds the
+nine stubs, which ship in the same package. Each keeps the old skill name, so a deck request or a bare `lit-pptx`
+still lands somewhere, and once the matching plugin on the right is installed the stub hands the request over to it.
+Until then the stub answers with the install line from the band at the bottom.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.en.dark.png" />
+    <img src="./docs/assets/readme/diagrams/core-extensions.en.light.png" width="900" alt="What ships in LitClaude, and what you add. Left, the LitClaude core of 33 skills in five groups: work loops (lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), code craft (lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), research and prose (litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), pick up later (lit-handoff, lit-recap, lit-adhd) and runs on its own (rules, lsp, comment-checker), with a card for 11 agents, hooks, the LIT card, the status line, MCP and LSP. Middle, nine same-name stubs inside LitClaude. Right, five extension plugins from wjgoarxiv-skills that the stubs hand off to: decks (lit-pptx), documents (lit-docx), figures (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design (frontend-ui-ux, visual-qa) and video-covers (lit-typographic-motion, readme-studio). A band at the bottom gives the three install steps, and a note says that a stub answers with the install line when its plugin is missing." />
+  </picture>
+</p>
+
 Add the shelf once, then install the plugins you want, and run `/reload-plugins` or open a new session:
 
 ```bash
@@ -194,6 +207,26 @@ Two switches change how the install runs:
   first: `npx @litfamily/litclaude@latest --dry-run install`.
 
 [Permission modes, version pins, global installs and every other switch](./docs/guide.md#installation-reference).
+
+### What install writes
+
+It helps to know where an installer writes before you let it near your Claude settings. LitClaude's installer works in
+five numbered steps, and each one writes to a folder you can open yourself. The plugin is copied into Claude Code's
+plugin cache. A small local marketplace goes under `~/.litclaude`, so Claude Code can register the plugin without a
+GitHub login. The plugin, the status line and your permission mode are then written into `~/.claude/settings.json` and
+Claude Code's two plugin registries. A second copy under `~/.litclaude/litclaude-ai/` backs the helper commands, and the
+last step reads all four back before it prints `INSTALL_PASS`. Only after that, and only after asking you, does the
+short LitFamily block go into `~/.claude/CLAUDE.md`.
+
+Each of those writes is recorded as LitClaude's own, which is how `uninstall` can take its entries out and leave the
+rest of your settings where they were. `--dry-run` prints the same list before anything happens.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/install-writes.en.dark.png" />
+    <img src="./docs/assets/readme/diagrams/install-writes.en.light.png" width="900" alt="What install writes, and where. litclaude install runs down a column of steps, each with an arrow to the place it writes: 1 plugin payload, copied to ~/.claude/plugins/cache/litclaude-ai/litclaude/&lt;version&gt;/ with an ownership receipt; 2 local marketplace, written to ~/.litclaude/marketplaces/litclaude-ai/ as .claude-plugin/marketplace.json; 3 Claude registry, registered in ~/.claude/settings.json (enabledPlugins, statusLine, permissions) and in plugins/installed_plugins.json and known_marketplaces.json; 4 compatibility copy in ~/.litclaude/litclaude-ai/&lt;version&gt;/, with ~/.litclaude/current pointing at it; 5 install check, which reads the four steps back and shows INSTALL_PASS; then the CLAUDE.md block, added to ~/.claude/CLAUDE.md only between its own markers, after asking and with a backup first. The column ends with restart Claude Code. Cards below describe --dry-run, doctor, update and uninstall. Folders under ~/.claude are drawn in cyan, folders under ~/.litclaude in orange." />
+  </picture>
+</p>
 
 If you only want the plugin, without the status line or the installer, Claude Code can add it
 from the LitFamily marketplace:
@@ -501,24 +534,60 @@ go
 
 ## How it works
 
-```mermaid
-flowchart LR
-    P["lit prompt"] --> H["UserPromptSubmit hook<br/>picks the workflow"]
-    C["/litclaude:* command"] --> S["Claude reads the skill"]
-    H --> S
-    S --> W["plan · build · check · review"]
-    W --> F["project files and checked results"]
-    W --> L[".litclaude/<br/>goal and record"]
-    L --> N["handoff file for the next session"]
-```
+Three things meet in every LitClaude turn: what you type, a hook that Claude Code runs before Claude reads your
+message, and the skill Claude then follows. The picture traces each way in. A prompt with `lit` in it passes the
+UserPromptSubmit hook, which reads it and tells Claude which workflow fits: lit-loop for one change, lit-plan when you
+asked for a plan. A slash command opens its skill directly. Typing `handoff` when you stop goes through the same hook
+to lit-handoff.
 
-The installer copies the plugin into Claude Code's plugin folder and registers it. When you
-send a plain prompt, a hook reads it and adds a short note telling Claude which workflow fits;
-a slash command goes straight to its skill. Other hooks load your project rules at session
-start and remind Claude what to check after an edit. Goal-bound work keeps its record in the
-project's `.litclaude/` folder, which carries its own `.gitignore` (containing `*`), so Git
-skips it without any change to your own ignore files. Nothing runs between sessions.
+The right-hand column is what stays in your project. lit-loop keeps its goal, tasks and evidence in `.litclaude/`,
+which carries its own `.gitignore`, so Git never sees it. lit-plan writes the plan you approve to `plans/<slug>.md`, and
+the handoff file is where the next session starts, since nothing runs between sessions. The band along the bottom holds
+the hooks that run while Claude works: project rules at session start, an authority check before each tool, a reminder
+of what to check after an edit, and the Stop hook, which asks whether the plan and the goal are really done.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/lit-route.en.dark.png" />
+    <img src="./docs/assets/readme/diagrams/lit-route.en.light.png" width="900" alt="What happens when you type lit. Four columns. You type: a lit prompt (lit fix the date bug), a slash command (/litclaude:start-work) and, when you stop, handoff. Claude Code hook: UserPromptSubmit reads the prompt and picks the workflow; it routes to lit-loop and, for lit plan, to lit-plan. Skills Claude follows: lit-loop (PIN, RED, GREEN, VERIFY, REVIEW, RECORD), lit-plan, start-work, which the slash command reaches directly and which runs the plan once you approve it, review-work with five lanes over the finished change (scope, tests, package, security, real surface), and lit-handoff, reached through the same hook. Kept in your project: lit-loop records goal, tasks and evidence in .litclaude/, which has its own .gitignore; lit-plan writes plans/&lt;slug&gt;.md; lit-handoff writes the handoff file the next session reads. Notes say the hook only suggests and nothing runs between sessions. A band lists the other hooks: SessionStart, PreToolUse, PostToolUse, Stop, SubagentStart with SubagentStop, and SessionEnd." />
+  </picture>
+</p>
+
+The installer copies the plugin into Claude Code's plugin folder and registers it; [What install writes](#what-install-writes)
+lists every place it touches. The `.gitignore` inside `.litclaude/` holds a single `*`, so Git skips the folder without
+any change to your own ignore files.
 [The hooks in detail](./docs/hooks.md) and [what goes over the network](./docs/privacy.md).
+
+### The same route, drawn as a plant
+
+If flow sheets are how you think, here is the same route as a small process plant. The prompt comes in on the left
+through a control valve that the UserPromptSubmit hook sets. lit-loop is the stirred reactor at the top. lit-plan feeds
+start-work through a hand valve, because nothing runs until you approve the plan. Every change then goes into the
+review-work column, whose five trays are its five review lanes. An analyser on the column's outlet moves a three-way
+valve: clean work leaves as the checked result, and findings run back to start-work for another pass. Evidence drains
+into the `.litclaude/` tank, where the Stop hook watches the level, and lit-handoff pumps the handoff file out for the
+next session. The stream table under the drawing says what each numbered line carries and where it is kept.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-plant.en.dark.png" />
+    <img src="./docs/assets/readme/schematic/lit-plant.en.png" width="900" alt="Process flow diagram of LitClaude as a plant inside a dashed Claude Code session boundary. A prompt enters on the left through a control valve set by a controller labelled UserPromptSubmit and goes to the lit-loop reactor; a branch goes to the lit-plan vessel, whose plan passes a hand valve labelled you approve into the jacketed start-work reactor. lit-loop and start-work both feed the review-work column with five trays. An analyser labelled five-lane verdict moves a three-way valve: one outlet leaves as Checked result, the other returns findings to start-work. Evidence from lit-loop and start-work drains into the .litclaude/ tank; a level controller labelled Stop hook works a valve after the lit-handoff pump, which sends out the Handoff file. A stream table lists streams 1 to 7: lit prompt, lit plan, approved plan in plans/&lt;slug&gt;.md, change in your files, findings, evidence in .litclaude/, and the next step in a file you keep." />
+  </picture>
+</p>
+
+Inside, lit-loop behaves like a column with six trays. The prompt enters at the bottom and climbs through PIN, RED,
+GREEN, VERIFY, REVIEW and RECORD, one tray for each stage, and what reaches the top is drawn off into the ledger drum.
+The gauge on the drum is the Stop hook asking whether the work is done, and the valve at the far end is where the
+handoff file leaves. With reduced motion turned on, you get the still drawing.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-column.en.dark.png" />
+    <source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/readme/schematic/lit-column.en.png" />
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/schematic/lit-column-loop.en.dark.webp" />
+    <img src="./docs/assets/readme/schematic/lit-column-loop.en.webp" width="900" alt="Isometric cutaway of the lit-loop column, looping: flow marks run along the feed pipe labelled lit prompt in, up the column past six stage trays (PIN goal pinned, RED failing test in red, GREEN smallest fix in green, VERIFY real surface, REVIEW second look, RECORD evidence kept), across the overhead pipe and down into a horizontal drum labelled .litclaude/ ledger. A gauge on the drum reads Stop hook: done?, and a valved outlet at its end is labelled Handoff file out." />
+  </picture>
+</p>
 
 ## Requirements, update and uninstall
 
