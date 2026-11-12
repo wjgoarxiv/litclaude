@@ -154,7 +154,7 @@ test("README presentation rejects missing, shifted, stacked, or disconnected vis
     content.replace("## Install", "## Removed installation section"),
     content.replace("<!-- demo-gif -->", ""),
     content.replace("img.shields.io/github/stars/wjgoarxiv/litclaude", "img.shields.io/github/forks/wjgoarxiv/litclaude"),
-    content.replace("<details>", "<section>"),
+    `${content.slice(0, content.lastIndexOf("<details>"))}<section>${content.slice(content.lastIndexOf("<details>") + "<details>".length)}`,
     content.replace(ascii, ascii.replace("▄▄▄▄", "▄▄▄")),
     content.replaceAll("./docs/assets/readme/ignition-film.mp4", "missing.mp4"),
     content.replace('src="./docs/assets/readme/lucide-play.svg"', 'src="./docs/assets/readme/lucide-missing.svg"'),
