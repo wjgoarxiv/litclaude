@@ -198,19 +198,19 @@ describe("litclaude-ai extensions", () => {
   it("prune-backups lists dated backups with sizes and deletes them only with --yes", (t) => {
     const box = sandbox(t);
     const backups = join(box.claude, "extension-backups");
-    const oldOne = join(backups, "20260101-120000");
-    const newOne = join(backups, "20261112-120000");
+    const stamp = (date) => `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}-120000`;
+    const oldOne = join(backups, stamp(new Date(Date.now() - 40.5 * 24 * 60 * 60 * 1000)));
+    const newOne = join(backups, stamp(new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000)));
     for (const dir of [oldOne, newOne]) {
       mkdirSync(join(dir, "lit-pptx"), { recursive: true });
       writeFileSync(join(dir, "lit-pptx", "SKILL.md"), "x".repeat(2048));
     }
-    const past = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
-    utimesSync(oldOne, past, past);
     mkdirSync(join(box.path, "elsewhere"));
     symlinkSync(join(box.path, "elsewhere"), join(backups, "20260101-000000"));
 
     const dry = ok(box.run("prune-backups"));
-    assert.ok(dry.includes(`${oldOne}  2.0 KiB, 40 day(s) old, holds lit-pptx`), dry);
+    assert.ok(dry.includes(`${oldOne}  2.0 KiB, `), dry);
+    assert.match(dry, /2\.0 KiB, 4[01] day\(s\) old, holds lit-pptx/u);
     assert.ok(dry.includes(`left alone (not a dated backup folder): ${join(backups, "20260101-000000")}`), dry);
     assert.match(dry, /Would delete 2 folder\(s\), 4\.0 KiB\. Nothing changed/u);
     assert.ok(existsSync(oldOne) && existsSync(newOne));
@@ -243,6 +243,94 @@ describe("litclaude-ai extensions", () => {
     const check = box.run("check");
     assert.equal(check.status, 1);
     assert.match(check.stdout, /fix: claude plugin marketplace add wjgoarxiv\/wjgoarxiv-skills/u);
+  });
+
+  it("prune-backups never deletes through a project .claude that is a symlink", (t) => {
+    const box = sandbox(t);
+    const other = join(box.path, "other");
+    const keep = join(other, "extension-backups", "20240101-000000", "keepme");
+    mkdirSync(keep, { recursive: true });
+    symlinkSync(other, join(box.project, ".claude"));
+    const result = ok(box.run("prune-backups", "--yes"));
+    assert.ok(existsSync(keep), result);
+    assert.ok(!result.includes("deleted"), result);
+    assert.match(result, /left alone \(reached through a symlink\)/u);
+  });
+
+  it("a --dry-run anywhere keeps a write verb a dry run, even before --yes", (t) => {
+    const box = sandbox(t);
+    const plan = ok(box.run("install", "decks", "--from", box.shelf, "--dry-run", "--yes"));
+    assert.match(plan, /Nothing changed\. Add --yes/u);
+    assert.deepEqual(box.hostCalls(), []);
+    assert.deepEqual(box.registry(), {});
+  });
+
+  it("check, list, doctor and prune-backups survive an unreadable folder inside a backup", (t) => {
+    if (process.getuid?.() === 0) return t.skip("root reads every folder");
+    const box = sandbox(t);
+    const locked = join(box.claude, "extension-backups", "20260101-120000", "lit-pptx");
+    mkdirSync(join(locked, "inner"), { recursive: true });
+    chmodSync(locked, 0o000);
+    try {
+      const check = box.run("check");
+      assert.equal(check.status, 0, check.stderr);
+      assert.match(check.stdout, /note: 1 backup folder\(s\) in extension-backups, size unknown/u);
+      ok(box.run("list"));
+      const doctor = spawnSync(process.execPath, [join(root, "bin", "litclaude-ai.js"), "--no-auto-update", "doctor", "--dry-run"], { cwd: box.project, encoding: "utf8", env: box.env });
+      assert.match(doctor.stdout, /EXTENSIONS: none installed; nothing needs action/u);
+      assert.match(doctor.stdout, /ICON_FONT|AUTO_HANDOFF|Would/u);
+      const prune = box.run("prune-backups", "--yes");
+      assert.equal(prune.status, 1, prune.stdout);
+      assert.match(prune.stdout, /size unknown/u);
+      assert.match(prune.stderr, /could not delete/u);
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+  });
+
+  it("a project-scope install of another folder is left to that folder, and other plugins still run", (t) => {
+    const box = sandbox(t);
+    ok(box.run("install", "figures", "--from", box.shelf, "--yes"));
+    const registryFile = join(box.claude, "plugins", "installed_plugins.json");
+    const data = JSON.parse(readFileSync(registryFile, "utf8"));
+    const elsewhere = join(box.path, "elsewhere-repo");
+    mkdirSync(elsewhere);
+    data.plugins["decks@wjgoarxiv-skills"] = [{ scope: "project", projectPath: elsewhere, installPath: join(box.claude, "plugins", "cache", "x"), version: "0.1.0" }];
+    writeFileSync(registryFile, JSON.stringify(data));
+    const install = ok(box.run("install", "decks"));
+    assert.match(install, /claude plugin install decks@wjgoarxiv-skills/u);
+    assert.ok(install.includes(elsewhere), install);
+    const before = box.hostCalls().length;
+    const removed = ok(box.run("remove", "decks", "figures", "--yes"));
+    assert.deepEqual(box.hostCalls().slice(before), ["plugin uninstall figures@wjgoarxiv-skills"]);
+    assert.ok(removed.includes(elsewhere), removed);
+    assert.ok(box.registry()["decks@wjgoarxiv-skills"], "the other folder's install stays");
+  });
+
+  it("remove of a plugin succeeds beside a same-name skill of the user's own, which stays", (t) => {
+    const box = sandbox(t);
+    ok(box.run("install", "decks", "--from", box.shelf, "--yes"));
+    const own = box.ownSkill(box.claude, "lit-pptx");
+    const removed = box.run("remove", "decks", "--yes");
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.match(removed.stdout, /removed decks@wjgoarxiv-skills/u);
+    assert.match(`${removed.stdout}${removed.stderr}`, /~\/claude\/skills\/lit-pptx is a skill of your own[^\n]*stays/u);
+    assert.ok(existsSync(join(own, "notes.txt")));
+  });
+
+  it("--older-than reads the date in the backup folder's name, not its mtime", (t) => {
+    const box = sandbox(t);
+    const stamp = (date) => `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}-120000`;
+    const backups = join(box.claude, "extension-backups");
+    const old = join(backups, stamp(new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)));
+    const fresh = join(backups, stamp(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)));
+    mkdirSync(old, { recursive: true });
+    mkdirSync(fresh, { recursive: true });
+    const past = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    utimesSync(fresh, past, past);
+    const result = ok(box.run("prune-backups", "--older-than", "30", "--yes"));
+    assert.ok(!existsSync(old), result);
+    assert.ok(existsSync(fresh), result);
   });
 
   it("help names the extensions verbs, and an unknown verb or option is refused", (t) => {

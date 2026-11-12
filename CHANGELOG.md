@@ -25,8 +25,11 @@
   and `remove` print their plan and run it only with `--yes`. Install stops at a same-name skill of your own and
   prints its move line (`--allow-shadow` goes on with a warning), remove refuses such a folder, and a shelf that
   cannot be fetched stops everything before any plugin changes, with a hint to use `--from <path>` and a local
-  clone. `prune-backups` lists the dated folders under `extension-backups` with their sizes and deletes them only
-  with `--yes` (`--older-than <days>` narrows it). Help, `doctor` (one line), the notice, the nine stubs, the
+  clone. A `--dry-run` anywhere on the line keeps it a dry run, even beside `--yes`. A plugin installed for another
+  project folder is left to that folder. `prune-backups` lists the dated folders under `extension-backups` with
+  their sizes and deletes them only with `--yes` (`--older-than <days>` counts from the date in the folder's name).
+  It never deletes through a project `.claude` that is a symlink, and a folder it cannot read shows "size unknown"
+  instead of stopping `check` or `doctor`. Help, `doctor` (one line), the notice, the nine stubs, the
   README and the guide name the verbs; the `claude plugin` lines stay as the manual route.
 
 ## 1.0.50 - 2026-11-11

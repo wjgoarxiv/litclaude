@@ -5,7 +5,7 @@
 // commands in the order the stubs give them. Every write verb only prints its plan until `--yes` is given.
 import { lstatSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import {
@@ -47,17 +47,46 @@ const realDir = (path) => {
   return Boolean(value && value.isDirectory() && !value.isSymbolicLink());
 };
 
-// Bytes under a folder, without following symlinks.
+// Bytes under a folder, without following symlinks; null when a folder inside cannot be read.
 const folderBytes = (path) => {
   const value = lstat(path);
   if (!value) return 0;
   if (!value.isDirectory() || value.isSymbolicLink()) return value.size;
+  let names;
+  try {
+    names = readdirSync(path);
+  } catch {
+    return null;
+  }
   let total = 0;
-  for (const name of readdirSync(path)) total += folderBytes(join(path, name));
+  for (const name of names) {
+    const bytes = folderBytes(join(path, name));
+    if (bytes === null) return null;
+    total += bytes;
+  }
   return total;
 };
 
+const sumBytes = (rows) => (rows.some((row) => row.bytes === null) ? null : rows.reduce((sum, row) => sum + row.bytes, 0));
+
+const realpath = (path) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return null;
+  }
+};
+
+// A project-scope (or local) install belongs to the folder it was made in; it counts here only from that folder.
+const appliesHere = (entry, cwd) => {
+  if (entry.scope === "user" || !entry.projectPath) return true;
+  const project = realpath(entry.projectPath);
+  const here = realpath(cwd);
+  return Boolean(project && here && (here === project || here.startsWith(`${project}${sep}`)));
+};
+
 export const formatBytes = (bytes) => {
+  if (bytes === null) return "size unknown";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
@@ -90,6 +119,7 @@ export const readExtensionsState = ({ claudeHome, cwd, home = homedir() }) => {
         version: entry.version ?? "unknown",
         installedAt: entry.installedAt ?? null,
         installPath: entry.installPath ?? null,
+        projectPath: entry.projectPath ?? null,
         missing: typeof entry.installPath === "string" && !lstat(entry.installPath),
       }));
     }
@@ -104,29 +134,61 @@ export const readExtensionsState = ({ claudeHome, cwd, home = homedir() }) => {
   return { marketplace, installed, extensions, sameName, backups: listBackups({ claudeHome, cwd }) };
 };
 
+// When a backup was made, from its `YYYYmmdd-HHMMSS` name (local time, as `date` wrote it).
+const stampTime = (name) => {
+  const [, y, mo, d, h, mi, s] = name.match(/^(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)$/u).map(Number);
+  return new Date(y, mo - 1, d, h, mi, s).getTime();
+};
+
+// The backups folder of a base (`<claude home>` or `<project>/.claude`): a real folder that sits directly in the
+// base, reached through no symlink below it. Returns its real path, or null.
+const backupsParent = (base, { baseMayBeLink }) => {
+  const parent = join(base, "extension-backups");
+  if (!realDir(parent) || (!baseMayBeLink && !realDir(base))) return null;
+  const realBase = realpath(base);
+  const realParent = realpath(parent);
+  return realBase && realParent === join(realBase, "extension-backups") ? realParent : null;
+};
+
 /** Dated backup folders under `<claude home>/extension-backups` and `<project>/.claude/extension-backups`. */
 export const listBackups = ({ claudeHome, cwd, now = Date.now() }) => {
-  const parents = [join(claudeHome, "extension-backups")];
-  if (cwd) {
-    const project = join(cwd, ".claude", "extension-backups");
-    const same = (() => {
-      try {
-        return realpathSync(project) === realpathSync(parents[0]);
-      } catch {
-        return false;
-      }
-    })();
-    if (!same && project !== parents[0]) parents.push(project);
-  }
+  // The Claude home may itself be a symlink (dotfile setups); a project `.claude` may not.
+  const bases = [[claudeHome, true]];
+  if (cwd) bases.push([join(cwd, ".claude"), false]);
   const rows = [];
-  for (const parent of parents) {
-    if (!realDir(parent)) continue;
-    for (const name of readdirSync(parent).sort()) {
-      const path = join(parent, name);
+  const seen = new Set();
+  for (const [base, baseMayBeLink] of bases) {
+    const shown = join(base, "extension-backups");
+    if (!lstat(shown)) continue;
+    const parent = backupsParent(base, { baseMayBeLink });
+    if (!parent) {
+      if (seen.has(realpath(shown))) continue;
+      rows.push({ path: shown, name: "extension-backups", dated: false, linked: true, bytes: 0, contents: [] });
+      continue;
+    }
+    if (seen.has(parent)) continue;
+    seen.add(parent);
+    let names = [];
+    try {
+      names = readdirSync(shown).sort();
+    } catch {
+      rows.push({ path: shown, name: "extension-backups", dated: false, unreadable: true, bytes: 0, contents: [] });
+      continue;
+    }
+    for (const name of names) {
+      const path = join(shown, name);
       const value = lstat(path);
-      const dated = STAMP.test(name) && value.isDirectory() && !value.isSymbolicLink();
-      const ageDays = Math.floor((now - value.mtimeMs) / DAY_MS);
-      rows.push({ path, name, dated, bytes: dated ? folderBytes(path) : 0, ageDays, contents: dated ? readdirSync(path) : [] });
+      const dated = STAMP.test(name) && Boolean(value?.isDirectory()) && !value.isSymbolicLink();
+      let contents = [];
+      if (dated) {
+        try {
+          contents = readdirSync(path);
+        } catch {
+          contents = [];
+        }
+      }
+      const ageDays = dated ? Math.floor((now - stampTime(name)) / DAY_MS) : null;
+      rows.push({ path, parent, name, dated, bytes: dated ? folderBytes(path) : 0, ageDays, contents });
     }
   }
   return rows;
@@ -165,7 +227,7 @@ export const checkExtensions = ({ claudeHome, cwd, home = homedir(), litHome, ca
   const notes = [];
   const dated = state.backups.filter((row) => row.dated);
   if (dated.length > 0) {
-    const bytes = dated.reduce((sum, row) => sum + row.bytes, 0);
+    const bytes = sumBytes(dated);
     notes.push({ text: `${dated.length} backup folder(s) in extension-backups, ${formatBytes(bytes)}`, fix: `${CLI} prune-backups` });
   }
   if (litHome && cacheHome && currentVersion) {
@@ -190,7 +252,7 @@ and --allow-shadow lets install go on beside a same-name skill of your own (with
 `;
 
 export const parseExtensionsArgs = (args) => {
-  const options = { verb: args[0], targets: [], all: false, yes: false, json: false, from: null, allowShadow: false, olderThan: null };
+  const options = { verb: args[0], targets: [], all: false, yes: false, dryRun: false, json: false, from: null, allowShadow: false, olderThan: null };
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
     const value = () => {
@@ -200,7 +262,7 @@ export const parseExtensionsArgs = (args) => {
       return next;
     };
     if (arg === "--yes" || arg === "-y") options.yes = true;
-    else if (arg === "--dry-run" || arg === "--dry-run=true") options.yes = false;
+    else if (arg === "--dry-run" || arg === "--dry-run=true") options.dryRun = true;
     else if (arg === "--json") options.json = true;
     else if (arg === "--all") options.all = true;
     else if (arg === "--allow-shadow") options.allowShadow = true;
@@ -213,6 +275,8 @@ export const parseExtensionsArgs = (args) => {
     } else if (arg.startsWith("-")) throw new Error(`Unknown extensions option: ${arg}`);
     else options.targets.push(arg);
   }
+  // A dry run asked for anywhere wins over --yes, whatever the order.
+  if (options.dryRun) options.yes = false;
   return options;
 };
 
@@ -346,21 +410,30 @@ export const runExtensionsCli = (args, {
     write(`LitFamily extension backups${options.olderThan === null ? "" : ` older than ${options.olderThan} day(s)`}`);
     if (rows.length === 0) write("  No backups.");
     for (const row of rows) {
-      if (!row.dated) write(`  left alone (not a dated backup folder): ${row.path}`);
+      if (row.linked) write(`  left alone (reached through a symlink): ${row.path}`);
+      else if (row.unreadable) write(`  left alone (cannot be read): ${row.path}`);
+      else if (!row.dated) write(`  left alone (not a dated backup folder): ${row.path}`);
       else write(`  ${chosen.includes(row) ? "" : "kept (newer): "}${row.path}  ${formatBytes(row.bytes)}, ${row.ageDays} day(s) old${row.contents.length ? `, holds ${row.contents.join(", ")}` : ""}`);
     }
-    const bytes = chosen.reduce((sum, row) => sum + row.bytes, 0);
+    const bytes = sumBytes(chosen);
     if (chosen.length === 0) return 0;
     if (!options.yes) {
       write(`  Would delete ${chosen.length} folder(s), ${formatBytes(bytes)}. Nothing changed; add --yes to delete them.`);
       return 0;
     }
+    let failed = false;
     for (const row of chosen) {
-      // Look again right before deleting: still a real folder directly inside an extension-backups folder.
-      if (!realDir(row.path)) continue;
-      rmSync(row.path, { recursive: true, force: false });
-      write(`  deleted ${row.path}`);
+      // Look again right before deleting: still a real folder directly inside the vetted extension-backups folder.
+      if (!realDir(row.path) || realpath(row.path) !== join(row.parent, row.name)) continue;
+      try {
+        rmSync(row.path, { recursive: true, force: false });
+        write(`  deleted ${row.path}`);
+      } catch (error) {
+        warn(`  could not delete ${row.path}: ${error.code ?? error.message}`);
+        failed = true;
+      }
     }
+    if (failed) return 1;
     write(`  Freed ${formatBytes(bytes)}.`);
     return 0;
   }
@@ -390,14 +463,21 @@ export const runExtensionsCli = (args, {
   if (options.verb === "remove") {
     let refused = false;
     for (const family of families) {
-      const entries = state.installed[family] ?? [];
+      const recorded = state.installed[family] ?? [];
+      const entries = recorded.filter((entry) => appliesHere(entry, cwd));
+      for (const entry of recorded.filter((item) => !appliesHere(item, cwd))) {
+        notes.push(`  ${pluginId(family)} is installed for ${entry.projectPath} (${entry.scope} scope); run remove from that folder.`);
+      }
       const own = state.sameName.filter((row) => row.plugin === family && options.targets.some((target) => target === row.id || target === family));
       for (const row of own) {
-        warn(`Refused: ${row.shown} is a skill of your own, not a plugin LitClaude or Claude Code installed; it stays where it is.`);
-        refused = true;
+        // Refused only when nothing else was asked of this plugin; beside an uninstall it is a note.
+        if (entries.length === 0) {
+          warn(`Refused: ${row.shown} is a skill of your own, not a plugin LitClaude or Claude Code installed; it stays where it is.`);
+          refused = true;
+        } else notes.push(`  ${row.shown} is a skill of your own; it stays where it is.`);
       }
       if (entries.length === 0) {
-        if (own.length === 0) notes.push(`  ${pluginId(family)} is not installed.`);
+        if (own.length === 0 && recorded.length === 0) notes.push(`  ${pluginId(family)} is not installed.`);
         continue;
       }
       for (const entry of entries) {
@@ -442,8 +522,13 @@ export const runExtensionsCli = (args, {
 
   if (options.verb === "install") {
     for (const family of families) {
-      if (state.installed[family]) notes.push(`  ${pluginId(family)} is already installed (${state.installed[family][0].version}); use ${CLI} update.`);
-      else plan.push(["plugin", "install", pluginId(family)]);
+      const recorded = state.installed[family] ?? [];
+      const here = recorded.find((entry) => appliesHere(entry, cwd));
+      if (here) notes.push(`  ${pluginId(family)} is already installed (${here.version}); use ${CLI} update.`);
+      else {
+        for (const entry of recorded) notes.push(`  ${pluginId(family)} is installed only for ${entry.projectPath} (${entry.scope} scope); this installs it for you.`);
+        plan.push(["plugin", "install", pluginId(family)]);
+      }
     }
   } else {
     if (shelf.steps.length === 0) plan.push(["plugin", "marketplace", "update", MARKETPLACE]);
@@ -483,7 +568,8 @@ function finish({ verb, plan, notes, options, context, write, warn, claudeHome, 
   const after = readExtensionsState({ claudeHome, cwd, home });
   let changed = verb === "install";
   for (const family of families) {
-    const now = after.installed[family]?.[0];
+    if (!plan.some((step) => step[2] === pluginId(family))) continue;
+    const now = after.installed[family]?.find((entry) => appliesHere(entry, cwd));
     if (verb === "remove") write(now ? `  ${pluginId(family)} is still recorded; see claude plugin list.` : `  removed ${pluginId(family)}`);
     else if (verb === "install") {
       if (now) write(`  installed ${pluginId(family)} ${now.version}`);
@@ -500,7 +586,12 @@ function finish({ verb, plan, notes, options, context, write, warn, claudeHome, 
 
 /** One doctor line: what is installed and whether `check` finds anything. */
 export const extensionsDoctorLine = (input) => {
-  const result = checkExtensions(input);
+  let result;
+  try {
+    result = checkExtensions(input);
+  } catch (error) {
+    return `EXTENSIONS: could not be read (${error.code ?? error.message}); run ${CLI} check`;
+  }
   const installed = Object.keys(result.installed);
   const head = `EXTENSIONS: ${installed.length === 0 ? "none installed" : `installed ${installed.join(", ")}`}`;
   return result.problems.length === 0
