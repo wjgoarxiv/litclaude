@@ -102,6 +102,39 @@ Point <code>lit hijack</code> at an article, a post, a PDF or a repository and n
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-report.webp" width="400" alt="The port report: five mechanisms taken with their parity results (2/2 new runs against 0/2 old), six left with reasons, a provenance table marking the source ideas-only, and exposure, credit and review-by sections." /><br /><b>lit-hijack</b> · port report<br /><code>lit hijack https://x.com/… into .claude/skills/promo-brief</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-ab.webp" width="400" alt="Contact sheet of four promo briefs side by side, two from the old skill and two from the new one, with the new briefs carrying takeaway, real assets, timed scenes and reject-if sections." /><br /><b>lit-hijack</b> · old skill against new<br /><sub>The proof: two runs of the old skill beside two of the new one on the same prompt. The old briefs invent product features; the new ones ask instead.</sub></td></tr>
 </table>
 
+## Extensions
+
+LitClaude's core is complete and works on its own: the lit workflows, planning, review, research,
+handoffs and Korean prose all ship in this package. The nine skills that make files are LitFamily
+extensions now. They sit on the extension shelf,
+[wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills), as five Claude Code plugins, and
+installing the ones you use beside LitClaude gives you the full LitFamily experience. Each one is the
+same skill LitClaude used to ship, and LitClaude keeps a same-name stub that hands your request to it
+once it is installed, or gives you the install line when it is not.
+
+Add the shelf once, then install the plugins you want, and run `/reload-plugins` or open a new session:
+
+```bash
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
+claude plugin install decks@wjgoarxiv-skills   # or documents, figures, design, video-covers
+```
+
+| Plugin | Skills | What it makes |
+| --- | --- | --- |
+| `decks` | lit-pptx | PowerPoint decks |
+| `documents` | lit-docx | Word reports, proposals and manuscripts |
+| `figures` | lit-diagram-drawer, lit-schematic, lit-scientific-visualization | diagrams, P&IDs and cutaways, journal figures |
+| `design` | frontend-ui-ux, visual-qa | web interfaces and the visual check of a built one |
+| `video-covers` | lit-typographic-motion, readme-studio | short films and README covers |
+
+The installer prints these lines after every install or update, and the first session on a new
+version shows them once. After an upgrade from a version that still had these skills built in, the
+same notice also lists what that version left on disk: old version folders under
+`~/.claude/plugins/cache/litclaude-ai/litclaude/` and `~/.litclaude/litclaude-ai/`, and the
+`office-runtime` and `motion-runtime` caches under `~/.cache/litclaude/`. The decks, documents and
+video-covers plugins reuse those two caches, so if you do not install the extensions you can delete
+all of it.
+
 ## Why LitClaude
 
 You ask Claude Code for something: a bug fixed, a screen built, a project finished. Starting

@@ -47,7 +47,7 @@ quality-reviewer agents still preload this id. Quoted, fenced, mid-sentence and 
    three things and stop:
    - one sentence on what visual-qa does (it exercises a built page or screen at several viewport sizes and states,
      captures screenshots, and reports visible breakage with that evidence or names exactly what blocked the check);
-   - that it moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. If it is missing and a lit workflow or a reviewer agent reached for it, the core skills already treat visual-qa
@@ -98,6 +98,9 @@ returned named blockers with a cleanup receipt when capture, sign-in or review w
 That whole skill, its schemas, references and scripts, now lives in the `design` plugin of the **wjgoarxiv-skills**
 marketplace, copied unchanged from LitClaude, beside frontend-ui-ux. LitClaude keeps this stub so that
 `Skill(visual-qa)`, the interface hint and the reviewer agents still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

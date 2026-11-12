@@ -44,7 +44,7 @@ plugin.
 2. If it is not there, reply in the user's language with three things and stop:
    - one sentence on what lit-docx makes (a finished Word document in a design chosen for its content, and
      DOCX or PDF to Markdown);
-   - that it moved out of LitClaude into the `documents` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `documents` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. A request for slides in the same prompt goes to the lit-pptx stub; answer both parts in the same reply.
@@ -93,6 +93,9 @@ result with integrity, prose and page checks plus a look at the rendered pages.
 That whole skill, its converters and templates, and the office runtime it needs now live in the `documents` plugin
 of the **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude. LitClaude keeps this stub so that
 `/litclaude:lit-docx`, `Skill(lit-docx)` and a bare `lit` document request still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

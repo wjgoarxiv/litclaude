@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { compareStableSemver } from "./update-notifier.mjs";
+import { EXTENSION_SKILLS, EXTENSIONS_SHELF } from "../plugins/litclaude/lib/extensions-notice.mjs";
 
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const receiptName = ".litclaude-install-receipt.json";
@@ -293,11 +294,46 @@ export function removeEmptyDirectory(path) {
 }
 
 
-export function assertOwnedRegistrations({ registry, settings, marketplaces, pluginKey, marketplaceName, marketplacePath, pluginParent, home, version, modifiedPluginRoot, modifiedPluginVersion }) {
+// The folders of an installed plugin that differ from its pristine copy: `skills/<id>` inside skills,
+// otherwise the top-level name. Empty when either tree cannot be read as plain files.
+function changedPluginFolders(pluginRoot, pristineRoot) {
+  try {
+    const active = treeMap(detailedTree(pluginRoot)), pristine = treeMap(detailedTree(pristineRoot));
+    const changed = [...new Set([...active.keys(), ...pristine.keys()])].filter((path) => path && !sameRow(active.get(path), pristine.get(path)));
+    return [...new Set(changed.map((path) => {
+      const parts = path.split("/");
+      return parts[0] === "skills" && parts.length > 1 ? `skills/${parts[1]}` : parts[0];
+    }))].sort();
+  } catch {
+    return [];
+  }
+}
+
+// An installed plugin tree that no longer matches its receipt. When the pristine copy of the same
+// version shows hand-made changes, the refusal names their folders, and says so when a folder is a
+// skill that moved to the LitFamily extensions; the refusal itself is unchanged.
+export function assertOwnedPluginTree(pluginRoot, version, pristineRoot) {
+  try {
+    return assertOwnedTree(pluginRoot, "plugin", version);
+  } catch (error) {
+    if (!pristineRoot || error?.message !== `INSTALL_OWNERSHIP_CONFLICT: ${pluginRoot}; use a compatible CLI or preserve this modified, foreign, or unsupported state before retrying`) throw error;
+    const folders = changedPluginFolders(pluginRoot, pristineRoot);
+    if (folders.length === 0) throw error;
+    const moved = folders.map((folder) => folder.slice("skills/".length)).filter((id) => Object.hasOwn(EXTENSION_SKILLS, id));
+    throw new Error([
+      `INSTALL_OWNERSHIP_CONFLICT: ${pluginRoot}; LitClaude stopped and changed nothing, because files in this installed plugin folder were added or edited by hand:`,
+      ...folders.map((folder) => `  ${join(pluginRoot, folder)}`),
+      ...moved.map((id) => `${id} became a LitFamily extension: it now ships as the ${EXTENSION_SKILLS[id]} plugin of ${EXTENSIONS_SHELF}, and this version keeps only a short stub in its folder.`),
+      "Move your own files out of the plugin folder, for example into a folder in your home directory, then run the command again (docs/migration.md#ownership-conflicts).",
+    ].join("\n"));
+  }
+}
+
+export function assertOwnedRegistrations({ registry, settings, marketplaces, pluginKey, marketplaceName, marketplacePath, pluginParent, home, version, modifiedPluginRoot, modifiedPluginVersion, compatibilityParent }) {
   const sourceMatches = (value) => ownKeys(value, ["source", "path"]) && value.source === "directory" && value.path === marketplacePath;
   const registration = registeredPluginInstallation({ registry, pluginKey, pluginParent, home, version });
   if (registration && !(registration.installPath === modifiedPluginRoot && registration.version === modifiedPluginVersion)) {
-    assertOwnedTree(registration.installPath, "plugin", registration.version);
+    assertOwnedPluginTree(registration.installPath, registration.version, compatibilityParent && join(compatibilityParent, registration.version, "plugins", "litclaude"));
   }
   const hud = settings.litclaude;
   if (hud?.statusLineManaged === true && (typeof hud.statusLineVersion !== "string" || !stableVersion.test(hud.statusLineVersion) || compareStableSemver(hud.statusLineVersion, version) > 0)) conflict("managed HUD version");

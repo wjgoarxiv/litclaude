@@ -44,7 +44,7 @@ Reply in the user's language with these things and stop:
 
 1. One sentence on what lit-scientific-visualization makes (a publication-ready figure of measured data, exported as
    vector and 600+ dpi raster files and checked by eye).
-2. That it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace.
+2. That it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace.
 3. If figures is installed, the user runs `/figures:lit-scientific-visualization <the same request>`.
 4. If it is not, the two install lines from "What moved" below, in a code block, then `/reload-plugins` or a new
    session, then that command.
@@ -93,6 +93,9 @@ The adapter, that source (with its provenance and MIT licence) and the doctor no
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside lit-diagram-drawer and lit-schematic.
 LitClaude keeps this stub so that `/litclaude:lit-scientific-visualization` and the exact bare prompt still lead
 somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

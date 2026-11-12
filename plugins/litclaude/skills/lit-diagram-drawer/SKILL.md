@@ -42,7 +42,7 @@ stub. The words "diagram", "chart" and "visualization" alone still route nowhere
 2. If it is not there, reply in the user's language with three things and stop:
    - one sentence on what lit-diagram-drawer makes (a verified HTML/SVG diagram of a system, process, schema or
      timeline, exported to PNG and Office-safe SVG);
-   - that it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. An interface page or dashboard belongs to frontend-ui-ux, which LitClaude routes to its own stub.
@@ -89,6 +89,9 @@ That whole skill, its layouts, scripts, icons and fonts, now lives in the `figur
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside lit-schematic and
 lit-scientific-visualization. LitClaude keeps this stub so that `/litclaude:lit-diagram-drawer`,
 `Skill(lit-diagram-drawer)` and the `lit-diagram-drawer` prompt still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

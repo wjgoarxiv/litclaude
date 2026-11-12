@@ -43,7 +43,7 @@ to this stub. Quoted, fenced, mid-sentence and near-miss mentions stay inert.
 2. If it is not there, reply in the user's language with three things and stop:
    - one sentence on what lit-schematic makes (a millimetre-sized SVG drawing of real equipment, piping and
      instruments, checked by a QA gate and rendered to PDF and a 600 dpi PNG);
-   - that it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 
@@ -91,6 +91,9 @@ That whole skill, its kit, examples and references, now lives in the `figures` p
 marketplace, copied unchanged from LitClaude, beside lit-diagram-drawer and lit-scientific-visualization. LitClaude
 keeps this stub so that `/litclaude:lit-schematic`, `Skill(lit-schematic)` and a bare `lit` schematic request still
 lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

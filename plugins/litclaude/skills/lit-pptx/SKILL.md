@@ -43,7 +43,7 @@ stub. When the same prompt also asks for a report, the lit-docx stub runs beside
    follow it for the whole request: its direction step, its engine and its QA gate. This stub adds nothing to it.
 2. If it is not there, reply in the user's language with three things and stop:
    - one sentence on what lit-pptx makes (a finished, editable .pptx deck with a chosen design direction);
-   - that it moved out of LitClaude into the `decks` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `decks` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. A request for a Word document in the same prompt goes to the lit-docx stub; answer both parts in the same
@@ -91,6 +91,9 @@ fonts, a QA gate for overflow, contrast and layout variety, and a look at the re
 That whole skill, its engine and the office runtime it needs now live in the `decks` plugin of the
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude. LitClaude keeps this stub so that
 `/litclaude:lit-pptx`, `Skill(lit-pptx)` and a bare `lit` deck request still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

@@ -289,7 +289,17 @@ Concept art; each product runs in its own host.
 
 </details>
 
-## Slides, reports, diagrams and READMEs
+## Extensions
+
+The skills in this section are LitFamily extensions. LitClaude's core works on its own, and these
+nine skills that make files now sit on the extension shelf,
+[wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills). Installing the ones you use beside
+LitClaude gives you the full LitFamily experience. Add the shelf once with
+`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`; each part below names the plugin to
+install after it. The installer prints the same lines after every install or update, and the first
+session on a new version shows them once. After an upgrade they also list the old version folders
+and runtime caches the earlier version left, which you can delete if you do not install the
+extensions.
 
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office

@@ -50,7 +50,7 @@ an interface file. Quoted, fenced, mid-sentence and near-miss mentions stay iner
    - one sentence on what frontend-ui-ux makes (a working page or screen built from one locked house style and its
      design kit, checked by an interface probe across phone, tablet and desktop widths, dark mode, reduced motion
      and 200% zoom);
-   - that it moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `design` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. If it is missing and a lit workflow (lit-loop, litwork or litgoal, or a start-work plan row) is handing over a
@@ -115,6 +115,9 @@ contract, searched a design-intelligence database, and looped build, probe and f
 That whole skill, its kit, data, schemas, references and scripts, now lives in the `design` plugin of the
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside visual-qa. LitClaude keeps this stub so that
 `Skill(frontend-ui-ux)`, the interface routes and the lit workflows' interface check still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

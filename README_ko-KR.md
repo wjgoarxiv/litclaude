@@ -102,6 +102,38 @@ lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레
 <tr><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-report.webp" width="400" alt="이식 보고서. 가져온 기법 다섯 개와 비교 결과(새 스킬 2/2, 이전 스킬 0/2), 이유를 단 남긴 기법 여섯 개, 출처를 아이디어만으로 표시한 출처 표, 노출·출처 표기·재검토 절이 있다." /><br /><b>lit-hijack</b> · 이식 보고서<br /><code>lit hijack https://x.com/… into .claude/skills/promo-brief</code></td><td width="50%" valign="top"><img src="./docs/assets/showcase/hijack-ab.webp" width="400" alt="프로모 브리프 네 개를 나란히 놓은 한눈 보기. 이전 스킬 두 개, 새 스킬 두 개이며 새 브리프에는 핵심 한 줄, 실제 자료, 시간 붙은 장면, 거절 조건 절이 있다." /><br /><b>lit-hijack</b> · 이전 스킬과 새 스킬<br /><sub>증거 화면입니다. 같은 프롬프트로 이전 스킬 두 번, 새 스킬 두 번을 돌려 나란히 놓았습니다. 이전 브리프는 없는 제품 기능을 지어내고, 새 브리프는 대신 묻습니다.</sub></td></tr>
 </table>
 
+## 확장
+
+LitClaude의 핵심 기능은 그 자체로 완성되어 있고 혼자서도 잘 돌아갑니다. lit 워크플로, 계획,
+리뷰, 조사, 핸드오프, 한국어 문장 다듬기가 모두 이 패키지에 들어 있습니다. 파일을 만드는 스킬
+아홉 개는 이제 LitFamily 확장입니다. 확장 선반인
+[wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)에 Claude Code 플러그인 다섯 개로
+들어 있고, 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있습니다. 모두 LitClaude가
+예전에 싣던 그 스킬 그대로이고, LitClaude에 남은 같은 이름의 안내용 스킬이 설치된 확장으로 요청을
+넘기거나, 설치되어 있지 않으면 설치 명령을 알려 줍니다.
+
+선반을 한 번 추가한 뒤 필요한 플러그인을 설치하고, `/reload-plugins`를 실행하거나 새 세션을 여세요.
+
+```bash
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
+claude plugin install decks@wjgoarxiv-skills   # 또는 documents, figures, design, video-covers
+```
+
+| 플러그인 | 스킬 | 만드는 것 |
+| --- | --- | --- |
+| `decks` | lit-pptx | PowerPoint 발표자료 |
+| `documents` | lit-docx | Word 보고서, 제안서, 논문 원고 |
+| `figures` | lit-diagram-drawer, lit-schematic, lit-scientific-visualization | 다이어그램, P&ID와 컷어웨이, 논문 그림 |
+| `design` | frontend-ui-ux, visual-qa | 웹 화면과 만든 화면의 시각 검사 |
+| `video-covers` | lit-typographic-motion, readme-studio | 짧은 영상과 README 표지 |
+
+설치 프로그램은 설치하거나 업데이트할 때마다 이 안내를 출력하고, 새 버전의 첫 세션에서도 한 번
+보여 줍니다. 이 스킬들이 아직 들어 있던 버전에서 업데이트했다면 같은 안내에 그 버전이 남긴 것도
+나옵니다. `~/.claude/plugins/cache/litclaude-ai/litclaude/`와 `~/.litclaude/litclaude-ai/` 아래의
+예전 버전 폴더, 그리고 `~/.cache/litclaude/` 아래의 `office-runtime`과 `motion-runtime` 캐시입니다.
+decks, documents, video-covers 플러그인이 이 두 캐시를 다시 쓰므로, 확장을 설치하지 않을 거라면
+모두 지워도 됩니다.
+
 ## 왜 LitClaude인가요
 
 고치고 싶은 버그 하나, 만들고 싶은 화면 하나, 끝내고 싶은 프로젝트 하나. Claude Code에

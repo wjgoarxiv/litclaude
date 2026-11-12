@@ -52,6 +52,7 @@ import {
   writeAttributionMode,
 } from "../plugins/litclaude/lib/agent-file/attribution.mjs";
 import { officialBuildLines } from "../plugins/litclaude/lib/official-build.mjs";
+import { extensionLeftovers, extensionsNoticeLines } from "../plugins/litclaude/lib/extensions-notice.mjs";
 import { verifyBundledSkillsIntegrity } from "../plugins/litclaude/lib/bundled-skills-integrity.mjs";
 import { verifyCanonicalRuntimeClosures } from "../plugins/litclaude/lib/canonical-runtime-closures.mjs";
 import { verifyCanonicalSkillResources } from "../plugins/litclaude/lib/skill-resource-integrity.mjs";
@@ -67,7 +68,7 @@ import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mj
 import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plugins/litclaude/lib/invite.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
-import { assertInstallPath, assertOwnedTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
+import { assertInstallPath, assertOwnedTree, assertOwnedPluginTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
 import { banner, lockup, colorMode, supportsBlocks, terminalRows } from "./litfamily-banner.mjs";
 import {
   ICON_FONT,
@@ -1494,7 +1495,7 @@ const preflightInstallOwnership = ({ preserveModifiedSkill = false } = {}) => {
     })
     : null;
   if (preserveModifiedSkill && !preservation) {
-    assertOwnedTree(claudePluginRoot(home), "plugin", version);
+    assertOwnedPluginTree(claudePluginRoot(home), version, pluginPathForRoot(versionRoot(lit)));
   }
   assertCurrentPointer(lit, currentRoot(lit), versionRoot(lit), version, { expectedVersion: registration?.version });
   for (const path of [claudeSettingsPath(home), installedPluginsPath(home), knownMarketplacesPath(home)]) {
@@ -1504,6 +1505,7 @@ const preflightInstallOwnership = ({ preserveModifiedSkill = false } = {}) => {
     registry, settings: readClaudeSettings(home), marketplaces: readKnownMarketplaces(home),
     pluginKey, marketplaceName, marketplacePath: marketplaceRoot(lit), pluginParent: dirname(claudePluginRoot(home)), home, version,
     modifiedPluginRoot: preservation?.activePlugin, modifiedPluginVersion: preservation?.version,
+    compatibilityParent: join(lit, "litclaude-ai"),
   });
   assertInstallPath(lit, dirname(updateNotifierCachePath(lit)));
   assertInstallPath(lit, updateNotifierCachePath(lit), { file: true });
@@ -1664,6 +1666,13 @@ const install = async ({ dryRun, rest }) => {
   if (wantsIconFont) await runIconFontInstall();
   await installAttribution({ assumeYes });
   await installAgentFile({ assumeYes, agentFile });
+  const leftovers = extensionLeftovers({
+    claudeHome: home,
+    litHome: litClaudeHome,
+    cacheHome: process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
+    currentVersion: version,
+  });
+  process.stdout.write(`\n${extensionsNoticeLines({ leftovers }).join("\n")}\n\n`);
   process.stdout.write("Launch with: claude\n");
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };

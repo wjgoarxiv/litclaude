@@ -47,7 +47,7 @@ mid-sentence and near-miss mentions stay inert, and UI animation wording with no
 2. If it is missing and the user asked directly, reply in the user's language with three things and stop:
    - one sentence on what lit-typographic-motion makes (a finished short film or a silent, seamless README cover
      loop, planned as a treatment and checked by its own gate);
-   - that it moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills marketplace;
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills marketplace;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
 3. If it is missing and a lit workflow reached a film step, record that step as blocked on
@@ -105,6 +105,9 @@ engine packages and the downloaded fonts) installs from that plugin; LitClaude n
 time and its CLI no longer has a motion runtime command. LitClaude keeps this stub so that
 `/litclaude:lit-typographic-motion`, `Skill(lit-typographic-motion)` and a bare `lit` film request still lead
 somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

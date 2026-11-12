@@ -696,3 +696,33 @@ for (const hostRewrite of [false, true]) test(`a pristine install of the publish
   assert.equal(readlinkSync(join(f.lit, "current")), join(f.lit, "litclaude-ai", version));
   assert.equal(existsSync(join(f.claude, "plugins/cache/litclaude-ai/litclaude/0.4.6")), true);
 });
+
+// A file the user added inside the installed plugin still stops an update, and nothing changes. The refusal
+// names the folder the file sits in and, for a skill that moved to the LitFamily extensions, says so.
+for (const sameVersion of [false, true]) test(`a hand-added file in a moved skill's folder names that folder on ${sameVersion ? "a reinstall" : "an update"}`, (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  const userFile = join(f.plugin, "skills/lit-pptx/templates/my-brand-notes.md");
+  mkdirSync(dirname(userFile), { recursive: true });
+  writeFileSync(userFile, "my brand notes\n");
+  const before = [digest(f.claude), digest(f.lit)];
+  const result = sameVersion ? f.run("install") : f.run("update", newerCandidate(f).nextBin);
+  assert.notEqual(result.status, 0, result.stdout);
+  assert.ok(result.stderr.startsWith(`INSTALL_OWNERSHIP_CONFLICT: ${f.plugin}; LitClaude stopped and changed nothing`), result.stderr);
+  assert.ok(result.stderr.includes(`\n  ${join(f.plugin, "skills/lit-pptx")}\n`), result.stderr);
+  assert.match(result.stderr, /lit-pptx became a LitFamily extension: it now ships as the decks plugin of github\.com\/wjgoarxiv\/wjgoarxiv-skills/u);
+  assert.match(result.stderr, /Move your own files out of the plugin folder/u);
+  assert.equal(readFileSync(userFile, "utf8"), "my brand notes\n", "the user's file survives");
+  assert.deepEqual([digest(f.claude), digest(f.lit)], before, "refusal must preserve every existing byte and entry");
+});
+
+test("a hand-edited core folder is named without an extension note", (t) => {
+  const f = fixture(t);
+  pass(f.run("install"));
+  writeFileSync(join(f.plugin, "agents/my-agent.md"), "mine\n");
+  const result = f.run("update", newerCandidate(f).nextBin);
+  assert.notEqual(result.status, 0, result.stdout);
+  assert.ok(result.stderr.includes(`\n  ${join(f.plugin, "agents")}\n`), result.stderr);
+  assert.doesNotMatch(result.stderr, /became a LitFamily extension/u);
+  assert.equal(readFileSync(join(f.plugin, "agents/my-agent.md"), "utf8"), "mine\n");
+});

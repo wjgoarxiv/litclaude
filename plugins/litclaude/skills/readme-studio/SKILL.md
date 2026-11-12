@@ -46,7 +46,7 @@ editing work and never reaches this stub.
 2. If it is missing and the user asked directly, reply in the user's language with three things and stop:
    - one sentence on what readme-studio makes (a factual README with an inspected cover, outlined title type and,
      when asked, a local motion cover);
-   - that it moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills marketplace, together
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `video-covers` plugin of the wjgoarxiv-skills marketplace, together
      with lit-typographic-motion, whose cover mode it uses for moving covers;
    - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
      starts a new session afterwards, then asks again.
@@ -99,6 +99,9 @@ read-only.
 That whole skill, its references, templates and validator, now lives in the `video-covers` plugin of the
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside lit-typographic-motion. LitClaude keeps
 this stub so that `Skill(readme-studio)` and the `readme-studio` prompt route still lead somewhere useful.
+
+That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
+beside it to get the full LitFamily experience.
 
 It installs from the public wjgoarxiv-skills marketplace on GitHub:
 

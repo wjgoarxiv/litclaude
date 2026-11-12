@@ -295,6 +295,13 @@ legacy baseline is accepted without a receipt. A missing receipt is not permissi
 to create one by hand; edited, foreign, symlinked, or newer active state remains
 protected.
 
+When the installed plugin folder differs from LitClaude's own pristine copy of the
+same version, the refusal lists the folders that hold the added or edited files,
+for example `skills/lit-pptx`. A listed skill that became a LitFamily extension is
+named with the wjgoarxiv-skills plugin that now ships it; the new version keeps only
+a short stub in that folder. Move your own files out of the plugin folder and run
+the command again. Nothing was changed by the refused run.
+
 **Do not move only the reported directory.** The first reported conflict may be
 one part of a connected installation. Before any migration, review these surfaces
 together using your selected `LITCLAUDE_HOME` and `CLAUDE_CONFIG_DIR` (or

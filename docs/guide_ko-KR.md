@@ -276,7 +276,15 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 
 </details>
 
-## 발표자료, 보고서, 다이어그램, README
+## 확장
+
+이 절의 스킬은 LitFamily 확장입니다. LitClaude의 핵심 기능은 혼자서도 잘 돌아가고, 파일을 만드는
+이 스킬 아홉 개는 이제 확장 선반인 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)에
+있습니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있습니다. 선반은
+`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`로 한 번 추가하고, 아래 각 부분에 적힌
+플러그인을 설치하면 됩니다. 설치 프로그램은 설치하거나 업데이트할 때마다 같은 안내를 출력하고, 새
+버전의 첫 세션에서도 한 번 보여 줍니다. 업데이트한 경우에는 예전 버전이 남긴 버전 폴더와 런타임
+캐시도 함께 알려 주며, 확장을 설치하지 않을 거라면 지워도 됩니다.
 
 발표자료나 보고서를 부탁하면서 끝에 `lit`을 붙이면(`팀 워크숍 발표자료 만들어줘 lit`,
 `사내 교육 결과 보고서 써줘 lit`) Office 파일을 받습니다. 두 스킬 모두 슬라이드나 문단을
@@ -285,8 +293,8 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 한 문장으로 다른 모양을 부탁하면 됩니다.
 
 `lit-pptx`는 이제 wjgoarxiv-skills 마켓플레이스의 `decks` 플러그인으로 설치합니다.
-`claude plugin marketplace add <wjgoarxiv-skills 클론 경로>`와
-`claude plugin install decks@wjgoarxiv-skills`를 실행하면 됩니다(GitHub 주소는 공개 후에 씁니다).
+`claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`와
+`claude plugin install decks@wjgoarxiv-skills`를 실행하면 됩니다.
 설치하지 않은 상태로 발표자료를 부탁하면 덱 대신 이 두 줄을 안내받습니다. 아래 설명은 decks
 플러그인에 든 스킬 기준입니다.
 

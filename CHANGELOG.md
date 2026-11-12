@@ -2,8 +2,8 @@
 
 ## 1.0.50 - 2026-11-11
 
-- Ten content skills left LitClaude for the new wjgoarxiv-skills marketplace
-  (https://github.com/wjgoarxiv/wjgoarxiv-skills, public now), one plugin per family: `decks` (lit-pptx),
+- Nine skills that make files are now LitFamily extensions. They left LitClaude for the extension shelf, the new
+  wjgoarxiv-skills marketplace (https://github.com/wjgoarxiv/wjgoarxiv-skills, public now), one plugin per family: `decks` (lit-pptx),
   `documents` (lit-docx), `figures` (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), `design`
   (frontend-ui-ux, visual-qa) and `video-covers` (lit-typographic-motion, readme-studio). Each one is the same
   skill as before, copied unchanged. To keep using one, add the marketplace once and install its plugin:
@@ -19,6 +19,18 @@
   without it you get the install lines instead of a file. The stubs, the hook prompts and
   `/litclaude:lit-scientific-visualization` print the GitHub line above; a local clone
   (`claude plugin marketplace add <path to your wjgoarxiv-skills clone>`) still works offline.
+- LitClaude's core stays complete on its own, and the extensions give the full LitFamily experience when they are
+  installed beside it. The installer now says so in a short LitFamily extensions notice after every install or
+  update, with the two install lines, and the first session on a new version shows the same notice once (recorded
+  in `~/.litclaude/extensions-notice.json`). After an upgrade the notice also lists what the earlier version left
+  on disk: old version folders under `~/.claude/plugins/cache/litclaude-ai/litclaude/` and
+  `~/.litclaude/litclaude-ai/`, and the `office-runtime` and `motion-runtime` caches. It is plain text and never
+  part of a JSON result. The stubs and their prompt-hook replies call each moved skill a LitFamily extension, and
+  the README and guide have an Extensions section.
+- An update refused because of a file you added or edited inside the installed plugin folder now lists the
+  folders that hold your files, and says when one belongs to a skill that became a LitFamily extension. The
+  refusal itself is unchanged: nothing is touched, and once you move your files out of the plugin folder the
+  update runs.
 - Removed with them: the `litclaude-ai motion-runtime` command, the motion pre-warm that `npm install -g` ran, the
   office runtime installer, the canonical frontend corpus and its verifier, the scientific-visualization doctor,
   the Stop hook's film render gate, and the `qa:cover-recipes` script. `litclaude doctor` no longer prints the
