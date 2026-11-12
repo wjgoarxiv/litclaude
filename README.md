@@ -29,7 +29,7 @@ lit fix the date parsing bug in src/dates.js, with a test
 
 ## What you can make
 
-Every picture below is a real output of LitClaude. Where a prompt sits under a picture, that request produced it in a Claude Code session (long ones are cut short with …); where none does, the skill's own engine made it from the example the skill ships with. None of them is a mock-up, so typing the same line with LitClaude installed gets you the same kind of result. The skills that make things aim for a full, dense result by default; say calm or minimal and they hold back.
+Every picture below is a real output of LitClaude. Where a prompt sits under a picture, that request produced it in a Claude Code session (long ones are cut short with …); where none does, the skill's own engine made it from the example the skill ships with. None of them is a mock-up, so typing the same line with LitClaude installed gets you the same kind of result. The slides, documents, figures, diagrams and films come from the LitFamily extensions, so add the ones you want first (see [Extensions](#extensions)). The skills that make things aim for a full, dense result by default; say calm or minimal and they hold back.
 
 ### Draw it
 
@@ -195,9 +195,7 @@ npx @litfamily/litclaude@latest install
 The first time, npx asks whether to install the package; answer `y`. The installer registers
 the plugin, adds the LitClaude status line, and asks you two things: the status-line colour and
 an optional output style. A new install starts in the `safe` permission mode, which adds no
-permission rules, and leaves the rest of your Claude settings as they are. It also downloads
-the rendering engine and fonts the video skill needs, so the first install takes a little
-longer. Quit Claude Code and start it again afterwards so the plugin loads.
+permission rules, and leaves the rest of your Claude settings as they are. Quit Claude Code and start it again afterwards so the plugin loads.
 
 Two switches change how the install runs:
 
