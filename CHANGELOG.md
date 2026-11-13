@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.51 - 2026-11-14
 
 - Installing a LitFamily extension is now safe when a skill of your own already has its name. Claude Code reads
   personal skills from `~/.claude/skills` and a project's skills from `.claude/skills`, and a folder there named
@@ -31,6 +31,8 @@
   It never deletes through a project `.claude` that is a symlink, and a folder it cannot read shows "size unknown"
   instead of stopping `check` or `doctor`. Help, `doctor` (one line), the notice, the nine stubs, the
   README and the guide name the verbs; the `claude plugin` lines stay as the manual route.
+- The English and Korean READMEs are shorter and easier to scan. Each command appears once, and the reference
+  detail (skill lists, hook and install notes) moved into collapsed sections or the guide.
 
 ## 1.0.50 - 2026-11-11
 

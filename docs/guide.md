@@ -584,13 +584,13 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install
 For a reproducible install, pin the current package version:
 
 ```bash
-npm view @litfamily/litclaude@1.0.50 version
+npm view @litfamily/litclaude@1.0.51 version
 ```
 
-If that lookup returns `1.0.50`, the exact install is available:
+If that lookup returns `1.0.51`, the exact install is available:
 
 ```bash
-npm exec --yes --package @litfamily/litclaude@1.0.50 -- litclaude install
+npm exec --yes --package @litfamily/litclaude@1.0.51 -- litclaude install
 ```
 
 Otherwise, wait for explicit human publication before using that pin. Check the
