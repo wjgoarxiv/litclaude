@@ -446,7 +446,9 @@ LitFamily 페이지의 명예의 전당은 그 글을 보고 손으로 정리합
 세션이 길어지면 Claude의 컨텍스트 창이 차고, Claude Code가 대화를 압축할 때 작업의 세부 내용이 요약에서 빠질 수 있습니다. 자동 핸드오프를 켜 두면 아직 여유가 있을 때
 Claude가 핸드오프 파일을 쓰고, 압축이 끝난 뒤 LitClaude가 그 파일을 다시 읽어 줍니다. 그래서 세션의 나머지는 내가 남긴 기록에서 이어집니다.
 
-직접 켜고 비율을 정하기 전까지는 꺼져 있습니다. 프롬프트 전체로 `lit-handoff auto on 65`처럼 1부터 99 사이의 정수를 붙여 입력하면 LitClaude가 한 줄로 답하고 다른
+압축 직전의 짧은 저장은 따로 켤 필요 없이 늘 동작합니다. `/compact`를 직접 입력했든 Claude Code가 스스로 압축하든, LitClaude가 압축 전에 `.litclaude/auto-handoff/precompact-<session>.md`를 직접 씁니다. 지금 계획, 진행 중인 행, `git status`가 들어가고, 압축이 끝나면 세션이 이 파일을 한 번 다시 읽습니다. 이 저장은 `LITCLAUDE_PRECOMPACT_HANDOFF=0`으로 끄고, 켜져 있는지는 `litclaude doctor`로 확인합니다.
+
+Claude가 자기 말로 정리해서 쓰는 더 자세한 핸드오프는 직접 켜고 비율을 정하기 전까지 꺼져 있습니다. 프롬프트 전체로 `lit-handoff auto on 65`처럼 1부터 99 사이의 정수를 붙여 입력하면 LitClaude가 한 줄로 답하고 다른
 작업은 시작하지 않습니다. 나중에 `status`로 지금 설정을 확인하고, `off`로 끄면 정해 둔 비율은 다음을 위해 남습니다.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/settings-dark.webp" /><img src="./docs/assets/handoff/settings-light.webp" width="686" alt="제목이 claude인 터미널 창. 프롬프트 lit-handoff auto on 65에 훅 줄 UserPromptSubmit says: Automatic handoff is on at 65%.가 붙고 Claude가 Automatic handoff is on at 65%.라고 답합니다. 이어서 lit-handoff auto status에는 다시 Automatic handoff is on at 65%.가, lit-handoff auto off에는 Automatic handoff is off.가 돌아옵니다." /></picture></p>
@@ -464,6 +466,15 @@ Claude Code를 시작하기 전에 셸에서 켤 수도 있습니다. 두 환경
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/env-dark.webp" /><img src="./docs/assets/handoff/env-light.webp" width="686" alt="제목이 zsh인 터미널 창. export LITCLAUDE_AUTO_HANDOFF=1, export LITCLAUDE_AUTO_HANDOFF_PERCENT=65, npx @litfamily/litclaude@latest doctor를 차례로 입력하고, doctor 출력 가운데 Auto-handoff: on at 65%가, 마지막 줄에 DOCTOR_PASS가 보입니다." /></picture></p>
 
 [자동 핸드오프가 단계별로 어떻게 돌아가는지](./docs/guide_ko-KR.md#자동-핸드오프)
+
+## 자리를 비울 때
+
+긴 작업이 나를 기다릴 때 알려 주는 기능이 두 가지 있습니다. 둘 다 직접 켜야 동작합니다.
+
+- **단계가 멈추면 알림.** start-work는 내 승인이 필요한 호출 하나만 세워 두고 나머지 일을 계속합니다. `/plugin` → LitClaude → configure에서 `park_ping`을 `on`(또는 `osc777`)으로 바꾸면, 단계가 처음 멈출 때 무엇이 기다리는지 알려 주는 터미널 알림이 한 번 옵니다. 돌아와서 `lit approve`나 `lit cancel`을 입력하세요. 승인은 언제나 내가 직접 합니다. tmux 안에서는 `set -g allow-passthrough on`을 추가하세요.
+- **나중에 다시 확인.** CI처럼 저절로 바뀔 일을 기다리며 루프가 끝나면, Claude가 몇 분 뒤에 다시 확인해 줄지 물을 수 있습니다. 내가 좋다고 답할 때만 타이머가 생깁니다. 그 턴은 보고만 하고, 바뀐 것이 없으면 턴 자체가 돌지 않습니다. 타이머는 지금 Claude Code 세션에 속해서 세션을 닫으면 함께 사라집니다.
+
+[알림이 동작하는 방식](./docs/hooks.md#ping-when-a-step-parks)
 
 ## 무엇을 할 수 있나요
 

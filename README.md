@@ -499,7 +499,13 @@ A long session fills Claude's context window, and when Claude Code compacts it, 
 out of the summary. Automatic handoff has Claude write a handoff file while there is still room, then reads it
 back after the compaction, so the rest of the session picks up from your own notes.
 
-It stays off until you turn it on and choose the percent. Type `lit-handoff auto on 65` as your whole prompt,
+Every compaction already gets a short save, with nothing to turn on. Before Claude Code compacts, whether you typed
+`/compact` or it started on its own, LitClaude writes `.litclaude/auto-handoff/precompact-<session>.md` itself: the
+plan in use, the row you are on and `git status`. The session reads it back once after the compaction.
+`LITCLAUDE_PRECOMPACT_HANDOFF=0` turns this save off, and `litclaude doctor` shows whether it is on.
+
+The fuller handoff, which Claude writes in its own words at a percent you choose, stays off until you turn it on.
+Type `lit-handoff auto on 65` as your whole prompt,
 with any whole number from 1 to 99, and LitClaude answers with a single line without starting any other work.
 Later, `status` tells you what is in force, and `off` turns it off while keeping your percent for next time:
 
@@ -522,6 +528,20 @@ setting, and the doctor shows what is in force:
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/handoff/env-dark.webp" /><img src="./docs/assets/handoff/env-light.webp" width="686" alt="Terminal window titled zsh. The commands export LITCLAUDE_AUTO_HANDOFF=1, export LITCLAUDE_AUTO_HANDOFF_PERCENT=65 and npx @litfamily/litclaude@latest doctor, then among the doctor lines Auto-handoff: on at 65% and, last, DOCTOR_PASS." /></picture></p>
 
 [How automatic handoff works, step by step](./docs/guide.md#automatic-handoff).
+
+## While you are away
+
+Two helpers tell you when a long run needs you. Both stay off until you turn them on.
+
+- **A ping when a step parks.** start-work keeps going when one call needs your yes, and parks only that call.
+  Set the `park_ping` option to `on` (or `osc777`) in `/plugin` → LitClaude → configure, and the first time a step
+  parks you get one terminal notification naming what waits. Type `lit approve` or `lit cancel` when you are back;
+  approving stays with you. Inside tmux, add `set -g allow-passthrough on`.
+- **A check back later.** When a loop ends waiting on something that changes by itself, such as a CI run, Claude
+  may offer to check back in a few minutes. Only your yes sets the timer. That later turn only reports, and when
+  nothing changed no turn runs at all. The timer lives in this Claude Code session and ends with it.
+
+[The ping, step by step](./docs/hooks.md#ping-when-a-step-parks).
 
 ## What you get
 
