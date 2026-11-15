@@ -106,10 +106,14 @@ const assertScenarios = (context, label) => {
 describe("reader-facing communication contract", () => {
   it("injects scenarios A-J once across a SessionStart to prompt to edit lifecycle", () => {
     const temp = mkdtempSync(join(tmpdir(), "litclaude-reader-contract-"));
+    // The fixed session id's activation record lives in this test's own folder, so a second run
+    // in the same TMPDIR still sees a first activation.
     const isolatedEnv = {
       HOME: temp,
       LITCLAUDE_HOME: join(temp, "litclaude-home"),
       CLAUDE_CONFIG_DIR: join(temp, "claude-config"),
+      LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud-state"),
+      LITCLAUDE_ACTIVATION_STATE_ROOT: join(temp, "activation-state"),
     };
     try {
       const startup = contextOf(runHook("session-start", {

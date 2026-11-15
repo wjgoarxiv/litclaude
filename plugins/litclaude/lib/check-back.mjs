@@ -36,6 +36,11 @@ const line = (text, limit = 160) => {
   const flat = String(text).replace(/[\p{Cc}\p{Cf}]/gu, " ").replace(/\s+/gu, " ").trim();
   return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
 };
+// A long path keeps its end, where the folder that matters is named.
+const pathLine = (text, limit) => {
+  const flat = line(text, Infinity);
+  return flat.length > limit ? `…${flat.slice(-(limit - 1))}` : flat;
+};
 
 /**
  * The report text, built only from durable state (no clock values), so the same state gives the same
@@ -61,7 +66,7 @@ export const buildCheckBackReport = ({ cwd, stateRoot, work = null, parked = nul
   }
   const steps = parked?.parked ?? [];
   if (steps.length) {
-    lines.push(`Waiting on you: ${steps.slice(0, 3).map(({ action, root }) => `${line(action, 12)} ${line(root, 100)}`).join("; ")}${steps.length > 3 ? ` (+${steps.length - 3} more)` : ""}. Type lit approve or lit cancel.`);
+    lines.push(`Waiting on you: ${steps.slice(0, 3).map(({ action, root }) => `${line(action, 12)} ${pathLine(root, 100)}`).join("; ")}${steps.length > 3 ? ` (+${steps.length - 3} more)` : ""}. Type lit approve or lit cancel.`);
   }
   try {
     const goal = readLitgoalState(litgoalGoalsPath(stateRoot), null);
