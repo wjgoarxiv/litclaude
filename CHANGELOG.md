@@ -22,6 +22,23 @@
   prompt hook builds the report itself, runs no turn when nothing changed, and denies writes, Bash, agents,
   schedule changes, hand-offs to other agents and network tools in the report turn. The timer belongs to the
   Claude Code session and ends with it.
+- start-work is easier to live beside. A second session watching a run may now nudge its worker with
+  `herdr agent prompt <name> "<text>"` (the text stays inert data, and text that opens with a slash command or
+  a `lit` control word such as `lit approve`, or that is a whole `go` prompt, is refused, because those words are the user's approvals), split a pane or open a tab inside the
+  project, list folders with `ls` or `find` (without `-exec`, `-ok`, `-delete` or `-fprint`), and write notes to its
+  own scratchpad and to the project memory that every session of the project shares; it still cannot close panes, send keys or change project files. The owner session
+  may run `date`, `tmux ls` and up to four read filters after a command (`grep` or `rg` with a quoted pattern,
+  `cut`, `uniq`, `head`, `tail`, `wc`, `sort`), split at the pipes the shell would see, so a `|` inside quotes stays
+  data. A read outside the grants says how a plan names the folder on a `Scope roots:` line.
+- start-work keeps its activity time true. Allowed tool calls from the owner and its lanes refresh it (one small
+  state write a minute at most), so a busy run never shows hours of idleness and cannot be taken over as idle.
+- A helper lane that stops inside a nested checkout now finalizes on the run it started in. A lane with no stop
+  for 30 minutes is named in the Stop continuation with its close command,
+  `litclaude-ai start-work lane-finalize --work-id <id> --lane <agent-id> --session-id <owner>`, which only the
+  owner session can run, and only on a lane that has been active for 30 minutes.
+- A typed `/litclaude:start-work <plan>` that does not start now says why (not the whole prompt, over 512
+  characters, or no prompt or session id). A prompt that opens with a host notification
+  (`<task-notification>` or `[SYSTEM NOTIFICATION - NOT USER INPUT]`) switches on no skill.
 
 ## 1.0.51 - 2026-11-14
 

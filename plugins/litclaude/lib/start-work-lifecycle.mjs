@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { SCOPE_LINE } from "./plan-scope-roots.mjs";
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
+import { isGoPrompt } from "./rewind/next-step.mjs";
 import { recordRunEnd } from "./shown-ledger.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
@@ -1071,7 +1072,7 @@ const classifyNodeScriptWords = (args, cwd) => {
 };
 
 const LITCLAUDE_CLI_NAMES = new Set(["litclaude-ai", "litclaude"]);
-const START_WORK_SELF_MOVES = new Set(["progress", "complete", "cancel"]);
+const START_WORK_SELF_MOVES = new Set(["progress", "complete", "cancel", "lane-finalize"]);
 
 // This install's own CLI entry points: the plugin's bin/litclaude-ai that Claude Code puts on PATH,
 // and the package's bin/litclaude-ai.js. A command naming either by path runs code the guard
@@ -1129,6 +1130,14 @@ const classifyReadOnlyGit = (command, cwd) => {
 const classifyBashWords = (words, cwd) => {
   const [head, ...args] = words;
   if (head.text === "grep" || head.text === "rg") return classifySearchWords(head.text, args, cwd);
+  // `date [+FORMAT]` and `tmux ls` only print; `date -s`, a bare date operand and every other tmux
+  // verb (kill-server, send-keys) meet the strict checks.
+  if (head.text === "date" && (args.length === 0 || (args.length === 1 && args[0].text.startsWith("+")))) {
+    return canonicalBashTargets(cwd, [], "read");
+  }
+  if (head.text === "tmux" && args.length === 1 && (args[0].text === "ls" || args[0].text === "list-sessions")) {
+    return canonicalBashTargets(cwd, [], "read");
+  }
   let cli = null;
   let rest = [];
   let trusted = false;
@@ -1236,15 +1245,77 @@ const classifyBash = (command, cwd) => {
 };
 
 // `env -u NAME…` only removes variables, `2>&1` only joins the streams, and a trailing filter
-// (`| tail -8`, `| grep -c ok`, `| wc -l`) only reads the output: each is peeled off before the
-// command under it is classified. An assignment, a file operand or any other pipe stays put.
+// (`| tail -8`, `| grep -c 'ok '`, `| cut -d: -f1`) only reads the output: each is peeled off before
+// the command under it is classified. An assignment, a file operand or any other pipe stays put.
 const ENV_UNSET = /^env(?:[ \t]+-u[ \t]+[A-Za-z_][A-Za-z0-9_]*)+[ \t]+(?=\S)/u;
-// Each filter takes only flags that read stdin and print: no `-f` pattern file, no `-o` output file.
-const FILTER_PIPE = /[ \t]*\|[ \t]*(?:(?:tail|head)(?:[ \t]+-[nc][ \t]+\d+|[ \t]+-\d+|[ \t]+-q)*|wc(?:[ \t]+-[lwcm]+)*|sort(?:[ \t]+-[unrb]+)*|grep(?:[ \t]+-[cvinlEFwxq]+)*[ \t]+[A-Za-z0-9_.:-]+)[ \t]*$/u;
 const STDERR_JOIN = /[ \t]+2>&1(?=[ \t]*$)/u;
+const MAX_FILTERS = 4;
+
+// The segment cut at each `|` the shell would see: one outside quotes and not escaped. A `||`, an
+// unclosed quote, a backslash outside quotes or an empty part gives null, and nothing is peeled.
+const pipeParts = (segment) => {
+  const parts = [];
+  let start = 0;
+  let quote = null;
+  for (let index = 0; index < segment.length; index += 1) {
+    const ch = segment[index];
+    if (quote === "'") {
+      if (ch === "'") quote = null;
+    } else if (quote === '"') {
+      if (ch === "\\") index += 1;
+      else if (ch === '"') quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === "\\") {
+      return null;
+    } else if (ch === "|") {
+      if (segment[index + 1] === "|") return null;
+      parts.push(segment.slice(start, index));
+      start = index + 1;
+    }
+  }
+  if (quote) return null;
+  parts.push(segment.slice(start));
+  return parts.every((part) => part.trim()) ? parts : null;
+};
+
+// Each filter reads stdin and prints, with no file operand: no `-f` pattern file, no `-o` output
+// file. A grep or rg pattern is one word of data, quoted or not, with no `$` or backtick in it.
+const READ_FILTER_FLAGS = Object.freeze({ wc: /^-[lwcm]+$/u, sort: /^-[unrb]+$/u, uniq: /^-c$/u, cut: /^-(?:d.|f[\d,-]+)$/su });
+const headTailArgs = (args) => {
+  for (let index = 0; index < args.length; index += 1) {
+    const text = args[index];
+    if (text === "-n" || text === "-c") {
+      index += 1;
+      if (!/^\d+$/u.test(args[index] ?? "")) return false;
+    } else if (!/^-(?:[nc]?\d+|q)$/u.test(text)) {
+      return false;
+    }
+  }
+  return true;
+};
+const isReadFilter = (part) => {
+  if (/[$`]/u.test(part)) return false;
+  const words = shellWords(part.trim())?.map(({ text }) => text);
+  if (!words) return false;
+  const [head, ...args] = words;
+  if (head === "head" || head === "tail") return headTailArgs(args);
+  if (head === "grep" || head === "rg") {
+    const flags = args.slice(0, -1);
+    return args.length > 0 && !args.at(-1).startsWith("-") && flags.every((text) => /^-[cvinlEFwxq]+$/u.test(text));
+  }
+  if (head === "cut" && !args.some((text) => text.startsWith("-f"))) return false;
+  return Object.hasOwn(READ_FILTER_FLAGS, head) && args.every((text) => READ_FILTER_FLAGS[head].test(text));
+};
+
 const peelShellNoise = (segment) => {
   let text = segment.replace(ENV_UNSET, "");
-  for (let guard = 0; guard < 4 && FILTER_PIPE.test(text); guard += 1) text = text.replace(FILTER_PIPE, "");
+  const parts = pipeParts(text);
+  if (parts && parts.length > 1) {
+    let keep = parts.length;
+    while (keep > 1 && parts.length - keep < MAX_FILTERS && isReadFilter(parts[keep - 1])) keep -= 1;
+    text = parts.slice(0, keep).join("|");
+  }
   return text.replace(STDERR_JOIN, "").trim();
 };
 
@@ -1412,8 +1483,9 @@ const isOwnRewindScript = (path, cwd) => {
 // A Bash shape the guard cannot verify is refused, not paused, so the refusal says what does run;
 // without it a session tried a script in the write-only temp folder and stopped. Forbidden actions
 // (push, publish, tag, reset) never get this note.
-const BASH_WAY_OUT = "This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and an optional trailing `| tail`, `head`, `grep`, `wc` or `sort` with flags only. Split the command into separate calls. To run code, write a script inside the project and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply, and the user can end the run with `lit cancel`.";
+const BASH_WAY_OUT = "This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and up to four trailing read filters: `| head` or `| tail` (`-n N`, `-N`, `-c N`), `| grep` or `| rg` with flags and one pattern (quotes allowed, no `$` or backtick), `| cut -d<c> -f<list>`, `| uniq [-c]`, `| wc` or `| sort` with flags only. Split the command into separate calls. To run code, write a script inside the project and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply, and the user can end the run with `lit cancel`.";
 const bashDenial = (reason) => denial(`${reason}. ${BASH_WAY_OUT}`);
+const OUTSIDE_GRANT = "Bash target is outside the effective authority grant; a plan can name that folder on a `Scope roots: <path> (<actions>)` line";
 
 // The plugin this module ships in: reading its own skills, commands and references is never a
 // boundary. Writing there still is.
@@ -1474,8 +1546,9 @@ const sensitiveDenial = (classified) => {
 // the root session id) reads without a boundary: its spilled tool results and subagent transcripts
 // under `<config>/projects/<key>/<session>/`, the project's memory, the user's CLAUDE.md and skills,
 // the host's `tasks` and `scratchpad` folders under `<CLAUDE_CODE_TMPDIR or /tmp>/claude-<uid>/<key>/<session>/`,
-// the host's bundled skills, and the run's own private temp folder. The scratchpad may also be
-// written, since the host tells the session to put temp files there. The key is the folder the
+// the host's bundled skills, and the run's own private temp folder. The scratchpad and the project's
+// memory may also be written: the host tells the session to put temp files and notes there. The
+// same two are a watching session's own folders (otherSessionDecision). The key is the folder the
 // session started in, with every non-alphanumeric character as `-`; the transcript path names it
 // even when the run's root is elsewhere (a worktree lane). Another session's folders, and any other
 // write, stay boundaries; a symlink is judged by where it points.
@@ -1501,6 +1574,7 @@ const harnessRoots = (work, input, projectDirs) => {
   if (hostTmp) read.push(join(hostTmp, "bundled-skills"));
   for (const key of keys) {
     read.push(join(projects, key, sessionId, "tool-results"), join(projects, key, sessionId, "subagents"), join(projects, key, "memory"));
+    write.push(join(projects, key, "memory"));
     if (hostTmp) {
       read.push(join(hostTmp, key, sessionId, "tasks"), join(hostTmp, key, sessionId, "scratchpad"));
       write.push(join(hostTmp, key, sessionId, "scratchpad"));
@@ -1550,7 +1624,21 @@ const parkedMessage = (boundary) => (boundary.hits >= 3
 // A run is stale, and another session may take it over, once its owning session has ended or the
 // lifecycle has not been written for two hours (plans/lit-adhd.md D8).
 export const START_WORK_STALE_MS = 2 * 60 * 60 * 1000;
-const idleMs = (work, now) => Math.max(0, now - (Date.parse(work.updated_at) || now));
+// Activity is the later of the last ledger event and the last allowed owner tool call.
+const lastActivityMs = (work) => Math.max(Date.parse(work.updated_at) || 0, Date.parse(work.last_tool_at ?? "") || 0);
+const idleMs = (work, now) => Math.max(0, now - (lastActivityMs(work) || now));
+// A heartbeat for the owner and its lanes (they share its session id): at most one state write a
+// minute, with no ledger event, so a busy run never looks idle to another session.
+const ACTIVITY_WRITE_MS = 60_000;
+const recordToolActivity = (root, state, work, now) => {
+  if (now - lastActivityMs(work) < ACTIVITY_WRITE_MS) return;
+  work.last_tool_at = new Date(now).toISOString();
+  try {
+    saveState(root, state);
+  } catch {
+    // A failed heartbeat must not refuse a call the guard allowed.
+  }
+};
 const isStale = (work, now) => Boolean(work.root_session_ended_at) || idleMs(work, now) >= START_WORK_STALE_MS;
 const formatAge = (ms) => {
   const minutes = Math.floor(ms / 60_000);
@@ -1565,10 +1653,13 @@ const planRoute = (root, work) => {
 };
 
 // Words and operators of a command another session sends to watch the work. Single quotes hold
-// data verbatim. Outside them only path-like characters pass (`*` and `?` mark the word as a glob);
+// data verbatim. Double quotes hold data too, but the shell still expands `$`, a backtick, `\` and
+// `!` inside them, and a control character could end the line, so any of those refuses the whole
+// command. Outside quotes only path-like characters pass (`*` and `?` mark the word as a glob);
 // `|`, ` && ` and `2>&1` must stand alone between spaces. Anything else (`;`, `||`, `$`, a backtick,
-// a double quote, a backslash, a redirect, a newline) refuses the whole command.
+// a backslash, a redirect, a newline) refuses the whole command.
 const OBSERVATION_CHAR = /[\p{L}\p{N}_.\/@+,:=%-]/u;
+const DOUBLE_QUOTED_UNSAFE = /[$`\\!\p{Cc}]/u;
 const observationTokens = (command) => {
   const tokens = [];
   const chars = [...command];
@@ -1580,11 +1671,13 @@ const observationTokens = (command) => {
     if (ch === " " || ch === "\t") {
       if (word) tokens.push(word);
       word = null;
-    } else if (ch === "'") {
-      const end = chars.indexOf("'", index + 1);
+    } else if (ch === "'" || ch === "\"") {
+      const end = chars.indexOf(ch, index + 1);
       if (end < 0) return null;
+      const text = chars.slice(index + 1, end).join("");
+      if (ch === "\"" && DOUBLE_QUOTED_UNSAFE.test(text)) return null;
       word ??= { text: "", quoted: false, glob: false };
-      word.text += chars.slice(index + 1, end).join("");
+      word.text += text;
       word.quoted = true;
       index = end;
     } else if (standalone(index, "&&") || standalone(index, "2>&1")) {
@@ -1614,9 +1707,86 @@ const HERDR_READS = Object.freeze({ agent: ["read", "get", "list"], pane: ["read
 // Only the flags a read needs: a flag herdr may add later (an output file, keys to send) is refused.
 const HERDR_READ_FLAG = /^--(?:source|lines|workspace|tab|json)(?:=[\w.:-]+)?$/u;
 const HERDR_ID = /^[A-Za-z0-9][\w.:-]*$/u;
-const observeHerdr = ([noun, verb, ...rest]) => plainWord(noun) && plainWord(verb)
+const observeHerdrRead = ([noun, verb, ...rest]) => plainWord(noun) && plainWord(verb)
   && Object.hasOwn(HERDR_READS, noun.text) && HERDR_READS[noun.text].includes(verb.text)
   && rest.every((word) => plainWord(word) && (HERDR_READ_FLAG.test(word.text) || HERDR_ID.test(word.text)));
+
+// The nudges a watcher may send: a prompt to a named agent, a new pane beside the current one, a new
+// tab. Each verb has its own closed flag set (`--flag value` or `--flag=value`); a `--cwd` must stay
+// inside the project. Closing, running, sending keys and starting agents stay refused.
+const HERDR_NUDGE_FLAGS = Object.freeze({
+  "agent prompt": { "--wait": null, "--timeout": /^\d{1,7}$/u },
+  "pane split": { "--current": null, "--no-focus": null, "--pane": HERDR_ID, "--direction": /^(?:right|down|left|up)$/u, "--cwd": "path" },
+  "tab create": { "--no-focus": null, "--workspace": HERDR_ID, "--cwd": "path" },
+});
+const observeHerdrNudge = ([noun, verb, ...rest], cwd, root) => {
+  if (!plainWord(noun) || !plainWord(verb)) return false;
+  const flags = HERDR_NUDGE_FLAGS[`${noun.text} ${verb.text}`];
+  if (!flags) return false;
+  const positionals = [];
+  for (let index = 0; index < rest.length; index += 1) {
+    const word = rest[index];
+    if (!flagWord(word, /^--[a-z-]+(?:=.*)?$/u)) {
+      positionals.push(word);
+      continue;
+    }
+    const [name, inline] = word.text.split(/=(.*)/su);
+    if (!Object.hasOwn(flags, name)) return false;
+    const rule = flags[name];
+    if (rule === null) {
+      if (inline !== undefined) return false;
+      continue;
+    }
+    let value = inline;
+    if (value === undefined) {
+      const next = rest[index + 1];
+      if (!plainWord(next)) return false;
+      value = next.text;
+      index += 1;
+    }
+    if (rule === "path") {
+      if (!root || !PLAIN_PATH_WORD.test(value)) return false;
+      try {
+        if (!rootCovers(root, canonicalTarget(resolve(cwd, value), "herdr cwd"))) return false;
+      } catch {
+        return false;
+      }
+    } else if (!rule.test(value)) {
+      return false;
+    }
+  }
+  if (noun.text !== "agent") return positionals.length === 0;
+  const [name, text] = positionals;
+  return positionals.length === 2 && plainWord(name) && HERDR_ID.test(name.text) && dataWord(text) && !USER_CONTROL_TEXT.test(text.text) && !isGoPrompt(text.text);
+};
+// The prompt lands in the worker as typed text, and typed words are the user's approvals there
+// (`lit approve`, `lit cancel`, `/litclaude:start-work …`, and `go` / `진행` for a briefed plan). A
+// watcher's model may nudge, never decide for the user, so text opening with a slash command or a
+// lit control word, or a whole go prompt, is refused.
+const USER_CONTROL_TEXT = /^\s*(?:\/|lit(?:work)?(?:\s|$))/iu;
+
+// `ls` lists names; `find` walks a tree, minus the actions that run, delete or write a file.
+const FIND_ACTION = /^-(?:exec|execdir|ok|okdir|delete|fprint|fprint0|fprintf|fls)$/u;
+const observeListing = (head, args, cwd) => {
+  const isFind = head === "find";
+  let operands = true;
+  for (const word of args) {
+    if (word.op || word.glob) return false;
+    if (isFind && FIND_ACTION.test(word.text)) return false;
+    if (word.text.startsWith("-")) {
+      if (!isFind && !flagWord(word, /^-[A-Za-z1@]+$/u)) return false;
+      // find's leading options (-H, -L, -P, -E, -X, -d, -s, -x) keep the search roots that follow
+      // checked; BSD `-f <root>` names a root no check would see, so it is refused.
+      if (isFind && word.text === "-f") return false;
+      if (isFind && !(operands && /^-[HLPEXdsx]+$/u.test(word.text))) operands = false;
+      continue;
+    }
+    if (isFind && !operands) continue;
+    if (word.quoted || !PLAIN_PATH_WORD.test(word.text) || !existsSync(resolve(cwd, word.text))) return false;
+    if (sensitiveReason(canonicalTarget(resolve(cwd, word.text), "listing operand"), "read")) return false;
+  }
+  return true;
+};
 
 // grep or rg over existing paths: bare flags from a closed set, the include/exclude globs, one
 // pattern, then plain path operands. Flags that read a pattern file or run a preprocessor are absent.
@@ -1672,10 +1842,11 @@ const observeFilter = ([head, ...args]) => {
 };
 
 // What another session may run to watch a running work without changing it: up to four segments
-// joined by ` && `, each a `cd <dir>`, a herdr read (agent read|get|list, pane read|list, tab list)
-// or a grep/rg read, each followed by up to four read-only pipe filters. Only otherSessionDecision
-// calls this; the owner's guard keeps classifyBash.
-export const classifyObservation = (command, cwd) => {
+// joined by ` && `, each a `cd <dir>`, a herdr read (agent read|get|list, pane read|list, tab list),
+// a herdr nudge (agent prompt, pane split, tab create), a grep/rg read, or an `ls`/`find` listing,
+// each followed by up to four read-only pipe filters. `root` bounds a herdr `--cwd`. Only
+// otherSessionDecision calls this; the owner's guard keeps classifyBash.
+export const classifyObservation = (command, cwd, root = null) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) return false;
   if (forbiddenShellCommand(command)) return false;
   const tokens = observationTokens(command.trim());
@@ -1701,9 +1872,11 @@ export const classifyObservation = (command, cwd) => {
       if (!moved || moved.denied) return false;
       here = moved.cd;
     } else if (head.text === "herdr") {
-      if (!observeHerdr(args)) return false;
+      if (!observeHerdrRead(args) && !observeHerdrNudge(args, here, root)) return false;
     } else if (head.text === "grep" || head.text === "rg") {
       if (!observeSearch(args, here)) return false;
+    } else if (["ls", "/bin/ls", "find"].includes(head.text)) {
+      if (!observeListing(head.text, args, here)) return false;
     } else {
       return false;
     }
@@ -1729,6 +1902,9 @@ const otherSessionDecision = (root, work, input, now) => {
       if (protectedPath) return protectedPath;
       reads = !classified.denied && !classified.control
         && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+      // Its own scratchpad and the project's memory are this session's notes, not the work's files.
+      reads ||= !classified.denied && !classified.control && !classified.chain
+        && classified.action === "write" && harnessAccess(classified, work, input, [root, input.cwd]);
     } catch {
       reads = false;
     }
@@ -1736,19 +1912,19 @@ const otherSessionDecision = (root, work, input, now) => {
   if (!reads && toolName === "Bash") {
     try {
       const cwd = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : root, "tool cwd");
-      reads = classifyObservation(input?.tool_input?.command, cwd);
+      reads = classifyObservation(input?.tool_input?.command, cwd, root);
     } catch {
       reads = false;
     }
   }
   if (reads) {
-    return { decision: "allow-normal", action: "read", root, roots: [root], context: `Another session is running start-work ${work.work_id} here (last activity ${age} ago); you may read, not change files.` };
+    return { decision: "allow-normal", action: "read", root, roots: [root], context: `Another session is running start-work ${work.work_id} here (last activity ${age} ago); you may read, nudge its worker with \`herdr agent prompt\` and write notes in your scratchpad or the shared project memory, not change project files.` };
   }
   const route = `/litclaude:start-work ${planRoute(root, work)}`;
   const takeover = isStale(work, now)
     ? `That session has ended or gone idle, so you can take the work over by typing ${route} here.`
     : `Once that session ends or sits idle for 2 hours, you can take it over by typing ${route} here.`;
-  return denial(`LitClaude start-work ${work.work_id} (${work.plan_name}) belongs to another session in this project (last activity ${age} ago), so this session may read but not change files. It frees up when that session finishes the work. ${takeover} To end it now, tell the user to type \`lit cancel\` here (no command line is needed).`);
+  return denial(`LitClaude start-work ${work.work_id} (${work.plan_name}) belongs to another session in this project (last activity ${age} ago), so this session may read but not change project files. It may nudge that session's worker with \`herdr agent prompt <name> "<text>"\` and write notes in its own scratchpad or the project memory, which every session of this project shares. It frees up when that session finishes the work. ${takeover} To end it now, tell the user to type \`lit cancel\` here (no command line is needed).`);
 };
 
 /**
@@ -1826,79 +2002,86 @@ export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}
     if (typeof input?.session_id !== "string" || input.session_id !== work.root_session_id) {
       return otherSessionDecision(canonicalRoot, work, input, now);
     }
-    const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
-    const classified = classifyToolAuthority(executionRoot, input);
-    if (classified.denied) {
-      return input.tool_name === "Bash" && !classified.denied.startsWith("forbidden") ? bashDenial(classified.denied) : denial(classified.denied);
-    }
-    const protectedPath = classified.control ? null : sensitiveDenial(classified);
-    if (protectedPath) return protectedPath;
-    if (classified.control) return { decision: "allow-normal", action: "control", root: executionRoot, roots: [executionRoot] };
-    if (pluginSelfRead(classified)) return { decision: "allow-normal", action: "read", root: PLUGIN_ROOT, roots: [PLUGIN_ROOT] };
-    if (!classified.chain && harnessAccess(classified, work, input, [canonicalRoot, input.cwd])) {
-      return { decision: "allow-normal", action: "read", root: classified.targetRoots?.[0] ?? classified.targetRoot, roots: classified.targetRoots ?? [classified.targetRoot] };
-    }
-    if (classified.chain) {
-      const covered = classified.chain.every((link) => link.control
-        || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
-      return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : bashDenial("Bash target is outside the effective authority grant");
-    }
-    const targetRoots = classified.targetRoots ?? [classified.targetRoot];
-    const authorized = targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, classified.action, targetRoot)));
-    if (authorized) {
-      return { decision: "allow-normal", action: classified.action, root: targetRoots[0], roots: targetRoots };
-    }
-    if (classified.boundaryExpansion === false) {
-      return bashDenial("Bash target is outside the effective authority grant");
-    }
-    const refused = (work.authority.denied_boundaries ?? []).find((denied) => denied.action === classified.action
-      && targetRoots.every((targetRoot) => rootCovers(denied.root, targetRoot)));
-    if (refused) {
-      return denial(`LitClaude start-work: the user denied ${refused.action} access to ${refused.root} for this work. Carry on without it, or ask the user if the task cannot be done otherwise.`);
-    }
-    const targetRoot = boundaryRoot(classified.action, targetRoots[0], canonicalRoot);
-    const boundaryId = `boundary-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}`)}`;
-    const queued = work.pending_boundaries.find(({ boundary_id: id }) => id === boundaryId);
-    if (queued) {
-      // A repeat changes no revision, so a lane's progress call with the revision it holds still lands.
-      queued.hits = (queued.hits ?? 1) + 1;
-      queued.last_seen = nowIso();
-      saveState(canonicalRoot, state);
-      return denial(parkedMessage(queued));
-    }
-    if (work.pending_boundaries.length >= MAX_PARKED) {
-      return denial(`LitClaude start-work: ${classified.action} access to ${targetRoot} is outside this plan's scope, and ${MAX_PARKED} steps are already parked, so this call did not run. Finish what the plan allows, mark the rest \`BLOCKED: <reason>\`, and end the turn; the user decides with \`lit approve\` or \`lit cancel\`.`);
-    }
-    const validId = (value) => typeof value === "string" && /^[A-Za-z0-9._:-]{1,160}$/u.test(value);
-    const originPromptId = validId(input.prompt_id) ? input.prompt_id : validId(input.tool_use_id) ? `tool:${input.tool_use_id}`.slice(0, 160) : null;
-    if (!originPromptId) {
-      return denial(`LitClaude start-work: ${classified.action} access to ${targetRoot} is outside this plan's scope and the call carries no prompt identity, so it did not run. Carry on with the plan's other tasks and mark a task that needs it \`BLOCKED: <reason>\`.`);
-    }
-    const grantId = `grant-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}:${originPromptId}:${input.tool_use_id ?? "unknown"}`)}`;
-    const requestedAt = nowIso();
-    const boundary = {
-      boundary_id: boundaryId,
-      action: classified.action,
-      root: targetRoot,
-      origin_session_id: input.session_id,
-      origin_prompt_id: originPromptId,
-      origin_tool_use_id: typeof input.tool_use_id === "string" ? input.tool_use_id : null,
-      grant_id: grantId,
-      requested_at: requestedAt,
-      last_seen: requestedAt,
-      hits: 1,
-    };
-    work.pending_boundaries.push(boundary);
-    appendEvent(state, work, "work.boundary_parked", {
-      boundary_id: boundaryId,
-      action: classified.action,
-      root: targetRoot,
-      origin_prompt_id: originPromptId,
-    });
-    saveState(canonicalRoot, state);
-    // `parked` is set only here, for a step parked for the first time, so a retry never carries it.
-    return { ...denial(parkedMessage(boundary)), parked: { workId: work.work_id, boundaryId, action: classified.action, root: targetRoot } };
+    const decided = ownerToolDecision(canonicalRoot, state, work, input);
+    if (decided.decision === "allow-normal") recordToolActivity(canonicalRoot, state, work, now);
+    return decided;
   });
+};
+
+// The owner session's verdict for one tool call, under the lock the caller holds.
+const ownerToolDecision = (canonicalRoot, state, work, input) => {
+  const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
+  const classified = classifyToolAuthority(executionRoot, input);
+  if (classified.denied) {
+    return input.tool_name === "Bash" && !classified.denied.startsWith("forbidden") ? bashDenial(classified.denied) : denial(classified.denied);
+  }
+  const protectedPath = classified.control ? null : sensitiveDenial(classified);
+  if (protectedPath) return protectedPath;
+  if (classified.control) return { decision: "allow-normal", action: "control", root: executionRoot, roots: [executionRoot] };
+  if (pluginSelfRead(classified)) return { decision: "allow-normal", action: "read", root: PLUGIN_ROOT, roots: [PLUGIN_ROOT] };
+  if (!classified.chain && harnessAccess(classified, work, input, [canonicalRoot, input.cwd])) {
+    return { decision: "allow-normal", action: "read", root: classified.targetRoots?.[0] ?? classified.targetRoot, roots: classified.targetRoots ?? [classified.targetRoot] };
+  }
+  if (classified.chain) {
+    const covered = classified.chain.every((link) => link.control
+      || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
+    return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : bashDenial(OUTSIDE_GRANT);
+  }
+  const targetRoots = classified.targetRoots ?? [classified.targetRoot];
+  const authorized = targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, classified.action, targetRoot)));
+  if (authorized) {
+    return { decision: "allow-normal", action: classified.action, root: targetRoots[0], roots: targetRoots };
+  }
+  if (classified.boundaryExpansion === false) {
+    return bashDenial(OUTSIDE_GRANT);
+  }
+  const refused = (work.authority.denied_boundaries ?? []).find((denied) => denied.action === classified.action
+    && targetRoots.every((targetRoot) => rootCovers(denied.root, targetRoot)));
+  if (refused) {
+    return denial(`LitClaude start-work: the user denied ${refused.action} access to ${refused.root} for this work. Carry on without it, or ask the user if the task cannot be done otherwise.`);
+  }
+  const targetRoot = boundaryRoot(classified.action, targetRoots[0], canonicalRoot);
+  const boundaryId = `boundary-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}`)}`;
+  const queued = work.pending_boundaries.find(({ boundary_id: id }) => id === boundaryId);
+  if (queued) {
+    // A repeat changes no revision, so a lane's progress call with the revision it holds still lands.
+    queued.hits = (queued.hits ?? 1) + 1;
+    queued.last_seen = nowIso();
+    saveState(canonicalRoot, state);
+    return denial(parkedMessage(queued));
+  }
+  if (work.pending_boundaries.length >= MAX_PARKED) {
+    return denial(`LitClaude start-work: ${classified.action} access to ${targetRoot} is outside this plan's scope, and ${MAX_PARKED} steps are already parked, so this call did not run. Finish what the plan allows, mark the rest \`BLOCKED: <reason>\`, and end the turn; the user decides with \`lit approve\` or \`lit cancel\`.`);
+  }
+  const validId = (value) => typeof value === "string" && /^[A-Za-z0-9._:-]{1,160}$/u.test(value);
+  const originPromptId = validId(input.prompt_id) ? input.prompt_id : validId(input.tool_use_id) ? `tool:${input.tool_use_id}`.slice(0, 160) : null;
+  if (!originPromptId) {
+    return denial(`LitClaude start-work: ${classified.action} access to ${targetRoot} is outside this plan's scope and the call carries no prompt identity, so it did not run. Carry on with the plan's other tasks and mark a task that needs it \`BLOCKED: <reason>\`.`);
+  }
+  const grantId = `grant-${shortHash(`${work.work_id}:${classified.action}:${targetRoot}:${originPromptId}:${input.tool_use_id ?? "unknown"}`)}`;
+  const requestedAt = nowIso();
+  const boundary = {
+    boundary_id: boundaryId,
+    action: classified.action,
+    root: targetRoot,
+    origin_session_id: input.session_id,
+    origin_prompt_id: originPromptId,
+    origin_tool_use_id: typeof input.tool_use_id === "string" ? input.tool_use_id : null,
+    grant_id: grantId,
+    requested_at: requestedAt,
+    last_seen: requestedAt,
+    hits: 1,
+  };
+  work.pending_boundaries.push(boundary);
+  appendEvent(state, work, "work.boundary_parked", {
+    boundary_id: boundaryId,
+    action: classified.action,
+    root: targetRoot,
+    origin_prompt_id: originPromptId,
+  });
+  saveState(canonicalRoot, state);
+  // `parked` is set only here, for a step parked for the first time, so a retry never carries it.
+  return { ...denial(parkedMessage(boundary)), parked: { workId: work.work_id, boundaryId, action: classified.action, root: targetRoot } };
 };
 
 /** This session's running work and its parked steps (with their ids), or null. Never throws. */
@@ -1981,6 +2164,57 @@ export const recordStartWorkSubagentStop = (root, input) => {
   });
 };
 
+const STUCK_LANE_MS = 30 * 60 * 1000;
+
+/**
+ * The owner closes a lane that never sent its stop (a helper that crashed or was killed), so the run
+ * can complete. Only the session that owns the active work may do it; the lane is marked
+ * `finalized: abandoned` and the ledger records it.
+ */
+export const finalizeStartWorkLane = (root, request) => withLock(root, () => {
+  const canonicalRoot = canonicalDirectory(root, "cwd root");
+  const state = readState(canonicalRoot);
+  const work = state.works[request.workId];
+  if (!work || state.active_work_id !== request.workId || !["active", "paused"].includes(work.status)) {
+    throw new StartWorkLifecycleError("requested work is not the active work");
+  }
+  if (work.root_session_id !== request.sessionId) throw new StartWorkLifecycleError("session does not own the active work", 77);
+  const lane = work.lanes?.[request.lane];
+  if (!lane || lane.status !== "active") throw new StartWorkLifecycleError("lane is not active", 409);
+  if (Date.now() - (Date.parse(lane.started_at) || Date.now()) < STUCK_LANE_MS) {
+    throw new StartWorkLifecycleError("lane has run under 30 minutes and may still be working; wait for its stop", 409);
+  }
+  lane.status = "finalized";
+  lane.finalized = "abandoned";
+  lane.finalized_at = nowIso();
+  if (work.worktrees[lane.worktree_path]) {
+    work.worktrees[lane.worktree_path].status = "host-removal-expected";
+    work.worktrees[lane.worktree_path].finalized_at = lane.finalized_at;
+  }
+  appendEvent(state, work, "lane.abandoned", { agent_id: request.lane, by_session_id: request.sessionId });
+  saveState(canonicalRoot, state);
+  return { ok: true, operation: "lane-finalize", lane: clone(lane), state: publicState(state) };
+});
+
+/**
+ * The folder whose lifecycle recorded this session's active lane `agent_id`, found by walking up from
+ * `cwd`. A stop from a nested checkout with its own git root resolves to that checkout, not the run
+ * the lane started in. Reads only; null when no folder holds such a lane.
+ */
+export const laneRootFor = (cwd, input) => {
+  const agentId = typeof input?.agent_id === "string" ? input.agent_id : input?.subagent_id;
+  if (typeof agentId !== "string" || agentId.length === 0) return null;
+  for (let current = resolve(cwd); ; current = dirname(current)) {
+    try {
+      const state = readState(current, { optional: true });
+      if (activeRootWork(state, input?.session_id)?.lanes?.[agentId]?.status === "active") return current;
+    } catch {
+      // An unreadable record is not this lane's.
+    }
+    if (dirname(current) === current) return null;
+  }
+};
+
 export const recordStartWorkSessionEnd = (root, input) => {
   const canonicalRoot = canonicalDirectory(root, "cwd root");
   if (!existsSync(startWorkStatePath(canonicalRoot))) return false;
@@ -2018,8 +2252,13 @@ export const handleStartWorkStop = (root, input) => {
     const progress = readPlanProgress(work.active_plan);
     // Parked steps join the fingerprint, so a newly parked step earns one more continuation.
     const parked = work.pending_boundaries ?? [];
-    const fingerprint = parked.length
-      ? `${progress.fingerprint}:${shortHash(parked.map(({ boundary_id: id }) => id).join(","))}`
+    // A lane active for 30 min with no stop joins the fingerprint too, so it is named once.
+    const nowMs = Date.now();
+    const stuck = Object.values(work.lanes ?? {}).filter(({ status, started_at: startedAt }) => status === "active"
+      && nowMs - (Date.parse(startedAt) || nowMs) >= STUCK_LANE_MS);
+    const flagged = [...parked.map(({ boundary_id: id }) => id), ...stuck.map(({ agent_id: id }) => `lane:${id}`)];
+    const fingerprint = flagged.length
+      ? `${progress.fingerprint}:${shortHash(flagged.join(","))}`
       : progress.fingerprint;
     if (fingerprint === work.continuation.last_emitted_progress_fingerprint) {
       return { handled: false, output: null };
@@ -2037,9 +2276,12 @@ export const handleStartWorkStop = (root, input) => {
     const parkedNote = parked.length
       ? ` Parked, not run: ${parkedList}. Mark a task that cannot be done without one with a \`BLOCKED: <reason>\` line under its row and carry on with the others.`
       : "";
+    const stuckNote = stuck.length
+      ? ` ${stuck.slice(0, 5).map(({ agent_id: id, agent_type: type }) => `Lane ${clipText(id)} (${clipText(type)}) has run 30+ min with no stop; if it is finished or gone, close it with \`litclaude-ai start-work lane-finalize --work-id ${work.work_id} --lane ${clipText(id)} --session-id ${input.session_id}\`.`).join(" ")}`
+      : "";
     const next = progress.next_task
-      ? `Continue work ${work.work_id} with next top-level task: ${progress.next_task}.${parkedNote}`
-      : `Work ${work.work_id} has all top-level tasks checked; run final verification and cleanup, then complete it with \`litclaude-ai start-work complete --work-id ${work.work_id} --session-id ${input.session_id} --expected-revision ${work.revision} --idempotency-key complete-${work.work_id}-${work.revision}\`.`;
+      ? `Continue work ${work.work_id} with next top-level task: ${progress.next_task}.${parkedNote}${stuckNote}`
+      : `Work ${work.work_id} has all top-level tasks checked; run final verification and cleanup, then complete it with \`litclaude-ai start-work complete --work-id ${work.work_id} --session-id ${input.session_id} --expected-revision ${work.revision} --idempotency-key complete-${work.work_id}-${work.revision}\`.${stuckNote}`;
     // Every open task waits on the user (BLOCKED:): say so once and let the session stop. The
     // fingerprint below keeps the next Stop silent until the plan changes.
     const waiting = !progress.next_task && progress.unchecked > 0;

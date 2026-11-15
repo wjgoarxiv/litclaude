@@ -33,7 +33,7 @@
     "id": "N2",
     "command": "herdr tab create --workspace w2B --cwd /Users/woojin/Desktop/02_Areas/01_Codes_automation/27_LITFAMILY/.worktrees/litclaude-lane-feedback --label plan-1042 --no-focus",
     "expect": "deny",
-    "why": "herdr tab create is not one of the six read verbs"
+    "why": "herdr tab create takes no --label, and its --cwd is outside the project"
   },
   {
     "id": "N3",
@@ -51,12 +51,12 @@
     "id": "B1",
     "command": "herdr agent prompt lane-xfilm \"lit approve\"",
     "expect": "deny",
-    "why": "bang-command request: herdr agent prompt sends keys to another lane"
+    "why": "an approval typed into the worker is the user's word; a watcher may nudge but not approve (F2 review H1, user decision 2026-11-15)"
   },
   {
     "id": "B2",
     "command": "herdr agent prompt lane-plan1042 \"/litclaude:start-work plans/litclaude-1042.md\"",
     "expect": "deny",
-    "why": "bang-command request: herdr agent prompt sends keys to another lane"
+    "why": "a typed start-work is the approval of its grants; a watcher may not type it for the user (F2 review H1, user decision 2026-11-15)"
   }
 ]

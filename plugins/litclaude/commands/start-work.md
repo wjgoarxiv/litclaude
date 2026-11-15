@@ -128,19 +128,37 @@ work/revision values, and generic agent CLI calls do not resume. Forbidden
 release, registry, host-config, destructive VCS, commit, push, publish, tag, and
 version-bump boundaries are blocked rather than paused.
 
-Another session in the same project may watch a running work without changing it:
-reads, searches, `herdr agent read|get|list`, `herdr pane read|list` and
-`herdr tab list`, and `cd <dir> && …` chains of grep or rg reads, each with up to
-four read-only pipe filters (`grep`, `rg`, `head`, `tail`, `cut`, `wc`, `sort`,
-`uniq`). Everything else it sends, including other herdr verbs, redirects, `;`,
-`$` and loops, is refused with the work's name and how to take it over. The
+Another session in the same project may watch a running work without changing its
+files: reads, searches, `ls` and `find` (without `-exec`, `-ok`, `-delete` or
+`-fprint`), `herdr agent read|get|list`, `herdr pane read|list` and
+`herdr tab list`, and `cd <dir> && …` chains of these, each with up to four
+read-only pipe filters (`grep`, `rg`, `head`, `tail`, `cut`, `wc`, `sort`,
+`uniq`). It may also nudge the worker: `herdr agent prompt <name> "<text>"`
+(with `--wait`, `--timeout <ms>`), `herdr pane split` and `herdr tab create`
+(a `--cwd` inside the project). A double-quoted text is data and may not hold
+`$`, a backtick, `\` or `!`. It may not open with a slash command or a `lit`
+control word either (`lit approve`, `lit cancel`, `/litclaude:start-work …`),
+and may not be a whole `go` prompt (`go`, `lit go`, `ㄱㄱ`, `고`, `진행`):
+those typed words are the user's approvals in the worker, so only the user sends
+them. It may write notes in its own scratchpad and in the
+project memory folder, which every session of the project shares and loads.
+Everything else it sends, including `herdr pane close`,
+`pane run`, `agent send-keys`, `agent start`, redirects, `;`, `$`, loops and
+project writes, is refused with the work's name and how to take it over. The
 owner session's own guard is unchanged.
 
 The official `PreToolUse` route performs this check before native tool
 execution. An allow result emits no hook output and preserves Claude's normal
 permission flow; a deny uses `permissionDecision: deny`. `PostToolUse` never
 grants authority. Subagent lifecycle hooks bind root-session, child-lane, and
-Claude-owned worktree identity, and active lanes gate completion.
+Claude-owned worktree identity, and active lanes gate completion. A lane that
+stops inside a nested checkout still finalizes on the run it started in. A lane
+active for 30 minutes with no stop is named in the Stop continuation with its
+close command, `litclaude-ai start-work lane-finalize --work-id <id> --lane
+<agent-id> --session-id <owner>`, which only the owner session may run, and only
+on a lane active for 30 minutes; nothing finalizes a lane silently. Allowed tool calls from the owner and its lanes count
+as activity (one state write a minute at most), so a busy run never looks idle
+to another session and cannot be taken over as idle.
 
 This command is the Claude Code-native execution transition for an approved
 plan. If the hook did not start the work (several open plans, a plan it could not

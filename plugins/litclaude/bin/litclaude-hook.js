@@ -52,6 +52,7 @@ import {
   recordStartWorkSessionEnd,
   recordStartWorkSubagentStart,
   recordStartWorkSubagentStop,
+  laneRootFor,
   resumeStartWorkFromUserPrompt,
   StartWorkLifecycleError,
   startWorkStructuredContext,
@@ -660,7 +661,12 @@ const withoutCode = (text) => withoutClosedCodeFences(text).replace(/`[^`]*`/gu,
 // A `<cross-session-message>` block (another session's message relayed into this one, observed
 // 2026-10-27 firing the lit-adhd route on test names it mentioned) is someone else's text too;
 // its opening tag may carry attributes.
-const withoutHostNotifications = (text) => text
+// A prompt that OPENS with an unclosed `<task-notification>` (a hand-back cut off by the host) or
+// with the host's `[SYSTEM NOTIFICATION - NOT USER INPUT]` banner is host text from its first
+// character, so the whole prompt is inert (observed 2026-11-15 firing lit-adhd and frontend-ui-ux).
+// A tag mentioned later in a typed prompt is still left alone.
+const HOST_NOTIFICATION_OPENING = /^\s*(?:\[SYSTEM NOTIFICATION - NOT USER INPUT\]|<task-notification>(?![\s\S]*<\/task-notification>))/u;
+const withoutHostNotifications = (text) => HOST_NOTIFICATION_OPENING.test(text) ? " " : text
   .replace(/<task-notification>[\s\S]*?<\/task-notification>/gu, " ")
   .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gu, " ")
   .replace(/<cross-session-message(?:\s[^>]*)?>[\s\S]*?<\/cross-session-message>/gu, " ");
@@ -742,6 +748,16 @@ const slashCommandMentionPattern = new RegExp(
 const slashLitPhrasePattern = /(^|\s)\/lit(?:work)?\s+(?:plan|recap|comprehend|adhd|rewind|review|research|search|query|goal|workflow|dynamic\s+workflow|ultracode|team|team\s+mode|teammates|start\s+work|brainstorm(?:ing)?|ideation|ideas?|hijack(?:ing)?)(?=$|[\s.,;:!?)}\]])/u;
 
 const containsSlashCommandMention = (text) => slashCommandMentionPattern.test(text) || slashLitPhrasePattern.test(text);
+// Why a prompt that opens with the start-work command did not start it, or null when it is not one
+// (a resume route, a prompt that only mentions the command, or one that started).
+const startWorkMissReason = (prompt, parsed, input) => {
+  const text = typeof prompt === "string" ? prompt.trim() : "";
+  if (!/^\/(?:litclaude:)?start-work(?:\s|$)/u.test(text) || /^\/(?:litclaude:)?start-work\s+resume(?:\s|$)/u.test(text)) return null;
+  if (!parsed) return prompt.length > 512 ? "the prompt is longer than 512 characters" : "the prompt is not `/litclaude:start-work <plan>` on its own";
+  if (typeof input.session_id !== "string") return "Claude Code sent no session id";
+  if (typeof input.prompt_id !== "string") return "Claude Code sent no prompt id";
+  return null;
+};
 const familyTriggerTokens = new Set(["autoconference", "autoresearch", "wikify"]);
 const hasSafeFamilyArgumentBoundary = (raw, match) => {
   if (!familyTriggerTokens.has(match[1])) return true;
@@ -1925,6 +1941,11 @@ switch (eventName) {
         context,
         ["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-schematic", "lit-pptx", "lit-docx", "lit-typographic-motion", "readme-studio"].includes(trigger.discipline) ? 4096 : undefined,
       ), systemMessage);
+    } else if (startWorkMissReason(prompt, parsedInvocation, input)) {
+      // A host build (Claude Code 2.1.322) once sent typed start-work prompts that never started and
+      // left only the bare line; naming the failed condition makes the next such case diagnosable.
+      const reason = startWorkMissReason(prompt, parsedInvocation, input);
+      writeContext(`LitClaude did not start start-work: ${reason}. Nothing started. Tell the user this in one sentence and ask them to type \`/litclaude:start-work <plan>\` as the whole prompt.`, "LitClaude start-work did not start.");
     } else {
       // Without a route the model's first move in print mode was to read the workspace, and the
       // run ended before it reached the skill the request described. The sentence is fixed text,
@@ -2169,7 +2190,11 @@ switch (eventName) {
   case "subagent-stop": {
     try {
       const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
-      recordStartWorkSubagentStop(lifecycleRootFor(cwd, input.session_id), input);
+      // A lane stopped inside a nested checkout resolves to that checkout; finalize it where it started.
+      if (!recordStartWorkSubagentStop(lifecycleRootFor(cwd, input.session_id), input)) {
+        const recorded = laneRootFor(cwd, input);
+        if (recorded) recordStartWorkSubagentStop(recorded, input);
+      }
     } catch {
       // SubagentStop remains continuation-inert; completion will fail closed on an active lane.
     }

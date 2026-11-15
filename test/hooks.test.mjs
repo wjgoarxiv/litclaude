@@ -1006,6 +1006,21 @@ describe("Claude hook runner", () => {
     }
   });
 
+  it("ignores a prompt that opens with an unclosed task notification or the host's notification banner", () => {
+    for (const prompt of [
+      `<task-notification> <task-id>b1</task-id> <status>completed</status> <result>Redesigned the settings dashboard UI; what's next on the board is the release.`,
+      "[SYSTEM NOTIFICATION - NOT USER INPUT]\nThis is an automated background-task event. The dashboard layout lane finished; what's next is lit adhd.",
+    ]) {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.systemMessage, undefined, prompt);
+      assertNoWorkflowActivationContext(parsed.hookSpecificOutput.additionalContext, prompt);
+    }
+    const typed = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "Look at the <task-notification> tag handling, then lit plan the fix", cwd: root });
+    assert.match(JSON.parse(typed.stdout).hookSpecificOutput.additionalContext, /lit-plan|Skill\(lit-plan\)/u, "a tag mentioned mid-prompt keeps the user's route");
+  });
+
   it("still activates on genuine user text that accompanies a host notification block", () => {
     const trailing = runHook("user-prompt-submit", {
       hook_event_name: "UserPromptSubmit",

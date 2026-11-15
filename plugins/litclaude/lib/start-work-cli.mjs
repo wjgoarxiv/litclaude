@@ -2,6 +2,7 @@ import { resolveProjectStateRoot } from "./project-state-root.mjs";
 import {
   cancelStartWork,
   completeStartWork,
+  finalizeStartWorkLane,
   handleStartWorkPreToolUse,
   initializeStartWork,
   pauseStartWork,
@@ -20,6 +21,7 @@ Commands:
   pause      Pause only at a new non-forbidden authority boundary.
   cancel     Cancel the active work as a terminal transition.
   complete   Complete active verified work; open plan tasks keep it running.
+  lane-finalize Close a helper lane that never stopped (owner session only).
 
 Resume is intentionally not a generic CLI mutation. A user must submit exactly:
   /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
@@ -69,6 +71,7 @@ const optionsByCommand = {
   pause: new Set(["--work-id", "--session-id", "--expected-revision", "--idempotency-key", "--action", "--target-root", "--root", "--json"]),
   cancel: new Set(["--work-id", "--session-id", "--expected-revision", "--idempotency-key", "--root", "--json"]),
   complete: new Set(["--work-id", "--session-id", "--expected-revision", "--idempotency-key", "--root", "--json"]),
+  "lane-finalize": new Set(["--work-id", "--lane", "--session-id", "--root", "--json"]),
 };
 
 const assertExactOptions = (command, args) => {
@@ -120,6 +123,12 @@ const execute = (root, command, args) => {
       return cancelStartWork(root, commonMutation(args));
     case "complete":
       return completeStartWork(root, commonMutation(args));
+    case "lane-finalize":
+      return finalizeStartWorkLane(root, {
+        workId: required(args, "--work-id"),
+        lane: required(args, "--lane"),
+        sessionId: required(args, "--session-id"),
+      });
     case "resume":
       throw new StartWorkCliError("resume requires the exact trusted explicit UserPromptSubmit route; no generic agent-callable resume bypass exists", 77);
     default:

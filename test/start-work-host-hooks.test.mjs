@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -543,6 +543,87 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  // plans/2026-11-15-litclaude-guard-fixes.md todo 5 (bug 5): a lane that started in the project
+  // root and stopped inside a nested checkout with its own git root never finalized.
+  const laneStatus = (root) => parse(runCli(root, ["status"])).state.works["work-1"];
+  const startLane = (root, agentId = "agent-lane") => {
+    const started = runHook("subagent-start", root, { session_id: "session-root", prompt_id: "prompt-lane", agent_id: agentId, agent_type: "litclaude:lit-executor" });
+    assert.equal(started.status, 0, started.stderr);
+  };
+
+  it("lane stop from worktree and stuck lane: a stop from a nested git checkout finalizes the lane", () => {
+    const root = fixtureRoot();
+    const nested = join(root, ".worktrees", "x");
+    try {
+      initialize(root);
+      mkdirSync(join(nested, ".git"), { recursive: true });
+      startLane(root);
+      const stopped = runHook("subagent-stop", root, {
+        session_id: "session-root", prompt_id: "prompt-lane", stop_hook_active: false,
+        agent_id: "agent-lane", agent_type: "litclaude:lit-executor", cwd: nested, last_assistant_message: "done",
+      });
+      assert.equal(stopped.status, 0, stopped.stderr);
+      assert.equal(laneStatus(root).lanes["agent-lane"].status, "finalized");
+      assert.equal(existsSync(join(nested, ".litclaude", "boulder.json")), false, "no lifecycle is created in the nested checkout");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lane stop from worktree and stuck lane: a lane with no stop for 30 min is named in the Stop continuation with its close command", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      startLane(root);
+      const path = join(root, ".litclaude", "boulder.json");
+      const state = JSON.parse(readFileSync(path, "utf8"));
+      state.works["work-1"].lanes["agent-lane"].started_at = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+      writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+      const stop = runHook("stop", root, { session_id: "session-root", prompt_id: "prompt-stuck", stop_hook_active: false });
+      assert.equal(stop.status, 0, stop.stderr);
+      const reason = parse(stop).reason;
+      assert.match(reason, /agent-lane/u);
+      assert.match(reason, /litclaude-ai start-work lane-finalize --work-id work-1 --lane agent-lane --session-id session-root/u);
+      assert.equal(laneStatus(root).lanes["agent-lane"].status, "active", "a stuck lane is never finalized silently");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lane stop from worktree and stuck lane: lane-finalize from the owner unblocks complete; another session is refused", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      startLane(root);
+      const refused = runCli(root, ["lane-finalize", "--work-id", "work-1", "--lane", "agent-lane", "--session-id", "session-other"]);
+      assert.notEqual(refused.status, 0, refused.stdout);
+      assert.match(parse(refused).error.message, /session does not own/u);
+      assert.equal(laneStatus(root).lanes["agent-lane"].status, "active");
+      const guarded = preTool(root, "Bash", { command: "litclaude-ai start-work lane-finalize --work-id work-1 --lane agent-lane --session-id session-root" }, { prompt_id: "prompt-lf", tool_use_id: "tool-lf" });
+      assert.equal(guarded.stdout, "", "the owner's guard lets the printed close command run");
+      // F2 review M1: a lane that may still be working cannot be closed to get past the completion gate.
+      const fresh = runCli(root, ["lane-finalize", "--work-id", "work-1", "--lane", "agent-lane", "--session-id", "session-root"]);
+      assert.notEqual(fresh.status, 0, fresh.stdout);
+      assert.match(parse(fresh).error.message, /30 minutes/u);
+      const path = join(root, ".litclaude", "boulder.json");
+      const aged = JSON.parse(readFileSync(path, "utf8"));
+      aged.works["work-1"].lanes["agent-lane"].started_at = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+      writeFileSync(path, `${JSON.stringify(aged, null, 2)}\n`);
+      const finalized = runCli(root, ["lane-finalize", "--work-id", "work-1", "--lane", "agent-lane", "--session-id", "session-root"]);
+      assert.equal(finalized.status, 0, finalized.stdout);
+      const work = laneStatus(root);
+      assert.equal(work.lanes["agent-lane"].status, "finalized");
+      assert.equal(work.lanes["agent-lane"].finalized, "abandoned");
+      assert.ok(work.events.some(({ event }) => event === "lane.abandoned"));
+      writePlan(root, true);
+      const revision = parse(runCli(root, ["status"])).state.revision;
+      const completed = runCli(root, ["complete", "--work-id", "work-1", "--session-id", "session-root", "--expected-revision", String(revision), "--idempotency-key", "complete-after-abandon"]);
+      assert.equal(completed.status, 0, completed.stdout);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("renders hostile subagent identities and worktree paths as inert data", () => {
     const root = fixtureRoot();
     const sessionId = "session-root";
@@ -1020,6 +1101,57 @@ describe("start-work pauses only at a real authority boundary", () => {
     }
   });
 
+  // plans/2026-11-15-litclaude-guard-fixes.md todo 3 (bug 6): the owner had to write a node script
+  // for `grep … | head`, `date` and `tmux ls`. A `|` inside quotes is data, never a pipe.
+  it("owner read pipes: quoted filters, cut, uniq, date and tmux ls run; writes and outside reads stay denied", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      mkdirSync(join(root, "plans"), { recursive: true });
+      mkdirSync(join(root, "lib"), { recursive: true });
+      writeFileSync(join(root, "plans", "x.md"), "a b\n");
+      for (const command of [
+        "grep -n \"a b\" plans/x.md | head -5",
+        "date",
+        "date +%s",
+        "date \"+%Y-%m-%d %H:%M\"",
+        "pwd",
+        "tmux ls",
+        "tmux list-sessions",
+        "rg 'x' lib | cut -d: -f1 | sort | uniq -c",
+        "rg x lib | grep -v 'a | sh'",
+        "rg x lib | grep \"a|b\" | head -n 3",
+        "rg x lib | tail -c 200",
+        "npm test 2>&1 | grep -c 'ok '",
+      ]) allowed(preTool(root, "Bash", { command }, { prompt_id: `prompt-pipe-${command.length}`, tool_use_id: `tool-pipe-${command.length}` }));
+      for (const command of [
+        "date -s 1200",
+        "date 1200",
+        "tmux kill-server",
+        "tmux kill-session -t x",
+        "grep x plans/x.md > out",
+        "tail /etc/hosts",
+        "rg x lib | grep \"$(id)\"",
+        "rg x lib | grep '`id`'",
+        "rg x lib | grep 'x' plans/x.md",
+        "rg x lib | sh",
+        "rg x lib | uniq -u out",
+        "rg x lib | cut -f1 out",
+        "rg x lib || tail -1",
+        "rg x lib | head -1 | head -1 | head -1 | head -1 | head -1",
+        "rg x lib | grep 'unclosed",
+      ]) {
+        const output = denied(preTool(root, "Bash", { command }, { prompt_id: `prompt-nopipe-${command.length}`, tool_use_id: `tool-nopipe-${command.length}` }));
+        assert.equal(output.permissionDecision, "deny", command);
+      }
+      const outside = denied(preTool(root, "Bash", { command: "tail /etc/hosts" }, { prompt_id: "prompt-hosts", tool_use_id: "tool-hosts" })).permissionDecisionReason;
+      assert.match(outside, /Scope roots:/u, "an outside-grant read says how a plan names the folder");
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "active", "a refused Bash shape never pauses the work");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("T11 writes under macOS /tmp resolve through the symlink instead of failing closed", { skip: process.platform !== "darwin" }, () => {
     const root = fixtureRoot();
     const scratch = mkdtempSync("/tmp/litclaude-t11-");
@@ -1057,7 +1189,7 @@ describe("start-work shared with other sessions in the same project", () => {
       assert.equal(read.status, 0, read.stderr);
       const readOutput = parse(read).hookSpecificOutput;
       assert.equal(readOutput.permissionDecision, undefined, "a read is not refused");
-      assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read, not change files\./u);
+      assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read, nudge its worker with `herdr agent prompt` and write notes in your scratchpad or the shared project memory, not change project files\./u);
       const statusRun = other(root, "Bash", { command: "litclaude-ai start-work status" });
       assert.notEqual(statusRun.stdout && parse(statusRun).hookSpecificOutput.permissionDecision, "deny");
       const skill = other(root, "Skill", { skill: "litclaude:lit-recap" });
@@ -1132,6 +1264,30 @@ describe("start-work shared with other sessions in the same project", () => {
       assert.equal(status(root).root_session_id, "session-root", "a different plan never adopts");
       typed(root, "/litclaude:start-work plans/approved.md");
       assert.equal(status(root).root_session_id, "session-other");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // plans/2026-11-15-litclaude-guard-fixes.md todo 4 (bug 4): a busy run showed "last activity 3h"
+  // because only ledger events moved updated_at, and could be taken over while it worked.
+  it("tool calls refresh activity: a busy owner never looks idle, and the heartbeat writes at most once a minute", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      writeFileSync(join(root, "a.txt"), "a");
+      ageWork(root, 3);
+      const first = preTool(root, "Read", { file_path: join(root, "a.txt") }, { prompt_id: "prompt-beat-1", tool_use_id: "tool-beat-1" });
+      assert.equal(first.stdout, "", first.stdout);
+      const statePath = join(root, ".litclaude", "boulder.json");
+      const written = statSync(statePath).mtimeMs;
+      const read = parse(other(root, "Read", { file_path: join(root, "a.txt") })).hookSpecificOutput;
+      assert.match(read.additionalContext, /\(last activity under a minute ago\)/u);
+      typed(root, "/litclaude:start-work plans/approved.md");
+      assert.equal(status(root).root_session_id, "session-root", "a busy run is not taken over as idle");
+      const second = preTool(root, "Read", { file_path: join(root, "a.txt") }, { prompt_id: "prompt-beat-2", tool_use_id: "tool-beat-2" });
+      assert.equal(second.stdout, "", second.stdout);
+      assert.equal(statSync(statePath).mtimeMs, written, "a second owner call within 60 s writes nothing");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1214,6 +1370,26 @@ describe("typed start-work is the approval", () => {
       assert.equal(work(root), null, "two open plans: nothing starts");
       assert.match(listed, /plans\/p\.md/u);
       assert.match(listed, /plans\/q\.md/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("T2b names why a prompt that opens with start-work did not start it", () => {
+    const root = project();
+    try {
+      const mixed = prompt(root, "/litclaude:start-work plans/p.md and then also fix the README");
+      assert.equal(work(root), null);
+      assert.match(mixed, /did not start start-work: the prompt is not `\/litclaude:start-work <plan>` on its own/u);
+      const long = prompt(root, `/litclaude:start-work plans/${"x".repeat(600)}.md`);
+      assert.match(long, /did not start start-work: the prompt is longer than 512 characters/u);
+      const noPromptId = prompt(root, "/litclaude:start-work plans/p.md", "session-root", null);
+      assert.equal(work(root), null);
+      assert.match(noPromptId, /did not start start-work: Claude Code sent no prompt id/u);
+      const noSession = prompt(root, "/start-work plans/p.md", null);
+      assert.match(noSession, /did not start start-work: Claude Code sent no session id/u);
+      assert.match(noSession, /type `\/litclaude:start-work <plan>` as the whole prompt/u);
+      assert.doesNotMatch(prompt(root, "please /litclaude:start-work plans/p.md"), /did not start start-work/u, "a prompt that only mentions it keeps the plain line");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1698,6 +1874,8 @@ describe("the run's own harness folders need no boundary", () => {
         ["Read", { file_path: files.subagent }],
         ["Grep", { pattern: "x", path: join(project, "session-root", "subagents") }],
         ["Read", { file_path: files.memory }],
+        // The project's memory folder, shared by every session of the project, is writable for notes (plan 2026-11-15 todo 2); it was refused before.
+        ["Write", { file_path: files.memory, content: "x" }],
         ["Read", { file_path: files.claudeMd }],
         ["Read", { file_path: files.skill }],
         ["Read", { file_path: files.tasks }],
@@ -1715,7 +1893,6 @@ describe("the run's own harness folders need no boundary", () => {
         ["Read", { file_path: files.otherResult }],
         ["Read", { file_path: files.otherSubagent }],
         ["Write", { file_path: files.claudeMd, content: "x" }],
-        ["Write", { file_path: files.memory, content: "x" }],
         ["Write", { file_path: files.tasks, content: "x" }],
       ];
       for (const [toolName, toolInput] of refused) {
@@ -1733,6 +1910,41 @@ describe("the run's own harness folders need no boundary", () => {
       }
     } finally {
       for (const path of [config, hostTmp, skillsTarget, root, scratch]) rmSync(path, { recursive: true, force: true });
+    }
+  });
+
+  it("lets a watching session write its own scratchpad and memory, and nothing of the owner's or the project's", () => {
+    const config = realpathSync(fixtureRoot());
+    const hostTmp = realpathSync(fixtureRoot());
+    const root = realpathSync(fixtureRoot());
+    try {
+      initialize(root);
+      const project = join(config, "projects", KEY);
+      const host = join(hostTmp, `claude-${uid}`);
+      const files = {
+        ownScratchpad: join(host, KEY, "session-other", "scratchpad", "n.txt"),
+        memory: join(project, "memory", "MEMORY.md"),
+        ownerScratchpad: join(host, KEY, "session-root", "scratchpad", "n.txt"),
+        projectFile: join(root, "README.md"),
+      };
+      for (const file of Object.values(files)) {
+        mkdirSync(join(file, ".."), { recursive: true });
+        writeFileSync(file, "x");
+      }
+      const env = { CLAUDE_CONFIG_DIR: config, CLAUDE_CODE_TMPDIR: hostTmp };
+      const watcher = { session_id: "session-other", transcript_path: join(project, "session-other.jsonl") };
+      const decide = (file) => {
+        const result = preToolIn(env, root, "Write", { file_path: file, content: "y" }, { ...watcher, tool_use_id: `tool-${file}` });
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim() ? parse(result).hookSpecificOutput?.permissionDecision ?? "allow" : "allow";
+      };
+      assert.equal(decide(files.ownScratchpad), "allow", "own scratchpad");
+      assert.equal(decide(files.memory), "allow", "own memory");
+      assert.equal(decide(files.ownerScratchpad), "deny", "the owner's scratchpad");
+      assert.equal(decide(files.projectFile), "deny", "a project file");
+      assert.equal(JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")).works["work-1"].status, "active");
+    } finally {
+      for (const path of [config, hostTmp, root]) rmSync(path, { recursive: true, force: true });
     }
   });
 });

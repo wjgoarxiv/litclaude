@@ -21,6 +21,41 @@ export const EXTRA_DENIES = [
   "grep \"$(id)\" a",
   "herdr agent read x --output=out.txt",
   "herdr pane read w2B:p61 --send-keys=enter",
+  // The nudge verbs (plan 2026-11-15 todo 2) stop at prompting and splitting.
+  "herdr pane close w2B:p61",
+  "herdr agent start x --kind codex --pane w2B:p61",
+  "herdr agent prompt worker \"$(id)\"",
+  "herdr agent prompt worker \"`id`\"",
+  "herdr agent prompt worker \"a\\\" ; b\"",
+  "herdr agent prompt worker \"check\" --keys=enter",
+  "herdr agent prompt worker",
+  "herdr pane split --current --cwd /etc --no-focus",
+  "herdr pane split --current --direction diagonal",
+  "herdr tab create --workspace w2B --label x",
+  "find . -delete",
+  "find . -name x -fprint out",
+  "find . -execdir id",
+  "ls a > out",
+  // F2 review H1: a watcher may not type the user's approvals into the worker.
+  "herdr agent prompt worker \"lit cancel\"",
+  "herdr agent prompt worker \"LIT 승인\"",
+  "herdr agent prompt worker \"  litwork start work\"",
+  "herdr agent prompt worker \"/start-work resume --work-id w\"",
+  "herdr agent prompt worker \"go\"",
+  "herdr agent prompt worker \"진행\"",
+  "herdr agent prompt worker \"ㄱㄱ\"",
+  // F2 review L1: BSD `find -f <root>` names a root the checks would not see.
+  "find -f /missing-root -name x",
+];
+// Watcher commands the nudge change lets through, each as one inert command.
+export const NUDGE_ALLOWS = [
+  "herdr agent prompt worker \"check lane\"",
+  "herdr agent prompt worker \"the lit-plan is ready; please read it\"",
+  "herdr agent prompt worker \"a; rm -rf x | y && z\" --wait --timeout 60000",
+  "herdr pane split --current --direction right --no-focus",
+  "herdr tab create --workspace w2B --cwd plans --no-focus",
+  "find plans -name '*.md'",
+  "ls -la plans",
 ];
 
 // The replay names folders of the machine it came from. Every absolute path is mapped to an
