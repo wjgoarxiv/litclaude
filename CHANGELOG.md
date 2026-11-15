@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.52 - 2026-11-16
 
 - LitClaude now saves a handoff before every compaction, by default. A new `PreCompact` hook writes
   `.litclaude/auto-handoff/precompact-<session>.md` (the plan's done, current and next rows, and the working
