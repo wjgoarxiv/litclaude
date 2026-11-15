@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { SCOPE_LINE } from "./plan-scope-roots.mjs";
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
+import { recordRunEnd } from "./shown-ledger.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
 const SCHEMA_VERSION = 3;
@@ -805,6 +806,7 @@ const finishWork = (root, operation, request) => withLock(root, () => {
   const response = { ok: true, operation, state: publicState(state) };
   rememberIdempotency(state, request.idempotencyKey, fingerprint, response);
   saveState(canonicalRoot, state);
+  recordRunEnd({ stateRoot: canonicalRoot, source: "start-work", id: work.work_id, outcome: operation === "complete" ? "sent" : "nothing" });
   return response;
 });
 
@@ -851,6 +853,7 @@ export const cancelStartWorkFromUserPrompt = (root, { sessionId, promptId }) => 
     const response = { cancelled: { workId: work.work_id, plan: work.plan_name, otherSession: owner !== sessionId, lanes } };
     rememberIdempotency(state, key, requestHash("typed-cancel", { sessionId, promptId }), response);
     saveState(canonicalRoot, state);
+    recordRunEnd({ stateRoot: canonicalRoot, source: "start-work", id: work.work_id, outcome: "nothing" });
     return response;
   });
 };
@@ -1893,8 +1896,24 @@ export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}
       origin_prompt_id: originPromptId,
     });
     saveState(canonicalRoot, state);
-    return denial(parkedMessage(boundary));
+    // `parked` is set only here, for a step parked for the first time, so a retry never carries it.
+    return { ...denial(parkedMessage(boundary)), parked: { workId: work.work_id, boundaryId, action: classified.action, root: targetRoot } };
   });
+};
+
+/** This session's running work and its parked steps (with their ids), or null. Never throws. */
+export const parkedStartWorkSteps = (root, sessionId) => {
+  try {
+    const state = readState(canonicalDirectory(root, "cwd root"), { optional: true });
+    const work = state?.active_work_id ? state.works?.[state.active_work_id] : null;
+    if (!work || work.root_session_id !== sessionId || !["active", "paused"].includes(work.status)) return null;
+    return {
+      workId: work.work_id,
+      parked: (work.pending_boundaries ?? []).map(({ boundary_id: boundaryId, action, root: parkedRoot }) => ({ boundaryId, action, root: parkedRoot })),
+    };
+  } catch {
+    return null;
+  }
 };
 
 const activeRootWork = (state, sessionId) => {
@@ -2044,6 +2063,7 @@ export const handleStartWorkStop = (root, input) => {
       payload: clone(output),
     };
     saveState(canonicalRoot, state);
+    if (waiting) recordRunEnd({ stateRoot: canonicalRoot, source: "start-work", id: `${work.work_id}:${output.continuation_id}`, outcome: "waiting" });
     return { handled: true, output };
   });
 };

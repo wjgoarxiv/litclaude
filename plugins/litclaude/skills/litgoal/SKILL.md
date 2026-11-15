@@ -422,4 +422,21 @@ Stop and surface the state when:
 
 Leftover runtime state means `blocked`, not `pass`.
 
+## Check back later (opt-in)
+
+When the goal stops on something outside this session (a criterion that waits on the user, a
+`needs_user_decision` checkpoint, a long external job), you may offer one follow-up, once: "Want me to
+check back in N minutes? It only reports." Ask; do not schedule anything before the user says yes.
+
+- On a yes, call `CronCreate` once, one-shot (`recurring: false`), with the prompt exactly
+  `lit check-back` and a time N minutes from now. Never pick another prompt, never repeat it, never
+  call it from a turn the timer started. A no, or silence, means no timer.
+- Say the limit plainly when you offer it: the timer lives only in this Claude Code session. It is gone
+  when the session exits; `--resume` or `--continue` brings back one that has not expired.
+- When `lit check-back` arrives, LitClaude's prompt hook builds the report itself from the litgoal
+  state, start-work progress and parked steps, and the last recorded run end. If those say the same
+  as the last report, the prompt ends there and you get no turn. Otherwise you get one report-only
+  turn: relay the report in a few lines and stop. The guard denies writes, Bash, agents, schedule
+  changes and network tools in that turn until the user types again.
+
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:182f034d168c -->

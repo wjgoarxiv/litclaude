@@ -1523,7 +1523,8 @@ describe("lit cancel ends a run from any window", () => {
     const root = project();
     try {
       start(root);
-      const before = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && path !== "boulder.json"));
+      // `shown/` is the run-end record: a cancel writes one `nothing` row there, and nothing else.
+      const before = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && !path.startsWith("shown") && path !== "boulder.json"));
       const context = prompt(root, "lit cancel", "session-root", "prompt-cancel");
       assert.equal(active(root), null);
       assert.equal(state(root).history.at(-1).status, "cancelled");
@@ -1531,8 +1532,9 @@ describe("lit cancel ends a run from any window", () => {
       assert.match(context, /cancelled start-work/u);
       assert.match(context, /p\.md/u);
       assert.doesNotMatch(context, /LITWORK MODE ENABLED|LIT IGNITED|--work-id|lit approve/u);
-      const after = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && path !== "boulder.json"));
+      const after = new Set(readdirSync(join(root, ".litclaude"), { recursive: true }).map(String).filter((path) => !path.startsWith("start-work") && !path.startsWith("shown") && path !== "boulder.json"));
       assert.deepEqual([...after].filter((path) => !before.has(path)), [], "no ignition, stack or lit-plan record");
+      assert.deepEqual(readFileSync(join(root, ".litclaude", "shown", "ledger.jsonl"), "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line).outcome), ["nothing"]);
       // A host retry of the same prompt changes nothing.
       prompt(root, "lit cancel", "session-root", "prompt-cancel");
       assert.equal(cancelledEvents(root).length, 1);

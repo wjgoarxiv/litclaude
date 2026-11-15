@@ -36,6 +36,16 @@
             "statusMessage": "checking LitClaude bounded authority"
           }
         ]
+      },
+      {
+        "matcher": "^(WebFetch|WebSearch|CronCreate|CronDelete|ScheduleWakeup|SendMessage|EnterWorktree|Workflow|RemoteTrigger|mcp__.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" check-back-guard",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -60,6 +70,30 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" post-tool-use-failure",
             "timeout": 10,
             "statusMessage": "moving the LIT card's workflow map"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" pre-compact",
+            "timeout": 30,
+            "statusMessage": "saving a LitClaude handoff before compaction"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "^(permission_prompt|idle_prompt|agent_needs_input)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" notification",
+            "timeout": 10
           }
         ]
       }

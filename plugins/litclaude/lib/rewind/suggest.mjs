@@ -2,15 +2,18 @@
 // last three days, say once a day that `lit adhd` briefs them all on one screen. It looks only at
 // this folder's own transcript folder (no scan of other projects) and stats file times, never
 // contents, so it stays cheap on every session start. A marker under `.litclaude/adhd/` keeps it
-// to one nudge per calendar day per project. A symlinked `.litclaude`, folder or marker (a cloned
+// to one nudge per calendar day per project, and the shown-ledger keeps the same words from coming
+// back within a week. A symlinked `.litclaude`, folder or marker (a cloned
 // repository can carry one) is never followed: the nudge is then skipped, not written elsewhere.
 import { lstatSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { prepareStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
+import { recordShown, wasShown } from "../shown-ledger.mjs";
 import { projectSlug } from "./transcripts.mjs";
 
 export const RECENT_MS = 3 * 24 * 60 * 60 * 1000;
+const REPEAT_MS = 7 * 24 * 60 * 60 * 1000;
 const SCAN_LIMIT = 400;
 
 const dayOf = (now) => new Date(now).toISOString().slice(0, 10);
@@ -49,8 +52,12 @@ export const adhdSuggestion = ({ cwd, sessionId, configDir, stateRoot, now = Dat
   } catch {
     // No marker yet, or an unreadable one: suggest and rewrite it.
   }
+  const text = `${count} other recent ${count === 1 ? "session" : "sessions"} here · type \`lit adhd\` for a one-screen brief of where each stands`;
+  // The same words were already shown here within the week: a new day alone is no reason to repeat them.
+  if (wasShown({ stateRoot, text, now, ttlMs: REPEAT_MS })) return null;
   const staging = `${marker}.${process.pid}.tmp`;
   writeFileSync(staging, `${JSON.stringify({ day: dayOf(now) })}\n`, { flag: STATE_WRITE_FLAG });
   renameSync(staging, marker);
-  return `${count} other recent ${count === 1 ? "session" : "sessions"} here · type \`lit adhd\` for a one-screen brief of where each stands`;
+  recordShown({ stateRoot, id: "adhd", text, now });
+  return text;
 };

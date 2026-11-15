@@ -317,6 +317,21 @@ commit/push or publish action in this session. On resume, reread the ledger and
 latest git status before continuing. Never revert dirty worktree changes you did
 not make; either work around them or ask when they block the task.
 
+### Offer a check-back (opt-in)
+
+A loop that ends blocked on something that will change by itself (a CI run, a review, a parked
+start-work step the user has not settled) may offer one follow-up timer, once: "I can check back in
+N minutes and only report. Want that?" The user's yes is the only trigger; without it, schedule
+nothing.
+
+- On a yes: one `CronCreate` call, `recurring: false`, prompt exactly `lit check-back`, N minutes out.
+  No other prompt text, no second timer, no timer from a turn the timer itself started.
+- Tell the user the limit in the same message: the timer belongs to this Claude Code session and dies
+  with it (an unexpired one comes back on `--resume` or `--continue`).
+- LitClaude answers `lit check-back` in its prompt hook. When nothing changed since the last report,
+  no turn runs at all. When something did, the turn is report-only: relay the report, then stop. Writes,
+  Bash, agents, schedule changes and network tools are denied there until the user's next message.
+
 ## Porting Note
 
 LitClaude original Litwork text is intentionally demanding. LitClaude keeps

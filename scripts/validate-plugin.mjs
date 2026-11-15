@@ -55,7 +55,7 @@ async function main() {
   await exists(join(pluginRoot, "lib", "start-work-cli.mjs"));
 
   const hooks = await readJson(join(pluginRoot, "hooks", "hooks.json"));
-  for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SubagentStart", "SubagentStop", "SessionEnd"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact", "Notification", "Stop", "SubagentStart", "SubagentStop", "SessionEnd"]) {
     assert.ok(hooks.hooks[event], `missing hook event ${event}`);
   }
 

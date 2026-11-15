@@ -488,12 +488,12 @@
     },
     "lit-loop": {
       "skillMd": {
-        "bytes": 22551,
-        "sha256": "873bda27cdce96f4b17eb77146a0ac2c0da81d237ce75d2272def01aa3c4df19"
+        "bytes": 23555,
+        "sha256": "49975e96479917141f83072c49669173e8b9287d5ed8f2c222f1ed5ea292cdcd"
       },
       "files": 1,
-      "bytes": 22551,
-      "sha256": "00d313139351aad4398be7962353350b7adaf8c7eff2a0ab97de7beb254cb88c"
+      "bytes": 23555,
+      "sha256": "3e6c4b813762432a389977af58cae6ed2524c21dd2adf0588e09076a73ef7684"
     },
     "lit-plan": {
       "skillMd": {
@@ -560,12 +560,12 @@
     },
     "litgoal": {
       "skillMd": {
-        "bytes": 20402,
-        "sha256": "d0db4d57df5a4e64e992a942b2e90f5653bd389d1628622da8ab48bdf57b4c67"
+        "bytes": 21655,
+        "sha256": "0a5e7f0bcea03ef4241c58dec72841bb2105e272205d32f6acbe308ed52d2b53"
       },
       "files": 1,
-      "bytes": 20402,
-      "sha256": "ce441cecde256ee42a956cefbe61d3d7b529e65811c15ab693bd1311d6e869e6"
+      "bytes": 21655,
+      "sha256": "98c52bc4b9fed51020d3837925b1e6c678e67188320efd2d2b70032bb5371ded"
     },
     "litresearch": {
       "skillMd": {
@@ -825,6 +825,7 @@
     "plugins/litclaude/lib/canonical-runtime-commitments.mjs",
     "plugins/litclaude/lib/canonical-skill-catalog.mjs",
     "plugins/litclaude/lib/canonical-skill-resources.mjs",
+    "plugins/litclaude/lib/check-back.mjs",
     "plugins/litclaude/lib/context-pressure.mjs",
     "plugins/litclaude/lib/deliverable-hedge-guard.mjs",
     "plugins/litclaude/lib/durable-plan.mjs",
@@ -867,8 +868,10 @@
     "plugins/litclaude/lib/official-build.mjs",
     "plugins/litclaude/lib/output_mark.py",
     "plugins/litclaude/lib/owner-lock.mjs",
+    "plugins/litclaude/lib/park-ping.mjs",
     "plugins/litclaude/lib/plan-scope-roots.mjs",
     "plugins/litclaude/lib/plan-task-rows.mjs",
+    "plugins/litclaude/lib/precompact-snapshot.mjs",
     "plugins/litclaude/lib/project-state-root.mjs",
     "plugins/litclaude/lib/public-source-reader/barrier-detection.mjs",
     "plugins/litclaude/lib/public-source-reader/content-proof.mjs",
@@ -902,6 +905,7 @@
     "plugins/litclaude/lib/secret-shapes.mjs",
     "plugins/litclaude/lib/secure-path-read.mjs",
     "plugins/litclaude/lib/session-liveness.mjs",
+    "plugins/litclaude/lib/shown-ledger.mjs",
     "plugins/litclaude/lib/skill-resource-integrity.mjs",
     "plugins/litclaude/lib/start-work-cli.mjs",
     "plugins/litclaude/lib/start-work-continuation.mjs",

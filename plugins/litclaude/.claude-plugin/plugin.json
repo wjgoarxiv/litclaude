@@ -39,6 +39,12 @@
       "description": "off, or finish: a notification through your own notification channel when LIT work completes or a LIT turn longer than three minutes ends. finish+sound also plays a sound once LitClaude ships one; until then it notifies like finish.",
       "default": "off"
     },
+    "park_ping": {
+      "type": "string",
+      "title": "Ping when start-work parks a step",
+      "description": "off, on (an OSC 9 terminal notification) or osc777 (for terminals that read only OSC 777): one ping per parked step, naming what waits and to type lit approve or lit cancel. It approves nothing. Inside tmux the notification reaches your terminal only with allow-passthrough on.",
+      "default": "off"
+    },
     "club": {
       "type": "string",
       "title": "LIT club look",

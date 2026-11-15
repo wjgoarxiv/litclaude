@@ -12,7 +12,7 @@ surface: Claude Code plugin hooks
 runtime: plugins/litclaude/bin/litclaude-hook.js
 registration: plugins/litclaude/hooks/hooks.json
 settings_activation: global Claude settings.json enabledPlugins entry for litclaude@litclaude-ai
-events: [SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop, SessionEnd]
+events: [SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, PreCompact, Notification, Stop, SubagentStart, SubagentStop, SessionEnd]
 verdicts: [PASS, FAIL, BLOCKED]
 ```
 
@@ -36,6 +36,8 @@ verdicts: [PASS, FAIL, BLOCKED]
 | `UserPromptSubmit` | route classifier, static-rule straggler lane, and explicit resume gate | Prompt routing adds guidance. Static-rule delivery may update rule dedup state; the exact start-work resume route may also mutate code-owned lifecycle state. |
 | `PreToolUse` | bounded-authority and humanizer pre-write enforcement | Allows normal Claude permission handling only for classified, authorized action/root pairs; denies supported reader-facing text writes when new prose has a block-tier finding. |
 | `PostToolUse` | conditional post-edit routing, dynamic rule injection, and document humanizer check | Names only the checks the edit earned and only the rules whose globs matched. It rechecks successfully created DOCX/PPTX/PDF files when a supported tool or successful Bash output supplies a path; findings ask for revision without claiming rollback or completion. |
+| `PreCompact` | handoff save before compaction | Writes `.litclaude/auto-handoff/precompact-<session>.md` and prints one short instruction line; never blocks compaction, exits 0 on every failure. |
+| `Notification` | opt-in park ping fallback | With the `park_ping` option on, emits one `terminalSequence` for a parked start-work step not pinged yet; approves nothing, silent otherwise. |
 | `Stop` | lit-plan and interface-probe gates, start-work continuation, then litgoal autoloop gate | Root-session and progress-bound; no unbounded loop. |
 | `SubagentStart` / `SubagentStop` | lane identity observation | Records the root session, child lane, and Claude-owned worktree without emitting child continuation. |
 | `SessionEnd` | root-session receipt | Records the observed end, marks the session's workflow stack `endedAt` so other sessions' cards drop its row, and emits no continuation. |
@@ -98,7 +100,8 @@ closed; ordinary owners remove their lock artifact, and only a stale valid nonce
 whose process is no longer alive may be replaced through a fenced takeover. Live or malformed
 incumbents are not silently removed. Claude Code does not collect model context from its
 `PostCompact` stdout, so LitClaude does not register that event; the legacy runner is a
-silent no-op for callers that still invoke it directly.
+silent no-op for callers that still invoke it directly. `PreCompact` is registered: its plain stdout
+becomes instructions for the compaction summary.
 
 | Event | Runner | Purpose |
 | --- | --- | --- |
@@ -107,6 +110,8 @@ silent no-op for callers that still invoke it directly.
 | `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `PostToolUseFailure` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use-failure` | For a Bash command that exits non-zero, such as a bare failing `npm test`, moves the LIT card's lit-loop map from what the command wrote and from its failing test run, which never counts as VERIFY. Nothing else runs on a failed tool. |
+| `PreCompact` | `plugins/litclaude/bin/litclaude-hook.js pre-compact` | Saves a handoff before every compaction, manual or automatic, unless `LITCLAUDE_PRECOMPACT_HANDOFF=0`: the plan's row state and `git status`, written by the hook itself without a model turn. Answers with one short line naming the current plan row, which Claude Code adds to its summary instructions. See [Save before every compaction](#save-before-every-compaction). |
+| `Notification` | `plugins/litclaude/bin/litclaude-hook.js notification` | Matcher `permission_prompt`, `idle_prompt`, `agent_needs_input`. Only with the `park_ping` plugin option on: pings once for a parked start-work step that has not been pinged yet. See [Ping when a step parks](#ping-when-a-step-parks). |
 | `Stop` | `plugins/litclaude/bin/litclaude-hook.js stop` | Holds a lit-plan turn with no persisted plan and a lit workflow turn that edited interface files without a clean interface-probe run (each at most twice per turn), emits bounded start-work continuation on new progress, otherwise applies the opt-in litgoal autoloop gate, and last of all, with automatic handoff on, blocks once per crossing of the chosen percent to have the handoff written. |
 | `SubagentStart` | `plugins/litclaude/bin/litclaude-hook.js subagent-start` | Registers child-lane and Claude-owned worktree identity. |
 | `SubagentStop` | `plugins/litclaude/bin/litclaude-hook.js subagent-stop` | Finalizes the lane without child continuation, and gives a background review-work reviewer's verdict to the LIT card's stage record. |
@@ -296,6 +301,54 @@ The pieces, in the order they run:
 `litclaude doctor` prints `Auto-handoff: off` or `Auto-handoff: on at <percent>%` for the
 project it runs in. The model still has to follow the block reason to write the file; the hook
 can require nothing more than that.
+
+### Save before every compaction
+
+Separate from the percent feature above, and on by default. Claude Code runs the `PreCompact` hook
+before every compaction, whether the user typed `/compact` or the host started it. LitClaude's
+`pre-compact` runner then writes `.litclaude/auto-handoff/precompact-<session>.md` itself, with no
+model turn and no setting to pick: the plan file in use (the running start-work plan, else the newest
+valid `plans/<slug>.md`), how many rows are done, the current and next row, rows waiting on the user,
+and `git status --short --branch` (at most 25 lines). It also writes `precompact-<session>.json`, the
+record that makes the reload happen once.
+
+The runner prints one plain line on stdout (about 200 characters, never more than 600), for example
+`LitClaude saved a handoff at .litclaude/auto-handoff/precompact-<session>.md. In the summary keep the plan plans/x.md, its 2 of 8 rows done, and the current row "3. ...". Do not redo rows that are already ticked.`
+Claude Code adds that line to the instructions for the summary. The hook never blocks compaction:
+a state folder it cannot write (a symlinked `.litclaude`, say), a missing plan or a git failure
+leaves out that part, and the exit code is always 0.
+
+On `SessionStart` with `source: compact` the same session gets the file back once: its first 4,000
+characters, marked as data, with its path. A record older than six hours, another session's file,
+and a second compaction get nothing. When the percent feature also fired, both reloads appear.
+
+`LITCLAUDE_PRECOMPACT_HANDOFF=0` turns the whole save off (put it in the `env` block of Claude Code's
+`settings.json` to make it stick). Any other value leaves it on. `litclaude doctor` prints
+`Pre-compaction handoff: on` or `off`.
+
+### Ping when a step parks
+
+start-work keeps going when it parks a call (a path outside the plan's scope, say), so a user who
+walked away learns about it only when they look again. The `park_ping` plugin option (off by
+default; set it in `/plugin` → LitClaude → configure, which saves it under `pluginConfigs` in your
+user settings) sends one terminal notification instead. Claude Code reads it to the hook as
+`CLAUDE_PLUGIN_OPTION_PARK_PING`.
+
+- `on`: an OSC 9 notification. `osc777`: the OSC 777 form, for terminals that read only that one.
+  Anything else is off.
+- The `PreToolUse` runner adds a `terminalSequence` to the denial of a call parked for the first
+  time, for example `LitClaude start-work: a parked step waits on you: write …/reports. Type lit
+  approve to allow, or lit cancel to end the run.` Claude Code writes it to the terminal for the hook.
+  A retry of the same call carries none.
+- The `Notification` runner (on `permission_prompt`, `idle_prompt` or `agent_needs_input`) pings
+  only for a parked step that was never pinged, such as one parked before the option was turned on.
+- Each step is pinged once. Its id goes into `.litclaude/shown/ledger.jsonl` as a hash before the
+  sequence is returned; when that record cannot be written there is no ping.
+- The ping approves nothing. The step stays parked until you type `lit approve`, `lit deny` or
+  `lit cancel`.
+
+Claude Code emits `terminalSequence` in an interactive session only (not with `-p` or the SDK).
+Inside tmux the notification reaches your own terminal only with `set -g allow-passthrough on`.
 
 ## The LIT band (Claude Code mod)
 

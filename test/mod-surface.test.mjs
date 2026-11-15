@@ -35,7 +35,7 @@ const modClosure = () => {
 test("hooks.json names the mod next to every settings hook, so one file serves old and new Claude Code", () => {
   const hooks = JSON.parse(read(join(pluginRoot, "hooks", "hooks.json")));
   assert.deepEqual(hooks.modules, ["./lit-mod.mjs"]);
-  for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SubagentStart", "SubagentStop", "SessionEnd"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact", "Stop", "SubagentStart", "SubagentStop", "SessionEnd"]) {
     assert.ok(Array.isArray(hooks.hooks[event]), `settings hook ${event} must stay`);
   }
   assert.equal(existsSync(join(pluginRoot, "hooks", "lit-mod.mjs")), true);
@@ -44,8 +44,9 @@ test("hooks.json names the mod next to every settings hook, so one file serves o
 test("the band's options are plain strings: an options list would stop Claude Code 2.1.270 and older loading LitClaude", () => {
   const manifest = JSON.parse(read(join(pluginRoot, ".claude-plugin", "plugin.json")));
   const config = manifest.userConfig;
-  assert.deepEqual(Object.keys(config).sort(), ["band", "club", "glyphs", "motion", "notify"]);
-  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off", club: "on" });
+  // park_ping is read by the hook runner (CLAUDE_PLUGIN_OPTION_PARK_PING), not by the band.
+  assert.deepEqual(Object.keys(config).sort(), ["band", "club", "glyphs", "motion", "notify", "park_ping"]);
+  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off", park_ping: "off", club: "on" });
   for (const [key, field] of Object.entries(config)) {
     assert.equal(field.type, "string", key);
     assert.equal("options" in field, false, `${key} must not declare options`);

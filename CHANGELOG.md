@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- LitClaude now saves a handoff before every compaction, by default. A new `PreCompact` hook writes
+  `.litclaude/auto-handoff/precompact-<session>.md` (the plan's done, current and next rows, and the working
+  tree) without a model turn, so it also covers compaction Claude Code starts on its own, prints one short line
+  that names the current plan row for the compaction summary, and never blocks compaction. The next
+  `SessionStart` with `source: compact` brings the file back once. `LITCLAUDE_PRECOMPACT_HANDOFF=0` turns it
+  off; `litclaude doctor` shows the state. The opt-in percent feature (`lit-handoff auto on <percent>`) is
+  unchanged.
+- LitClaude keeps a small record of what it already told you, in `.litclaude/shown/ledger.jsonl`. The lit-adhd
+  nudge no longer comes back on the next day with the same words (it returns when the count changes, or after a
+  week), and each run's end is recorded as `sent` (start-work or litgoal completed), `nothing` (cancelled) or
+  `waiting` (every open task blocked, or a litgoal that stopped for you). A missing or damaged record changes
+  nothing: the notice is shown as before.
+- A new plugin option, `park_ping` (off by default), sends one terminal notification when start-work parks a
+  step: it names what waits and says to type `lit approve` or `lit cancel`. `on` uses OSC 9 and `osc777` the
+  OSC 777 form. Each parked step is pinged once, never on a retry, and the ping approves nothing.
+- lit-loop and litgoal can offer one check-back timer (opt-in) when a run ends waiting on something that changes
+  by itself. Only the user's yes creates it: one `CronCreate` timer whose prompt is exactly `lit check-back`. The
+  prompt hook builds the report itself, runs no turn when nothing changed, and denies writes, Bash, agents,
+  schedule changes, hand-offs to other agents and network tools in the report turn. The timer belongs to the
+  Claude Code session and ends with it.
+
 ## 1.0.51 - 2026-11-14
 
 - Installing a LitFamily extension is now safe when a skill of your own already has its name. Claude Code reads
