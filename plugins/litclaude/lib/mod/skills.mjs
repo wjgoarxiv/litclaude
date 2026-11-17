@@ -50,7 +50,12 @@ export const LIT_SKILL_IDS = Object.freeze([
   "wikify",
 ]);
 
+// The wjgoarxiv-skills plugins that ship LitFamily's moved skills (extensions-notice.mjs
+// EXTENSION_SKILLS, kept equal by a test). A skill they carry fires as `<plugin>:<id>`.
+export const EXTENSION_PLUGINS = Object.freeze(["decks", "documents", "figures", "design", "video-covers"]);
+
 const KNOWN = new Set(LIT_SKILL_IDS);
+const EXTENSIONS = new Set(EXTENSION_PLUGINS);
 const PLUGIN_PREFIX = "litclaude:";
 const KEEP = 12;
 // A Skill call and the prompt expansion it causes arrive moments apart; they are one firing.
@@ -62,6 +67,11 @@ export const litSkillId = (name) => {
   if (raw.startsWith(PLUGIN_PREFIX)) {
     const id = raw.slice(PLUGIN_PREFIX.length);
     return /^[a-z0-9][a-z0-9-]{0,63}$/u.test(id) ? id : null;
+  }
+  const colon = raw.indexOf(":");
+  if (colon > 0 && EXTENSIONS.has(raw.slice(0, colon))) {
+    const id = raw.slice(colon + 1);
+    return KNOWN.has(id) ? id : null;
   }
   return KNOWN.has(raw) ? raw : null;
 };

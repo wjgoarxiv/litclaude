@@ -11,7 +11,8 @@ import { canonicalSkillIds } from "../plugins/litclaude/lib/canonical-skill-cata
 import { CARD_MAX, composeBand, rowText, rowWidth } from "../plugins/litclaude/lib/mod/frame.mjs";
 import { TIMINGS, lerpColor, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
 import { ACCENT_CODES, accentFromSettings, accentHex, normalizeModSettings, xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
-import { LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
+import { EXTENSION_PLUGINS, LIT_SKILL_IDS, chipStates, litSkillId, noteSkill } from "../plugins/litclaude/lib/mod/skills.mjs";
+import { EXTENSION_SKILLS } from "../plugins/litclaude/lib/extensions-notice.mjs";
 import { parseWorkflowStack, readGitBranch, readLitSnapshot, readPluginVersions } from "../plugins/litclaude/lib/mod/state.mjs";
 import { parseStageRecord } from "../plugins/litclaude/lib/mod/workflow.mjs";
 import { recordWorkflowStage, runWorkflowStageCli, startWorkflowStage } from "../plugins/litclaude/lib/workflow-stage.mjs";
@@ -219,6 +220,13 @@ test("chips: LitFamily skills only, newest first, a refire within the same momen
   assert.equal(litSkillId("litclaude:lit-plan"), "lit-plan");
   assert.equal(litSkillId("lit-plan"), "lit-plan");
   assert.equal(litSkillId("litclaude:lit-korean"), "lit-korean", "a LitClaude slash command is ours too");
+  for (const [id, plugin] of Object.entries(EXTENSION_SKILLS)) {
+    assert.equal(litSkillId(`${plugin}:${id}`), id, `a LitFamily extension skill lights the card: ${plugin}:${id}`);
+  }
+  assert.deepEqual([...EXTENSION_PLUGINS].sort(), [...new Set(Object.values(EXTENSION_SKILLS))].sort(), "the mod's extension plugins follow the extensions list");
+  assert.equal(litSkillId("design:lit-diagram-drawer"), "lit-diagram-drawer", "an extension plugin may carry a sibling LitFamily skill");
+  assert.equal(litSkillId("design:brainstorming"), null, "only LitFamily skill ids count inside an extension plugin");
+  assert.equal(litSkillId("someone:frontend-ui-ux"), null, "another plugin's same-name skill is not LitFamily's");
   assert.equal(litSkillId("superpowers:brainstorming"), null);
   assert.equal(litSkillId("commit"), null);
   assert.equal(litSkillId("native-workflow"), null);
