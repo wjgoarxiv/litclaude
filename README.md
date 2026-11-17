@@ -448,14 +448,16 @@ installer sets up both, since the app reads the same settings; open a new sessio
 The app draws the card as a picture with the same rows and motion, because it sets mod text in a proportional
 font.
 
-By default the card stays for the whole session and moves while Claude works. Three options in `/config`,
-under LitClaude, change that:
+By default the card stays for the whole session and moves while Claude works, and the desktop and mobile apps
+wear the Ignition look, a moving backdrop that follows the LIT state. Four options in `/config`, under
+LitClaude, change that:
 
 | Option | Setting | Use it when |
 | --- | --- | --- |
 | `band` | `auto` shows the card only while work runs; `off` hides it | You like a clean prompt between tasks |
 | `motion` | `subtle` gives a quieter card; `off` keeps it still | You want less movement on screen |
 | `notify` | `finish` notifies through your terminal when the work completes or a LIT turn over three minutes ends | You step away during long work; it stays off until you turn it on |
+| `look` | `still` keeps the app look without motion; `off` gives the app its own look back | You want a calmer app, or its own colours |
 
 The desktop app has no editor for these options, so change them from a terminal there:
 

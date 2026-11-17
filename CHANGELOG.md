@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.53 - 2026-11-17
+
+- The Claude desktop and mobile apps now wear the Ignition look: LitFamily colours in light and dark mode, and
+  a moving backdrop behind the chat that follows the LIT state. It rests on standby while idle, burns a fuse
+  while Claude works, sends a signal while it waits on you, and bursts when the work completes. Glyph
+  particles drift through it, a frame mounts the glass column the conversation sits in, and the panel powers
+  on when a run starts and powers down when it goes back to idle. A new option, `look`, sets it: `on` (the
+  default), `still` (the same look without motion) or `off` (the app's own look). Change it in `/config` under
+  LitClaude, or from a terminal with `litclaude-ai config look still`. The look needs Claude Code 2.1.325 or
+  later in the desktop app; an older app simply shows no look. The terminal draws no look, and the band there
+  is unchanged.
+- The LIT card in the desktop app no longer blinks when it changes. It is now drawn as an image, and each new
+  drawing keeps the loop where the one before it had reached, so a change of tool does not jump the comet or
+  the breathing back to the start.
+- The LIT card and the look now light when a LitFamily extension skill runs from its wjgoarxiv-skills plugin,
+  such as `design:visual-qa`. Before, only the LitClaude name of the skill lit them.
+
 ## 1.0.52 - 2026-11-16
 
 - LitClaude now saves a handoff before every compaction, by default. A new `PreCompact` hook writes
