@@ -58,6 +58,10 @@ Claude Code를 다시 시작하세요.
 | `lit hijack <자료> into <스킬>` | 남이 공개한 기법을 내 스킬로 옮기고 증명한 결과 |
 | `lit adhd`(또는 `lit rewind`), 이어서 `go` | 최근 세션들이 어디까지 왔는지와 다음 할 일 하나 |
 
+Claude 데스크톱 앱과 모바일 앱(Claude Code 2.1.325 이상)에서는 LitClaude가 앱에 Ignition 룩도 입힙니다. LitFamily 색과
+LIT 상태를 따라 쉬고, 타오르고, 신호를 보내고, 터지는 배경입니다. `npx @litfamily/litclaude@latest config look still`은
+움직임만 끄고, `look off`는 앱 본래의 모습으로 되돌립니다.
+
 ## 확인, 업데이트, 제거
 
 ```bash

@@ -399,6 +399,11 @@ Claude가 일하는 동안 카드는 계속 움직이므로, LitClaude가 아직
 카드는 Claude Code 2.1.287 이상의 터미널과 Claude 데스크톱 앱의 Code 탭에서 나옵니다. 앱도 같은 설정 파일을 읽기 때문에 설치 프로그램이 둘 다 준비해 두니, 설치한 뒤
 앱에서 새 세션을 열면 됩니다. 앱은 카드의 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 같은 줄과 움직임을 담은 그림 한 장으로 보여 줍니다.
 
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/look/look-dark.webp" /><img src="./docs/assets/look/look-light.webp" width="960" alt="Ignition 룩을 입은 Claude 데스크톱 앱이 한 번의 작업을 반복해서 보여 줍니다. 대화 기둥 양옆 여백에 탄소색 격자가 깔려 있습니다. 쉴 때는 STATE: STANDBY가 흐린 선으로 보입니다. 작업이 시작되면 사선이 한 번 훑고 지나가며 켜집니다. 위쪽 레일을 따라 주황 도화선이 타고, 기둥을 감싼 틀에 불이 들어오고, 주황 기호 파티클(| / * - + ·)이 여백을 타고 올라가며, 아래 모서리에는 은은한 불씨가 번집니다. Claude가 답을 기다리는 동안 틀은 라임색으로 바뀌고 STATE: ASKING이 뜹니다. 작업이 끝나면 모서리에서 라임색 기호가 터지고 체크 표시가 켜지며 STATE: DONE이 뜬 뒤, 다시 대기 상태로 꺼집니다. 대화와 LIT 카드는 내내 흐린 유리 기둥 위에서 차분하게 읽힙니다." /></picture></p>
+
+데스크톱 앱의 배경은 아무것도 돌지 않을 때 쉬고, Claude가 일할 때 타오르고, 내 답을 기다릴 때 신호를 보내고,
+작업이 끝나면 터집니다. 대화는 앱의 흐린 유리 기둥 위에 있어서, 움직임은 양옆 여백에만 있고 글은 차분하게 읽힙니다.
+
 기본으로 카드는 세션 내내 떠 있고, Claude가 일하는 동안 움직입니다. 데스크톱 앱과 모바일 앱에는 LIT 상태를 따라 움직이는 배경이 깔린 Ignition 룩이 입혀집니다. `/config`의 LitClaude 항목에 있는 네 가지 설정으로 이를 바꿀 수 있습니다.
 
 | 설정 | 값 | 이럴 때 씁니다 |
@@ -412,7 +417,7 @@ Claude가 일하는 동안 카드는 계속 움직이므로, LitClaude가 아직
 
 ```bash
 npx @litfamily/litclaude@latest config             # 지금 설정 보기
-npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic, notify finish도 같은 방식
+npx @litfamily/litclaude@latest config band auto   # motion subtle, glyphs basic, notify finish, look still도 같은 방식
 ```
 
 [카드가 보여 주는 모든 것](./docs/hooks.md#the-lit-band-claude-code-mod)

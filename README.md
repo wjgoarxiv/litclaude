@@ -448,6 +448,12 @@ installer sets up both, since the app reads the same settings; open a new sessio
 The app draws the card as a picture with the same rows and motion, because it sets mod text in a proportional
 font.
 
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/look/look-dark.webp" /><img src="./docs/assets/look/look-light.webp" width="960" alt="The Claude desktop app in the Ignition look, looping through one run. Behind the chat, a carbon grid fills the gutters on both sides of the conversation column. At rest the panel reads STATE: STANDBY in dim lines. When the run starts a slash wipes across and it powers on: an orange fuse burns along the top rail, a frame lights up round the column, orange glyph particles (| / * - + ·) drift up through the gutters and a soft ember glows at the bottom corners. While Claude waits for an answer the frame turns lime and reads STATE: ASKING; when the work completes, lime glyphs burst from the corner, a check mark lights and the panel reads STATE: DONE, then powers down to standby. The conversation and the LIT card stay calm and readable on the blurred glass column throughout." /></picture></p>
+
+In the desktop app the backdrop rests while nothing runs, burns while Claude works, signals while it waits on you
+and bursts when the work completes. The conversation sits on the app's blurred glass column, so the motion stays
+in the gutters and the text stays calm.
+
 By default the card stays for the whole session and moves while Claude works, and the desktop and mobile apps
 wear the Ignition look, a moving backdrop that follows the LIT state. Four options in `/config`, under
 LitClaude, change that:
@@ -463,7 +469,7 @@ The desktop app has no editor for these options, so change them from a terminal 
 
 ```bash
 npx @litfamily/litclaude@latest config             # show the options
-npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs basic, notify finish
+npx @litfamily/litclaude@latest config band auto   # or motion subtle, glyphs basic, notify finish, look still
 ```
 
 [Everything the card can show](./docs/hooks.md#the-lit-band-claude-code-mod).

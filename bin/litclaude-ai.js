@@ -95,7 +95,7 @@ Commands:
   install       Register the packaged LitClaude plugin in Claude Code.
   doctor        Validate the installed LitClaude plugin path.
   config [<option> <value>]
-                Show or change the LIT card options (motion, glyphs, band, notify, club) in
+                Show or change the LIT card and look options (motion, glyphs, band, notify, club, look) in
                 pluginConfigs, the same values /config edits. Works for the
                 desktop app too, which shows no editor for them.
                 \`config mark <on|meta|off>\` sets whether engine outputs carry
