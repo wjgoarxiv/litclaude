@@ -670,7 +670,7 @@ test("on the desktop surface the mod draws the card as one Svg, and keeps the ce
   await host.flush();
   const working = await host.drawOn("desktop");
   assert.equal(working.kind, "svg");
-  assert.equal(working.isInteractive, true, "a moving card is drawn in the sandboxed frame so SMIL runs");
+  assert.equal(working.isInteractive, undefined, "a moving card is an image too: SMIL runs there, and a new image shows within a frame where a sandboxed frame shows nothing while it loads");
   assert.match(working.source, /lit-plan/u);
 });
 
@@ -689,7 +689,7 @@ const valueAt = (values, phase) => {
   return a + (b - a) * (at - i);
 };
 
-test("the desktop's moving card opens every loop mid-cycle, already visible, so a fresh load never starts dim or with the comet at the corner", async () => {
+test("the desktop's moving card opens every loop mid-cycle at the session clock, eased where it breathes, so a fresh load carries on instead of starting dim or with the comet at the corner", async () => {
   const host = await harness({ glyphs: "basic", motion: "full" });
   await host.fire("session.start", {});
   await host.flush();
@@ -699,9 +699,23 @@ test("the desktop's moving card opens every loop mid-cycle, already visible, so 
   await host.flush();
   const desktop = await host.drawOn("desktop");
   assert.equal(desktop.kind, "svg");
-  assert.equal(desktop.isInteractive, true);
+  assert.equal(desktop.isInteractive, undefined);
+  // The drawing was composed at the clock of its last change (the Skill call, NOW + 1000): each loop
+  // opens that far past where the clock-0 drawing of the same card opens.
+  const fixed = loopsOf(composeSvgCard(svgModel({ title: "lit-plan" }), { motion: "full", accent: CYAN }).source);
+  let checked = 0;
+  for (const loop of loopsOf(desktop.source)) {
+    const dur = Math.round(loop.phase === 0 ? 1 : -Number.parseFloat(loop.begin) / loop.phase);
+    const base = fixed.find((other) => other.name === loop.name && Math.round(-Number.parseFloat(other.begin) / other.phase) === dur);
+    if (!base) continue;
+    assert.equal((-Number.parseFloat(loop.begin) - -Number.parseFloat(base.begin) - ((NOW + 1000) % dur) + 2 * dur) % dur, 0, `${loop.name} ${dur}ms: opens at the session clock`);
+    checked += 1;
+  }
+  assert.ok(checked >= 3, `${checked} loops checked against the clock`);
   const extra = composeSvgCard(svgModel({ step: { name: "WebSearch", elapsedMs: 0 } }), { motion: "full", accent: CYAN }).source;
-  const loops = [...loopsOf(desktop.source), ...loopsOf(extra)];
+  assert.match(extra, /attributeName="opacity" values="0;0\.85;0" dur="\d+ms" begin="-\d+ms" repeatCount="indefinite" calcMode="spline" keyTimes="0;0\.5;1" keySplines="0\.45 0 0\.55 1;0\.45 0 0\.55 1"/u, "the breath eases in and out");
+  assert.match(extra, /attributeName="stroke-dashoffset" values="0;-1000" dur="\d+ms" begin="-\d+ms" repeatCount="indefinite"\/>/u, "the comet keeps an even pace");
+  const loops = [...fixed, ...loopsOf(extra)];
   for (const name of ["opacity", "stroke-opacity", "stroke-dashoffset", "gradientTransform", "transform"]) {
     assert.ok(loops.some((loop) => loop.name === name), `the card animates ${name}`);
   }
@@ -732,7 +746,7 @@ test("while only the clock moves, the desktop card is not redrawn: no invalidati
   await host.flush();
   const first = await host.drawOn("desktop");
   assert.match(first.source, />WebSearch</u);
-  assert.equal(first.isInteractive, true);
+  assert.equal(first.isInteractive, undefined);
   host.invalidations.length = 0;
   for (let i = 0; i < 5; i += 1) {
     host.tick(2000);

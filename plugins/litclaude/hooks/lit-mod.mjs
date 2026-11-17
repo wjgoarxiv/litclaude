@@ -3,7 +3,10 @@
 // session stands in the LIT workflow, the tool the main loop is running and for how long, a chip
 // for each LitFamily skill that fires. It adds the discipline and progress to the spinner, raises
 // a toast when the LIT status changes (at most one each three seconds) and gate notices, serves /lit-evidence and, when the `notify` option asks, raises a notification
-// when LIT work completes or a long LIT turn ends. It is read-only: it reads LitClaude's own state
+// when LIT work completes or a long LIT turn ends. Under the `look` option (on by default) it also
+// sets the Ignition look once a session with `$.theme.set` and draws its backdrop scene, which the
+// desktop and mobile apps show behind the conversation and which follows the LIT state
+// (lib/mod/backdrop.mjs); the terminal draws no look. It is read-only: it reads LitClaude's own state
 // files and the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and
 // the host's live figures, and never writes, spawns, fetches or calls a model. Of a tool call it
 // keeps the tool's name and start time, never its arguments, with three exceptions that keep counts
@@ -15,6 +18,7 @@
 // The mods loader only follows `$` into functions declared at the top of this file, so each helper
 // below takes `$` and the per-load `live` record explicitly instead of closing over them.
 
+import { BURST_MS, POWER_MS, SCENE, composeScene, lookArgs, lookColors, sceneKey, sceneStateOf } from "../lib/mod/backdrop.mjs";
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
@@ -65,8 +69,21 @@ const createLive = (options) => ({
   band: normalizeModSettings(options).band,
   motion: normalizeModSettings(options).motion,
   club: normalizeModSettings(options).club === "on",
+  look: normalizeModSettings(options).look,
+  // The first `$.theme.set` answer (null when none was sent), whether the first prompt set it again,
+  // the backdrop scene drawn last (`{ key, source, alt, animated }`), whether a desktop or mobile
+  // app asked for it, the finish whose burst the scene still plays, and the last power change
+  // (`{ dir, at }`: a lit run starting or ending, at the session clock).
+  lookSet: null,
+  lookRetried: false,
+  scene: null,
+  backdropDrawn: false,
+  burst: null,
+  power: null,
   // The inviter `lit invite` recorded on this machine, or null (state.mjs readInvited).
   invited: null,
+  // The desktop card drawn last: `{ key, source, alt }`, its key the card drawn at clock 0.
+  card: null,
   drawnOn: {},
   iconFont: { present: false, path: null, note: "basic: not checked yet" },
   env: {},
@@ -186,6 +203,35 @@ async function endWaiting($, live, redraw = true) {
   if (redraw) await rebuild($, live);
 }
 
+// The look, set once. The loader accepts `$` only in a full call at the call site, so an older
+// Claude Code with no theme API is met by the catch; a failed set leaves the app's own look.
+async function setLook($, live) {
+  if (live.look === "off") return null;
+  try {
+    return await $.theme.set(lookArgs(lookColors().theme));
+  } catch {
+    return null;
+  }
+}
+
+// The backdrop scene for the live state; a new source only when the scene's key changes, drawn with
+// the clock's phase then (backdrop.mjs), so a swap continues every loop. A change between idle and a
+// lit run is a power change: the scene composed for it plays the power-on or the power-down, less
+// the time since the change began, so a scene composed later in it does not start it again. True
+// when it changed.
+function updateScene(live, now) {
+  const still = live.look === "still" || live.reducedMotion === true;
+  const state = sceneStateOf(live.model, { isWorking: live.isWorking, burst: live.burst !== null, waiting: waitingOf(live) });
+  const key = sceneKey(state, still);
+  if (live.scene?.key === key) return false;
+  const running = state.mood !== "idle";
+  const wasRunning = live.scene ? live.scene.running : false;
+  if (live.scene && running !== wasRunning) live.power = { dir: running ? "on" : "off", at: now };
+  const power = live.power && now - live.power.at < POWER_MS[live.power.dir] ? { dir: live.power.dir, ageMs: now - live.power.at } : null;
+  live.scene = { key, running, ...composeScene(state, { still, clockMs: now, power }) };
+  return true;
+}
+
 async function rebuild($, live) {
   const now = await $.clock.now();
   const previous = live.model;
@@ -229,7 +275,8 @@ async function rebuild($, live) {
       $.ui.invalidate("ui.render");
     });
   }
-  if (drawnKey(live, previous) !== drawnKey(live, next)) $.ui.invalidate("ui.render");
+  const sceneMoved = live.backdropDrawn && updateScene(live, now);
+  if (sceneMoved || drawnKey(live, previous) !== drawnKey(live, next)) $.ui.invalidate("ui.render");
   return next;
 }
 
@@ -252,6 +299,13 @@ function celebrate($, live, finish, options) {
   if (live.celebrated.has(finish.id)) return;
   live.celebrated.add(finish.id);
   live.completion = finish;
+  // The backdrop's burst outlasts the card's: it holds BURST_MS, then the scene settles.
+  live.burst = finish.id;
+  $.clock.after(BURST_MS, () => {
+    if (live.burst !== finish.id) return;
+    live.burst = null;
+    void rebuild($, live);
+  });
   live.turnNotified = true;
   notifyFinish($, options, `LIT complete · ${finish.detail}`);
   $.clock.after(TIMINGS.completion + 200, () => {
@@ -373,6 +427,7 @@ export const register = (on, options) => {
     live.noColor = Boolean(await $.env.get("NO_COLOR"));
     live.reducedMotion = hostSettings?.prefersReducedMotion === true;
     live.motion = effectiveMotion(live.motion, hostSettings);
+    live.lookSet = await setLook($, live);
     await $.command.register({ name: PANE, description: "Show LitClaude goal criteria, evidence, lanes and gates in a pane" });
     await refresh($, live, options);
     $.clock.every(POLL_MS, () => {
@@ -473,8 +528,13 @@ export const register = (on, options) => {
     return next(e);
   }).catch(($, e, next) => next(e));
 
-  // A background task's notification ends its thread row: its text is read for ids alone.
+  // A background task's notification ends its thread row: its text is read for ids alone. The first
+  // prompt sets the look again when session.start found no app to draw it: a window can attach late.
   on("prompt.submit", async ($, e, next) => {
+    if (live.lookSet?.isDrawn === false && !live.lookRetried) {
+      live.lookRetried = true;
+      live.lookSet = await setLook($, live);
+    }
     if (e.origin?.kind === "task-notification") {
       for (const id of endedTaskIds(e.text)) live.tasks = endBackgroundTask(live.tasks, id);
       refreshSoon($, live, options);
@@ -535,10 +595,15 @@ export const register = (on, options) => {
     live.drawnOn[e.surface] = e.surface !== "terminal" && elements.Svg ? "svg" : "cells";
     if (e.surface !== "terminal" && elements.Svg) {
       // A desktop or editor draws Text in a proportional font, so the cell-built card comes apart
-      // there; those surfaces get the card as one drawing instead.
+      // there; those surfaces get the card as one drawing instead. It is drawn as an image, where
+      // SMIL runs: the desktop puts a new image up within a frame, but a sandboxed frame (what
+      // `isInteractive` asks for) loads a whole document first and shows nothing meanwhile, which
+      // made the card blink on every change. A redraw with nothing new keeps the same source; a
+      // changed card is composed at the session clock, so its loops carry on where they were.
       if (model.visible) {
-        const { source, alt, animated } = composeSvgCard(model, { motion, accent: live.accent });
-        drawn = elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
+        const key = composeSvgCard(model, { motion, accent: live.accent }).source;
+        if (live.card?.key !== key) live.card = { key, ...composeSvgCard(model, { motion, accent: live.accent, clock: await $.clock.now() }) };
+        drawn = elements.Svg({ source: live.card.source, alt: live.card.alt });
       }
     } else if (!live.clientFailed) {
       drawn = h("Client", { key: "lit-band", module: "./lit-band-client.mjs", props: { model, columns, glyphs, motion, accent: live.accent, color } });
@@ -549,6 +614,16 @@ export const register = (on, options) => {
     if (!drawn) return below;
     return below ? elements.Box({ flexDirection: "column", children: [drawn, below] }) : drawn;
   });
+
+  // The look's backdrop: drawn by the desktop and mobile apps alone, for this plugin's scene.
+  on("ui.render", { component: "Backdrop" }, async ($, e, next) => {
+    if ((e.surface !== "desktop" && e.surface !== "mobile") || e.props?.scene !== SCENE || live.look === "off") return next(e);
+    live.backdropDrawn = true;
+    updateScene(live, await $.clock.now());
+    const elements = $.ui.resolve(e);
+    const { source, alt, animated } = live.scene;
+    return elements.Svg({ source, alt, ...(animated ? { isInteractive: true } : {}) });
+  }).catch(($, e, next) => next(e));
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
     const suffix = spinnerSuffix(live.model, e.props.suffix);

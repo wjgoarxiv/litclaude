@@ -531,23 +531,25 @@ a proportional font and cut each span to the cells it was laid out for, so the c
 apart there. On those surfaces the mod draws the same five rows as one `Svg` element instead
 (`lib/mod/svg-card.mjs`): monospace text placed by counted cells, real pills and a rounded border.
 It shows the settled state, with no entrances or crossfades. While LitClaude works it moves with
-SMIL animation inside the drawing, which the surface runs in a script-less sandboxed frame: the
+SMIL animation inside the drawing, which runs in the image the surface draws it as: the
 pill and the border breathe and the step's spinner turns, and on `full` a light crosses the
 current stage and the current chips, a head runs the rail leaving it, the count bar's head
-shimmers and a comet runs around the border. An idle card is a still image. The app loads each new
-drawing from scratch and restarts its animation, so this card names the running tool without its
-clock and shows the loop round without its countdown. Each animation starts part way through its
-cycle, so a freshly loaded card already looks like the running one: the border and the pill are
-lit, the light sits on its pill and the comet is part way round, not parked at the top-left
-corner. The app still blanks the card for a moment while it loads a new drawing; the mod cannot
-prevent that. It is redrawn only when something you would
+shimmers and a comet runs around the border; what breathes, sweeps or shuttles eases in and out,
+and the spinner, the comet and the drifting sparks keep an even pace. An idle card is a still
+image. The app loads each new drawing from scratch and restarts its animation, so this card names
+the running tool without its clock and shows the loop round without its countdown, and each new
+drawing is composed at the session clock: every loop opens where the drawing before it had
+reached, so a change of tool does not jump the comet or the breathing back to a start. The card is
+not drawn with `isInteractive`: the desktop draws that as a sandboxed frame, which loads a whole
+document for each new drawing and shows nothing meanwhile, so the card blinked on every change. An
+image is up within a frame, and a redraw with nothing new keeps the very same source. It is redrawn only when something you would
 notice changes, such as the stage, the tool, a skill, a usage figure or the goal. While the card
 shows in a terminal and the app at once, the terminal's loop countdown waits for such
 a change too; its step and lane clocks keep counting on their own.
 
 Options, in `/config` under LitClaude (stored in `pluginConfigs` in `~/.claude/settings.json`,
 which the terminal and the desktop app's Code tab both read). The installer writes each default
-you have not set, so the desktop app, which has no editor for them, starts with all five;
+you have not set, so the desktop app, which has no editor for them, starts with all six;
 `litclaude-ai config` prints them and `litclaude-ai config <option> <value>` changes one.
 Uninstall removes only the defaults it wrote that are still unchanged.
 
@@ -558,6 +560,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
 | `club` | `on` (the idle card wears the club look once `lit invite` recorded an inviter), `off` (the plain ready card, byte for byte) | `on` |
+| `look` | `on` (the Ignition look in the desktop and mobile apps, with a moving backdrop), `still` (the same look, one still frame), `off` (the app's own look) | `on` |
 
 Unknown values fall back to the default. The fields are plain strings with no `options` list on
 purpose: Claude Code 2.1.270 and older refuse to load a plugin whose `userConfig` has one, and
@@ -614,6 +617,70 @@ the `club` option is on. Each file must be a regular file under its size cap tha
 exactly where its path says, so a symlinked file or state folder is skipped. It writes nothing,
 starts no process, uses no network and calls no model. Its pure parts live in
 `plugins/litclaude/lib/mod/` and are tested under Node.
+
+### The Ignition look (desktop and mobile apps)
+
+With `look` on `on` or `still`, the mod calls `$.theme.set` once at `session.start` with the
+Ignition colours (ignition orange, signal lime, ivory and carbon navy, built by an unchanged copy
+of the host's `hooks/make-colors.js` into both light and dark mode) and a backdrop scene with
+glass: blur 18, opacity 0.62 and no raw tint, so every panel keeps the look's own colour in each
+mode. When that first set reports `isDrawn: false` (a desktop window can attach after the session
+starts), the first prompt sets it once more; never again after that. A Claude Code build with no
+`$.theme` gets no look and no error. The terminal and the editors draw no look; the band and the
+spinner there are unchanged.
+
+The scene (`lib/mod/backdrop.mjs`, drawn by the `ui.render` hook on `Backdrop` for the desktop
+and mobile surfaces only) is an instrument panel with the conversation mounted in it. The desktop
+draws the backdrop across the whole content frame and frosts a centred column over it: the column
+is the transcript measure (768 px unless the transcript width is set wider), fully blurred, with
+the blur ramping out over 48 px beyond it. The hook is given no pixel geometry, so the scene is
+laid out in CSS pixels from the centre of its box and splits into two zones. The sharp gutters,
+from 456 px out, hold the plan and verify cells of the fuse, a frame that mounts the column (a
+ticked rule on each side with square brackets at its head and foot, the right one lit down to the
+share of work done), small dim monospace readouts (`PLAN 1/1`, `BUILD 4/6` and `VERIFY 0/1`
+stacked beside the left rule, a flat `STATE:` block beside the right one, the lit cells as bits
+and hex and a `T+` second counter at the foot beside registration targets), embers and heat beds.
+The diffuse zone behind the glass holds what reads through a blur: the fuse as a heat streak, a
+soft bloom under each lit build cell, a low heat haze along the fuse. Nothing sits on the glass
+edge. The particles are monospace glyphs drawn as SVG text in the platform's own
+monospace font. A near ember spins `|` `/` `-` `\` on stepped frames over its own soft glow while
+it rises on a smooth curve, cooling from lime (orange at rest) through orange to ember red; a spark
+dripping from the fuse ages `*` `+` `·` `-`; the finish throws `*` and `×` that cool to `+` and
+`·` as they fall. Far embers, the gentle fire at the foot of each gutter, the haze and the blooms
+are soft light, radial gradients with no filter on anything that moves. While a run is on the
+panel also makes a few machine gestures: a text spinner beside the state block, a dot-matrix ticker
+under the stage counts that moves a row a step, registration marks that turn an eighth a step, and
+at the power-on a row of slashes that wipes out along the rail from the column. The scene's own width media rules drop the readouts below 1240 px; below 1040 px they drop
+the frame, the labels and the embers and move the plan and verify cells in behind the glass. It
+is drawn like a measuring instrument throughout: graph paper and halftone, a ruler under the fuse,
+square cells with a 2 px outline and a hard offset shadow.
+
+Idle and a lit run look clearly different. Idle is a dormant panel: the burnt fuse cold and dim,
+lit cells banked low, a few dim embers, low heat, a dim frame and `STATE: STANDBY`. A run powers it
+up: the fuse hot with its heat streak behind the glass, the frame and the share on the right rule
+lit in orange (lime while asking or done), the readouts warm, the embers and the heat beds up. The
+change between them plays once: into a run the lit frame ignites on a spring in about 0.7 s, back
+to idle it fades down over 1.6 s. Motion is physical: moves run on springs solved from a damping
+ratio and written as CSS `linear()` curves, each declared after a cubic-bezier fitted to it for
+engines without `linear()`; embers rise against drag and sparks fall under gravity; each kind of
+part has its own curve, and parts that move together trail one another by 30 to 90 ms. It
+follows the session: **idle**, the next cell smoulders; **working**, the spark runs the stretch
+towards the next cell on a spring with a streak that stretches while it is fast, settles there,
+and the cell kicks as it lands, while the cell it left recoils and embers fall from the stretch;
+**asking** (the same YOUR TURN conditions as the card), a lime lamp breathes (a quick rise, a slow
+fall) with square signal rings opening a second apart at the cell the work waits at; **done** (the
+card's finish conditions), a sweep runs the fuse and kicks each cell as it passes, the verify
+cell gathers and releases, and shockwaves and overlapping spark bursts open in the gutters below
+the title strip, and the verify cell settles lime for nine seconds before the scene goes back to
+the live state. Every loop shares one 24 s clock and the scene is drawn with the clock's phase as
+a negative delay, so a new state continues each loop instead of restarting it; the power change
+is drawn less the time since it began, so a scene composed during it does not start it again. The
+scene is redrawn only when its state changes. Its media rules are the box width rules above,
+`prefers-color-scheme` and `prefers-reduced-motion`, which holds a composed still frame; `still`,
+or Claude Code's own reduce-motion setting, draws that frame with no animation. Each scene stays
+well under the Svg cap of 131,072 characters. Tests do not paint, so check it in the Claude
+desktop app in both modes, at a narrow and a wide window, with a long code block and a larger
+text size.
 
 On Claude Code releases before 2.1.287 the `modules` key is ignored and every settings hook runs
 as before; there is no band.

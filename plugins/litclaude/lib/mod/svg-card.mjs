@@ -14,8 +14,9 @@
 // head shimmers, the step spinner turns and a comet runs around the border (full only). Idle, it is
 // still. The drawing carries no step clock and no loop countdown: the surface loads each new
 // drawing afresh, restarting every animation, so a figure that moves with time alone would make the
-// card blink on every poll. Each loop opens mid-cycle (see `loop`), so a fresh load starts on a
-// frame of the running card rather than on a dim border and a comet at the corner.
+// card blink on every poll. Each loop opens where the session clock has it (see `loop`), so a fresh
+// load carries on from the frame the last one showed rather than opening on a dim border and a
+// comet at the corner; what breathes, sweeps or shuttles eases in and out.
 //
 // Text is set in a monospace face and placed by counted cells (Hangul and emoji as two), so the
 // layout does not depend on measuring a font the drawing cannot see.
@@ -56,11 +57,21 @@ export const THREAD_ROW_H = 22;
 const PILL_H = 20;
 const FONT = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', Consolas, monospace";
 
-// Timing of one looping animation, started `phase` of the way into its cycle. The surface loads
+// Timing of one looping animation, `phase` of the way into its cycle at the session clock the card
+// is composed at (`clockMs`, set by composeSvgCard; 0 draws the fixed phases). The surface loads
 // each new drawing afresh, so every loop would otherwise open on its first frame: the breathing at
 // its dimmest, the light off the pill's left edge, the comet parked at the top-left corner. A
-// negative begin opens each loop mid-cycle, in a frame that looks like the card already running.
-const loop = (ms, phase) => `dur="${ms}ms" begin="-${Math.round(ms * phase)}ms" repeatCount="indefinite"`;
+// negative begin taken from the clock opens each loop where the drawing before it had reached.
+// `eased`, the count of values, moves each step on an ease-in-out spline; spins, the comet, the
+// hue and the drifting sparks keep an even pace.
+let clockMs = 0;
+const IN_OUT = "0.45 0 0.55 1";
+const loop = (ms, phase, eased = 0) => {
+  const spline = eased > 1
+    ? ` calcMode="spline" keyTimes="${Array.from({ length: eased }, (_, i) => +(i / (eased - 1)).toFixed(3)).join(";")}" keySplines="${Array(eased - 1).fill(IN_OUT).join(";")}"`
+    : "";
+  return `dur="${ms}ms" begin="-${Math.round((clockMs + ms * phase) % ms)}ms" repeatCount="indefinite"${spline}`;
+};
 // The breathing pieces share one phase so the pill, the border and the count bar's head stay in step.
 const BREATH_PHASE = 0.25;
 
@@ -95,7 +106,7 @@ const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = nul
   const top = y - PILL_H + 6;
   const parts = [`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${fill}"/>`];
   if (veil) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="#ffffff" opacity="0.3"/>`);
-  if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" ${loop(TIMINGS.breath, BREATH_PHASE)}/></rect>`);
+  if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/></rect>`);
   if (sweep) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="url(#lit-sweep)"/>`);
   parts.push(text(x + 8, y, label, { fill: ink, bold }));
   return { markup: parts.join(""), end: x + w };
@@ -233,7 +244,7 @@ const mapRowSvg = (model, accent, animate) => {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="2.5" stroke-linecap="round"/>`);
         const filled = count && count.total > 0 ? Math.min(1, count.done / count.total) : 0;
         if (filled > 0) out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${(x1 + filled * layout.rail).toFixed(1)}" y2="${y - 4}" stroke="${mapColor(accent, mid)}" stroke-width="2.5" stroke-linecap="round"/>`);
-        if (animate.sweep && !model.workflow.paused) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" ${loop(TIMINGS.flow, 0.5)}/></circle>`);
+        if (animate.sweep && !model.workflow.paused) out.push(`<circle cx="${x1.toFixed(1)}" cy="${y - 4}" r="2.5" fill="#ffffff"><animate attributeName="cx" values="${x1.toFixed(1)};${x2.toFixed(1)}" ${loop(TIMINGS.flow, 0.5, 2)}/></circle>`);
       } else {
         out.push(`<line x1="${x1.toFixed(1)}" y1="${y - 4}" x2="${x2.toFixed(1)}" y2="${y - 4}" stroke="${C.rail}" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.7"/>`);
       }
@@ -293,7 +304,7 @@ const detailRowSvg = (model, accent, animate) => {
     const cells = barCells(total > 0 ? done / total : 0, 8);
     cells.forEach(({ glyph, color }, index) => out.push(`<rect x="${(x + index * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="${glyph === "█" ? color : C.empty}"/>`));
     const head = cells.findLastIndex(({ glyph }) => glyph === "█");
-    if (head >= 0 && animate.sweep) out.push(`<rect x="${(x + head * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" ${loop(TIMINGS.breath, BREATH_PHASE)}/></rect>`);
+    if (head >= 0 && animate.sweep) out.push(`<rect x="${(x + head * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/></rect>`);
     x += 8 * 9 + 4;
   }
   const pieces = [];
@@ -387,7 +398,7 @@ const sparksSvg = (from, to, y) => {
     const dur = Math.round(TIMINGS.sparks / speed);
     return `<text class="lit-spark" x="${x.toFixed(1)}" y="${y}" fill="${rainbowAt(start)}" opacity="0.8">${esc(glyph)}`
       + `<animateTransform attributeName="transform" type="translate" values="0 0;${(-start * span).toFixed(1)} 0" ${loop(dur, 0)}/>`
-      + `<animate attributeName="opacity" values="0.3;0.9;0.3" ${loop(Math.round(TIMINGS.sparks / 2), i / SPARK_SEEDS.length)}/></text>`;
+      + `<animate attributeName="opacity" values="0.3;0.9;0.3" ${loop(Math.round(TIMINGS.sparks / 2), i / SPARK_SEEDS.length, 3)}/></text>`;
   }).join("");
 };
 
@@ -441,7 +452,7 @@ const PULSE = "━━━━━";
 const pulseSvg = (x, y, animate, fill) => {
   const w = widthOf(PULSE);
   if (!animate) return "";
-  return `<rect x="${x.toFixed(1)}" y="${y - 8}" width="${(w / 3).toFixed(1)}" height="4" rx="2" fill="${fill}" opacity="0.9"><animate attributeName="x" values="${x.toFixed(1)};${(x + (w * 2) / 3).toFixed(1)};${x.toFixed(1)}" ${loop(TIMINGS.flow * 2, 0.25)}/></rect>`;
+  return `<rect x="${x.toFixed(1)}" y="${y - 8}" width="${(w / 3).toFixed(1)}" height="4" rx="2" fill="${fill}" opacity="0.9"><animate attributeName="x" values="${x.toFixed(1)};${(x + (w * 2) / 3).toFixed(1)};${x.toFixed(1)}" ${loop(TIMINGS.flow * 2, 0.25, 3)}/></rect>`;
 };
 
 /**
@@ -578,8 +589,18 @@ export const svgCardAlt = (model) => {
 /**
  * The card as `{ source, alt, animated }`: an SVG document and its description. `motion` is the
  * mod's setting; the drawing moves only while the model is not idle and motion is not off.
+ * `clock`, the session clock in ms, sets where each loop opens (0, the fixed phases).
  */
-export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = {}) => {
+export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff", clock = 0 } = {}) => {
+  clockMs = clock;
+  try {
+    return composeCard(model, motion, accent);
+  } finally {
+    clockMs = 0;
+  }
+};
+
+const composeCard = (model, motion, accent) => {
   const { width } = SVG_CARD;
   // The thread rows sit between the detail line and the chips; the card grows by their reserve.
   const shift = model.threads ? THREAD_ROW_H * model.threads.reserve : 0;
@@ -591,10 +612,10 @@ export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff" } = 
   const edge = rewind ? "url(#lit-rainbow)" : club ? "url(#lit-club)" : borderColor(model, accent);
   const perimeter = 1000;
   const defs = (rewind ? rainbowDefs(animate.breath) : club ? clubDefs() : "") + (animate.sweep
-    ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5)}/></linearGradient></defs>`
+    ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5, 2)}/></linearGradient></defs>`
     : "");
   const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle && !rewind && !club ? "1.5" : "2.5"}"${model.idle && !rewind && !club ? ' stroke-opacity="0.8"' : ""}>`
-    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE)}/>` : "")
+    + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/>` : "")
     + "</rect>";
   const comet = animate.comet
     ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="url(#lit-comet)" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="70 ${perimeter - 70}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" ${loop(TIMINGS.comet * 2, 0.5)}/></rect>`

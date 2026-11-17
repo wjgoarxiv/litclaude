@@ -69,7 +69,8 @@ const APPROVED_PAYLOAD_PATHS = new Set([
 export const MOD_PAYLOAD_PATHS = Object.freeze([
   'plugins/litclaude/hooks/lit-mod.mjs',
   'plugins/litclaude/hooks/lit-band-client.mjs',
-  ...['frame', 'layout', 'looks', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
+  'plugins/litclaude/hooks/make-colors.js',
+  ...['backdrop', 'frame', 'layout', 'looks', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
   'plugins/litclaude/lib/rewind/gauge.mjs',
   'plugins/litclaude/lib/plan-task-rows.mjs',

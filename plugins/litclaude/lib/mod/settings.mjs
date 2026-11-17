@@ -1,10 +1,11 @@
-// The LIT band's five userConfig options. The manifest declares them as plain strings without an
+// The LIT band's six userConfig options. The manifest declares them as plain strings without an
 // `options` list, because Claude Code 2.1.270 and older refuse a whole plugin whose userConfig has
 // one; the values are checked here instead, and anything unknown falls back to the default (the
 // first choice). `notify` raises a notification through the person's own channel when LIT work
 // completes or a LIT turn longer than three minutes ends; `finish+sound` adds a sound only where
 // the plugin ships one, and none ships yet, so it notifies like `finish`. `club` lets an invited
-// card wear the club look while idle (plans/invite-pilot.md).
+// card wear the club look while idle (plans/invite-pilot.md). `look` dresses the desktop and mobile
+// apps in the Ignition colours and backdrop scene (lib/mod/backdrop.mjs): on (moving), still or off.
 
 export const MOD_CHOICES = Object.freeze({
   motion: ["full", "subtle", "off"],
@@ -12,6 +13,7 @@ export const MOD_CHOICES = Object.freeze({
   band: ["always", "auto", "off"],
   notify: ["off", "finish", "finish+sound"],
   club: ["on", "off"],
+  look: ["on", "still", "off"],
 });
 
 const pick = (value, choices) => {
@@ -25,6 +27,7 @@ export const normalizeModSettings = (options) => ({
   band: pick(options?.band, MOD_CHOICES.band),
   notify: pick(options?.notify, MOD_CHOICES.notify),
   club: pick(options?.club, MOD_CHOICES.club),
+  look: pick(options?.look, MOD_CHOICES.look),
 });
 
 // Claude Code's own `prefersReducedMotion` setting (/config "Reduce motion") turns the band's motion

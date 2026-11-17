@@ -50,6 +50,12 @@
       "title": "LIT club look",
       "description": "on: once you typed `lit invite @<github-id>`, the idle card wears the gold club look. off keeps the plain ready card. Nothing is sent anywhere.",
       "default": "on"
+    },
+    "look": {
+      "type": "string",
+      "title": "LitFamily look",
+      "description": "How the Claude desktop and mobile apps look: on (the Ignition colours and a moving backdrop that follows the LIT state: embers while idle, a burning fuse while working, a signal while it waits on you, a burst when work completes), still (the same look with no motion) or off (the app's own look). The terminal draws no look.",
+      "default": "on"
     }
   }
 }
