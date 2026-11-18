@@ -81,7 +81,7 @@ test("a HANDOFF Next item already marked done is skipped for the first open one"
   assert.equal(collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true }).handoffs[0].next, "Run the Linux check");
 }));
 
-test("herdr's JSON agent list is read: this workspace or project only, own pane marked, and a working lane holds go", () => withRepo(({ home, repo, env }) => {
+test("herdr's JSON agent list is read: agents inside this project only (a foreign cwd in the same workspace is left out), own pane marked, and a working lane holds go", () => withRepo(({ home, repo, env }) => {
   writeFileSync(join(repo, "plans", "c.md"), "# C\n\n## TODOs\n\n- [ ] 1. do it\n- [ ] 2. then this\n");
   const agent = (pane, status, workspace, cwd, session) => ({ agent: "claude", agent_status: status, pane_id: pane, workspace_id: workspace, cwd, foreground_cwd: cwd, terminal_title_stripped: `t-${pane}`, agent_session: { value: session } });
   const list = { id: "cli:agent:list", result: { agents: [
@@ -98,9 +98,8 @@ test("herdr's JSON agent list is read: this workspace or project only, own pane 
   assert.equal(data.sources.herdr, "ok");
   assert.deepEqual(data.herdr.agents.map(({ pane, status, self, id8 }) => ({ pane, status, self, id8 })), [
     { pane: "w1:p1", status: "working", self: true, id8: "self0000" },
-    { pane: "w1:p2", status: "working", self: false, id8: "lane0001" },
     { pane: "w9:p1", status: "working", self: false, id8: "lane0002" },
   ]);
-  assert.deepEqual(data.next.wait, { lanes: 2 });
+  assert.deepEqual(data.next.wait, { lanes: 1 }, "the same-workspace agent in another folder is not working in this repo");
   assert.equal(data.next.say, undefined);
 }));

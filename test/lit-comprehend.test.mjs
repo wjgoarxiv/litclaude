@@ -171,7 +171,7 @@ describe("lit-comprehend explainer artifact skill", () => {
     assert.match(skill, /--en|in English|영어/u, "skill must define the English-mode switch");
     assert.match(skill, /--md/u, "skill must define the Markdown fallback");
     assert.match(skill, /verbatim|그대로|원문/u, "skill must keep technical tokens verbatim");
-    assert.match(skill, /lit-recap/u, "skill must distinguish itself from the status recap");
+    assert.match(skill, /lit adhd recap/u, "skill must distinguish itself from the status recap");
   });
 
   it("ships a scaffold and references the skill actually points at", () => {
@@ -318,7 +318,7 @@ describe("lit-comprehend explainer artifact skill", () => {
     assert.match(command, /Skill\(lit-comprehend\)/u, "command must route to Skill(lit-comprehend)");
     assert.match(command, /outside the repository/iu, "command must keep the artifact out of the worktree");
     assert.match(command, /verify-explainer\.mjs/u, "command must name the verification gate");
-    assert.match(command, /lit-recap/u, "command must distinguish itself from the status recap");
+    assert.match(command, /lit adhd recap/u, "command must distinguish itself from the status recap");
     assert.doesNotMatch(command, /\$ARGUMENTS/u, "command must not render broken argument placeholders");
   });
 

@@ -82,7 +82,7 @@ Use `Skill(lit-comprehend)` to build an explainer artifact for work the reader
 cannot yet reason about. This is the route for when understanding is the
 bottleneck — after a long `lit-loop`, an overnight run, or any change too large
 to read straight through. When the user only needs status and chronology, route
-to `Skill(lit-recap)` instead; when they need a correctness judgment, route to
+to `Skill(lit-adhd)` (`lit adhd recap`) instead; when they need a correctness judgment, route to
 `Skill(review-work)`.
 
 Scope comes from the argument, or from the strongest available evidence when

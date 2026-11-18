@@ -49,11 +49,11 @@ const expectedSkills = [
   "lit-loop",
   "lit-plan",
   "lit-pptx",
-  "lit-recap",
   "lit-typographic-motion",
   "lit-comprehend",
   "lit-adhd",
   "lit-brainstorm",
+  "ultra-brainstorm",
   "lit-handoff",
   "lit-hijack",
   "lit-humanizer",
@@ -296,11 +296,11 @@ describe("Claude skills", () => {
     for (const skillName of ["lit-loop", "lit-plan", "start-work", "litgoal"]) {
       const text = readFileSync(join(skillsRoot, skillName, "SKILL.md"), "utf8");
 
-      assert.match(text, /get_goal/u, `${skillName} should inspect native goal state when available`);
-      assert.match(text, /create_goal/u, `${skillName} should create native goal state when available`);
-      assert.match(text, /update_goal/u, `${skillName} should defer goal completion until verification passes`);
+      // S4: LitClaude's own goal pipeline replaced the "get_goal/create_goal if available" sentences.
+      assert.doesNotMatch(text, /get_goal|create_goal|update_goal/u, `${skillName} names no model-facing goal tool`);
+      assert.match(text, /Approve plan, start work and set goal: \/goal <cond>\? \(yes \/ edit \/ no\)/u, `${skillName} names the consent question`);
+      assert.match(text, /clears only the goal it set/u, `${skillName} says LitClaude clears only its own goal`);
       assert.match(text, /\/goal/u, `${skillName} should mention Claude Code's native goal surface`);
-      assert.match(text, /goal tools are unavailable|goal tools are not exposed|not expose model-facing goal tools/iu, `${skillName} should define a no-goal-tool fallback`);
       assert.match(text, /BLOCKED:/u, `${skillName} should report degraded mode explicitly`);
       assert.match(text, /degraded mode|degraded-mode/i, `${skillName} should name degraded mode`);
       assert.match(text, /without\s+explicit replacement/i, `${skillName} should avoid goal clobbering`);

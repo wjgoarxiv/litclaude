@@ -22,13 +22,15 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // The README skill table shows one snapshot per row. Each id maps to one exact path.
 export const README_SKILL_IMAGE_PATHS = Object.freeze([
-  'lit-loop', 'litwork', 'lit-plan', 'start-work', 'review-work', 'litgoal', 'lit-recap', 'lit-adhd',
-  'lit-handoff', 'lit-brainstorm', 'deep-interview', 'litresearch', 'lit-hijack', 'lit-crucible', 'lit-init', 'lit-comprehend',
-  'lit-humanizer', 'lit-diagram-drawer', 'lit-schematic', 'lit-pptx', 'lit-docx', 'frontend-ui-ux', 'readme-studio',
-  'lit-typographic-motion', 'lit-scientific-visualization', 'visual-qa', 'browser-drive',
+  'lit-loop', 'litwork', 'lit-plan', 'start-work', 'review-work', 'litgoal', 'lit-adhd',
+  'lit-handoff', 'lit-brainstorm', 'ultra-brainstorm', 'deep-interview', 'litresearch', 'lit-hijack', 'lit-crucible', 'lit-init', 'lit-comprehend',
+  'lit-humanizer', 'browser-drive',
   'structural-search', 'lit-team', 'autoresearch', 'autoconference', 'wikify', 'debugging',
   'refactor', 'lit-burnoff', 'lit-burnoff-file', 'lit-code', 'lit-commit', 'lsp-setup',
   'automatic-checks',
+  // The extension rows (docs/skills.md "Extensions"), plugin by plugin.
+  'lit-pptx', 'lit-docx', 'lit-diagram-drawer', 'lit-schematic', 'lit-scientific-visualization',
+  'frontend-ui-ux', 'visual-qa', 'readme-studio', 'lit-typographic-motion',
 ].map((id) => `docs/assets/skills/${id}.webp`));
 
 // Exact paths that are allowed to ship despite matching a forbidden pattern. Each entry
@@ -70,7 +72,7 @@ export const MOD_PAYLOAD_PATHS = Object.freeze([
   'plugins/litclaude/hooks/lit-mod.mjs',
   'plugins/litclaude/hooks/lit-band-client.mjs',
   'plugins/litclaude/hooks/make-colors.js',
-  ...['backdrop', 'frame', 'layout', 'looks', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
+  ...['backdrop', 'frame', 'goal', 'layout', 'looks', 'motion', 'render', 'settings', 'skills', 'state', 'svg-card', 'timeline', 'toasts', 'view', 'workflow']
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
   'plugins/litclaude/lib/rewind/gauge.mjs',
   'plugins/litclaude/lib/plan-task-rows.mjs',

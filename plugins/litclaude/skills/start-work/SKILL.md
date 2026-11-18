@@ -241,12 +241,8 @@ Before the first checkbox, attempt native goal binding honestly. Claude Code's
 surface cannot run another slash command and model-facing goal tools may be
 unavailable:
 
-- If goal tools are exposed, call `get_goal` if exposed, `create_goal` with the
-  plan objective only when no matching active goal exists, avoid clobbering a
-  different active goal without explicit replacement, and `update_goal` only
-  after all top-level checkboxes and final gates are complete (or when the plan
-  is genuinely blocked).
-- If goal tools are unavailable, carry on with the Boulder/ledger discipline:
+- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Avoid clobbering a different active goal without explicit replacement.
+- Without an armed goal, carry on with the Boulder/ledger discipline:
   `/goal` is optional. The start-work Stop continuation already drives the run to
   its last checkbox, so do not ask the user to set a goal before executing.
 - Do not auto-type or send `/goal` text from a skill; if the user invokes `/goal`, respect it.
@@ -485,9 +481,11 @@ needed or not needed. This note prevents a common failure: claiming a Claude Cod
 surface works because the documentation says it should, while the local host or
 installed payload has not been exercised.
 
-Native goal fallback belongs in the same capability note. If `get_goal`,
-`create_goal`, and `update_goal` are visible, use them conservatively and avoid
-clobbering a different active goal. If they are not visible, say once that the
+Native goal fallback belongs in the same capability note. A goal LitClaude armed
+from lit-plan's question is set by the mod; avoid clobbering a different active
+goal. While that goal runs, Claude Code's own goal check keeps the session going
+until every row of the plan is ticked and the `## Done when` check exits 0; a
+`BLOCKED:` reply or `lit cancel` makes LitClaude clear the goal it set. Without one, say once that the
 run is in degraded mode for native goal binding and continue with the LitClaude
 ledger; `/goal` stays the user's option, not a step before execution. Do not repeat the degraded-mode message after every task; the
 ledger is the operative state. The important distinction is honesty: the plan

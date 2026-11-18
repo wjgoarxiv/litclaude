@@ -32,8 +32,8 @@ const routes = [
   ["debugging why does the build hang", 3_500],
   ["litgoal show", 3_500],
   ["lit start-work", 3_500],
-  // lit-recap inlines its whole body; 9,200 makes room for the one-sentence lit-adhd cross-link.
-  ["lit recap", 9_200],
+  // lit-recap moved into lit-adhd: `lit recap` now points at the lit-adhd body like `lit adhd` does.
+  ["lit recap", 3_500],
   ["lit adhd", 3_500],
 ];
 

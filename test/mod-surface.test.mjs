@@ -70,9 +70,15 @@ test("the mod keeps to the static rules: own files only, no dynamic import, no N
   assert.match(hooksModule, /module: "\.\/lit-band-client\.mjs"/u, "the Client module is a string literal");
 });
 
-test("the mod is read-only: no writes, processes, network, model calls or prompts", () => {
+test("the mod is read-only apart from its native goal: no other writes, processes, network, model calls or prompts", () => {
   const closure = modClosure();
-  const forbidden = /\$\.(?:fs\.write|process\.|http\.|model\.|store\.(?:set|delete)|env\.set|prompt\.(?:submit|fill)|session\.(?:append|send|compact)|tool\.call|agent\.spawn|mcp\.|audio\.)/u;
+  // S4: its one write is its own goal records under .litclaude/goal/, its one command `/goal`.
+  const hooksText = closure.get(join(pluginRoot, "hooks", "lit-mod.mjs"));
+  const writes = [...hooksText.matchAll(/\$\.fs\.write\(([^,]+),/gu)].map((match) => match[1].trim());
+  assert.ok(writes.length > 0 && writes.every((target) => /^`\$\{(?:dir|path)\}(?:\/(?:intent|owner|clear)\.json)?`$|^path$/u.test(target)), writes.join(" "));
+  assert.deepEqual([...new Set([...hooksText.matchAll(/\$\.command\.run\(\{ command: "([a-z]+)"/gu)].map((match) => match[1]))], ["goal"]);
+  for (const [path, text] of closure) if (path !== join(pluginRoot, "hooks", "lit-mod.mjs")) assert.doesNotMatch(text, /\$\.(?:fs\.write|command\.run)/u, relative(pluginRoot, path));
+  const forbidden = /\$\.(?:process\.|http\.|model\.|store\.(?:set|delete)|env\.set|prompt\.(?:submit|fill)|session\.(?:append|send|compact)|tool\.call|agent\.spawn|mcp\.|audio\.)/u;
   for (const [path, text] of closure) assert.doesNotMatch(text, forbidden, relative(pluginRoot, path));
   const calls = new Set([...closure.values()].flatMap((text) => [...text.matchAll(/\$\.([a-z]+\.[a-zA-Z]+)/gu)].map((match) => match[1])));
   assert.deepEqual([...calls].sort(), [
@@ -81,10 +87,12 @@ test("the mod is read-only: no writes, processes, network, model calls or prompt
     "clock.every",
     "clock.now",
     "command.register",
+    "command.run",
     "env.get",
     "fs.list",
     "fs.read",
     "fs.stat",
+    "fs.write",
     "session.cwd",
     "session.id",
     "session.surfaces",

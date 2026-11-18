@@ -1,0 +1,234 @@
+// The skill plan of a bare-lit prompt (S1). The prompt hook's cascade still picks ONE primary route, first
+// match wins, exactly as before. This module adds the companions: every other content route the same prompt
+// matched, in the cascade's priority order, deduplicated and capped, plus lit-crucible when the ask is a large
+// or risky design. The model confirms or drops each companion against a short catalog of the skills that are
+// installed here and states the final plan before it works. `lit +viz +ui <task>` names the plan outright.
+//
+// An extension skill (the nine that moved to the wjgoarxiv-skills marketplace) is offered under its plugin's
+// name only when that plugin is installed for this project; otherwise the plan names it once with its install
+// line. Read-only primaries (lit-adhd, review-work, litresearch, the brainstorms) never gain a companion that
+// can write. Pure apart from `installedExtensionPlugins`, which reads Claude Code's own plugin records.
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
+import { EXTENSION_SKILLS } from "./extensions-notice.mjs";
+
+export const PLAN_CAP = 3;
+const FORCED_CAP = 3;
+
+// `lit +<alias>` names. Short words a user can type without looking anything up.
+export const SKILL_ALIASES = Object.freeze({
+  viz: "lit-scientific-visualization",
+  plot: "lit-scientific-visualization",
+  ui: "frontend-ui-ux",
+  design: "frontend-ui-ux",
+  qa: "visual-qa",
+  crucible: "lit-crucible",
+  plan: "lit-plan",
+  research: "litresearch",
+  review: "review-work",
+  debug: "debugging",
+  deck: "lit-pptx",
+  slides: "lit-pptx",
+  pptx: "lit-pptx",
+  doc: "lit-docx",
+  docx: "lit-docx",
+  diagram: "lit-diagram-drawer",
+  schematic: "lit-schematic",
+  motion: "lit-typographic-motion",
+  video: "lit-typographic-motion",
+  readme: "readme-studio",
+  ast: "structural-search",
+  refactor: "refactor",
+  brainstorm: "lit-brainstorm",
+  ultra: "ultra-brainstorm",
+  humanize: "lit-humanizer",
+  commit: "lit-commit",
+});
+
+// Routes that only read. A plan led by one of these keeps only companions from this set.
+export const READ_ONLY_SKILLS = Object.freeze(new Set(["lit-adhd", "lit-rewind", "review-work", "litresearch", "lit-brainstorm", "ultra-brainstorm", "lit-crucible"]));
+const READ_ONLY_PRIMARIES = new Set(["lit-adhd", "lit-rewind", "review-work", "litresearch", "lit-brainstorm", "ultra-brainstorm"]);
+
+// The moved figures skill is user-invoked (disable-model-invocation): the model cannot load it.
+const USER_INVOKED = new Set(["lit-scientific-visualization"]);
+
+// One "use when" line per skill the catalog may offer. Extension skills appear only when installed.
+export const CATALOG = Object.freeze({
+  "lit-plan": "a decision-complete plan before code",
+  "lit-crucible": "pressure-test a large or risky design before planning",
+  "lit-brainstorm": "options for an open question, scored to a short list",
+  "ultra-brainstorm": "hundreds of cheap idea agents, then a judged top list",
+  litresearch: "prior work and primary sources, with references",
+  "review-work": "findings-first review of a diff or branch",
+  debugging: "reproduce, localize and fix a failure",
+  refactor: "behaviour-preserving restructure",
+  "structural-search": "syntax-shaped search or codemod",
+  "lit-humanizer": "rewrite prose in the writer's own voice",
+  "lit-commit": "commits and git history work",
+  "browser-drive": "act in a real browser page",
+  "lit-pptx": "a finished .pptx deck",
+  "lit-docx": "a finished .docx document",
+  "lit-diagram-drawer": "a conceptual diagram (architecture, flow, timeline)",
+  "lit-schematic": "a physical schematic (P&ID, PFD, apparatus, cutaway)",
+  "lit-scientific-visualization": "a publication figure of measured data",
+  "frontend-ui-ux": "build or restyle an interface",
+  "visual-qa": "check a built interface at several sizes",
+  "lit-typographic-motion": "a short kinetic-type film or README cover loop",
+  "readme-studio": "a factual README with an inspected cover",
+});
+
+const realpath = (path) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return null;
+  }
+};
+
+const readJson = (path) => {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+const appliesHere = (entry, cwd) => {
+  if (!entry || typeof entry !== "object") return false;
+  if (entry.scope === "user" || !entry.projectPath) return true;
+  const project = realpath(entry.projectPath);
+  const here = realpath(cwd);
+  return Boolean(project && here && (here === project || here.startsWith(`${project}${sep}`)));
+};
+
+const present = (path) => {
+  try {
+    return lstatSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The wjgoarxiv-skills plugins Claude Code has installed and not disabled for `cwd`, from its own
+ * `plugins/installed_plugins.json` and `settings.json` records. Any unreadable record reads as none.
+ */
+export const installedExtensionPlugins = ({ configDir, cwd }) => {
+  const root = configDir || join(homedir(), ".claude");
+  const registry = readJson(join(root, "plugins", "installed_plugins.json"))?.plugins ?? {};
+  const enabled = readJson(join(root, "settings.json"))?.enabledPlugins ?? {};
+  const found = new Set();
+  for (const plugin of new Set(Object.values(EXTENSION_SKILLS))) {
+    const key = `${plugin}@wjgoarxiv-skills`;
+    if (enabled[key] === false) continue;
+    const entries = Array.isArray(registry[key]) ? registry[key] : [];
+    if (entries.some((entry) => appliesHere(entry, cwd) && (typeof entry.installPath !== "string" || present(entry.installPath)))) found.add(plugin);
+  }
+  return found;
+};
+
+const HATCH = /(?:^|\s)lit(?:work)?((?:\s+\+[a-z][a-z-]{0,30})+)(?=\s|$)/u;
+
+/** `lit +viz +ui <task>`: the forced skills in the user's order, unknown names, and the prompt without them. */
+export const parseSkillHatch = (text, prompt = text) => {
+  const match = HATCH.exec(typeof text === "string" ? text : "");
+  if (!match) return null;
+  const names = match[1].trim().split(/\s+/u).map((token) => token.slice(1));
+  const skills = [];
+  const unknown = [];
+  for (const name of names) {
+    const id = SKILL_ALIASES[name] ?? (Object.hasOwn(CATALOG, name) ? name : null);
+    if (!id) unknown.push(name);
+    else if (!skills.includes(id)) skills.push(id);
+  }
+  const rest = typeof prompt === "string" ? prompt.replace(/((?:^|\s)lit(?:work)?)(?:\s+\+[A-Za-z][A-Za-z-]{0,30})+(?=\s|$)/u, "$1") : prompt;
+  return { skills: skills.slice(0, FORCED_CAP), extra: skills.slice(FORCED_CAP), unknown, rest };
+};
+
+// Large or risky design asks: lit-crucible joins as the first companion. A request to explain or describe stays out.
+const riskyDesignAsk = /\b(?:redesign(?:ing)?|re-?architect(?:ure|ing)?|architecture|migrat(?:e|ion|ing)|overhaul(?:ing)?)\b|설계|아키텍처|마이그레이션|전면\s?개편/u;
+const explainAsk = /\b(?:explain|describe|summari[sz]e|what\s+is)\b|설명|요약/u;
+const DELIVERABLES = new Set(["lit-pptx", "lit-docx", "frontend-ui-ux", "lit-scientific-visualization", "lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"]);
+
+export const wantsCrucible = (normalized, ids) => {
+  if (explainAsk.test(normalized)) return false;
+  return riskyDesignAsk.test(normalized) || ids.filter((id) => DELIVERABLES.has(id)).length >= 3;
+};
+
+/**
+ * The ordered plan. `primary` is the cascade's skill id; `companions` are the other matched route ids in
+ * priority order; `forced` (from parseSkillHatch) replaces the companions. Returns null when the plan is the
+ * primary alone, so an ordinary prompt's context stays exactly as it was.
+ */
+export const buildSkillPlan = ({ primary, companions = [], forced = null, normalized = "", installed = new Set() }) => {
+  if (typeof primary !== "string" || !primary) return null;
+  const readOnly = READ_ONLY_PRIMARIES.has(primary);
+  const dropped = [];
+  let picked;
+  if (forced) {
+    picked = forced.skills.filter((id) => id !== primary);
+  } else {
+    picked = companions.filter((id) => id !== primary);
+    if (!readOnly && primary !== "lit-crucible" && !picked.includes("lit-crucible") && wantsCrucible(normalized, [primary, ...picked])) picked.unshift("lit-crucible");
+  }
+  picked = [...new Set(picked)].filter((id) => {
+    if (readOnly && !READ_ONLY_SKILLS.has(id)) {
+      dropped.push({ id, why: `${primary} is read-only` });
+      return false;
+    }
+    return true;
+  });
+  const cap = forced ? FORCED_CAP : PLAN_CAP - 1;
+  for (const id of picked.slice(cap)) dropped.push({ id, why: "over the cap" });
+  picked = picked.slice(0, cap);
+  if (picked.length === 0 && !forced) return null;
+  const entries = [primary, ...picked].map((id) => {
+    const plugin = EXTENSION_SKILLS[id] ?? null;
+    return { id, plugin, installed: plugin ? installed.has(plugin) : true, userInvoked: USER_INVOKED.has(id) };
+  });
+  return { entries, dropped, forced: Boolean(forced), unknown: forced?.unknown ?? [], readOnly };
+};
+
+const entryLabel = (entry, named, primary) => {
+  const lead = primary ? " (primary)" : "";
+  if (!entry.plugin) return `${entry.id}${lead}`;
+  if (entry.installed) return `${entry.plugin}:${entry.id}${lead}${entry.userInvoked ? ` (user types /${entry.plugin}:${entry.id})` : ""}`;
+  if (named.has(entry.plugin)) return `${entry.id}${lead} (not installed)`;
+  named.add(entry.plugin);
+  return `${entry.id}${lead} (not installed: npx @litfamily/litclaude extensions install ${entry.plugin})`;
+};
+
+/** The plan line, e.g. `Skill plan: 1 lit-loop (primary) → 2 figures:lit-scientific-visualization`. */
+export const skillPlanLine = (plan) => {
+  const named = new Set();
+  return `Skill plan: ${plan.entries.map((entry, index) => `${index + 1} ${entryLabel(entry, named, index === 0)}`).join(" → ")}`;
+};
+
+/** The skill ids of a plan, bare, for the LIT card's chips. */
+export const skillPlanIds = (plan) => (plan ? plan.entries.map(({ id }) => id) : []);
+
+const catalogLines = (plan, installed) => {
+  const inPlan = new Set(plan.entries.map(({ id }) => id));
+  return Object.entries(CATALOG)
+    .filter(([id]) => !inPlan.has(id))
+    .filter(([id]) => !plan.readOnly || READ_ONLY_SKILLS.has(id))
+    .filter(([id]) => !EXTENSION_SKILLS[id] || installed.has(EXTENSION_SKILLS[id]))
+    .map(([id, use]) => `${EXTENSION_SKILLS[id] ? `${EXTENSION_SKILLS[id]}:${id}` : id} — ${use}`);
+};
+
+/** The model-facing block. Fixed text around the plan; nothing from the prompt is echoed. */
+export const skillPlanContext = (plan, installed = new Set()) => {
+  const lines = [skillPlanLine(plan)];
+  if (plan.forced) {
+    lines.push("The user named this plan with `lit +…`: keep it exactly, add nothing and drop nothing.");
+    if (plan.unknown.length > 0) lines.push(`Ignored unknown plan names: ${plan.unknown.map((name) => `+${name}`).join(" ")}.`);
+  } else {
+    lines.push("The companions after the primary are candidates the hook matched, not orders: confirm or drop each one for this request, and add at most one skill from the catalog below when the work clearly needs it.");
+  }
+  for (const { id, why } of plan.dropped) lines.push(`Left out: ${id} (${why}).`);
+  lines.push("State the final plan on the line right after the probe line, in the same `Skill plan: 1 … → 2 …` form. The primary is already active; load each companion with the Skill tool when its part of the work starts, never all up front. A skill marked not installed is not loaded: give its install line once and carry on without it. A skill the user types is never loaded by you: tell the user its command when its part starts.");
+  const catalog = plan.forced ? [] : catalogLines(plan, installed);
+  if (catalog.length > 0) lines.push(`Catalog (installed here): ${catalog.join("; ")}.`);
+  return `<litclaude-skill-plan>\n${lines.join("\n")}\n</litclaude-skill-plan>`;
+};

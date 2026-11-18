@@ -2407,7 +2407,8 @@ export const startWorkFromInvocation = (root, { sessionId, promptId, plan = null
     originPromptId: promptId,
   });
   const work = response.state.works[workId];
-  return { started: { workId, plan: work.plan_name, next: work.progress.next_task } };
+  const inside = relative(canonicalRoot, planPath);
+  return { started: { workId, plan: work.plan_name, next: work.progress.next_task, ...(inside && !inside.startsWith("..") && !isAbsolute(inside) ? { ref: inside.split(/[\\/]/u).join("/") } : {}) } };
 };
 
 const pendingFor = (state, sessionId) => {

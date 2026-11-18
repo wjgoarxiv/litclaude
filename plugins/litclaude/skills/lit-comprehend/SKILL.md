@@ -1,6 +1,7 @@
 ---
 name: lit-comprehend
 description: "Build a self-contained explainer that makes agent-written work understandable: anchor on what the user already knew, explain the intuition before code, walk the change in conceptual order, offer a micro-world when useful, and close with a quiz. Use this when the user explicitly asks for an explainer or needs to reason with a substantial change. Propose the scope and wait whenever the target had to be inferred."
+goal: never
 ---
 
 ## #contract.activation
@@ -100,12 +101,12 @@ deliverable. The document is only its packaging.
 
 | The user needs | Use | Because |
 | --- | --- | --- |
-| *What happened? Where are we?* | `lit-recap` | Status, chronology, blockers — fast, in-terminal, read-only. |
+| *What happened? Where are we?* | `lit-adhd` (`lit adhd recap`) | Status, chronology, blockers — fast, in-terminal, read-only. |
 | *I don't understand what you built.* | `lit-comprehend` | Intuition, mental model, verified understanding. |
 | *Is this correct / safe to ship?* | `review-work` | Judgment against criteria, not comprehension. |
 | *Continue this in a fresh session.* | `lit-handoff` | Machine-resumable state, not human intuition. |
 
-`lit-recap` answers questions about the work. `lit-comprehend` gives the reader the
+`lit-adhd` answers questions about the work. `lit-comprehend` gives the reader the
 model they need to ask better questions. When the user asks for a recap but
 their real complaint is bewilderment, say so and offer `lit-comprehend`.
 

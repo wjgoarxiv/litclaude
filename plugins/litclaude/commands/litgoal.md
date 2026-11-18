@@ -96,11 +96,9 @@ litclaude litgoal steer --kind scope --note "<what changed and why>" --json
 ```
 
 The ledger lives under `.litclaude/litgoal/` unless test environment variables
-override it. Attempt native binding through goal tools when they are available:
-inspect `get_goal`, call `create_goal` only when no matching active goal exists,
-and avoid clobbering a different active goal without explicit replacement. When
-goal tools are unavailable, return explicit `BLOCKED:` / degraded-mode wording
-instead of claiming native success, and record clear criteria and evidence in
+override it. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Never clobber a different
+active goal without explicit replacement. Without an armed goal, return explicit
+`BLOCKED:` / degraded-mode wording instead of claiming native success, and record clear criteria and evidence in
 the local ledger.
 If the hook reports `READY_TO_PASTE`, reproduce its exact `/goal <condition>`
 line for the user, say they can copy, paste, and send it in the current Claude

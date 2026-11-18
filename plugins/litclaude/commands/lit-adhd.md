@@ -1,6 +1,6 @@
 ---
-description: "Cross-session KPI board: the one thing to do now, done and left work, milestones, reminders; detail on request."
-argument-hint: '<--here, --since 7d, --max 12, --en>'
+description: "Six-line verdict card after a break: what changed, the one thing to do now, what to type; 자세히/detail for the board, recap for sessions."
+argument-hint: '<자세히 | detail | recap [session], --here, --since 7d, --max 12, --en>'
 ---
 
 ## #contract.activation
@@ -56,7 +56,7 @@ Reader mode is the default conversational projection: return the result, materia
 risk, required action, and explicitly requested detail. Keep detailed DoneClaims,
 evidence, ledgers, and handoffs internal; material failure, risk, or uncertainty
 always remains visible. Technical and audit detail is included only when the
-current authoritative request asks for it. The board's six sections (and, on request, the
+current authoritative request asks for it. The card's lines (and, on request, the board and the
 detail's five parts) are the requested content, not an invitation to append unrelated
 operational metadata.
 
@@ -89,18 +89,16 @@ collector's own next-step record under `.litclaude/adhd/`, which a following
 
 Procedure:
 
-- Run `litclaude-ai rewind --brief --lang <ko|en>` once, `ko` for a Korean
-  prompt (or `node <skill-root>/scripts/rewind.mjs --brief --lang <ko|en>` when
-  the bin is not on PATH or rejects `--brief`). Pass `--detail` only when the
-  user asked for per-session detail (`lit adhd 자세히`, `lit adhd detail`), and
-  `--here`, `--since <7d|12h|30m>` or `--max <n>` only when the user asked.
-- Print the KPI board it draws as the reply, exactly as drawn, in its fixed
-  order: 🎯 Do this now (one action, why, and what to type or where to go),
-  📊 At a glance (✅ done / 🔄 in progress / ⏳ waiting on you / ⬜ left and the
-  overall bar), 🏁 Milestones, ✅ Done lately, ⬜ Still to do and 🔔 Don't
-  forget, as `Skill(lit-adhd)` defines. With `--detail` the per-session brief
-  (cards grouped by worktree and branch, the ended-session table, the roadmap
-  and the boxed next step) follows under it.
+- Run `litclaude-ai rewind --verdict --lang <ko|en>` once, `ko` for a Korean
+  prompt (or `node <skill-root>/scripts/rewind.mjs` with the same flags when the
+  bin is not on PATH or rejects a flag). For detail (`lit adhd 자세히`,
+  `lit adhd detail`) run `--brief --detail` instead; for the recap
+  (`lit adhd recap [session]`) run `--recap [<session>]`. Add `--here`,
+  `--since <7d|12h|30m>` or `--max <n>` only when the user asked.
+- Print what it draws as the reply, exactly as drawn: the six-line verdict card
+  (since your last look, 지금 할 일 / Do now, 입력 / Type, 이유 / Why,
+  다음 대기 / Next waiting, coverage), or the KPI board with the per-session
+  brief under it, or the recap, as `Skill(lit-adhd)` defines.
 - A bar (`█████░░░░░ 9/18 (50%)`) or gauge (`[▉▉▉░░] 3/5`) appears only when
   both numbers are recorded; an unknown total shows the known facts in words.
   Never draw or estimate one.

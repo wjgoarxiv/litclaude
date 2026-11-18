@@ -1,6 +1,7 @@
 ---
 name: review-work
 description: Claude-native LitClaude review in two named modes. Plan review checks a plan before start-work (complete, ordered, verifiable); work review runs five lanes over a diff, branch or PR after lit-loop or start-work. It auto-picks from what exists, takes lit review plan or lit review work, and reports findings first with evidence artifacts and cleanup receipts.
+goal: never
 ---
 
 ## #contract.activation
@@ -772,8 +773,8 @@ answer.
 Many LitClaude tasks mention Claude Code native goal support, Dynamic workflow,
 Dynamic worktree, and native teammate behavior. Review these claims with a strict
 capability lens. If a changed file says LitClaude updates `/goal`, check whether
-it actually means model-facing `update_goal` when exposed, or whether it falsely
-claims to type a slash command. If a changed file says a workflow ran, ask for
+it actually means the LitClaude mod's own `/goal` run after the user's `yes`
+(lit-plan's consent question), or whether it falsely claims to type a slash command. If a changed file says a workflow ran, ask for
 the host evidence that the workflow tool was available and accepted the request.
 If a changed file says a worktree was used, check that the worktree mutation was
 allowed by the user and cleaned up or intentionally preserved. If native team

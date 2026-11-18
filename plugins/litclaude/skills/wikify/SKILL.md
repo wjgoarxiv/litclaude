@@ -18,7 +18,7 @@ verdicts: [PASS, FAIL, BLOCKED]
 | --- | --- | --- |
 | mode | `init`, `ingest`, `query`, `save`, or `lint`; structured knowledge also supports `capture`, `review`, and `config`. | Exact route receipt. |
 | locality | Current project/subproject is the default maximum write root. | Canonical root and changed-file list. |
-| lifecycle | `litresearch` → local inert-source operations → `review-work` → `lit-recap` or `handoff`. | Source receipts, review verdict, continuation receipt. |
+| lifecycle | `litresearch` → local inert-source operations → `review-work` → `lit adhd recap` or `handoff`. | Source receipts, review verdict, continuation receipt. |
 | knowledge authority | `.litclaude/knowledge/claims.jsonl` is the append-only authority. | Record id, state transition, and ledger path. |
 
 ## #contract.inputs
@@ -79,7 +79,7 @@ Use `litclaude wikify config --capture off` for the project-local opt-out.
    Recovery removes one interrupted final line, and a repeated event or state transition remains idempotent.
    The broader wiki modes retain their existing stop, drift, and receipt rules.
 10. Run `review-work` over locality, source immutability, navigation, provenance, contradictions, drift, malformed or
-    hostile input, and package/docs surfaces. Close with `lit-recap` for a read-only recap or `handoff` for continuation.
+    hostile input, and package/docs surfaces. Close with `lit adhd recap` for a read-only recap or `handoff` for continuation.
 
 ## #contract.local-state-boundary
 
@@ -136,6 +136,6 @@ always remains visible; protected structured or audit artifacts retain their sch
 - Saving every answer, rewriting all pages on every ingest, or claiming raw bytes are unchanged without checking.
 - Accepting a claim during capture, querying review-needed records, emitting an empty knowledge wrapper, or treating a
   derived index, summary, or manifest as authority.
-- Skipping `review-work`, stale-state checks, or `lit-recap`/`handoff` continuity after material operations.
+- Skipping `review-work`, stale-state checks, or `lit adhd recap`/`handoff` continuity after material operations.
 
 <!-- LitClaude © 2026 wjgoarxiv · MIT · github.com/wjgoarxiv/litclaude · fp:24f72ed51bcd -->

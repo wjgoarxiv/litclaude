@@ -89,7 +89,7 @@ fresh Claude Code session execute without re-solving the architecture.
 This skill is **planning-only**. You must not implement, must not edit files for
 product changes, and must not run mutating commands. Do not call any start-work
 tool from inside planning mode. Close the saved plan with one step: tell the
-user to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
+user to answer the approval question (an exact `yes` starts the work), or to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
 typing it approves this plan and runs it, so no second confirm reply and no `/goal` line is needed. The
 Stop hook saves the plan as this session's next step once the plan file is written, which is
 what lets the one word `go` start it. The hook starts the work
@@ -306,11 +306,19 @@ Include native goal handling as an honest binding attempt. Claude Code's
 surface cannot run another slash command and model-facing goal tools may be
 unavailable:
 
-- If goal tools are exposed, call `get_goal`, create with `create_goal` only
-  when no matching active goal exists, avoid clobbering a different active goal
-  without explicit replacement, and delay `update_goal` until verified
-  completion or a real blocker.
-- If goal tools are unavailable, write no `/goal` line into the plan: start-work's
+- End the plan with a `## Done when` block: one line `check: \`<command>\``, an
+  allowlisted test command that exits 0 only when the work is done (`npm test`,
+  `node --test …`, `pytest`, `make check`, `bash scripts/<check>.sh`). No judgment
+  words ("works", "looks good", "잘 동작"), never a push or publish.
+- After writing the plan, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" plans/<slug>.md`
+  once and add the one line it prints to the approval question, unchanged: either
+  `Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`, or, when no goal can
+  be set, `Approve plan and start work? (yes / no)` followed by `No goal set: <reason>`. A start
+  that is refused (another run active, plan gone) arms no goal and prints
+  `No goal set: start-work did not start (<why>)`. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. If a `ProposeGoal` tool is in your live tool
+  list, you may call it with `ask_user=true` instead of printing the line; never
+  otherwise. Avoid clobbering a different active goal without explicit replacement.
+- Write no `/goal` line into the plan: start-work's
   Stop continuation and the LitClaude ledger carry the run to its end, and a user
   who wants native `/goal` can still set one.
 - Do not auto-type or send `/goal` text from a skill, and never claim native activation without evidence.
@@ -576,8 +584,8 @@ portable QA only when the payload or install path actually changed.
 ## Capability-Gated Native Surfaces
 
 Plans must distinguish desired Claude Code behavior from observed capability.
-Native goal binding is the clearest case. The plan may include `get_goal`,
-`create_goal`, and `update_goal` steps only as capability-gated actions. It must
+Native goal binding is the clearest case. The plan carries a `## Done when` check,
+and the goal is set only through lit-plan's consent question and the mod. It must
 also include the degraded-mode path: the LitClaude ledger and start-work's Stop
 continuation, used until native tools are actually visible. The acceptance
 criterion is not "native goal was updated" unless the host exposes the tool and

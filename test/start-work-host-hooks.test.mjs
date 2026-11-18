@@ -1192,7 +1192,7 @@ describe("start-work shared with other sessions in the same project", () => {
       assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read, nudge its worker with `herdr agent prompt` and write notes in your scratchpad or the shared project memory, not change project files\./u);
       const statusRun = other(root, "Bash", { command: "litclaude-ai start-work status" });
       assert.notEqual(statusRun.stdout && parse(statusRun).hookSpecificOutput.permissionDecision, "deny");
-      const skill = other(root, "Skill", { skill: "litclaude:lit-recap" });
+      const skill = other(root, "Skill", { skill: "litclaude:lit-adhd" });
       assert.notEqual(skill.stdout && parse(skill).hookSpecificOutput.permissionDecision, "deny");
       const write = parse(other(root, "Write", { file_path: join(root, "b.txt"), content: "b" })).hookSpecificOutput;
       assert.equal(write.permissionDecision, "deny");

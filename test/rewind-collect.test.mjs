@@ -192,6 +192,34 @@ test("a running start-work's gauge reads its plan's checkboxes, not the stored s
   assert.equal(collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true }).startWork[0].progress.gauge, "[░░░] 0/3", "an odd plan name falls back to the snapshot");
 });
 
+test("(R4) a start-work whose plan has every row ticked reads finished: no continue, and another open plan can start", () => {
+  const { repo, env } = fixture();
+  mkdirSync(join(repo, "plans"));
+  writeFileSync(join(repo, "plans", "a.md"), "# A\n- [x] 1. a\n- [x] 2. b\n");
+  writeFileSync(join(repo, "plans", "b.md"), "# B\n- [ ] 1. next\n");
+  mkdirSync(join(repo, ".litclaude"), { recursive: true });
+  const work = { work_id: "work-a", status: "active", plan_name: "a.md", root_session_id: "owner-1", progress: { checked: 0, total: 2, next_task: "1. a" } };
+  writeFileSync(join(repo, ".litclaude", "boulder.json"), JSON.stringify({ active_work_id: "work-a", works: { "work-a": work } }));
+  const data = collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true, sessionId: "owner-1", record: false });
+  assert.equal(data.startWork[0].status, "finished");
+  const next = chooseNextStep(data, "owner-1");
+  assert.notEqual(next.kind, "continue-work", "a finished run is not continued");
+  assert.deepEqual(next.target, { plan: "plans/b.md" });
+});
+
+test("(R4) the reader checks the exact plan the run recorded, so a same-name plan elsewhere cannot fool it", () => {
+  const { repo, env } = fixture();
+  mkdirSync(join(repo, "plans", "done"), { recursive: true });
+  writeFileSync(join(repo, "plans", "done", "a.md"), "# A\n- [x] 1. a\n");
+  writeFileSync(join(repo, "plans", "a.md"), "# other A\n- [ ] 1. still open\n");
+  mkdirSync(join(repo, ".litclaude"), { recursive: true });
+  const work = { work_id: "work-a", status: "active", plan_name: "a.md", active_plan: join(realpathSync(repo), "plans", "done", "a.md"), root_session_id: "owner-1", progress: { checked: 0, total: 1, next_task: "1. a" } };
+  writeFileSync(join(repo, ".litclaude", "boulder.json"), JSON.stringify({ active_work_id: "work-a", works: { "work-a": work } }));
+  const [entry] = collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true, sessionId: "owner-1", record: false }).startWork;
+  assert.equal(entry.plan, "plans/done/a.md");
+  assert.equal(entry.status, "finished");
+});
+
 test("plans, litgoal, handoffs, stacks and git all feed the brief with redacted text", () => {
   const { repo, configDir, env, home } = fixture();
   mkdirSync(join(repo, "plans"));

@@ -113,9 +113,10 @@ describe("Claude plugin manifest", () => {
       "litresearch.md",
       "review-work.md",
       "start-work.md",
+      "ultra-brainstorm.md",
       "wikify.md",
     ]);
-    for (const command of ["autoconference.md", "autoresearch.md", "lit-adhd.md", "lit-rewind.md", "lit-brainstorm.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-hijack.md", "lit-scientific-visualization.md", "wikify.md"]) {
+    for (const command of ["autoconference.md", "autoresearch.md", "lit-adhd.md", "lit-rewind.md", "lit-brainstorm.md", "lit-comprehend.md", "deep-interview.md", "lit-init.md", "review-work.md", "start-work.md", "litgoal.md", "litresearch.md", "lit-loop.md", "lit-plan.md", "lit-recap.md", "lit-humanizer.md", "lit-handoff.md", "lit-hijack.md", "lit-scientific-visualization.md", "ultra-brainstorm.md", "wikify.md"]) {
       const commandText = readFileSync(join(commandsPath, command), "utf8");
       assert.match(commandText, /^---\n[\s\S]*description:/u, `${command} should have command frontmatter`);
       assertLlmCommandContract(commandText, command);
@@ -132,7 +133,7 @@ describe("Claude plugin manifest", () => {
     const litgoal = readFileSync(join(commandsPath, "litgoal.md"), "utf8");
     assert.match(litgoal, /\blitgoal\b[\s\S]*\bledger\b[\s\S]*\bcheckpoint\b/iu);
     const dynamicWorkflow = readFileSync(join(commandsPath, "lit-loop.md"), "utf8");
-    assert.match(dynamicWorkflow, /get_goal[\s\S]*create_goal[\s\S]*Workflow[\s\S]*lit-planner[\s\S]*lit-executor[\s\S]*qa-runner/iu);
+    assert.match(dynamicWorkflow, /\/goal <cond>\? \(yes \/ edit \/ no\)[\s\S]*Workflow[\s\S]*lit-planner[\s\S]*lit-executor[\s\S]*qa-runner/iu);
     assert.doesNotMatch(`${reviewWork}\n${litgoal}\n${dynamicWorkflow}`, /\bTODO\b|placeholder|TBD|<insert|broken empty argument/iu);
   });
 

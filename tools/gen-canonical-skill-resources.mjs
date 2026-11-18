@@ -75,6 +75,7 @@ const PINNED_TREES = [
   "skills/lit-hijack",
   "skills/lit-pptx",
   "skills/lit-typographic-motion",
+  "skills/ultra-brainstorm",
   "skills/lit-humanizer",
   "skills/lit-team",
   "skills/lit-code",

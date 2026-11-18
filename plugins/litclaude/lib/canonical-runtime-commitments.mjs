@@ -30,15 +30,15 @@ export const CANONICAL_RUNTIME_ADAPTER_COMMITMENTS = Object.freeze([
   }),
   Object.freeze({
     path: "skills/autoconference/SKILL.md",
-    size: 8257,
+    size: 8262,
     executable: false,
-    sha256: "8d129faef0613c46baff2fe56d26813a957685b000d335f3cb455d5b4b8ec124",
+    sha256: "9e326405d23919a910ea53211c4cab0306d2d848654763a0975338b2de058774",
   }),
   Object.freeze({
     path: "skills/wikify/SKILL.md",
-    size: 10209,
+    size: 10224,
     executable: false,
-    sha256: "a6b49977361587bd506dd77fe70406baa07efdad2ce9743b65b94334163f8b89",
+    sha256: "1894ea8588072f6766f7c6752d714ff3dea23d040e169eb4484d7178dfb96d94",
   }),
   Object.freeze({
     path: "commands/autoresearch.md",
@@ -54,9 +54,9 @@ export const CANONICAL_RUNTIME_ADAPTER_COMMITMENTS = Object.freeze([
   }),
   Object.freeze({
     path: "commands/wikify.md",
-    size: 3711,
+    size: 3716,
     executable: false,
-    sha256: "8a67b79ea9a1b2b36b8375fd67f82845658e76ab821f577508c850132e730a14",
+    sha256: "73ab75903e23af8534bf8df01c4930aa6284bae5ee778d86f7ac1e540f84b100",
   }),
 ]);
 

@@ -30,7 +30,6 @@ export const LIT_SKILL_IDS = Object.freeze([
   "lit-loop",
   "lit-plan",
   "lit-pptx",
-  "lit-recap",
   "lit-schematic",
   "lit-scientific-visualization",
   "lit-team",
@@ -46,6 +45,7 @@ export const LIT_SKILL_IDS = Object.freeze([
   "rules",
   "start-work",
   "structural-search",
+  "ultra-brainstorm",
   "visual-qa",
   "wikify",
 ]);

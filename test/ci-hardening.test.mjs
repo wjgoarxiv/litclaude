@@ -175,6 +175,10 @@ describe('ci-hardening: check:skill-resources detects unpinned drift', () => {
     write('plugins/litclaude/skills/browser-drive/scripts/capability-probe.mjs', 'export const probe = {};\n');
     write('plugins/litclaude/skills/lit-adhd/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-brainstorm/SKILL.md', '# fixture\n');
+    write('plugins/litclaude/skills/ultra-brainstorm/SKILL.md', '# fixture\n');
+    write('plugins/litclaude/skills/ultra-brainstorm/references/lenses.md', '# fixture\n');
+    write('plugins/litclaude/skills/ultra-brainstorm/references/workflow-script.md', '# fixture\n');
+    write('plugins/litclaude/skills/ultra-brainstorm/scripts/estimate.mjs', 'export const estimate = () => ({});\n');
     write('plugins/litclaude/skills/lit-comprehend/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-diagram-drawer/SKILL.md', '# fixture\n');
     write('plugins/litclaude/skills/lit-docx/SKILL.md', '# fixture\n');

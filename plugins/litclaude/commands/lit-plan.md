@@ -79,7 +79,7 @@ arguments.
 
 This command is planning-only. Do not implement, edit files for product
 changes, run mutating commands, or call start-work tooling from the planning
-surface. End with one step: tell the user to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
+surface. End with one step: tell the user to answer the approval question (an exact `yes` starts the work), or to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
 typing it approves this plan and runs it. A plan that needs access outside the
 project names it on a `Scope roots: <path> (<actions>)` line. Every absolute path
 a todo names outside the project needs such a line: `scaffold-plan.mjs --check`
@@ -88,9 +88,10 @@ and the Stop hook blocks until the plan carries it.
 
 The plan must include Claude Code-native bootstrap steps:
 
-- If model-facing goal tools are exposed, use `get_goal`, `create_goal`, and
-  delayed `update_goal` exactly as native goal state, not as slash-command text.
-- If goal tools are unavailable, add no `/goal` step: start-work's Stop
+- End the plan with a `## Done when` block holding one `check: \`<command>\`` line,
+  run `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" plans/<slug>.md`, and
+  add the one line it prints to the approval question. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
+- Add no `/goal` step to the plan itself: start-work's Stop
   continuation and the ledger carry the run, and `/goal` stays the user's option.
 - For independent, risky, parallel, or long-running work, include when Claude
   should call the `Workflow` tool and how each lane proves its evidence.

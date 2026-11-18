@@ -72,7 +72,7 @@ test("read-only disciplines never change the stack", () => {
     assert.deepEqual(stack.frames, base.frames, skill);
     assert.deepEqual(transitions, [], skill);
   }
-  assert.ok(READ_ONLY_DISCIPLINES.includes("lit-adhd") && READ_ONLY_DISCIPLINES.includes("lit-rewind") && READ_ONLY_DISCIPLINES.includes("lit-recap"));
+  assert.ok(READ_ONLY_DISCIPLINES.includes("lit-adhd") && READ_ONLY_DISCIPLINES.includes("lit-rewind") && !READ_ONLY_DISCIPLINES.includes("lit-recap"));
 });
 
 test("asking for the same skill again resumes its frame with its count, never back at the entry stage", () => {
@@ -211,7 +211,7 @@ test("a plan ref is kept only as a project-relative plans/ path", () => {
 });
 
 test("random event sequences keep the invariants: at most three frames, one active, small JSON", () => {
-  const skills = ["lit-loop", "lit-plan", "lit-brainstorm", "start-work", "review-work", "litresearch", "lit-docx", "lit-recap", "lit-adhd"];
+  const skills = ["lit-loop", "lit-plan", "lit-brainstorm", "start-work", "review-work", "litresearch", "lit-docx", "lit-comprehend", "lit-adhd"];
   let seed = 7;
   const next = (n) => {
     seed = (seed * 1103515245 + 12345) % 2 ** 31;

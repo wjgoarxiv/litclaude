@@ -30,7 +30,6 @@
         "lit-loop",
         "lit-plan",
         "lit-pptx",
-        "lit-recap",
         "lit-schematic",
         "lit-scientific-visualization",
         "lit-team",
@@ -46,12 +45,13 @@
         "rules",
         "start-work",
         "structural-search",
+        "ultra-brainstorm",
         "visual-qa",
         "wikify"
       ],
       "inventory": {
         "count": 42,
-        "sha256": "9e9482e2c76603b2319f560a0b4ed6b4f73ff7f725917aabb9aa3ebe97dee53b"
+        "sha256": "4af2f829ee0e9b2cd391dcf60f921fc7fdb874df354fe12a9a3a7118364516c9"
       }
     },
     "p28": {
@@ -416,7 +416,6 @@
     "lit-recap": {
       "median": 1,
       "closures": {
-        "p27": 1,
         "p28": 1,
         "p31": 2,
         "p32": 1,

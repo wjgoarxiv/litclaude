@@ -6,9 +6,12 @@
 // when LIT work completes or a long LIT turn ends. Under the `look` option (on by default) it also
 // sets the Ignition look once a session with `$.theme.set` and draws its backdrop scene, which the
 // desktop and mobile apps show behind the conversation and which follows the LIT state
-// (lib/mod/backdrop.mjs); the terminal draws no look. It is read-only: it reads LitClaude's own state
-// files and the Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and
-// the host's live figures, and never writes, spawns, fetches or calls a model. Of a tool call it
+// (lib/mod/backdrop.mjs); the terminal draws no look. It reads LitClaude's own state files and the
+// Git HEAD through lib/mod/state.mjs, the settings for the status line's accent, and the host's live
+// figures, and never spawns, fetches or calls a model. Its one write and its one command are the
+// native goal (S4, lib/mod/goal.mjs): after the user's exact `yes` to lit-plan's goal question it runs
+// `/goal <condition>` at an idle, keeps its own record under `.litclaude/goal/`, and clears only the
+// goal it set. Of a tool call it
 // keeps the tool's name and start time, never its arguments, with three exceptions that keep counts
 // and names only: the statuses of a TodoWrite or a task-list call (each loop's k/n on the card), and
 // the task id and description a background Bash or Monitor call answers (a thread row until its
@@ -28,6 +31,7 @@ import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
 import { detectIconFont, readGitBranch, readInvited, readLedgerTail, readLitSnapshot, readPluginVersions } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
+import { GOAL_DIR, goalStep, transcriptPathFor } from "../lib/mod/goal.mjs";
 import {
   EMPTY_ACTIVITY,
   EMPTY_LISTS,
@@ -150,6 +154,65 @@ const stateIo = ($) => ({
   read: (path) => $.fs.read(path),
   list: (path) => $.fs.list(path),
 });
+
+async function readGoalRecord($, path) {
+  try {
+    const value = JSON.parse(await $.fs.read(path));
+    return value && typeof value === "object" && Object.keys(value).length ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// One idle's goal work: read the records and the transcript, take the step goalStep picks, say it in
+// its fixed status line. Runs after the turn settled (a hook the turn waits on cannot run a command).
+async function goalTick($, live) {
+  if (live.goalBusy) return;
+  live.goalBusy = true;
+  try {
+    const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
+    const dir = `${cwd}/${GOAL_DIR}`;
+    const [intent, owner, clear] = await Promise.all(["intent", "owner", "clear"].map((name) => readGoalRecord($, `${dir}/${name}.json`)));
+    if ((!intent || intent.consumedAt) && (!owner || owner.closed)) return;
+    const transcript = live.configDir ? await $.fs.read(transcriptPathFor(live.configDir, cwd, sessionId)).catch(() => "") : "";
+    const step = goalStep({ intent, owner, clear, transcript, sessionId });
+    const now = new Date(await $.clock.now()).toISOString();
+    if (step.do === "skip-yours" || step.do === "set") await $.fs.write(`${dir}/intent.json`, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
+    if (step.do === "set") {
+      try {
+        await $.command.run({ command: "goal", args: step.condition });
+        await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ version: 1, condition: intent.condition, hash: intent.hash, id: intent.id, plan: intent.plan, sessionId, setAt: now, confirmed: false })}\n`);
+      } catch {
+        $.ui.toast(`Goal not confirmed. Paste: /goal ${step.condition}`);
+        return;
+      }
+    }
+    if (step.do === "confirm") await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ ...owner, confirmed: true, confirmedAt: now })}\n`);
+    if (step.do === "clear") {
+      await $.command.run({ command: "goal", args: "clear" }).catch(() => null);
+      if (clear) await $.fs.write(`${dir}/clear.json`, `${JSON.stringify({ ...clear, consumedAt: now })}\n`);
+    }
+    if (step.do === "close" || step.do === "clear") await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ ...owner, closed: step.why, closedAt: now })}\n`);
+    if (step.status) $.ui.toast(step.status);
+  } catch {
+    // The goal record is best effort; the card keeps drawing.
+  } finally {
+    live.goalBusy = false;
+  }
+}
+
+// SessionStart: a goal record another session left open died with that session (a host goal is
+// session-scoped), so it is closed here and never cleared from a session that did not set it.
+async function sweepGoal($) {
+  try {
+    const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
+    const path = `${cwd}/${GOAL_DIR}/owner.json`;
+    const owner = await readGoalRecord($, path);
+    if (owner && !owner.closed && owner.sessionId !== sessionId) await $.fs.write(path, `${JSON.stringify({ ...owner, closed: "session ended", closedAt: new Date(await $.clock.now()).toISOString() })}\n`);
+  } catch {
+    // Nothing to sweep.
+  }
+}
 
 const noticeEntry = (raised) => ({ kind: "notice", text: `${raised.title}${raised.detail ? ` · ${raised.detail}` : ""}` });
 
@@ -330,6 +393,11 @@ function noteIgnition(live, ignition, now) {
   if (!ignition || ignition.at === live.ignitionAt) return;
   live.ignitionAt = ignition.at;
   live.lastDiscipline = ignition.discipline;
+  // A bare-lit skill plan lights a chip per planned skill, noted last to first so the primary leads.
+  for (const planned of [...(ignition.plan ?? [])].reverse()) {
+    const chip = litSkillId(planned);
+    if (chip) live.fired = noteSkill(live.fired, chip, ignition.at ?? now);
+  }
   const id = litSkillId(ignition.discipline);
   if (id) live.fired = noteSkill(live.fired, id, ignition.at ?? now);
 }
@@ -420,6 +488,8 @@ export const register = (on, options) => {
     });
     live.settledAt = await $.clock.now();
     const configDir = (await $.env.get("CLAUDE_CONFIG_DIR"))?.trim() || ((await $.env.get("HOME")) ? `${await $.env.get("HOME")}/.claude` : null);
+    live.configDir = configDir;
+    await sweepGoal($);
     live.versionPaths = OWN_MANIFEST && configDir ? { pluginJson: OWN_MANIFEST, installedFile: `${configDir}/plugins/installed_plugins.json` } : null;
     const hostSettings = await $.settings.read().catch(() => null);
     live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
@@ -456,6 +526,9 @@ export const register = (on, options) => {
     live.isWorking = false;
     live.step = null;
     live.mainToolCalls = 0;
+    $.clock.after(250, () => {
+      void goalTick($, live);
+    });
     const now = await $.clock.now();
     const took = Number.isFinite(e.durationMs) ? e.durationMs : now - (live.turnStartedAt ?? now);
     const lit = live.model && (live.model.discipline || live.model.workflow || live.model.skills.some(({ state }) => state === "current"));

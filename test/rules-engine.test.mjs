@@ -640,6 +640,7 @@ describe("release integrity — parity and canonical runtime assets", () => {
       "skills/autoresearch/",
       "skills/lit-adhd/",
       "skills/lit-brainstorm/",
+      "skills/ultra-brainstorm/",
       "skills/lit-comprehend/",
       "skills/lit-diagram-drawer/",
       "skills/lit-schematic/",

@@ -5,14 +5,16 @@
 // is inferred. It writes one file only: this session's next-step record for `go`.
 
 import { execFileSync } from "node:child_process";
-import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { resolveProjectStateRoot } from "../project-state-root.mjs";
 import { buildBoard, renderBoard, STALE_PLAN_DAYS } from "./board.mjs";
 import { renderBrief } from "./brief.mjs";
+import { nextCursor, renderVerdict } from "./verdict.mjs";
 import { aggregateProgress, clipToWidth, displayWidth, progressOf } from "./gauge.mjs";
 import { chooseNextStep, writeNextStep } from "./next-step.mjs";
 import { makeRedactor } from "./redact.mjs";
@@ -258,13 +260,29 @@ const stacksOf = (root, budget, redact) => {
   });
 };
 
+// The recorded absolute plan path as a `/`-separated path inside `root`, or null when it is missing,
+// outside the folder, or not a markdown file.
+const exactPlanOf = (root, plan) => {
+  if (typeof plan !== "string" || !isAbsolute(plan) || !plan.endsWith(".md")) return null;
+  let base = root;
+  try {
+    base = realpathSync(root);
+  } catch {
+    // An unreadable root keeps its own spelling.
+  }
+  const rel = relative(base, plan);
+  return rel && !rel.startsWith("..") && !isAbsolute(rel) ? rel.split(sep).join("/") : null;
+};
+
 const startWorkOf = (root, budget, redact) => {
   const state = readJson(join(root, ".litclaude", "boulder.json"), budget);
   if (!state || typeof state.works !== "object" || state.works === null) return null;
   const work = state.active_work_id ? state.works[state.active_work_id] : null;
   if (!work) return [];
-  // The plan's own checkboxes are current; the stored snapshot only moves at a Stop.
-  const planText = typeof work.plan_name === "string" && /^[A-Za-z0-9._-]+\.md$/u.test(work.plan_name) ? readSmallFile(join(root, "plans", work.plan_name), budget) : null;
+  // The plan's own checkboxes are current; the stored snapshot only moves at a Stop. The run records
+  // the exact plan it started (`active_plan`); only a record without one is guessed as plans/<name>.
+  const planRel = exactPlanOf(root, work.active_plan) ?? (typeof work.plan_name === "string" && /^[A-Za-z0-9._-]+\.md$/u.test(work.plan_name) ? `plans/${work.plan_name}` : null);
+  const planText = planRel ? readSmallFile(join(root, planRel), budget) : null;
   const rows = planText === null ? [] : parsePlanTaskRows(planText);
   const open = rows.filter((row) => !row.checked);
   const progress = rows.length
@@ -276,14 +294,16 @@ const startWorkOf = (root, budget, redact) => {
   const legacy = work.status === "paused" ? work.pending_boundary : null;
   const allBlocked = rows.length ? open.length > 0 && open.every((row) => row.blocked) : !work.progress?.next_task && work.progress?.unchecked > 0;
   const waiting = legacy ?? (parked.length && allBlocked ? parked[0] : null);
+  // Every row of the run's own plan ticked: the run is finished, whatever its last Stop stored (R4).
+  const finished = rows.length > 0 && open.length === 0 && ["active", "paused"].includes(work.status);
   return [{
     worktree: redact(root),
     workId: work.work_id,
-    plan: typeof work.plan_name === "string" ? `plans/${work.plan_name}` : "unknown",
-    status: waiting ? "paused" : work.status === "paused" ? "active" : work.status,
+    plan: planRel ?? (typeof work.plan_name === "string" ? `plans/${work.plan_name}` : "unknown"),
+    status: finished ? "finished" : waiting ? "paused" : work.status === "paused" ? "active" : work.status,
     sessionId: work.root_session_id ?? null,
     id8: typeof work.root_session_id === "string" ? work.root_session_id.slice(0, 8) : "unknown",
-    ...(waiting ? { pendingBoundary: { action: waiting.action, root: redact(waiting.root) } } : {}),
+    ...(waiting && !finished ? { pendingBoundary: { action: waiting.action, root: redact(waiting.root) } } : {}),
     ...(parked.length ? { parked: parked.length } : {}),
     progress,
   }];
@@ -320,8 +340,9 @@ const livenessOf = (root, budget) => {
     });
 };
 
-// `herdr agent list` answers one JSON document. Only agents in this herdr workspace or inside the
-// folders read are kept, so a lane the brief can see is one that could race this project's `go`.
+// `herdr agent list` answers one JSON document. Only agents whose cwd is inside the folders read
+// (and this session's own pane) are kept, so a lane the brief can see is one that could race this
+// project's `go`. A herdr workspace spans other repos, so sharing it proves nothing.
 const herdrOf = (env, exec, redact, roots) => {
   if (env.HERDR_ENV !== "1") return { status: "unknown", agents: [] };
   try {
@@ -329,7 +350,7 @@ const herdrOf = (env, exec, redact, roots) => {
     if (!Array.isArray(listed)) return { status: "unknown", agents: [] };
     const inside = (path) => typeof path === "string" && roots.some((root) => path === root || path.startsWith(`${root}${sep}`));
     const agents = listed
-      .filter((agent) => (env.HERDR_WORKSPACE_ID && agent?.workspace_id === env.HERDR_WORKSPACE_ID) || inside(agent?.foreground_cwd) || inside(agent?.cwd))
+      .filter((agent) => (Boolean(env.HERDR_PANE_ID) && agent?.pane_id === env.HERDR_PANE_ID) || inside(agent?.foreground_cwd) || inside(agent?.cwd))
       .slice(0, 20)
       .map((agent) => ({
         agent: clipToWidth(redact(String(agent.agent ?? "unknown")), 20),
@@ -417,9 +438,26 @@ export const collectRewind = ({
   const rootSet = new Set(roots.map((root) => resolve(root).normalize("NFC")));
   const transcripts = findTranscripts(env.CLAUDE_CONFIG_DIR || join(home, ".claude"), roots);
   const sessions = [];
+  // What the verdict card's coverage line reports: transcripts inside the window this run did not read.
+  const notRead = { budget: 0, limit: 0, unreadable: 0 };
   for (const file of transcripts.files) {
-    if (sessions.length >= limit || budget.exhausted) break;
+    let changed = null;
+    try {
+      changed = lstatSync(file).mtimeMs;
+    } catch {
+      changed = null;
+    }
+    if (changed !== null && now - changed > sinceMs) break;
+    if (sessions.length >= limit) {
+      notRead.limit += 1;
+      continue;
+    }
+    if (budget.exhausted) {
+      notRead.budget += 1;
+      continue;
+    }
     const lines = readTranscriptLines(file, budget);
+    if (!lines) notRead.unreadable += 1;
     const session = lines ? sessionRecord(lines, { redact, now }) : null;
     if (!session || (session.lastMs !== null && now - session.lastMs > sinceMs)) continue;
     // Claude's folder slug maps every non-alphanumeric to `-`, so `client_a` and `client-a` share one
@@ -502,6 +540,7 @@ export const collectRewind = ({
       herdr: herdr.status,
     },
     budget: { bytesRead: budget.used, limit: budget.limit, exhausted: budget.exhausted },
+    coverage: { notRead },
     summary: {
       sessions: sessions.length,
       waitingOnUser: sessions.filter((session) => session.status === "waiting-on-user").length,
@@ -591,6 +630,34 @@ export const renderRewind = (data, width = 100) => {
   return `${out.join("\n")}\n`;
 };
 
+// The verdict card's "since your last look" cursor: one small file per project in LitClaude's own home
+// (LITCLAUDE_HOME, else ~/.litclaude), outside every repository. It moves only after a card was printed.
+export const adhdCursorPath = (env, cwd) => {
+  const home = env.LITCLAUDE_HOME || join(env.HOME || homedir(), ".litclaude");
+  const key = createHash("sha256").update(resolveProjectStateRoot(resolve(cwd))).digest("hex").slice(0, 16);
+  return join(home, "adhd", `cursor-${key}.json`);
+};
+
+const readCursor = (path) => {
+  try {
+    const cursor = JSON.parse(readFileSync(path, "utf8"));
+    return cursor && typeof cursor === "object" && typeof cursor.at === "string" ? cursor : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCursor = (path, cursor) => {
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    const staging = `${path}.${process.pid}.tmp`;
+    writeFileSync(staging, `${JSON.stringify(cursor)}\n`);
+    renameSync(staging, path);
+  } catch {
+    // A cursor that cannot be written only means the next card shows the same baseline.
+  }
+};
+
 /**
  * `litclaude-ai rewind [--brief [--detail] [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]`.
  * `--brief` prints the KPI board the lit-adhd skill copies, `--detail` adds the per-session brief
@@ -601,9 +668,11 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
   let json = false;
   let brief = false;
   let detail = false;
-  let lang = "en";
+  let verdict = false;
+  let recap = null;
+  let lang = null;
   let width = Number(stdout.columns) || 100;
-  const usage = "Usage: litclaude-ai rewind [--brief [--detail] [--lang ko|en] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
+  const usage = "Usage: litclaude-ai rewind [--verdict [--lang ko|en] | --brief [--detail] [--lang ko|en] | --recap [<session>] | --json] [--here] [--since 7d] [--max 12] [--session <id>] [--width N]";
   if (args.some((arg) => arg === "--help" || arg === "-h")) {
     stdout.write(`${usage}\n`);
     return 0;
@@ -613,7 +682,10 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
     if (arg === "--json") json = true;
     else if (arg === "--brief") brief = true;
     else if (arg === "--detail") detail = true;
+    else if (arg === "--verdict") verdict = true;
+    else if (arg === "--recap") recap = /^[A-Za-z0-9._:-]{1,160}$/u.test(args[index + 1] ?? "") && !args[index + 1].startsWith("--") ? args[++index] : "";
     else if (arg === "--lang" && ["ko", "en"].includes(args[index + 1])) lang = args[++index];
+    else if (arg === "--en") lang = "en";
     else if (arg === "--here") options.here = true;
     else if (arg === "--since" && parseSince(args[index + 1])) options.since = args[++index];
     else if (arg === "--max" && /^\d{1,2}$/u.test(args[index + 1] ?? "")) options.max = Number(args[++index]);
@@ -625,7 +697,22 @@ export const runRewindCli = (args, cwd = process.cwd(), { env = process.env, std
     }
   }
   const data = collectRewind(options);
+  if (!verdict) lang ??= "en";
   const board = () => renderBoard(data, { lang });
+  if (verdict) {
+    const cursorPath = adhdCursorPath(env, cwd);
+    // The card is Korean unless English was asked for; the older views keep their English default.
+    const card = renderVerdict(data, { lang: lang ?? "ko", cursor: readCursor(cursorPath) });
+    stdout.write(card.text);
+    writeCursor(cursorPath, nextCursor(card.verdict, Date.parse(data.generatedAt)));
+    return 0;
+  }
+  if (recap !== null) {
+    // `lit adhd recap [session]`: the per-session cards, of one session when its id (or its first characters) is given.
+    const sessions = recap ? data.sessions.filter((session) => session.id8.startsWith(recap.slice(0, 8))) : data.sessions;
+    stdout.write(renderBrief({ ...data, sessions }, { lang }));
+    return 0;
+  }
   stdout.write(json ? `${JSON.stringify(data, null, 2)}\n` : brief ? (detail ? `${board()}\n---\n\n${renderBrief(data, { lang })}` : board()) : renderRewind(data, width));
   return 0;
 };

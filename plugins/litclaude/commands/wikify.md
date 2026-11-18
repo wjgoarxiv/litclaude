@@ -46,7 +46,7 @@ Native knowledge operations are `capture`, `review`, and `config`. Unknown opera
 4. Use explicit `save` or `review` to accept a record. Support `rejected` and `stale` review states.
 5. Query only accepted relevant records. Include provenance. Emit no knowledge block on no match.
 6. Keep normal query output within 2048 bytes. Never exceed 4096 bytes.
-7. Use `review-work`, then `lit-recap` or `handoff` for continuity.
+7. Use `review-work`, then `lit adhd recap` or `handoff` for continuity.
 8. Report changed paths, provenance, uncertainty, and cleanup.
 
 ## #contract.outputs

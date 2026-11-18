@@ -25,7 +25,6 @@ export const canonicalSkillIds = Object.freeze([
   "lit-loop",
   "lit-plan",
   "lit-pptx",
-  "lit-recap",
   "lit-schematic",
   "lit-scientific-visualization",
   "lit-team",
@@ -41,6 +40,7 @@ export const canonicalSkillIds = Object.freeze([
   "rules",
   "start-work",
   "structural-search",
+  "ultra-brainstorm",
   "visual-qa",
   "wikify",
 ]);

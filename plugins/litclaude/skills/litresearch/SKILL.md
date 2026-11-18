@@ -1,6 +1,7 @@
 ---
 name: litresearch
 description: "Maximum-saturation LitClaude research orchestrator for Claude Code: decompose a research/search/query demand into atomic sub-questions, fan out parallel retrieval swarms via the Workflow tool and litclaude: subagents, recursively chase every lead to convergence, verify contested claims with code runs or adversarial review, and prepare a source-grounded answer with natural references. Includes resilient public-source retrieval lanes with validator-first evidence checks and route traces. Activate ONLY on an explicit research demand — investigate, survey, find all, map prior art, compare approaches across, exhaustive/ultra-precise investigation, 'deep research', 'litresearch', 'lit search', 'lit query', or any-language equivalent. NEVER self-activate for ordinary Q&A, single reads, single searches, debugging, or single-file edits."
+goal: never
 ---
 
 ## #contract.activation

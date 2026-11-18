@@ -28,13 +28,15 @@ export function ignitionMark(discipline, { markdown = false } = {}) {
   return markdown ? `🔥 **${label}** 🔥` : `🔥 ${label} 🔥`;
 }
 
-export function writeIgnitionState({ sessionId, discipline }, env = process.env, now = () => new Date()) {
+export function writeIgnitionState({ sessionId, discipline, plan }, env = process.env, now = () => new Date()) {
   const root = ignitionStateRoot(env);
   mkdirSync(root, { recursive: true });
   const target = ignitionStatePath(sessionId, env);
   const record = {
     sessionId: typeof sessionId === "string" ? sessionId : null,
     discipline: typeof discipline === "string" && discipline ? discipline : null,
+    // The skill plan of a bare-lit prompt (lib/skill-plan.mjs), ids only, for the card's chips.
+    ...(Array.isArray(plan) && plan.length > 1 ? { plan: plan.filter((id) => typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/u.test(id)).slice(0, 4) } : {}),
     at: now().toISOString(),
   };
   const staging = `${target}.${process.pid}.tmp`;

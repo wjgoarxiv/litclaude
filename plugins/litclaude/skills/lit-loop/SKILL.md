@@ -173,11 +173,8 @@ native user surface, but the observed hook/skill surface cannot run another
 slash command and this session may expose no model-facing goal tools. Bind goals
 like this:
 
-- If model-facing tools are exposed, inspect `get_goal`, call `create_goal` only
-  when no matching active goal exists, avoid clobbering a different active goal
-  without explicit replacement, and call `update_goal` only after every success
-  criterion has evidence or the work is genuinely blocked.
-- When goal tools are unavailable, report explicit `BLOCKED:` / degraded mode,
+- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Never clobber a different active goal without explicit replacement.
+- Without an armed goal, report explicit `BLOCKED:` / degraded mode,
   **propose a concrete, ready-to-paste `/goal <completion condition>`** or
   `claude -p "/goal <completion condition>"` for the user, and keep driving the
   local evidence ledger meanwhile. LitClaude must not auto-type or send `/goal`

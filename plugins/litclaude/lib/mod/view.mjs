@@ -4,7 +4,7 @@
 
 import { lookOf } from "./looks.mjs";
 import { AUTOLOOP_LIMITS, GATE_LIMITS } from "./state.mjs";
-import { REVIEW_LANES, buildWorkflow } from "./workflow.mjs";
+import { DISCIPLINE_ENTRY, REVIEW_LANES, buildWorkflow } from "./workflow.mjs";
 
 export const STALL_MS = 10 * 60 * 1000;
 // An agent the host does not list, quiet this long with no call in flight, no longer counts as
@@ -271,7 +271,10 @@ const lingering = (thread, now) => thread.state !== "done" || !Number.isFinite(t
 // Another session's row: its liveness record says running (`alive`), `idle` or `ended` (hidden);
 // without one, a stack written within OTHER_SESSION_MS and not marked ended counts as running.
 // A stack that moved after the record (a resumed session's first tool call) outranks it.
-const otherState = (thread, liveness) => (liveness?.state === "idle" && thread.state === "running" ? "idle" : thread.state);
+// A session killed mid-turn writes no Stop or SessionEnd, so its last word stays `alive`: once it
+// has been quiet for OTHER_QUIET_MS it reads idle (card scenario D1-8).
+export const OTHER_QUIET_MS = 5 * 60 * 1000;
+const otherState = (thread, liveness, quietMs = 0) => (thread.state === "running" && (liveness?.state === "idle" || quietMs > OTHER_QUIET_MS) ? "idle" : thread.state);
 const currentLiveness = (liveness, stackAt) => (liveness && !(Number.isFinite(stackAt) && stackAt > liveness.at) ? liveness : null);
 const seenAt = (other) => Math.max(Number.isFinite(other.at) ? other.at : -Infinity, Number.isFinite(other.liveness?.at) ? other.liveness.at : -Infinity);
 // Running first, then idle, then the rest (paused, done), each newest first.
@@ -317,10 +320,13 @@ const laneCount = (entry, lists, name) => listProgress(entry) ?? ownedProgress(l
  * active frame and its parents first, then lanes and tasks, then other sessions. `reserve` is the card's thread-row count, never below the
  * `threadReserve` the caller carried over, so the card does not shrink while threads are live.
  */
-const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
+const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve, isWorking = true }) => {
   const frames = snapshot.workflow?.stack?.frames ?? [];
   const mainList = listProgress(lists.main);
+  // This session's own frame cannot be running while its main turn is over (an Esc, or the turn
+  // ended): it reads idle until the next turn starts (card scenario D1-4).
   const chain = frames.map((frame, index) => frameThread(frame, index, snapshot, index === frames.length - 1, mainList, now, lists.main))
+    .map((thread) => (!isWorking && thread.state === "running" ? { ...thread, state: "idle" } : thread))
     .filter((thread) => lingering(thread, now));
   const laneThreads = lanes.map((lane, index) => ({
     key: `lane-${lane.id ?? index}`,
@@ -342,7 +348,7 @@ const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve }) => {
     })
     .map((other) => {
       const thread = frameThread(topLiveFrame(other, snapshot.settledPlans ?? []), 0, {}, false, null, now);
-      return { ...thread, key: `session-${other.id8}`, session: other.id8, state: otherState(thread, currentLiveness(other.liveness, other.at)), seenAt: seenAt(other) };
+      return { ...thread, key: `session-${other.id8}`, session: other.id8, state: otherState(thread, currentLiveness(other.liveness, other.at), now - seenAt(other)), seenAt: seenAt(other) };
     })
     .filter((thread) => lingering(thread, now))
     .sort(runningFirst);
@@ -494,7 +500,12 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const active = Boolean(snapshot.work) || goalIsOpen(goal) || (discipline !== null && isWorking) || liveAgents.length > 0;
   const lit = skills.some(({ state }) => state === "current");
   const workflow = buildWorkflow({ snapshot, skills, completion, now });
-  const title = discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline;
+  // A workflow skill that already left the stack (a side lit-plan that finished and handed the
+  // session back) no longer names the card: the frame the rail draws does.
+  const frames = snapshot.workflow?.stack?.frames ?? [];
+  const handedBack = discipline && Object.hasOwn(DISCIPLINE_ENTRY, discipline) && frames.length > 0 && !frames.some((frame) => frame.skill === discipline) ? frames.at(-1).skill : null;
+  // After a resume the prompt's ignition and the chips are gone, but the stack still draws its frame.
+  const title = handedBack ?? discipline ?? skills.find(({ state }) => state === "current")?.id ?? lastDiscipline ?? frames.at(-1)?.skill ?? null;
   const chosen = selectLook({ snapshot, discipline, skills, workflow, completion, waiting, now, turnStartedAt });
   // `club` (an inviter recorded and the club option on) dresses only the idle card, and never
   // shows a band that `band: auto` would hide.
@@ -517,13 +528,13 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
     progress,
     next: snapshot.work?.nextTask ?? (goalIsOpen(goal) ? goal.criteria.find(({ status }) => status !== "pass")?.description || goal.objective || null : null),
     lanes: { count: lanes.length, list: lanes },
-    threads: threadsOf({ snapshot, lanes, tasks: Object.values(pruneBackgroundTasks(tasks, now)), lists, now, threadReserve }),
+    threads: threadsOf({ snapshot, lanes, tasks: Object.values(pruneBackgroundTasks(tasks, now)), lists, now, threadReserve, isWorking }),
     autoloop,
     ctxWarning,
     warnings,
     gates: gatesOf(snapshot),
     goal: goalSummaryOf(goal),
-    skills: skills.map(({ id, at, state }) => ({ id, at, state })),
+    skills: skills.length > 0 ? skills.map(({ id, at, state }) => ({ id, at, state })) : frames.map(({ skill, at }) => ({ id: skill, at, state: "recent" })),
     figures: figuresOf(usage, git),
     workflow,
     step: step && isWorking && stepName(step.name) ? { name: stepName(step.name), elapsedMs: Math.max(0, now - step.at) } : null,

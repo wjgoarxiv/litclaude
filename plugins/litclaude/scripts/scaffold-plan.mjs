@@ -778,6 +778,10 @@ ${FINAL_VERIFICATION_ITEMS.map((item) => `- [ ] ${item}`).join("\n")}
 ## Commit strategy
 
 ## Success criteria
+
+## Done when
+
+check: \`npm test\`
 `;
 }
 

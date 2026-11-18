@@ -53,6 +53,23 @@ const section = (text, heading) => {
 };
 const GAUGE_RULE = [/\[▉▉▉░░\] 3\/5/u, /both numbers are (?:real|recorded)/iu, /known facts/iu];
 
+describe("lit-adhd language (Korean by default, --en for English)", () => {
+  it("the hook picks the language itself: ko unless the prompt asks for English", () => withProject((cwd) => {
+    for (const [prompt, flags] of [
+      ["lit adhd", "--verdict --lang ko"],
+      ["lit adhd 요약해줘", "--verdict --lang ko"],
+      ["lit adhd --en", "--verdict --lang en"],
+      ["lit adhd in English", "--verdict --lang en"],
+      ["lit adhd detail", "--brief --detail --lang ko"],
+      ["lit adhd recap --en", "--recap --lang en"],
+    ]) {
+      const context = runHook(prompt, cwd).hookSpecificOutput.additionalContext;
+      assert.ok(context.includes(`rewind.mjs" ${flags}\``), `${prompt} -> ${flags}`);
+      assert.doesNotMatch(context, /--lang <ko\|en>/u, `${prompt}: no language left for the model to guess`);
+    }
+  }));
+});
+
 describe("lit-adhd routes", () => {
   it("every typed route activates lit-adhd with the read-only brief contract", () => withProject((cwd) => {
     for (const prompt of ["lit adhd", "lit rewind", "$lit-rewind", "$lit-adhd", "lit adhd 요약해줘", "lit-adhd", "lit-rewind --here", "litwork rewind"]) {
@@ -60,13 +77,15 @@ describe("lit-adhd routes", () => {
       assert.match(stripAnsi(parsed.systemMessage ?? ""), /lit-adhd/u, `${prompt} should ignite lit-adhd`);
       const context = parsed.hookSpecificOutput.additionalContext;
       assert.match(context, /Skill\(lit-adhd\)/u, prompt);
-      assert.match(context, /litclaude-ai rewind --brief/u, prompt);
+      // The plugin's own collector, by absolute path: a different `litclaude-ai` on PATH (an older global
+      // install) rejected --verdict on the real host and the model fell back to the old board (R3).
+      assert.ok(context.includes(`node "${join(plugin, "skills", "lit-adhd", "scripts", "rewind.mjs")}" --verdict`), prompt);
       assert.match(context, /READ-ONLY/u, prompt);
       assert.doesNotMatch(context, /Skill\(lit-recap\)|Skill\(lit-loop\)/u, prompt);
     }
   }));
 
-  it("near-miss words do not activate it and recap keeps its own route", () => withProject((cwd) => {
+  it("near-miss words do not activate it and the old recap routes open its recap view", () => withProject((cwd) => {
     for (const prompt of ["adhdx", "rewinding the tape", "adhd", "/litclaude:lit-rewind", "/litclaude:lit-adhd"]) {
       const parsed = runHook(prompt, cwd);
       assert.equal(parsed.systemMessage, undefined, `${prompt} should not activate`);
@@ -80,8 +99,9 @@ describe("lit-adhd routes", () => {
     }
     for (const prompt of ["recap", "lit recap", "리캡"]) {
       const context = runHook(prompt, cwd).hookSpecificOutput.additionalContext;
-      assert.match(context, /Skill\(lit-recap\)/u, prompt);
-      assert.doesNotMatch(context, /Skill\(lit-adhd\)/u, prompt);
+      assert.match(context, /Skill\(lit-adhd\)/u, prompt);
+      assert.match(context, /rewind(?:\.mjs")? --recap/u, prompt);
+      assert.doesNotMatch(context, /Skill\(lit-recap\)/u, prompt);
     }
   }));
 
@@ -99,7 +119,9 @@ describe("lit-adhd routes", () => {
     for (const name of ["lit-adhd", "lit-rewind"]) {
       const text = read(join(plugin, "commands", `${name}.md`));
       assert.match(text, /Skill\(lit-adhd\)/u, name);
-      assert.match(text, /litclaude-ai rewind --brief/u, name);
+      assert.match(text, /litclaude-ai rewind --verdict/u, name);
+      assert.match(text, /--brief --detail/u, name);
+      assert.match(text, /--recap/u, name);
       assert.doesNotMatch(text, /^user-invocable: false$/mu, `${name} is a live alias, not a redirect`);
     }
   });
@@ -198,7 +220,7 @@ describe("lit-adhd skill body and enrollment", () => {
   }));
 
   // lit-adhd v2: the KPI board is the reply, the per-session cards come only on request.
-  it("states the KPI board and the detail switch in the skill, the hook context and both commands", () => withProject((cwd) => {
+  it("states the verdict card, the KPI board behind the detail switch, in the skill, the hook context and both commands", () => withProject((cwd) => {
     const outputs = section(read(skillPath), "## #contract.outputs");
     for (const part of ["🎯", "📊", "🏁", "✅", "⬜", "🔔", "Do this now", "At a glance", "Milestones", "Done lately", "Still to do", "Don't forget", "지금 할 일", "잊지 말 것"]) {
       assert.ok(outputs.includes(part), `SKILL.md #contract.outputs names ${part}`);
@@ -206,13 +228,20 @@ describe("lit-adhd skill body and enrollment", () => {
     assert.match(outputs, /`--detail`/u);
     assert.match(outputs, /`lit adhd 자세히`/u);
     assert.match(outputs, /`lit adhd detail`/u);
+    for (const part of ["### The verdict card (the default reply)", "지금 할 일:", "입력:", "이유:", "다음 대기:", "읽음 6/7 세션", "네 확인 필요:", "지금 할 일 없음 — 확인한 기록 N개"]) {
+      assert.ok(outputs.includes(part), `SKILL.md #contract.outputs names ${part}`);
+    }
     const context = runHook("lit adhd", cwd).hookSpecificOutput.additionalContext;
-    assert.match(context, /KPI board/u);
-    assert.match(context, /--detail/u);
+    assert.match(context, /rewind\.mjs" --verdict/u);
+    assert.match(context, /verdict card/u);
     assert.match(context, /lit adhd 자세히/u);
+    const detail = runHook("lit adhd 자세히", cwd).hookSpecificOutput.additionalContext;
+    assert.match(detail, /KPI board/u);
+    assert.match(detail, /rewind\.mjs" --brief --detail/u);
     for (const name of ["lit-adhd", "lit-rewind"]) {
       const text = read(join(plugin, "commands", `${name}.md`));
       assert.match(text, /KPI board/u, name);
+      assert.match(text, /verdict card/u, name);
       assert.match(text, /--detail/u, name);
     }
   }));
@@ -227,8 +256,8 @@ describe("lit-adhd skill body and enrollment", () => {
       assert.ok(text.includes(ref), `SKILL.md names ${ref}`);
       assert.ok(existsSync(join(plugin, "skills", "lit-adhd", ref)), ref);
     }
-    assert.match(text, /lit recap/u, "cross-links lit-recap");
-    assert.match(read(join(plugin, "skills", "lit-recap", "SKILL.md")), /lit-adhd/u, "lit-recap cross-links lit-adhd");
+    assert.match(text, /lit adhd recap/u, "the recap view replaced lit-recap");
+    assert.equal(existsSync(join(plugin, "skills", "lit-recap")), false, "lit-recap skill removed");
   });
 
   it("is enrolled in the catalog, the card's skill list, the resource pins, parity, README and docs", () => {

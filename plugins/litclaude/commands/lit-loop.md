@@ -80,11 +80,9 @@ Use the `lit-loop` skill for the user's current objective or command arguments.
 
 Before implementation, bootstrap Claude Code-native workflow state:
 
-1. If model-facing goal tools are available in this session, inspect `get_goal`,
-   call `create_goal` only when no matching goal exists, and reserve
-   `update_goal` for verified completion or a genuine blocker.
-2. If goal tools are unavailable, state that plainly and ask the user to bind
-   the native Claude Code goal with this exact surface before long execution:
+1. Native goal: LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
+2. Without an armed goal, the user may still bind the native Claude Code goal with
+   this exact surface before long execution:
    `/goal <completion condition for the current objective>`.
 3. For broad, risky, parallel, or long-running work, propose a Dynamic workflow
    and call the `Workflow` tool once the user opts in (the tool fans out many

@@ -167,8 +167,8 @@ the plan to run; do not work around it with `start-work init`.
 
 Before the first checkbox, bootstrap Claude Code-native workflow state:
 
-- Use `get_goal` and `create_goal` only if model-facing goal tools are exposed.
-- If goal tools are unavailable, carry on: `/goal` is optional. The ledger and the
+- Native goal: LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
+- Without an armed goal, carry on: `/goal` is optional. The ledger and the
   start-work Stop continuation keep the run going; a user who wants native `/goal`
   can still set one.
 - For broad, risky, parallel, or long-running checkbox waves, call the

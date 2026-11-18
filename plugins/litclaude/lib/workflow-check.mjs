@@ -120,7 +120,7 @@ export const createWorkflowCheckReport = (root, version, env = process.env) => {
 		hostWorkflowsEnabled: workflowsEnabled,
 		backgroundTasksEnabled,
 		toolConcurrencyAboveOne: toolConcurrency.status !== "unavailable",
-    goalGuidance: includesAll(`${hookContext}\n${commandText}`, ["get_goal", "create_goal", "update_goal", "/goal"]),
+    goalGuidance: includesAll(`${hookContext}\n${commandText}`, ["/goal", "yes / edit / no"]),
     dynamicWorkflowGuidance: includesAll(`${hookContext}\n${commandText}`, ["Workflow", "EnterWorktree", "claude --worktree"]),
     subagentDelegation: includesAll(`${hookContext}\n${commandText}\n${agentsText}`, [
       "lit-planner",

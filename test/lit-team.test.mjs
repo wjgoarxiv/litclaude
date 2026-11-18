@@ -230,3 +230,56 @@ describe("lit-team route", () => {
     assert.equal(routeFor("litwork ship it").body, "litwork");
   });
 });
+
+describe("lit-team as orchestrator (S3)", () => {
+  const skill = readFileSync(join(root, "plugins", "litclaude", "skills", "lit-team", "SKILL.md"), "utf8");
+  const contextFor = (prompt, env = {}) => {
+    const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "", ...env },
+      input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd: root }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+  };
+
+  it("opens with the purpose line the user reads first", () => {
+    assert.match(skill, /description: "lit-team: Type lit team <goal>; this session becomes the orchestrator and runs the team for you\./u);
+    assert.match(skill, /\nType `lit team <goal>`; this session becomes the orchestrator and runs the team for you\./u);
+  });
+
+  it("picks the distribution itself from the shape of the work, herdr only when it is there", () => {
+    for (const row of [/2-6 independent slices[^\n]+Subagents/u, /Many similar items[^\n]+Workflow/u, /herdr panes \| Only when `HERDR_ENV=1` and `herdr` is on PATH; otherwise subagents/u, /edit the same files \| Git worktrees/u]) {
+      assert.match(skill, row);
+    }
+    assert.match(skill, /Do not ask the user how to split, which models to use or how to distribute/u);
+    assert.match(skill, /wake-up message/u);
+    assert.match(skill, /run\s+each\s+member's\s+VERIFY\s+line\s+yourself/u);
+  });
+
+  it("keeps the hard rules: no member commits or pushes, own scratch folders, filtered reports", () => {
+    assert.match(skill, /No member commits, pushes, publishes, tags/u);
+    assert.match(skill, /its own scratch folder/u);
+    assert.match(skill, /filters every child report/u);
+  });
+
+  it("the team route tells the model to orchestrate without setup questions", () => {
+    const context = contextFor("lit team migrate the three packages to ESM");
+    assert.match(context, /Mode contract: agent-team makes this session the orchestrator/u);
+    assert.match(context, /no setup questions/u);
+    assert.match(context, /herdr panes only when HERDR_ENV=1 and herdr is on PATH/u);
+    assert.match(context, /native teammates are off and nothing needs setting up/u);
+    assert.doesNotMatch(context, /user approves roles/u);
+  });
+});
+
+describe("lit-team launches members for small slices too", () => {
+  it("the skill and the hook say typing lit team is the request for a team", () => {
+    const skill = readFileSync(join(root, "plugins", "litclaude", "skills", "lit-team", "SKILL.md"), "utf8");
+    assert.match(skill, /Typing `lit team` is the user's request for a team/u);
+    assert.match(skill, /decline only below two/u);
+    const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], { cwd: root, encoding: "utf8", env: { ...process.env, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "" }, input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "lit team write three short guides", cwd: root }) });
+    assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /never do the slices yourself/u);
+  });
+});

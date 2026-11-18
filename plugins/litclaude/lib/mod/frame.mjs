@@ -642,6 +642,9 @@ const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
   // A wide card spends its room on names, so lanes that share a prefix stay apart.
   const nameWidth = Math.min(inner >= 90 ? 28 : 18, Math.max(...rows.map(({ name }) => textWidth(name))));
   const stageWidth = Math.min(10, Math.max(0, ...rows.map(({ stage }) => (stage ? textWidth(stage) : 0))));
+  // Every row's stage and gauge start in one column, however deep its branch is drawn, so nested
+  // rows and wide (CJK) names never push their bars sideways (card scenario D1-7).
+  const leadWidth = Math.max(0, ...lines.filter((line) => line.thread).map((line) => textWidth(line.lead)));
   const lastIndex = lines.length - 1;
   const out = lines.map((line, index) => {
     const tail = index === lastIndex && more > 0 ? [span(`+${more} more`, { fg: PALETTE.dim })] : [];
@@ -656,7 +659,7 @@ const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
       body = [
         span(line.lead, { fg: PALETTE.dim }),
         span(`${glyph} `, { fg: color }),
-        span(name + " ".repeat(Math.max(0, nameWidth - textWidth(name))), { fg: line.last ? THREAD_NAME.last : THREAD_NAME.mid, bold: thread.active }),
+        span(name + " ".repeat(Math.max(0, nameWidth + leadWidth - textWidth(line.lead) - textWidth(name))), { fg: line.last ? THREAD_NAME.last : THREAD_NAME.mid, bold: thread.active }),
         ...(stageWidth ? [span(` ${(thread.stage ?? "").slice(0, stageWidth).padEnd(stageWidth)}`, { fg: PALETTE.dim })] : []),
         ...progressSpans(thread, sample, rainbow, index, color),
         ...(thread.session ? [span(` · other session ${thread.session}`, { fg: PALETTE.dim })] : []),

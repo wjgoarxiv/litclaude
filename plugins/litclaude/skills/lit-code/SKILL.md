@@ -545,9 +545,9 @@ Read `references/go/README.md` first, then load on demand:
 
 Prefer Claude Code's available tools and project conventions. If a private
 reference instruction names a tool from another agent runtime, translate the
-principle instead of copying the tool name. For example, goal tools become
-conditional `get_goal` / `create_goal` / `update_goal` guidance only when
-exposed; workflow isolation uses `Workflow`, `EnterWorktree`, or an explicit
+principle instead of copying the tool name. For example, a goal tool becomes
+LitClaude's own native-goal pipeline (lit-plan's consent question, then `/goal`
+set by the mod); workflow isolation uses `Workflow`, `EnterWorktree`, or an explicit
 `claude --worktree ...` operator path when that is the available Claude surface.
 
 The references contain the recipes. Read them before writing code, and re-read

@@ -11,7 +11,8 @@ import { assertNoWorkflowActivationContext } from "./helpers/hook-context.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
 const commandPath = join(root, "plugins", "litclaude", "commands", "lit-recap.md");
-const skillPath = join(root, "plugins", "litclaude", "skills", "lit-recap", "SKILL.md");
+const removedSkillDir = join(root, "plugins", "litclaude", "skills", "lit-recap");
+const adhdSkillPath = join(root, "plugins", "litclaude", "skills", "lit-adhd", "SKILL.md");
 
 const runHook = (eventName, input) =>
   spawnSync(process.execPath, [hookPath, eventName], {
@@ -25,7 +26,8 @@ const readRequired = (path, label) => {
   return readFileSync(path, "utf8");
 };
 
-describe("lit-recap read-only session recap", () => {
+// lit-recap moved into lit-adhd (S5): the old routes stay as aliases for lit-adhd's recap view.
+describe("lit-recap aliases open the lit-adhd recap view", () => {
   it("activates on bounded recap triggers without the litwork banner", () => {
     for (const prompt of [
       "lit recap",
@@ -46,12 +48,14 @@ describe("lit-recap read-only session recap", () => {
 
       assert.equal(result.status, 0, result.stderr);
       const parsed = JSON.parse(result.stdout);
-      assert.match(stripAnsi(parsed.systemMessage ?? ""), /🔥 LIT IGNITED · lit-recap 🔥/u, `${prompt} should activate lit-recap`);
+      assert.match(stripAnsi(parsed.systemMessage ?? ""), /🔥 LIT IGNITED · lit-adhd 🔥/u, `${prompt} should activate lit-adhd`);
       const context = parsed.hookSpecificOutput.additionalContext;
-      assert.match(context, /\/litclaude:lit-recap/u, `${prompt} should reference the recap command`);
-      assert.match(context, /Skill\(lit-recap\)/u, `${prompt} should reference the recap skill`);
-      assert.match(context, /read-only/iu, `${prompt} should state the read-only contract`);
-      assert.match(context, /🔥 \*\*LIT IGNITED · lit-recap\*\* 🔥/u, `${prompt} should request its own probe`);
+      assert.match(context, /\/litclaude:lit-adhd/u, `${prompt} should reference the lit-adhd command`);
+      assert.match(context, /Skill\(lit-adhd\)/u, `${prompt} should reference the lit-adhd skill`);
+      assert.match(context, /rewind(?:\.mjs")? --recap --lang/u, `${prompt} should run the recap view`);
+      assert.match(context, /lit-recap moved into lit-adhd \(lit adhd recap\)\./u, `${prompt} should say where lit-recap went`);
+      assert.match(context, /READ-ONLY/u, `${prompt} should state the read-only contract`);
+      assert.doesNotMatch(context, /Skill\(lit-recap\)/u, `${prompt} must not point at the removed skill`);
     }
   });
 
@@ -113,42 +117,24 @@ describe("lit-recap read-only session recap", () => {
     }
   });
 
-  it("ships the canonical Korean recap template in the skill", () => {
-    const skill = readRequired(skillPath, "lit-recap skill");
-
-    for (const header of [
-      "# 작업 리캡 (lit-recap)",
-      "## ✅ 완료된 작업",
-      "## 🔄 진행 중",
-      "## ⛔ 블로커",
-      "## 📁 증거 경로",
-      "## ➡️ 다음 단계",
-      "## ⚡ 요약",
-    ]) {
-      assert.ok(skill.includes(header), `skill must contain exact header ${header}`);
+  it("lit adhd recap [session] opens the same view without the moved note", () => {
+    for (const [prompt, flag] of [["lit adhd recap", "\" --recap --lang"], ["lit adhd recap 1a2b3c4d", "\" --recap 1a2b3c4d --lang"], ["lit adhd 리캡", "\" --recap --lang"]]) {
+      const parsed = JSON.parse(runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root }).stdout);
+      const context = parsed.hookSpecificOutput.additionalContext;
+      assert.ok(context.includes(flag), `${prompt} -> ${flag}`);
+      assert.doesNotMatch(context, /lit-recap moved into lit-adhd/u, prompt);
     }
-
-    assert.match(skill, /\[TypeScript\]|\[npm\]|\[docs\]|\[test\]/u, "skill must show tech-kind tagging examples");
-    assert.match(skill, /\.litclaude\/litgoal\/goals\.json/u);
-    assert.match(skill, /ledger\.jsonl/u);
-    assert.match(skill, /brief\.md/u);
-    assert.match(skill, /name:\s*lit-recap/u);
   });
 
-  it("defines English and brief switching plus technical-token fidelity", () => {
-    const skill = readRequired(skillPath, "lit-recap skill");
-
-    assert.match(skill, /--en|in English|영어/u, "skill must define the English-mode switch");
-    assert.match(skill, /--brief|짧게/u, "skill must define the brief switch");
-    assert.match(skill, /verbatim|그대로|원문/u, "skill must keep technical tokens verbatim");
-  });
-
-  it("ships a thin read-only command that routes to the skill", () => {
-    const command = readRequired(commandPath, "lit-recap command");
-
-    assert.match(command, /^---\n[\s\S]*description:/u, "command must have frontmatter with a description");
-    assert.match(command, /Skill\(lit-recap\)/u, "command must route to Skill(lit-recap)");
-    assert.match(command, /read-only/iu, "command must state the read-only contract");
-    assert.doesNotMatch(command, /\$ARGUMENTS/u, "command must not render broken argument placeholders");
+  it("removes the lit-recap skill and keeps the command as an alias stub", () => {
+    assert.equal(existsSync(removedSkillDir), false, "skills/lit-recap is gone");
+    const command = readRequired(commandPath, "lit-recap alias command");
+    assert.match(command, /description: "Alias: lit-recap moved into lit-adhd/u);
+    assert.match(command, /Skill\(lit-adhd\)/u);
+    assert.match(command, /rewind(?:\.mjs")? --recap/u);
+    assert.doesNotMatch(command, /Skill\(lit-recap\)/u);
+    const skill = readRequired(adhdSkillPath, "lit-adhd skill");
+    assert.match(skill, /### The recap \(`lit adhd recap \[session\]`\)/u);
+    assert.match(skill, /lit-recap moved into lit-adhd \(lit adhd recap\)\./u);
   });
 });

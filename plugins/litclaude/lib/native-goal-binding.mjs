@@ -82,6 +82,6 @@ export const buildNativeGoalBindingGuidance = ({ objective, activeGoal } = {}) =
   return {
     status: "blocked-unavailable",
     ...ready,
-    message: `${ready.message}\nEvidence: the supported UserPromptSubmit hook surface can add context or block, but does not expose a run-slash-command channel; this session exposes no callable get_goal/create_goal/update_goal tools to LitClaude.`,
+    message: `${ready.message}\nEvidence: the supported UserPromptSubmit hook surface can add context or block, but does not expose a run-slash-command channel; only the LitClaude mod sets /goal, after the user's yes to lit-plan's goal question.`,
   };
 };

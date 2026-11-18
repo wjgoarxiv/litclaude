@@ -48,6 +48,7 @@ export const WORKFLOW_FRESH_MS = 6 * 60 * 60 * 1000;
 export const DISCIPLINE_ENTRY = Object.freeze({
   "deep-interview": { family: "main", stage: "interview" },
   "lit-brainstorm": { family: "main", stage: "interview" },
+  "ultra-brainstorm": { family: "main", stage: "interview" },
   "lit-crucible": { family: "main", stage: "plan" },
   "lit-plan": { family: "main", stage: "plan" },
   "start-work": { family: "main", stage: "work" },

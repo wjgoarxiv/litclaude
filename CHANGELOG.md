@@ -1,5 +1,61 @@
 # Changelog
 
+## Unreleased
+
+- One request can now use several LitClaude skills in order. When a `lit` prompt matches more than one skill,
+  the hook lists the candidates, the model confirms them against the installed catalog, and the plan is shown
+  at the start, for example `1 lit-loop (primary) → 2 figures:lit-diagram-drawer → 3 lit-crucible`. You can
+  also name them yourself with `lit +diagram +crucible <task>`. The LIT card shows each planned skill as a chip.
+- `ultra-brainstorm` is a new skill for very wide idea searches. `lit ultra-brainstorm <topic>` asks one
+  question first: how many idea agents to run (30, 100 or 300), each size shown with its token cost. Claude
+  Code's Workflow then runs the small idea agents in parallel, groups their ideas, and a judge scores a top 10
+  that you can pick from, combine or widen. The notes and the scored result are saved in the project.
+- `lit team <goal>` now makes the session the orchestrator. It picks how to run the members (subagents, a
+  Workflow, herdr panes when herdr is available, or worktrees), writes the team brief, launches the members,
+  watches them, merges the work, checks it again and reports the result. Typing `lit team` is the request for a
+  team, so it no longer quietly does the work alone. Members never commit, and each gets its own scratch folder.
+- LitClaude can now set Claude Code's native goal for a plan, with your consent. A plan's `## Done when` block
+  names one check command; lit-plan turns it into a single condition, runs the check once to make sure the goal
+  is not already met, and asks `Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`.
+  An exact `yes` starts start-work on that plan, with the same grants as typing `/litclaude:start-work <plan>`,
+  and arms the goal. If the start is refused, no goal is set and you see why. A plan with no settable goal asks
+  `Approve plan and start work? (yes / no)` and names why there is no goal. The LitClaude mod then runs `/goal` when the turn ends and confirms it from the transcript, or
+  tells you `Goal not confirmed. Paste: /goal <condition>`. LitClaude clears only the goal it set: when it is
+  met, on `lit cancel`, on a `BLOCKED` report, or when it stops moving. A goal you set yourself is never
+  touched, and read-only skills never set one. The old advice to look for `get_goal` and `create_goal` tools is
+  gone.
+- `lit adhd` now answers with a six-line card in Korean (`--en` for English): what changed since you last
+  looked, the one thing to do now and what to type, the facts behind it, and how much it could read. When the
+  next step needs you, the card says `네 확인 필요`; when an earlier verdict no longer holds, it says it is
+  withdrawn. `lit adhd 자세히` or `lit adhd detail` opens the full board as before.
+- lit-recap moved into lit-adhd. `lit adhd recap [session]` gives the session recap. `lit recap`, `litrecap`
+  and `/litclaude:lit-recap` keep working and open the same view with a short note that it moved.
+- The terminal LIT card: when a side skill such as lit-plan finishes in the middle of a lit-loop, the loop
+  resumes by itself and no longer stays paused until `lit continue`. After you press Esc, this session's
+  thread rows read idle instead of running. Thread rows keep their bars in one column, so nested rows and
+  Korean or long lane names no longer push them sideways.
+- The status line no longer shows a raw `<task-notification>` as your last prompt after a background task ends.
+- `lit adhd` counts only the sessions and herdr agents working inside this repo. An agent that merely shares
+  your herdr workspace from another folder no longer shows up as "another session at work".
+- `lit adhd` now runs this plugin's own collector, so an older `litclaude-ai` installed elsewhere on your PATH
+  can no longer answer for it with an old view.
+- A start-work run whose plan has every row ticked reads finished in `lit adhd`, which no longer suggests
+  continuing it. The run is checked against the exact plan file it started, and the LIT card's start-work
+  frame keeps that plan too.
+- When ultra-brainstorm asks how many idea agents to run, a plain `no` ends it at once.
+  Its cost line now shows a token range measured on a real run: each agent's input, including the host's
+  system and tool prompt, plus its output. 100 idea agents read about 7.6-9.8M tokens, where the old
+  figure said 0.38M.
+- `lit adhd` answers in Korean unless you ask for English with `--en` or "in English"; it no longer
+  switches to English just because the prompt or the conversation is in English.
+- After `claude --continue`, the LIT card names the skill it draws instead of reading "ready".
+- The interface probe and browser-drive now send the page script to the browser driver on standard input. On
+  Linux and WSL a large page script used to fail with `E2BIG`; thanks to the beta tester who reported it.
+- Thanks to 이현승 for PR #8, which LitClaude now includes: browser-drive finds the driver on Windows through
+  `PATH` and `PATHEXT` and runs the native program behind a `.cmd` shim, reads the Windows daemon's output from
+  a temporary file instead of waiting on a pipe, sends long scripts on standard input, and the interface probe
+  no longer divides a translucent colour by its alpha twice.
+
 ## 1.0.53 - 2026-11-17
 
 - The Claude desktop and mobile apps now wear the Ignition look: LitFamily colours in light and dark mode, and

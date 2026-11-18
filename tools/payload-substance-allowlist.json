@@ -36,7 +36,6 @@
     "lit-handoff": "The adapter resolves the packaged handoff closure; the pack includes its template, example, evaluation, and source-pointer files.",
     "lit-loop": "The body supplies the complete PIN, RED, GREEN, surface, cleanup, evidence, and stop loop in its own contract.",
     "lit-plan": "Decision-complete plan fields, authority boundaries, adaptive checklist depth, review, and validation are complete in the document.",
-    "lit-recap": "The read-only recap contract identifies state sources, evidence hierarchy, output shape, and stale-state handling in one file.",
     "lit-scientific-visualization": "A same-name pointer stub: the adapter, its scientific-visualization source and doctor moved to the figures plugin of wjgoarxiv-skills, so the file only gives the install line and the moved command and claims no packed corpus.",
     "litgoal": "The body names the packaged goal CLI and state runtime; atomic ledger and quality-gate modules are shipped with it.",
     "litresearch": "The body defines a bounded research workflow and the only extra file is attribution metadata; no unshipped corpus is claimed.",

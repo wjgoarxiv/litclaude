@@ -21,12 +21,13 @@ export const MAX_FRAMES = 3;
 export const MAX_HISTORY = 20;
 export const MAX_STACK_BYTES = 64 * 1024;
 export const STACK_DROP_MS = 24 * 60 * 60 * 1000;
-export const READ_ONLY_DISCIPLINES = Object.freeze(["lit-recap", "lit-comprehend", "lit-handoff", "lit-adhd", "lit-rewind"]);
+export const READ_ONLY_DISCIPLINES = Object.freeze(["lit-comprehend", "lit-handoff", "lit-adhd", "lit-rewind"]);
 
 // Order in the main chain; a newcomer of a higher rank succeeds the frame below it.
 const CHAIN_RANK = Object.freeze({
   "deep-interview": 0,
   "lit-brainstorm": 0,
+  "ultra-brainstorm": 0,
   "lit-crucible": 1,
   "lit-plan": 1,
   "start-work": 2,
@@ -188,6 +189,12 @@ export const applyStackEvent = (stack, event, now = new Date()) => {
         ? frames.findLast((frame) => frame.family === event.family && frame.stage === event.stage)
         : frames.at(-1);
       if (target && target.family === event.family && (event.scope === "nearest" || target.status === "active")) update(target, event);
+      // A side skill that finished hands the session back: the frame under it resumes by itself
+      // instead of staying paused until the user types `lit continue` (card scenario D1-2).
+      if (target && target === frames.at(-1) && target.role === "side" && isFinished(target) && frames.length > 1) {
+        closeAbove(frames.length - 2, "side.done");
+        activate(frames.at(-1));
+      }
       break;
     }
     case "record":

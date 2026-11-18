@@ -2,6 +2,7 @@
 name: lit-handoff
 description: "🔥 lit-handoff — Claude-native continuation packet creation using the complete, immutable bundled handoff source."
 disable-model-invocation: true
+goal: never
 ---
 
 ## #contract.activation

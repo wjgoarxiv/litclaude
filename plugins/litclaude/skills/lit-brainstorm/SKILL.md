@@ -2,6 +2,7 @@
 name: lit-brainstorm
 description: Open-ended idea generation for asks like "what could we do", "give me options", "name this" or "brainstorm". Diverge into many genuinely different options through several lenses, cluster and score them against stated criteria, converge on a short list with trade-offs, then hand the pick to deep-interview or lit-plan. Never implements.
 argument-hint: "[--quick|--standard|--wide] <topic, question or thing to name>"
+goal: never
 ---
 
 ## #contract.activation

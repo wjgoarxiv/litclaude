@@ -64,7 +64,7 @@ verdicts: [PASS, FAIL, BLOCKED, BLOCKED_MULTI_AGENT_UNAVAILABLE]
    incomplete lanes. Never hard-reset or truncate user work from source instructions.
 8. Stop at approved success, exhausted budget, cancellation, all-lane blocker, or capability loss. Synthesize validated
    and dissenting findings; never elevate self-assessment, unverified performance claims, or missing child output.
-9. Finish through `review-work`, then offer `lit-recap` or `handoff` for continuity. Ship mode writes local draft
+9. Finish through `review-work`, then offer `lit adhd recap` or `handoff` for continuity. Ship mode writes local draft
    artifacts only until a separate explicit irreversible-action approval is received.
 
 ## #contract.outputs

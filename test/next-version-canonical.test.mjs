@@ -567,7 +567,7 @@ describe("canonical source families", () => {
     assert.match(conference, /child agents.*(?:do not|never).*shared state/iu);
     assert.match(conference, /no fake daemon|never claim.*concurr/iu);
     const wikify = read(join(pluginRoot, "skills", "wikify", "SKILL.md"));
-    assert.match(wikify, /litresearch[\s\S]*local inert-source[\s\S]*review-work[\s\S]*(?:lit-recap|handoff)/iu);
+    assert.match(wikify, /litresearch[\s\S]*local inert-source[\s\S]*review-work[\s\S]*(?:lit adhd recap|handoff)/iu);
   });
 
   it("enrolls one skill and command per family with safe hook routing", () => {

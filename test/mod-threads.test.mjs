@@ -527,7 +527,7 @@ test("the desktop card draws the same thread rows and grows by their reserve", a
   assert.ok(rowAt("lit-plan") && rowAt("1 lane · 1 task in parallel") && rowAt("executor") && rowAt("dev server"), "every thread is drawn");
   assert.ok(texts.some(({ body }) => body.includes("[▉▉░░░] 2/5")), "the paused parent keeps its gauge");
   assert.ok(rowAt("executor").y > rowAt("lit-plan").y && rowAt("dev server").y > rowAt("executor").y);
-  const chips = texts.find(({ body }) => /no LitFamily skill/u.test(body));
+  const chips = texts.find(({ body }) => body === "skills");
   assert.ok(chips.y > rowAt("dev server").y, "the chips row moves below the threads");
   assert.match(alt, /threads lit-plan \[▉▉░░░\] 2\/5 paused, lit-loop/u);
   const single = composeSvgCard(buildBandModel({ snapshot: snapshotWith([frames[1]]), now: NOW, isWorking: true }), { motion: "off" });

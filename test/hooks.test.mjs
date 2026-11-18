@@ -257,11 +257,11 @@ describe("Claude hook runner", () => {
       assert.equal(systemMessage.startsWith("\n"), true);
       assert.match(systemMessage, /^\n\x1b\[1m\x1b\[38;2;255;99;55m▗/u);
       assert.match(systemMessage, /\x1b\[1m\x1b\[38;2;255;99;55mL/u);
-      assert.match(systemMessage, /\x1b\[38;2;0;229;255mp\x1b\[0m 🔥/u);
+      assert.match(systemMessage, /\x1b\[38;2;0;229;255md\x1b\[0m 🔥/u);
       assert.match(systemMessage, /\x1b\[0m  🔥 \x1b\[1m/u);
       assert.match(systemMessage, /\x1b\[0m 🔥\n/u);
-      assert.match(systemMessage.replace(/\x1b\[[\d;]*m/gu, ""), /🔥 LIT IGNITED · lit-recap 🔥/u);
-      assert.match(payload.hookSpecificOutput.additionalContext, /🔥 \*\*LIT IGNITED · lit-recap\*\* 🔥/u);
+      assert.match(systemMessage.replace(/\x1b\[[\d;]*m/gu, ""), /🔥 LIT IGNITED · lit-adhd 🔥/u);
+      assert.match(payload.hookSpecificOutput.additionalContext, /🔥 \*\*LIT IGNITED · lit-adhd\*\* 🔥/u);
       assert.equal(payload.hookSpecificOutput.additionalContext.includes("\x1b"), false);
     } finally {
       rmSync(temp, { recursive: true, force: true });
@@ -460,9 +460,9 @@ describe("Claude hook runner", () => {
     assert.match(parsed.hookSpecificOutput.additionalContext, /Treat this prompt as an explicit request to use LitClaude litwork/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\/litclaude:lit-loop/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /Skill\(litwork\)/u);
-    assert.match(litworkSkill, /get_goal/u);
-    assert.match(litworkSkill, /create_goal/u);
-    assert.match(litworkSkill, /update_goal/u);
+    // S4: the native goal is LitClaude's own pipeline now; the old "goal tools if available" lines are gone.
+    assert.doesNotMatch(litworkSkill, /get_goal|create_goal|update_goal/u);
+    assert.match(litworkSkill, /yes \/ edit \/ no/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\/goal/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /BLOCKED: native `\/goal` not programmatically bound/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /durable `litgoal` ledger/u);
@@ -533,7 +533,8 @@ describe("Claude hook runner", () => {
       ["$lit-init --max-depth=2", "/litclaude:lit-init", "Skill(lit-init)"],
       ["review-work check this diff", "/litclaude:review-work", "Skill(review-work)"],
       ["litgoal bind release readiness", "/litclaude:litgoal", "Skill(litgoal)"],
-      ["lit-recap --brief", "/litclaude:lit-recap", "Skill(lit-recap)"],
+      // lit-recap moved into lit-adhd: the old token opens lit-adhd's recap view.
+      ["lit-recap --brief", "/litclaude:lit-adhd", "Skill(lit-adhd)"],
     ]) {
       const result = runHook("user-prompt-submit", {
         hook_event_name: "UserPromptSubmit",
@@ -557,7 +558,7 @@ describe("Claude hook runner", () => {
       ["lit-loop implement it", "lit-loop"],
       ["lit-plan build a plan", "lit-plan"],
       ["lit plan build a plan", "lit-plan"],
-      ["lit-recap --brief", "lit-recap"],
+      ["lit-recap --brief", "lit-adhd"],
       ["lit-crucible this release change", "lit-crucible"],
       ["litresearch compare async runtimes", "litresearch"],
       ["lit research compare async runtimes", "litresearch"],
@@ -580,8 +581,8 @@ describe("Claude hook runner", () => {
       const context = parsed.hookSpecificOutput.additionalContext;
       assert.match(context, new RegExp(`<litclaude-skill-body name="${skillName}">`, "u"));
       assert.match(context, new RegExp("</litclaude-skill-body>", "u"));
-      // lit-recap stays inline; every other route names the installed file that holds the same body.
-      const loaded = skillName === "lit-recap" ? context : pointedSkillBody(context, prompt);
+      // Every route names the installed file that holds the same body.
+      const loaded = pointedSkillBody(context, prompt);
       assert.equal(loaded.includes(skillBody(skillName)), true, `${prompt} should make the full ${skillName} SKILL.md reachable`);
     }
   });
@@ -798,8 +799,8 @@ describe("Claude hook runner", () => {
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
       assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
       const loopSkill = pointedSkillBody(parsed.hookSpecificOutput.additionalContext, prompt);
-      assert.match(loopSkill, /get_goal/u);
-      assert.match(loopSkill, /create_goal/u);
+      assert.doesNotMatch(loopSkill, /get_goal|create_goal|update_goal/u);
+      assert.match(loopSkill, /Approve plan, start work and set goal: \/goal <cond>\? \(yes \/ edit \/ no\)/u);
       assert.match(parsed.hookSpecificOutput.additionalContext, /Workflow tool/u);
       assert.match(`${parsed.hookSpecificOutput.additionalContext}\n${loopSkill}`, /ultracode/u);
       assert.match(`${parsed.hookSpecificOutput.additionalContext}\n${loopSkill}`, /run a workflow/u);
