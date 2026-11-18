@@ -2,10 +2,13 @@
 
 [README](../README.md) · [Guide](./guide.md) · [한국어](./skills_ko-KR.md)
 
-LitClaude ships 39 skills you start yourself and three that run on their own. Each row shows
+LitClaude's core holds 30 skills you start yourself and three that run on their own. They ship in the
+plugin and need nothing else. Nine more skills are LitFamily extensions: they moved to the wjgoarxiv-skills
+marketplace in five small plugins, and LitClaude keeps a same-name stub for each. With the extension
+installed, the stub hands the request over; without it, the stub gives you the install line. Each row shows
 a picture of what the skill gives you, the prompt or command that starts it, and the result.
 
-## Skills at a glance
+## Core skills
 
 One row per skill: what it looks like, the route that starts it, and what you get.
 
@@ -42,14 +45,9 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Sets and keeps the finish line: one objective with checkable criteria, kept on disk. <code>lit-loop</code> and <code>start-work</code> run toward it.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/lit-recap.webp" width="240" alt="A read-only summary: done, in progress, blocked, where the evidence is, what comes next." /></td>
-<td><code>lit-recap</code><br /><sub><code>lit recap</code> · <code>litrecap</code></sub></td>
-<td>A read-only summary: done, in progress, blocked, where the evidence is, what comes next.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-adhd.webp" width="240" alt="A brief across your recent sessions: what each was asked, did and waits on, progress gauges, one next step." /></td>
+<td><img src="./assets/skills/lit-adhd.webp" width="240" alt="A six-line card in Korean (--en for English): what changed since you last looked and the one thing to do now. lit adhd detail opens the full board; lit adhd recap is the session recap that lit-recap used to give." /></td>
 <td><code>lit-adhd</code><br /><sub><code>lit adhd</code> · <code>lit-rewind</code></sub></td>
-<td>A brief across your recent sessions: what each was asked, did and waits on, progress gauges, one next step.</td>
+<td>A six-line card in Korean (<code>--en</code> for English): what changed since you last looked and the one thing to do now. <code>lit adhd detail</code> opens the full board; <code>lit adhd recap</code> is the session recap that lit-recap used to give.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/lit-handoff.webp" width="240" alt="Type handoff to get a continuation file the next session can read and resume from." /></td>
@@ -60,6 +58,11 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td><img src="./assets/skills/lit-brainstorm.webp" width="240" alt="Many different options, scored against your criteria and cut to a short list you choose from. The pick then goes to deep-interview or lit-plan." /></td>
 <td><code>lit-brainstorm</code><br /><sub><code>lit brainstorm &lt;topic&gt;</code></sub></td>
 <td>Many different options, scored against your criteria and cut to a short list you choose from. The pick then goes to deep-interview or lit-plan.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/ultra-brainstorm.webp" width="240" alt="Asks once how big to go (30, 100 or 300 idea agents, with the token cost). A Workflow then gathers the ideas, groups them, and a judge scores a top 10 for you to pick from, combine or widen." /></td>
+<td><code>ultra-brainstorm</code><br /><sub><code>lit ultra-brainstorm &lt;topic&gt;</code></sub></td>
+<td>Asks once how big to go (30, 100 or 300 idea agents, with the token cost). A Workflow then gathers the ideas, groups them, and a judge scores a top 10 for you to pick from, combine or widen.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/deep-interview.webp" width="240" alt="One question at a time until the idea is clear enough to build. A meter shows how much is still vague." /></td>
@@ -97,51 +100,6 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Rewrites stiff model prose in English or Korean. Facts and hedges stay; filler goes.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/lit-diagram-drawer.webp" width="240" alt="A checked, editable diagram for slides and documents, with PNG and Office-safe SVG exports." /></td>
-<td><code>lit-diagram-drawer</code><br /><sub><code>/litclaude:lit-diagram-drawer &lt;brief&gt;</code></sub></td>
-<td>A checked, editable diagram for slides and documents, with PNG and Office-safe SVG exports.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-schematic.webp" width="240" alt="A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG." /></td>
-<td><code>lit-schematic</code><br /><sub><code>/litclaude:lit-schematic &lt;brief&gt;</code></sub></td>
-<td>A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-pptx.webp" width="240" alt="Ask for slides with lit and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered." /></td>
-<td><code>lit-pptx</code><br /><sub><code>/litclaude:lit-pptx &lt;request&gt;</code></sub></td>
-<td>Ask for slides with <code>lit</code> and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-docx.webp" width="240" alt="Ask for a report with lit and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery." /></td>
-<td><code>lit-docx</code><br /><sub><code>/litclaude:lit-docx &lt;request&gt;</code></sub></td>
-<td>Ask for a report with <code>lit</code> and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/frontend-ui-ux.webp" width="240" alt="Builds a working interface, then a measured probe renders it in seven views: 320, 390, 768 and 1440 px, dark, reduced motion and 200% zoom." /></td>
-<td><code>frontend-ui-ux</code><br /><sub><code>frontend-ui-ux build &lt;target&gt;</code></sub></td>
-<td>Builds a working interface, then a measured probe renders it in seven views: 320, 390, 768 and 1440 px, dark, reduced motion and 200% zoom.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/readme-studio.webp" width="240" alt="A factual README with a moving cover, checked at phone and desktop widths in light and dark." /></td>
-<td><code>readme-studio</code><br /><sub><code>readme-studio &lt;scope&gt;</code></sub></td>
-<td>A factual README with a moving cover, checked at phone and desktop widths in light and dark.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="Ask for a video with lit. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film." /></td>
-<td><code>lit-typographic-motion</code><br /><sub><code>/litclaude:lit-typographic-motion &lt;request&gt;</code></sub></td>
-<td>Ask for a video with <code>lit</code>. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/lit-scientific-visualization.webp" width="240" alt="A journal-sized figure with vector and 600 DPI exports. The chart type follows the data." /></td>
-<td><code>lit-scientific-visualization</code><br /><sub><code>lit-scientific-visualization</code></sub></td>
-<td>A journal-sized figure with vector and 600 DPI exports. The chart type follows the data.</td>
-</tr>
-<tr>
-<td><img src="./assets/skills/visual-qa.webp" width="240" alt="Checks a real screen at each viewport and returns an honest verdict, or names exactly what blocked it." /></td>
-<td><code>visual-qa</code><br /><sub><code>visual-qa &lt;target&gt;</code></sub></td>
-<td>Checks a real screen at each viewport and returns an honest verdict, or names exactly what blocked it.</td>
-</tr>
-<tr>
 <td><img src="./assets/skills/browser-drive.webp" width="240" alt="Drives a real page after verifying the browser driver. If there is none, it says so." /></td>
 <td><code>browser-drive</code><br /><sub><code>browser-drive &lt;task&gt;</code></sub></td>
 <td>Drives a real page after verifying the browser driver. If there is none, it says so.</td>
@@ -152,9 +110,9 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 <td>Finds code by its syntax shape, not its text, and previews rewrites before applying them.</td>
 </tr>
 <tr>
-<td><img src="./assets/skills/lit-team.webp" width="240" alt="Coordinates several workers with separate slices, each reporting back with evidence." /></td>
-<td><code>lit-team</code><br /><sub><code>lit team</code> · <code>lit teammates</code></sub></td>
-<td>Coordinates several workers with separate slices, each reporting back with evidence.</td>
+<td><img src="./assets/skills/lit-team.webp" width="240" alt="Type lit team with a goal and this session becomes the orchestrator. It splits the work, launches the members, watches them, merges and re-checks the result, then tells you what happened." /></td>
+<td><code>lit-team</code><br /><sub><code>lit team &lt;goal&gt;</code></sub></td>
+<td>Type <code>lit team</code> with a goal and this session becomes the orchestrator. It splits the work, launches the members, watches them, merges and re-checks the result, then tells you what happened.</td>
 </tr>
 <tr>
 <td><img src="./assets/skills/autoresearch.webp" width="240" alt="An approved, budgeted experiment loop. Each round changes one thing and keeps or reverts it." /></td>
@@ -213,12 +171,124 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 </tr>
 </table>
 
-lit-pptx now ships separately as the `decks` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes deck requests to it and gives the install line when it is missing.
+## Extensions
 
-lit-docx now ships separately as the `documents` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub that routes document requests to it and gives the install line when it is missing.
+The extension skills live in five plugins you install beside LitClaude, one at a time, only for the work
+you do. In your own terminal, `npx @litfamily/litclaude extensions list` shows all five and whether each
+is installed. The install line under each plugin prints its install plan, stops if a skill of your own has
+the same name, and runs the plan when you add `--yes`.
 
-lit-diagram-drawer, lit-schematic and lit-scientific-visualization now ship separately as the `figures` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes drawing and figure requests to it and gives the install line when it is missing.
+### decks
 
-lit-typographic-motion and readme-studio now ship separately as the `video-covers` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes film and README requests to it and gives the install line when it is missing.
+Editable PowerPoint decks.
 
-frontend-ui-ux and visual-qa now ship separately as the `design` plugin of the wjgoarxiv-skills marketplace. LitClaude keeps a same-name stub for each that routes interface requests to it and gives the install line when it is missing; the frontend-ui-ux stub keeps the interface probe the lit workflows run on the web pages they build.
+```bash
+npx @litfamily/litclaude extensions install decks
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/lit-pptx.webp" width="240" alt="In the decks extension. Ask for slides with lit and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered." /></td>
+<td><code>lit-pptx</code><br /><sub><code>/litclaude:lit-pptx &lt;request&gt;</code> · <code>decks:lit-pptx</code></sub></td>
+<td>In the <code>decks</code> extension. Ask for slides with <code>lit</code> and get an editable PowerPoint deck with native charts and embedded fonts. Each slide passes a layout gate and is checked as rendered.</td>
+</tr>
+</table>
+
+### documents
+
+Styled Word documents.
+
+```bash
+npx @litfamily/litclaude extensions install documents
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/lit-docx.webp" width="240" alt="In the documents extension. Ask for a report with lit and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery." /></td>
+<td><code>lit-docx</code><br /><sub><code>/litclaude:lit-docx &lt;request&gt;</code> · <code>documents:lit-docx</code></sub></td>
+<td>In the <code>documents</code> extension. Ask for a report with <code>lit</code> and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery.</td>
+</tr>
+</table>
+
+### figures
+
+Diagrams, physical schematics and journal figures.
+
+```bash
+npx @litfamily/litclaude extensions install figures
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/lit-diagram-drawer.webp" width="240" alt="In the figures extension. A checked, editable diagram for slides and documents, with PNG and Office-safe SVG exports." /></td>
+<td><code>lit-diagram-drawer</code><br /><sub><code>/litclaude:lit-diagram-drawer &lt;brief&gt;</code> · <code>figures:lit-diagram-drawer</code></sub></td>
+<td>In the <code>figures</code> extension. A checked, editable diagram for slides and documents, with PNG and Office-safe SVG exports.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-schematic.webp" width="240" alt="In the figures extension. A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG." /></td>
+<td><code>lit-schematic</code><br /><sub><code>/litclaude:lit-schematic &lt;brief&gt;</code> · <code>figures:lit-schematic</code></sub></td>
+<td>In the <code>figures</code> extension. A P&amp;ID, apparatus figure or isometric cutaway of real equipment, checked by a QA gate and exported as SVG, PDF and 600 dpi PNG.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-scientific-visualization.webp" width="240" alt="In the figures extension. A journal-sized figure with vector and 600 DPI exports. The chart type follows the data." /></td>
+<td><code>lit-scientific-visualization</code><br /><sub><code>lit-scientific-visualization</code> · <code>figures:lit-scientific-visualization</code></sub></td>
+<td>In the <code>figures</code> extension. A journal-sized figure with vector and 600 DPI exports. The chart type follows the data.</td>
+</tr>
+</table>
+
+### design
+
+Building web interfaces and checking them on a real screen.
+
+```bash
+npx @litfamily/litclaude extensions install design
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/frontend-ui-ux.webp" width="240" alt="In the design extension. Builds a working interface, then a measured probe renders it in seven views: 320, 390, 768 and 1440 px, dark, reduced motion and 200% zoom." /></td>
+<td><code>frontend-ui-ux</code><br /><sub><code>frontend-ui-ux build &lt;target&gt;</code> · <code>design:frontend-ui-ux</code></sub></td>
+<td>In the <code>design</code> extension. Builds a working interface, then a measured probe renders it in seven views: 320, 390, 768 and 1440 px, dark, reduced motion and 200% zoom.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/visual-qa.webp" width="240" alt="In the design extension. Checks a real screen at each viewport and returns an honest verdict, or names exactly what blocked it." /></td>
+<td><code>visual-qa</code><br /><sub><code>visual-qa &lt;target&gt;</code> · <code>design:visual-qa</code></sub></td>
+<td>In the <code>design</code> extension. Checks a real screen at each viewport and returns an honest verdict, or names exactly what blocked it.</td>
+</tr>
+</table>
+
+### video-covers
+
+README covers and short films.
+
+```bash
+npx @litfamily/litclaude extensions install video-covers
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/readme-studio.webp" width="240" alt="In the video-covers extension. A factual README with a moving cover, checked at phone and desktop widths in light and dark." /></td>
+<td><code>readme-studio</code><br /><sub><code>readme-studio &lt;scope&gt;</code> · <code>video-covers:readme-studio</code></sub></td>
+<td>In the <code>video-covers</code> extension. A factual README with a moving cover, checked at phone and desktop widths in light and dark.</td>
+</tr>
+<tr>
+<td><img src="./assets/skills/lit-typographic-motion.webp" width="240" alt="In the video-covers extension. Ask for a video with lit. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film." /></td>
+<td><code>lit-typographic-motion</code><br /><sub><code>/litclaude:lit-typographic-motion &lt;request&gt;</code> · <code>video-covers:lit-typographic-motion</code></sub></td>
+<td>In the <code>video-covers</code> extension. Ask for a video with <code>lit</code>. It picks one of four house styles by fixed rules, shows a storyboard before the full render, draws the scenes or sets the words in motion, adds a sound bed, and checks flashes, legibility, layout and sound before handing over the film.</td>
+</tr>
+</table>
+
+To install by hand, run these two lines, then type `/reload-plugins` once in Claude Code:
+
+```bash
+claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
+claude plugin install design@wjgoarxiv-skills
+```
+
+The frontend-ui-ux stub keeps the interface probe, so the lit workflows still check the web pages they build
+when the `design` extension is missing.

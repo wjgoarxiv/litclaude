@@ -12,30 +12,40 @@ const docsRoot = new URL("docs/", root);
 const skillBase = "./assets/skills/";
 const MAX_SNAPSHOT_BYTES = 81_920;
 
-// Table order. A grouped row stands for several hook-run skills that have no route of their own.
-const ROWS = [
-  "lit-loop", "litwork", "lit-plan", "start-work", "review-work", "litgoal", "lit-recap", "lit-adhd",
-  "lit-handoff", "lit-brainstorm", "deep-interview", "litresearch", "lit-hijack", "lit-crucible", "lit-init", "lit-comprehend",
-  "lit-humanizer", "lit-diagram-drawer", "lit-schematic", "lit-pptx", "lit-docx", "frontend-ui-ux", "readme-studio",
-  "lit-typographic-motion", "lit-scientific-visualization", "visual-qa", "browser-drive",
+// Core table order. A grouped row stands for several hook-run skills that have no route of their own.
+const CORE = [
+  "lit-loop", "litwork", "lit-plan", "start-work", "review-work", "litgoal", "lit-adhd",
+  "lit-handoff", "lit-brainstorm", "ultra-brainstorm", "deep-interview", "litresearch", "lit-hijack", "lit-crucible", "lit-init", "lit-comprehend",
+  "lit-humanizer", "browser-drive",
   "structural-search", "lit-team", "autoresearch", "autoconference", "wikify", "debugging",
   "refactor", "lit-burnoff", "lit-burnoff-file", "lit-code", "lit-commit", "lsp-setup",
   "automatic-checks",
 ];
+// The extension tables, one per wjgoarxiv-skills plugin, each under its install line.
+const PLUGINS = [
+  ["decks", ["lit-pptx"]],
+  ["documents", ["lit-docx"]],
+  ["figures", ["lit-diagram-drawer", "lit-schematic", "lit-scientific-visualization"]],
+  ["design", ["frontend-ui-ux", "visual-qa"]],
+  ["video-covers", ["readme-studio", "lit-typographic-motion"]],
+];
+const ROWS = [...CORE, ...PLUGINS.flatMap(([, ids]) => ids)];
 const GROUPS = { "automatic-checks": ["rules", "lsp", "comment-checker"] };
 
 const LANG = {
   en: {
     path: "docs/skills.md",
     readme: "README.md",
-    heading: "## Skills at a glance",
+    heading: "## Core skills",
+    extensions: "## Extensions",
     header: "<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>",
     groupRoute: "runs on its own",
   },
   ko: {
     path: "docs/skills_ko-KR.md",
     readme: "README_ko-KR.md",
-    heading: "## 스킬 한눈에 보기",
+    heading: "## 핵심 스킬",
+    extensions: "## 확장",
     header: "<tr><th>이렇게 됩니다</th><th>스킬</th><th>얻는 것</th></tr>",
     groupRoute: "자동 실행",
   },
@@ -43,22 +53,14 @@ const LANG = {
 
 const ROW = /<tr>\n<td><img src="([^"]+)" width="240" alt="([^"<>]+)" \/><\/td>\n<td>(.+?)<br \/><sub>(.+?)<\/sub><\/td>\n<td>(.+?)<\/td>\n<\/tr>/gu;
 
-function assertSkillsSection(content, lang) {
-  const spec = LANG[lang];
-  const lines = content.split("\n");
-  const at = (heading) => lines.indexOf(heading);
-  assert.equal(lines.filter((line) => line === spec.heading).length, 1, `${spec.heading} appears once`);
-  assert.equal(lines.findIndex((line, index) => index > at(spec.heading) && /^#{1,2} /u.test(line)), -1, `${spec.heading} is the last section`);
-
-  const body = lines.slice(at(spec.heading)).join("\n");
-  assert.equal(body.match(/<table>/gu)?.length, 1, "one skill table");
-  assert.ok(body.includes(`<table>\n${spec.header}\n`), "table header");
-  assert.equal(body.match(/<tr>/gu).length, ROWS.length + 1, "one row per skill plus the header");
-  const rows = [...body.matchAll(ROW)];
-  assert.equal(rows.length, ROWS.length, "every row keeps the picture, skill and result cells");
+const checkRows = (table, ids, spec, where) => {
+  assert.ok(table.startsWith(`<table>\n${spec.header}\n`), `${where} table header`);
+  assert.equal(table.match(/<tr>/gu).length, ids.length + 1, `${where}: one row per skill plus the header`);
+  const rows = [...table.matchAll(ROW)];
+  assert.equal(rows.length, ids.length, `${where}: every row keeps the picture, skill and result cells`);
   rows.forEach(([, src, alt, name, route, result], index) => {
-    const id = ROWS[index];
-    assert.equal(src, `${skillBase}${id}.webp`, `row ${index + 1} shows ${id}`);
+    const id = ids[index];
+    assert.equal(src, `${skillBase}${id}.webp`, `${where} row ${index + 1} shows ${id}`);
     assert.ok(lstatSync(new URL(src, docsRoot)).isFile(), `${src} must exist on disk`);
     const skills = GROUPS[id] ?? [id];
     assert.equal(name, skills.map((skill) => `<code>${skill}</code>`).join(" · "), `${id} name cell`);
@@ -66,7 +68,27 @@ function assertSkillsSection(content, lang) {
     else assert.match(route, /^<code>[^<]+<\/code>(?: · <code>[^<]+<\/code>)?$/u, `${id} route`);
     assert.equal(alt, result.replaceAll(/<\/?code>/gu, ""), `${id} alt text repeats the visible line`);
   });
-  assert.doesNotMatch(body, /\blit(?:hermes|codex|opencode|grok)\b|\.litclaude\/|plans\/|run_id|illustrative|🔥/iu, "no sibling products or internal exhaust");
+};
+
+function assertSkillsSection(content, lang) {
+  const spec = LANG[lang];
+  const lines = content.split("\n");
+  const at = (heading) => lines.indexOf(heading);
+  for (const heading of [spec.heading, spec.extensions]) assert.equal(lines.filter((line) => line === heading).length, 1, `${heading} appears once`);
+  assert.ok(at(spec.heading) < at(spec.extensions), "core comes before the extensions");
+  const core = lines.slice(at(spec.heading), at(spec.extensions)).join("\n");
+  assert.equal(core.match(/<table>/gu)?.length, 1, "one core table");
+  checkRows(core.slice(core.indexOf("<table>"), core.indexOf("</table>")), CORE, spec, "core");
+  const extensions = lines.slice(at(spec.extensions)).join("\n");
+  assert.equal(extensions.match(/<table>/gu)?.length, PLUGINS.length, "one table per extension plugin");
+  assert.deepEqual([...extensions.matchAll(/^### (.+)$/gmu)].map((match) => match[1]), PLUGINS.map(([plugin]) => plugin), "the plugins, in order");
+  for (const [plugin, ids] of PLUGINS) {
+    const part = extensions.slice(extensions.indexOf(`### ${plugin}\n`)).split(/\n### /u)[0];
+    assert.ok(part.includes(`npx @litfamily/litclaude extensions install ${plugin}\n`), `${plugin} has its install line`);
+    checkRows(part.slice(part.indexOf("<table>"), part.indexOf("</table>")), ids, spec, plugin);
+  }
+  const body = lines.slice(at(spec.heading)).join("\n");
+  assert.doesNotMatch(body, /\blit(?:hermes|codex|opencode|grok)\b|\.litclaude\/|plans\/|run_id|illustrative|🔥|lit-recap\.webp/iu, "no sibling products, internal exhaust or the removed lit-recap row");
   return body;
 }
 
@@ -101,15 +123,18 @@ test("skill snapshots ship as exact package paths under their byte cap", () => {
   assert.ok(JSON.parse(read("package.json")).files.includes("docs/assets/skills"), "skill snapshots keep shipping in the package");
 });
 
-test("skill table check rejects a dropped row, a swapped picture, a lost group member or a moved section", () => {
+test("skill table check rejects a dropped row, a swapped picture, a lost group member, a lost install line or a merged table", () => {
   const content = read("docs/skills.md");
   const section = assertSkillsSection(content, "en");
   const pptxRow = section.match(/<tr>\n<td><img src="[^"]+\/lit-pptx\.webp"[\s\S]*?<\/tr>\n/u)[0];
+  const teamRow = section.match(/<tr>\n<td><img src="[^"]+\/lit-team\.webp"[\s\S]*?<\/tr>\n/u)[0];
   for (const mutation of [
     content.replace(pptxRow, ""),
+    content.replace(teamRow, ""),
     content.replace(`${skillBase}lit-docx.webp`, `${skillBase}lit-pptx.webp`),
     content.replace("<code>rules</code> · <code>lsp</code> · <code>comment-checker</code>", "<code>rules</code> · <code>lsp</code>"),
-    `${content}\n## Notes\n\nA section after the table.\n`,
+    content.replace("npx @litfamily/litclaude extensions install figures\n", ""),
+    content.replace("## Extensions\n", ""),
     content.replace("<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>", "<tr><th>Skill</th></tr>"),
   ]) {
     assert.notEqual(mutation, content);

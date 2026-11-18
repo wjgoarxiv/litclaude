@@ -17,7 +17,7 @@ conservative local fallback where it does not.
 | Execution loop | Claude Code skill plus executor agent | `lit-loop`, `start-work`, and `lit-executor` |
 | 5-lane review | Claude Code command, skill, and agents | `review-work` runs scope/diff verification, tests/evidence execution, package/payload and code quality, security/provenance, and real-surface/docs readiness |
 | Durable goal runtime | Package CLI plus local state | `litgoal` writes criteria, evidence, checkpoints, steering, and blockers under `.litclaude/litgoal/` |
-| Goal-tool guidance | Claude Code native goal surface | `/goal` when user-selected, or model-facing `get_goal`, `create_goal`, and verified-final `update_goal` guidance when exposed |
+| Goal-tool guidance | Claude Code native goal surface | `/goal <condition>` set by the LitClaude mod after the user's exact `yes` to lit-plan's consent question, cleared only when LitClaude set it |
 | Parallel orchestration | Claude Code Dynamic workflow and Dynamic worktree surfaces | Call `Workflow` for broad independent work when exposed; use `EnterWorktree` or the CLI worktree path for risky or parallel edits |
 | Dynamic workflow readiness | Claude Code command plus package diagnostic | `/litclaude:lit-loop` and `workflow-check --json` verify goal, Dynamic workflow, and subagent delegation surfaces |
 | Hooks | Claude Code hooks | `plugins/litclaude/hooks/hooks.json` |
@@ -55,13 +55,13 @@ manual `--plugin-dir` launch commands, or a remote Claude marketplace entry.
 
 ## Goal And Dynamic Workflow Parity
 
-Reference goal integration is an honest native-binding attempt around goal
-tools; it does not type a `/goal` slash command for the user. LitClaude mirrors
-that contract: lit hook context and lit skills mention Claude Code's native goal
-surface, ask Claude to inspect `get_goal`, create a goal with `create_goal` only
-when no matching active goal exists, refuse to clobber a different active goal
-without explicit replacement, and defer `update_goal` until the evidence gate
-has passed or a real blocker is recorded.
+LitClaude sets Claude Code's native goal only with the user's consent. lit-plan
+compiles the plan's `## Done when` check into one condition and asks once,
+`Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. Only an exact
+`yes` starts start-work on that plan (the same start as a typed `/litclaude:start-work <plan>`)
+and arms the goal; a refused start arms nothing. The LitClaude mod then runs `/goal <condition>` at the next idle,
+confirms it from the transcript, and later clears only the goal it set. A goal
+the user set by hand is never replaced.
 
 Current Claude Code sessions may not expose model-facing goal tools to the
 model. The observed hook output schema can add context or block; it cannot run

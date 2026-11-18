@@ -430,7 +430,8 @@ requests are muted grey pills.
   it as a side frame, keeping its stage and count; a successor in the main chain (plan after
   interview, work after plan, review after work) or anything after a finished frame replaces it;
   asking for a skill already on the stack resumes its frame; `lit new` starts over; read-only
-  disciplines (lit-recap, lit-comprehend, lit-handoff, lit-adhd) change nothing. Each session has its own
+  disciplines (lit-comprehend, lit-handoff, lit-adhd) change nothing; a finished side frame hands
+  the session back to the frame under it. Each session has its own
   file, at most three frames deep. A record from before the stack is read only while the
   session has no stack file. PostToolUse checks the plan stage when lit-plan saves
   `plans/<slug>.md` (`plan ✓`, detail `plan saved`), counts the tasks each time the active
@@ -813,6 +814,8 @@ lit goal
 lit brainstorm <topic>
 lit ideation <topic>
 lit idea <topic>
+lit ultra-brainstorm <topic>
+ultra-brainstorm <topic>
 lit hijack <sources> into <target>
 lit 하이재킹 <sources>
 lit workflow
@@ -841,6 +844,7 @@ $lit-recap
 $lit-loop
 $deep-interview
 $lit-brainstorm
+$ultra-brainstorm
 $lit-hijack
 $lit-loop
 $review-work
@@ -883,7 +887,7 @@ Autoresearch requires the `lit-plan` → explicit budget/authority approval →
 requires root multi-agent capability and returns `BLOCKED_MULTI_AGENT_UNAVAILABLE`
 rather than faking concurrency; children return results while the root owns shared
 state. Wikify keeps local and fetched sources inert, routes public retrieval through
-`litresearch`, and closes through `review-work` plus `lit-recap` or `handoff`.
+`litresearch`, and closes through `review-work` plus `lit adhd recap` or `handoff`.
 Its structured knowledge runtime receives only `fact`, `decision`, `failure`,
 `risk`, `rule`, or `checkpoint` events through the local CLI or MCP tools. It
 stores review-needed claims under `.litclaude/knowledge/claims.jsonl`. Explicit
@@ -922,12 +926,26 @@ command gets the same stub context: the stub is
 `disable-model-invocation`, so the command's `Skill(lit-scientific-visualization)` step
 would only reopen the command. The arguments stay with the command and are never echoed.
 
-LitClaude follows the LitClaude goal pattern as an honest native-binding attempt,
-not as slash-command injection. If Claude Code exposes native goal tools, the
-guidance tells Claude to inspect `get_goal`, call `create_goal` only when no
-matching goal is active, and delay `update_goal` until verified completion or a
-genuine blocker. The hook also refuses to clobber a different active goal
-without explicit replacement.
+LitClaude sets a native goal only on the user's exact `yes`. lit-plan runs
+`scripts/goal-propose.mjs plans/<slug>.md`, which compiles the plan's `## Done when` check
+into one condition of at most 500 characters, lints it (no judgment words, no push or publish
+as success, an allowlisted test command), runs the check once to prove the goal is not already
+met, and records `.litclaude/goal/consent.json`. The plan reply then asks
+`Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. On the next prompt the
+UserPromptSubmit hook reads only an exact `yes`, `edit` or `no`, bound to the condition's hash
+and fresh for 30 minutes. `yes` is handled as a typed `/litclaude:start-work <plan>`: the hook
+starts the code-owned start-work run with the same grants, and only when that start holds (new,
+already running here on that plan, or taken over) does it write `intent.json`. A refused start
+writes nothing and the reply is `No goal set: start-work did not start (<why>)`. A plan with no
+settable goal gets `Approve plan and start work? (yes / no)` plus its `No goal set: <reason>` line,
+and its `yes` starts the work only. When the turn ends, the LitClaude mod runs
+`/goal <condition>` through `$.command.run`, writes `owner.json`, and confirms the goal from the
+transcript's `goal_status` record; when it cannot confirm, it shows
+`Goal not confirmed. Paste: /goal <condition>`. The mod clears only a goal whose condition
+matches its own `owner.json`: once it is met (Claude Code clears it), on `lit cancel`, on a
+`BLOCKED:` reply, or after 12 goal checks with no progress. SessionStart closes a record left by
+a session that ended. A goal the user set by hand is never touched, and read-only skills carry
+`goal: never`.
 
 Source-backed capability note: the observed `UserPromptSubmit` hook surface can
 add `additionalContext` or block; it cannot replace the prompt or run another
@@ -1029,21 +1047,23 @@ litgoal sets and keeps the finish line; lit-loop and start-work run toward it. `
 `/litclaude:litgoal` / `Skill(litgoal)` for durable local goal state and
 the litgoal CLI.
 
-`recap`, `lit recap`, `litrecap`, `리캡`, and `$lit-recap` load
-`/litclaude:lit-recap` / `Skill(lit-recap)` for a read-only session recap built
-from `.litclaude/litgoal/goals.json`, `ledger.jsonl`, `brief.md`, and
-current-session context. Recap activation is side-effect-free: it never writes
-ledgers or files and forbids mutating `litgoal` subcommands. Near-miss tokens
-(`recapture`, `recaptcha`, `리캡처`) and slash forms (`/lit-recap`, `/litrecap`,
-`/lit recap`) do not activate the hook. The recap answers in Korean with fixed
-headers by default, switches the body to English on `--en`, and emits the brief
-`## ⚡ 요약` digest on `--brief` / `짧게`.
+lit-recap moved into lit-adhd. `lit adhd recap [session]` loads `/litclaude:lit-adhd` /
+`Skill(lit-adhd)` with the recap view (`litclaude-ai rewind --recap [session]`), a read-only
+session recap. The old forms, `recap`, `lit recap`, `litrecap`, `리캡`, `$lit-recap` and the
+typed `/litclaude:lit-recap` command, open the same view, and the reply starts with
+`lit-recap moved into lit-adhd (lit adhd recap).` Recap activation is side-effect-free: it never
+writes ledgers or files. Near-miss tokens (`recapture`, `recaptcha`, `리캡처`) and the slash
+forms `/lit-recap`, `/litrecap` and `/lit recap` do not activate the hook.
 
 `lit adhd`, `lit rewind`, `lit-adhd`, `lit-rewind`, `$lit-adhd` and `$lit-rewind` load
 `/litclaude:lit-adhd` / `Skill(lit-adhd)` for a read-only brief across every recent session of
 the repository's worktrees. `lit-rewind` is a permanent alias with the same skill and discipline.
-The context tells the model to run `litclaude-ai rewind --brief` once and print the KPI board it
-draws: the collector reads transcripts, plans, litgoal, handoff headings, git log and per-worktree
+The context tells the model to run `litclaude-ai rewind --verdict` once and print the verdict card
+it draws (`lib/rewind/verdict.mjs`): about six lines, Korean by default and English on `--en`,
+with what changed since the last look (a cursor under `~/.litclaude/adhd/`), the one action from
+a fixed rule ladder with what to type, the fingerprints behind it, a `네 확인 필요` line when the
+action needs the user, and how much of the sessions it read. A withdrawn verdict says so. `lit adhd
+자세히` / `lit adhd detail` asks for the KPI board instead (`--brief --detail`): the collector reads transcripts, plans, litgoal, handoff headings, git log and per-worktree
 `git status` / unpushed counts, workflow stacks, start-work state and herdr (with `HERDR_ENV=1`)
 under one byte budget, redacts secrets, and computes and draws the board itself
 (`lib/rewind/board.mjs`): 🎯 the one thing to do now with what to type, 📊 four bucket counts
@@ -1057,7 +1077,7 @@ grouped by worktree and branch, one table row per ended session, a roadmap timel
 worktree and recently changed plans, and one boxed next step that is always a real one. A gauge (`[▉▉▉░░] 3/5`)
 appears only when both numbers are recorded; otherwise the card states the known facts. A brief is read-only on the workflow stack. Near-miss words (`lit adhder`,
 `lit rewinding`, bare `adhd`) and the slash forms do not activate the hook; `recap` stays with
-lit-recap.
+the recap view (`lit adhd recap`).
 
 The collector also records this session's one next step under `.litclaude/adhd/`. When the whole
 next prompt is `go`, `lit go`, `ㄱㄱ`, `고` or `진행` and that record is at most 30 minutes old, the
@@ -1074,7 +1094,7 @@ explains the intuition before the code, walks the change in conceptual order
 instead of file order, offers an interactive micro-world, discloses what is
 **not** verified, and closes with a quiz that shows where to slow down. The trigger surface is deliberately wider than the skill id, because bare
 `comprehend` is what users actually type — the same reasoning that keeps bare
-`recap` routed to `lit-recap`. Breadth is affordable only because **activation is
+`recap` routed to the lit-adhd recap view. Breadth is affordable only because **activation is
 not execution**: with no explicit scope the skill states what it would explain and
 waits, so a loose match costs one line rather than a multi-minute build. The
 natural-language forms (`explain this`, `설명해줘`, `이해가 안 돼`) stay out of the
@@ -1151,8 +1171,7 @@ characters; a longer block reaches the model as a saved-file stub with a preview
 2 KB. Each activated route therefore keeps its whole context under that limit and puts the
 probe line, the activation-word note, the reply language, the `Skill(<route>)` request and
 the mode contract first. The route's SKILL.md is named by its installed path inside
-`<litclaude-skill-body>`, and the model loads it from there. `lit-recap` keeps its skill
-body inline because it fits; the exact bare `handoff` prompt
+`<litclaude-skill-body>`, and the model loads it from there. The exact bare `handoff` prompt
 still carries its canonical source inline, and `lit-scientific-visualization` now carries only
 its stub's contract. The per-route byte budgets live in
 `test/prompt-context-budget.test.mjs`.

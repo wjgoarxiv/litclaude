@@ -144,8 +144,8 @@ lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레
 
 ### 흐름 놓치지 않기
 
-워크플로 두 개와 도우미 세 개가 함께 돌면 LIT 카드가 프롬프트 아래에 그 흐름을 줄로 그립니다. 정신없던 하루 끝에 <code>lit adhd</code>를 치면 무엇을 물었고, 무엇이
-끝났고, 무엇이 멈춰 있고, 다음은 무엇인지 한 장으로 정리해 줍니다. 이어서 <code>go</code>를 치면 열려 있는 계획 하나를 이어서 시작합니다.
+워크플로 두 개와 도우미 세 개가 함께 돌면 LIT 카드가 프롬프트 아래에 그 흐름을 줄로 그립니다. 정신없던 하루 끝에 <code>lit adhd</code>를 치면 마지막으로 본 뒤 무엇이
+바뀌었고 지금 할 한 가지가 무엇인지 짧은 카드로 알려 줍니다. <code>lit adhd 자세히</code>는 전체 보드를 열고, 이어서 <code>go</code>를 치면 열려 있는 계획 하나를 이어서 시작합니다.
 
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/card/threads.webp" width="400" alt="스레드 줄이 보이는 LIT 카드. GREEN 2/5에서 멈춘 lit-loop, 그 아래 3/6으로 도는 start-work, executor, librarian-researcher, lit-verifier 레인으로 갈라지는 줄이 있다." /><br /><b>LIT card</b> · 스레드 줄<br /><sub>카드 렌더러가 직접 그린 화면입니다. GREEN에서 멈춘 lit-loop 아래로 start-work가 돌고, 레인 세 개가 나란히 움직입니다.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/adhd-brief.webp" width="400" alt="lit-adhd 브리핑이 뜬 터미널. 세션 네 개와 다음 단계를 담은 첫 줄, 세션마다 마지막 요청과 끝낸 일, 커밋을 적은 카드, 커밋 두 개와 0/6인 clamp 계획이 있는 로드맵, 상자에 담긴 추천 다음 단계가 나오고 아래에 무지개색 REWIND 카드가 있다." /><br /><b>lit-adhd</b> · 정리 브리핑<br /><code>lit adhd</code></td></tr>
@@ -171,7 +171,7 @@ LitFamily 확장입니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.ko.dark.png" />
-    <img src="./docs/assets/readme/diagrams/core-extensions.ko.light.png" width="900" alt="LitClaude에 들어 있는 것과 따로 더하는 것. 왼쪽은 LitClaude 핵심 스킬 33개를 다섯 묶음으로 나눈 것이다. 작업 루프(lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), 코드 다루기(lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), 조사와 글(litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), 이어서 하기(lit-handoff, lit-recap, lit-adhd), 알아서 도는 것(rules, lsp, comment-checker). 그 아래 카드에 에이전트 11개, 훅, LIT 카드, 상태 줄, MCP, LSP가 있다. 가운데는 LitClaude 안의 같은 이름의 안내용 스킬 아홉 개, 오른쪽은 안내용 스킬이 요청을 넘기는 wjgoarxiv-skills 확장 플러그인 다섯 개다. decks(lit-pptx), documents(lit-docx), figures(lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design(frontend-ui-ux, visual-qa), video-covers(lit-typographic-motion, readme-studio). 아래 띠에는 설치 네 단계(같은 이름의 내 스킬 확인, extension-backups로 옮겨 두기, claude plugin install이 Claude Code 캐시로 복사, Claude Code의 installed_plugins.json에 기록)와 이를 실행하는 litclaude-ai extensions 명령(list, check, install, update, remove, prune-backups, 바꾸는 명령은 --yes를 붙일 때만 실행)이 있고, 플러그인이 없으면 안내용 스킬이 설치 명령을 알려 준다는 메모가 붙어 있다." />
+    <img src="./docs/assets/readme/diagrams/core-extensions.ko.light.png" width="900" alt="LitClaude에 들어 있는 것과 따로 더하는 것. 왼쪽은 LitClaude 핵심 스킬 33개를 다섯 묶음으로 나눈 것이다. 작업 루프(lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, ultra-brainstorm, lit-crucible), 코드 다루기(lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), 조사와 글(litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), 이어서 하기(lit-handoff, lit-adhd), 알아서 도는 것(rules, lsp, comment-checker). 그 아래 카드에 에이전트 11개, 훅, LIT 카드, 상태 줄, MCP, LSP가 있다. 가운데는 LitClaude 안의 같은 이름의 안내용 스킬 아홉 개, 오른쪽은 안내용 스킬이 요청을 넘기는 wjgoarxiv-skills 확장 플러그인 다섯 개다. decks(lit-pptx), documents(lit-docx), figures(lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design(frontend-ui-ux, visual-qa), video-covers(lit-typographic-motion, readme-studio). 아래 띠에는 설치 네 단계(같은 이름의 내 스킬 확인, extension-backups로 옮겨 두기, claude plugin install이 Claude Code 캐시로 복사, Claude Code의 installed_plugins.json에 기록)와 이를 실행하는 litclaude-ai extensions 명령(list, check, install, update, remove, prune-backups, 바꾸는 명령은 --yes를 붙일 때만 실행)이 있고, 플러그인이 없으면 안내용 스킬이 설치 명령을 알려 준다는 메모가 붙어 있다." />
   </picture>
 </p>
 
@@ -484,7 +484,7 @@ Claude Code를 시작하기 전에 셸에서 켤 수도 있습니다. 두 환경
 
 ## 무엇을 할 수 있나요
 
-LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개, 슬래시 명령 20개, 에이전트 11개가 들어 있습니다. 평소에는 그중 몇 개만, 할 일마다 하나씩 쓰게 됩니다.
+LitClaude에는 직접 시작하는 핵심 스킬 30개와 알아서 도는 스킬 3개, 슬래시 명령 20개, 에이전트 11개, 그리고 확장 스킬로 안내하는 스킬 9개가 들어 있습니다. 평소에는 그중 몇 개만, 할 일마다 하나씩 쓰게 됩니다.
 
 | 할 일 | 입력 | 얻는 것 |
 | --- | --- | --- |
@@ -495,8 +495,10 @@ LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개
 | 발표자료, 보고서, 한국어 문장 다듬기 | `팀 워크숍 발표자료 만들어줘 lit`<br />`새 온보딩 흐름에 대한 두 쪽짜리 프로젝트 제안서 써줘 lit`<br />`lit-humanizer docs/intro.md` | 편집 가능한 `.pptx`나 `.docx`, 다듬은 문장 |
 | P&ID, 실험 장치도, 컷어웨이 | `lit 고압 하이드레이트 반응기 루프 P&ID 그려줘`<br />`lit draw a two-panel journal figure of the experimental setup` | 검사를 거친 SVG, PDF, 600 dpi PNG |
 | 읽고 탐난 기법을 내 스킬로 | `lit hijack https://x.com/… 그리고 docs/paper.pdf를 내 lit-pptx 스킬에 가져와줘` | 출처 기록과 비교 실행이 붙은 이식 |
+| 아이디어를 한꺼번에 많이 | `lit ultra-brainstorm 커피 기록 CLI 이름 지어줘` | 아이디어 에이전트 30~300개가 낸 것 중 점수 매긴 상위 10개 |
+| 큰 일을 팀에 맡기기 | `lit team 문서를 새 구조로 옮겨줘` | 이 세션이 팀을 굴리고 결과를 알려 줌 |
 | 다음 세션으로 이어가기 | `handoff` | 이어가기 파일 |
-| 어디까지 했더라? | `lit adhd`, 그다음 `go` | 최근 세션 전체를 담은 한 화면과 다음 할 일 |
+| 어디까지 했더라? | `lit adhd`, 그다음 `go` | 지금 할 한 가지를 담은 여섯 줄 카드, 그리고 그 일 |
 
 <details>
 <summary>할 일마다 어떻게 돌아가는지</summary>
@@ -504,7 +506,8 @@ LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개
 - **작업 루프.** 어떤 요청에든 `lit`을 붙이세요. Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고, 그 테스트를 통과하는 가장 작은 변경을 한 뒤 실제 결과를 확인하고
   프로젝트에 기록을 남깁니다.
 - **계획 먼저, 그다음 구현.** 큰 변경이라면 `lit plan`이 번호 붙은 작업과 작업마다 예/아니오로 답할 수 있는 확인 항목을 담은 계획을 쓰고, 아직 아무것도 고치지 않습니다. 계획을
-  읽어 보고 괜찮으면 계획 파일과 함께 `/litclaude:start-work`를 입력하세요. 이 명령을 입력하는 것 자체가 승인이라 목표 줄을 먼저 붙여 넣을 필요가 없고, 작업을 하나씩
+  읽어 보고 괜찮으면 계획 끝의 질문에 `yes`라고 답하세요. 이 한 단어로 작업이 시작되고, 계획에 확인 명령이 있으면 Claude Code의
+  목표도 함께 걸립니다. 계획 파일과 함께 `/litclaude:start-work`를 입력해도 됩니다. 이 명령을 입력하는 것 자체가 승인이라 목표 줄을 먼저 붙여 넣을 필요가 없고, 작업을 하나씩
   실행해 확인 항목을 통과한 작업에만 체크 표시를 하며, 열린 계획이 하나뿐이면 명령만 입력해도 됩니다.
 - **병합 전에 한 번 더 보기.** `lit review`는 있는 것에 맞춰 모드를 고릅니다. 아직 시작하지 않은 계획은 계획 검토, 끝난 변경은 작업 검토이고, 작업 검토는 같은 변경과 그
   근거를 서로 독립된 다섯 갈래의 검토로 읽어 찾은 문제를 먼저 보고하며 고치는 일은 따로 합니다. `lit review plan`이나 `lit review work`로 모드를 직접 고를 수
@@ -521,9 +524,15 @@ LitClaude에는 직접 시작하는 스킬 39개와 알아서 도는 스킬 3개
   `lit plan`과 start-work로 구현한 뒤, 같은 프롬프트를 이전 버전과 새 버전에 돌려 변화를 증명하고, 무엇을 가져왔고 무엇을 왜 두고 왔는지 보고서에 남깁니다.
 - **다음 세션으로 이어가기.** `handoff`는 목표, 확인한 것, 남은 일을 담은 이어가기 파일을 씁니다. 자동 핸드오프를 켜면 긴 세션을 Claude Code가 압축하기 전에 이 파일을
   대신 써 둡니다. `lit-handoff auto on 60`처럼 직접 비율을 정하기 전까지는 꺼져 있습니다.
+- **아이디어를 한꺼번에 많이.** `lit ultra-brainstorm <주제>`는 먼저 한 가지만 묻습니다. 아이디어 에이전트를 몇 개(30, 100, 300) 돌릴지, 크기마다 토큰이
+  얼마나 드는지 함께 보여 줍니다. 그다음 Claude Code의 Workflow가 주제를 그만큼의 작은 에이전트에게 보내고, 돌아온 아이디어를 묶은 뒤 심사 에이전트가 상위 10개에
+  점수를 매깁니다. 하나를 고르거나 둘을 합치거나 더 넓게 한 번 더 돌릴 수 있고, 메모는 프로젝트에 저장됩니다.
+- **큰 일을 팀에 맡기기.** `lit team <목표>`를 입력하면 이 세션이 오케스트레이터가 됩니다. 목표를 조각으로 나누고, 서브에이전트·Workflow·herdr 창·worktree 중
+  알맞은 방법을 고르고, 팀원마다 짧은 지시서를 써서 띄운 뒤 지켜봅니다. 다 끝나면 결과를 합쳐 다시 확인하고 알려 줍니다. 팀원은 커밋하지 않고, 저마다 따로 쓰는
+  임시 폴더에서 일합니다.
 - **어디까지 했더라?** 창 여러 개와 워크트리, 끼어든 일들로 하루를 보내고 나면 `lit adhd`(별칭 `lit rewind`)를 입력하세요. 이 저장소의 최근 Claude Code 세션을
-  모두 읽고, 세션마다 무엇을 부탁받아 무엇을 했고 나를 기다리는지, 로드맵과 열린 계획이 어디까지 왔는지를 진행 게이지와 함께 한 화면으로 정리하고, 멈춰 둔 작업과 다음에 할 일 하나를 알려
-  줍니다. 읽기만 하고 아무것도 바꾸지 않으며, 제안한 일이 마음에 들면 같은 세션에서 30분 안에 `go`라고 입력하세요(`ㄱㄱ`나 `진행`도 됩니다). Claude가 그 일을 이어서 합니다.
+  모두 읽고 여섯 줄짜리 카드로 답합니다(`--en`이면 영어). 마지막으로 본 뒤 바뀐 것, 지금 할 한 가지와 입력할 말, 얼마나 읽었는지가 들어 있습니다. `lit adhd 자세히`는
+  진행 게이지가 있는 전체 보드를 열고, `lit adhd recap`은 예전 lit-recap이 하던 세션 요약을 보여 줍니다. 읽기만 하고 아무것도 바꾸지 않으며, 제안한 일이 마음에 들면 같은 세션에서 30분 안에 `go`라고 입력하세요(`ㄱㄱ`나 `진행`도 됩니다). Claude가 그 일을 이어서 합니다.
 
 </details>
 
@@ -690,7 +699,7 @@ LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,
 | 문서 | 다루는 내용 |
 | --- | --- |
 | [안내서](./docs/guide_ko-KR.md) | 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동 핸드오프, 발표자료와 문서, 상태 줄, 안전, Claude Code 연결 구조 |
-| [전체 스킬](./docs/skills_ko-KR.md) | 스킬 39개와 자동 점검을 한 줄씩 그림과 함께 |
+| [전체 스킬](./docs/skills_ko-KR.md) | 핵심 스킬 30개, 자동 점검, 확장 스킬 9개를 한 줄씩 그림과 함께 |
 | [hook](./docs/hooks.md), [에이전트](./docs/agents.md), [개인정보와 네트워크](./docs/privacy.md) | 무엇이 돌고, 누가 돌리고, 무엇이 밖으로 나가는지 |
 | [이전과 소유권 충돌](./docs/migration.md), [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration) | 설치 방식과 패키지 이름을 옮길 때 |
 | [Claude Code `/goal` 지원 범위](./docs/native-goal-surface.md), [작업 흐름 호환성 점검](./docs/workflow-compatibility-audit.md) | LitClaude가 Claude Code 자체 기능과 맞물리는 방식 |

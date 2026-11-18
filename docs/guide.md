@@ -167,10 +167,11 @@ compare it with the files as they are now, and then carry on.
 | `lit brainstorm <topic>`, `lit ideation`, `lit idea` | Open-ended ideas scored and cut to a short list, then handed to `deep-interview` or `lit plan`; also `$lit-brainstorm` and `/litclaude:lit-brainstorm` |
 | `lit hijack <sources> into <target>` | Port someone else's published technique into your own skill or system: provenance, licence gate, a source-free spec built through `lit plan` and `start-work`, and a before/after proof; also `$lit-hijack` and `/litclaude:lit-hijack` |
 | `lit workflow <objective>` | Propose a Dynamic workflow for broad delegated work |
-| `lit team`, `lit teammates` | Propose native agent teams when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled and the user approves |
+| `lit ultra-brainstorm <topic>`, `ultra-brainstorm <topic>` | Asks one launch question (30, 100 or 300 idea agents, with the token cost), then runs the brainstorm as a Claude Code Workflow and returns a scored top 10; also `$ultra-brainstorm` and `/litclaude:ultra-brainstorm` |
+| `lit team <goal>`, `lit teammates` | This session becomes the orchestrator: it picks subagents, a Workflow, herdr panes or worktrees, writes the team packet, launches the members, watches them, merges and re-checks the result, then reports. Members never commit, and each gets its own scratch folder |
 | `$deep-interview`, `/deep-interview` | Turn an underspecified request into a decision-complete brief |
-| `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | Read-only session recap |
-| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | Read-only KPI board across your recent sessions of this repo: the one thing to do now and exactly what to type, done / in progress / waiting on you / left with an overall bar, a milestone table, what you finished lately, what is left in plan order, and reminders shaped `thing → what to do` (uncommitted changes, unpushed commits, lanes still working, plans untouched for a week). `lit adhd detail` adds the per-session cards under it; say `go` to take the step (`lit-rewind` is a permanent alias) |
+| `lit adhd recap [session]` | Read-only session recap. The old `lit recap`, `litrecap` and `/litclaude:lit-recap` still work: they open this view with a note that lit-recap moved into lit-adhd |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | A six-line verdict card in Korean (`--en` for English): what changed since you last looked, the one thing to do now, and how much it read. `lit adhd detail` (or `lit adhd 자세히`) opens the full board, a read-only KPI board across your recent sessions of this repo: the one thing to do now and exactly what to type, done / in progress / waiting on you / left with an overall bar, a milestone table, what you finished lately, what is left in plan order, and reminders shaped `thing → what to do` (uncommitted changes, unpushed commits, lanes still working, plans untouched for a week). `lit adhd detail` adds the per-session cards under it; say `go` to take the step (`lit-rewind` is a permanent alias) |
 | `handoff`, `/litclaude:lit-handoff` | Write a verified continuation packet |
 | `lit-handoff auto on <percent>`, `auto off`, `auto status` | Turn [automatic handoff](#automatic-handoff) on at your percent, off, or show its state |
 | `lit invite @<github-id>`, `lit invite` | Say who invited you, as the whole prompt: LitClaude answers without a Claude turn, saves the id in `~/.litclaude/invite.json` on this machine only and gives the resting card the club look (`config club off` turns it off). Alone, it prints the line to share with friends. Also `litclaude-ai invite` |
@@ -559,7 +560,7 @@ names another package or repository.
   `lit-scientific-visualization`.
 - **Claude skills** also include `litwork`, `structural-search`, `lit-team`,
   `autoresearch`, and `autoconference`. The core sequence is
-  `lit-plan`, `lit-recap`, `lit-loop`.
+  `lit-plan`, `start-work`, `lit-loop`.
 - Auxiliary Skill-discovery entries `frontend-ui-ux`, `readme-studio`, `lit-commit`, `lsp-setup`,
   and `visual-qa` start when their name is the first word of the prompt (a bare token) or
   in the `$` form, such as `$frontend-ui-ux`. The same name later in a sentence does
@@ -695,7 +696,7 @@ HUD shows it as is and invents no value.
 Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
 tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
 guidance, the routing that picks a workflow, the authority checks, and the ledger that
-keeps the record. Through them, the package's 39 skills, 20 current commands, three hidden
+keeps the record. Through them, the package's 39 skills (30 core skills and nine extension stubs), 20 current commands, three hidden
 compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
 Code allows or blocks still applies.
 
@@ -721,7 +722,8 @@ flowchart LR
     LC --> S["39 skills · 20 commands · 11 agents"]
 ```
 
-Every skill works on a fresh install because the package carries what each skill needs.
+Every core skill works on a fresh install because the package carries what each skill needs. The nine extension
+skills need their wjgoarxiv-skills plugin; until it is installed, their stub gives the install line.
 The release checks make sure of it. A skill that needs reference material must find it
 inside the packed tarball, and a skill that needs none must give a written reason in an
 allowlist. That way a file that exists only in a developer's checkout can't turn into a
@@ -749,11 +751,18 @@ waits for you: it proposes a native `Workflow` and calls it only after you opt i
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` to turn that route off. When Claude Code gives the model
 a worktree tool, use `EnterWorktree`.
 
-Goals follow one rule: LitClaude does not auto-type `/goal` or send slash-command text for
-you. The route attempts native goal binding: it looks for goal tools such as `get_goal`,
-`create_goal` and `update_goal`, and never replaces a different goal that is already
-active. If Claude Code doesn't offer those tools, LitClaude reports degraded mode and keeps
-the local `litgoal` ledger as the record. `lit loop` and `lit goal` then show one short
+Goals follow one rule: LitClaude sets a native goal only after you say yes. When `lit plan`
+writes a plan, it turns the plan's `## Done when` check into one condition and asks once:
+`Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. Before asking, it runs the
+check once to make sure the goal is not already met. An exact `yes` does two things at once: it
+starts start-work on that plan, with the same grants as typing `/litclaude:start-work <plan>`, and
+it arms the goal. If the start is refused (another run is active, or the plan is gone), no goal is
+set and you see `No goal set: start-work did not start (<why>)`. When no goal can be set, the
+question is `Approve plan and start work? (yes / no)` with one `No goal set: <reason>` line. The LitClaude
+mod then runs `/goal <condition>` when the turn ends and confirms it in the transcript, or tells
+you `Goal not confirmed. Paste: /goal <condition>`. LitClaude clears only the goal it set: when
+it is met, when you type `lit cancel`, when the work reports `BLOCKED`, or when it stops moving.
+A goal you set yourself is never touched, and the local `litgoal` ledger stays the record. `lit loop` and `lit goal` then show one short
 `/goal` line (`READY_TO_PASTE`) once and keep working; you can paste it if you want native
 goal tracking. `lit plan` and `/start-work` don't need it: start-work keeps going to the last
 task on its own.

@@ -57,7 +57,9 @@ Then open the file and try the three actions yourself. That is how you find out 
 | `<make slides …> lit`, `<write a report …> lit` | Editable `.pptx` and `.docx` files |
 | `lit draw a P&ID …`, `lit 장치도 그려줘` | A checked equipment drawing as SVG, PDF and PNG |
 | `lit hijack <sources> into <skill>` | Someone's published technique, ported into your own skill and proven |
-| `lit adhd` (or `lit rewind`), then `go` | Where every recent session stands, and one next step |
+| `lit ultra-brainstorm <topic>` | A scored top 10 from 30 to 300 idea agents |
+| `lit team <goal>` | This session runs a team for you and reports back |
+| `lit adhd` (or `lit rewind`), then `go` | A six-line card with the one thing to do now, then that step |
 
 In the Claude desktop and mobile apps (Claude Code 2.1.325 or later), LitClaude also dresses the app in the
 Ignition look: LitFamily colours and a moving backdrop that rests, burns, signals and bursts with the LIT state.

@@ -162,8 +162,9 @@ plugin.
 ### Keep track of it
 
 When two workflows and three helpers run at once, the LIT card draws them as threads under the prompt. Type
-<code>lit adhd</code> after a scattered day and you get one brief: what you asked, what got done, what is
-paused and the next step. <code>go</code> then picks up the single open plan.
+<code>lit adhd</code> after a scattered day and you get a short card: what changed since you last looked and
+the one thing to do now. <code>lit adhd detail</code> opens the whole board, and <code>go</code> then picks up
+the single open plan.
 
 <table>
 <tr><td width="50%" valign="top"><img src="./docs/assets/card/threads.webp" width="400" alt="The LIT card with thread rows: lit-loop paused at GREEN 2/5, start-work running at 3/6 beneath it, and a fork into executor, librarian-researcher and lit-verifier lanes." /><br /><b>LIT card</b> · thread rows<br /><sub>Drawn by the card's own renderer: lit-loop paused at GREEN, start-work running under it, three lanes in parallel.</sub></td><td width="50%" valign="top"><img src="./docs/assets/showcase/adhd-brief.webp" width="400" alt="Terminal with the lit-adhd brief: a headline with four sessions and the next step, one card per active session with its last ask, finished work and commit, a roadmap with two commits and the clamp plan at 0/6, and a boxed recommended next step, with the rainbow REWIND card below." /><br /><b>lit-adhd</b> · the brief<br /><code>lit adhd</code></td></tr>
@@ -192,7 +193,7 @@ or gives you the install line when it is not.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/diagrams/core-extensions.en.dark.png" />
-    <img src="./docs/assets/readme/diagrams/core-extensions.en.light.png" width="900" alt="What ships in LitClaude, and what you add. Left, the LitClaude core of 33 skills in five groups: work loops (lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, lit-crucible), code craft (lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), research and prose (litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), pick up later (lit-handoff, lit-recap, lit-adhd) and runs on its own (rules, lsp, comment-checker), with a card for 11 agents, hooks, the LIT card, the status line, MCP and LSP. Middle, nine same-name stubs inside LitClaude. Right, five extension plugins from wjgoarxiv-skills that the stubs hand off to: decks (lit-pptx), documents (lit-docx), figures (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design (frontend-ui-ux, visual-qa) and video-covers (lit-typographic-motion, readme-studio). A band at the bottom gives the four install steps (check for a same-name skill of your own, move it aside into extension-backups, claude plugin install copies the plugin into Claude Code's cache, and Claude Code's installed_plugins.json records it), the litclaude-ai extensions verbs that run them (list, check, install, update, remove, prune-backups, the changing ones only with --yes), and a note that a stub answers with the install line when its plugin is missing." />
+    <img src="./docs/assets/readme/diagrams/core-extensions.en.light.png" width="900" alt="What ships in LitClaude, and what you add. Left, the LitClaude core of 33 skills in five groups: work loops (lit-loop, lit-plan, start-work, review-work, litwork, litgoal, lit-team, deep-interview, lit-brainstorm, ultra-brainstorm, lit-crucible), code craft (lit-code, debugging, refactor, lit-burnoff, lit-burnoff-file, lit-commit, structural-search, lit-init, lsp-setup), research and prose (litresearch, autoresearch, autoconference, lit-hijack, lit-comprehend, browser-drive, wikify, lit-humanizer), pick up later (lit-handoff, lit-adhd) and runs on its own (rules, lsp, comment-checker), with a card for 11 agents, hooks, the LIT card, the status line, MCP and LSP. Middle, nine same-name stubs inside LitClaude. Right, five extension plugins from wjgoarxiv-skills that the stubs hand off to: decks (lit-pptx), documents (lit-docx), figures (lit-diagram-drawer, lit-schematic, lit-scientific-visualization), design (frontend-ui-ux, visual-qa) and video-covers (lit-typographic-motion, readme-studio). A band at the bottom gives the four install steps (check for a same-name skill of your own, move it aside into extension-backups, claude plugin install copies the plugin into Claude Code's cache, and Claude Code's installed_plugins.json records it), the litclaude-ai extensions verbs that run them (list, check, install, update, remove, prune-backups, the changing ones only with --yes), and a note that a stub answers with the install line when its plugin is missing." />
   </picture>
 </p>
 
@@ -553,8 +554,8 @@ Two helpers tell you when a long run needs you. Both stay off until you turn the
 
 ## What you get
 
-LitClaude ships 39 skills you can start, three that run on their own, 20 slash commands and 11 agents. Most
-days you will use a handful of them, one per job:
+LitClaude ships 30 core skills you can start, three that run on their own, 20 slash commands and 11 agents,
+plus nine stubs that lead to the extension skills. Most days you will use a handful of them, one per job:
 
 | Job | Type | What you get |
 | --- | --- | --- |
@@ -565,8 +566,10 @@ days you will use a handful of them, one per job:
 | Slides, reports and Korean prose | `팀 워크숍 발표자료 만들어줘 lit`<br />`write a two-page project proposal for the new onboarding flow lit`<br />`lit-humanizer docs/intro.md` | An editable `.pptx` or `.docx`, or rewritten prose |
 | P&IDs, apparatus figures and cutaways | `lit draw a P&ID of the high-pressure hydrate reactor loop`<br />`lit 논문용 실험 장치 모식도 그려줘` | A checked SVG, PDF and 600 dpi PNG |
 | Bring in a technique you read about | `lit hijack https://x.com/… and docs/paper.pdf into my lit-pptx skill` | A port with provenance and a proof run |
+| Many ideas at once | `lit ultra-brainstorm names for my coffee logging CLI` | A scored top 10 from 30 to 300 idea agents |
+| Hand a big job to a team | `lit team move the docs to the new layout` | This session runs the team and reports back |
 | Carry work into the next session | `handoff` | A continuation file |
-| Where was I? | `lit adhd`, then `go` | One screen of every recent session, then the next step |
+| Where was I? | `lit adhd`, then `go` | A six-line card with the one thing to do now, then that step |
 
 <details>
 <summary>How each job runs</summary>
@@ -574,9 +577,10 @@ days you will use a handful of them, one per job:
 - **The work loop.** Add `lit` to any request. Claude pins the goal, writes a failing test first, makes the
   smallest change that passes it, checks the real result, and leaves a record in the project.
 - **Plan first, then build.** For a larger change, `lit plan` writes a plan with numbered tasks and a
-  yes-or-no check for each one, and edits nothing yet. Read it, and when it looks right, type
-  `/litclaude:start-work` with the plan file; typing the command is the approval, so there is no goal line to
-  paste first. It runs the plan task by task and ticks a box only after its checks pass, and with a single
+  yes-or-no check for each one, and edits nothing yet. Read it, and when it looks right, answer `yes` to
+  the question it ends with. That one word starts the work and, when the plan names a check, sets Claude Code's
+  goal for it as well. You can also type `/litclaude:start-work` with the plan file; typing the command is the
+  approval, so there is no goal line to paste first. It runs the plan task by task and ticks a box only after its checks pass, and with a single
   open plan the command alone is enough.
 - **A second look before you merge.** `lit review` picks a mode from what exists: plan review for a plan that
   has not started, work review for a finished change. Work review sends five independent review lanes over the
@@ -601,10 +605,19 @@ days you will use a handful of them, one per job:
 - **Carry work into the next session.** `handoff` writes a continuation file with the goal, what was checked
   and what is left. Automatic handoff can write it for you before Claude Code compacts a long session; it
   stays off until you pick a percent with `lit-handoff auto on 60`.
+- **Many ideas at once.** `lit ultra-brainstorm <topic>` asks one question first: how many idea agents to
+  run (30, 100 or 300), with the token cost of each size. Claude Code's Workflow then sends the topic to
+  that many small agents, groups what comes back, and a judge scores a top 10. You pick one, combine two or
+  ask for a wider round, and the notes are saved in the project.
+- **Hand a big job to a team.** `lit team <goal>` makes this session the orchestrator. It splits the goal
+  into slices, picks how to run them (subagents, a Workflow, herdr panes or worktrees), writes a short brief
+  for each member, launches them and keeps watch. When they finish it merges the work, checks it again and
+  tells you the result. Members never commit, and each one works in its own scratch folder.
 - **Where was I?** After a day of several windows, worktrees and interruptions, `lit adhd`
-  (or its alias `lit rewind`) reads every recent Claude Code session of this repository and gives you one
-  screen: what each session was asked, what it did and whether it waits on you, how far the roadmap and each
-  open plan have come, with progress gauges, the work that is paused, and one next step. It changes nothing.
+  (or its alias `lit rewind`) reads every recent Claude Code session of this repository and answers with a
+  six-line card in Korean (add `--en` for English): what changed since you last looked, the one thing to do
+  now and what to type, and how much it could read. `lit adhd detail` opens the whole board with progress
+  gauges, and `lit adhd recap` gives the session recap that lit-recap used to give. It changes nothing.
   If that step is what you want, type `go` in the same session within half an hour, and Claude takes it.
 
 </details>
@@ -798,7 +811,7 @@ or sells it under another name, please [open an issue](https://github.com/wjgoar
 | Page | What it covers |
 | --- | --- |
 | [Guide](./docs/guide.md) | Install options, what you will see on screen, the promo film, every route, automatic handoff, slides and documents, the status line, safety, and the Claude Code integration in depth |
-| [All skills](./docs/skills.md) | The 39 skills and the automatic checks, one row each |
+| [All skills](./docs/skills.md) | The 30 core skills, the automatic checks and the nine extension skills, one row each |
 | [Hooks](./docs/hooks.md), [agents](./docs/agents.md), [privacy and network behavior](./docs/privacy.md) | What runs, who runs it, and what leaves your machine |
 | [Migration and ownership conflicts](./docs/migration.md), [package-name migration and marketplace choices](./docs/migration.md#scoped-npm-migration) | Moving between installs and package names |
 | [Native `/goal` surface](./docs/native-goal-surface.md), [workflow compatibility audit](./docs/workflow-compatibility-audit.md) | How LitClaude fits Claude Code's own features |

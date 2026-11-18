@@ -718,15 +718,16 @@ test("documentation explains native goal and Dynamic workflow behavior", async (
 	const combined = `${readme}\n${readmeKo}\n${hooks}\n${migration}\n${dynamicWorkflow}`;
 
   assert.match(combined, /\/goal/u);
-  assert.match(combined, /get_goal/u);
-  assert.match(combined, /create_goal/u);
-  assert.match(combined, /update_goal/u);
+  // S4: the goal is set by the LitClaude mod after an exact yes; the goal-tool advice is gone.
+  assert.doesNotMatch(combined, /get_goal|create_goal|update_goal/u);
+  assert.match(combined, /Approve plan, start work and set goal: \/goal <condition>\? \(yes \/ edit \/ no\)/u);
+  assert.match(combined, /Goal not confirmed\. Paste: \/goal <condition>/u);
+  assert.match(combined, /clears only (?:the|a)\s+goal\s+(?:it set|whose condition)/iu);
   assert.match(combined, /Dynamic workflow/u);
   assert.match(combined, /Dynamic worktree/u);
   assert.match(combined, /call the `Workflow` tool|call `Workflow`/u);
   assert.match(combined, /EnterWorktree/u);
-  assert.match(combined, /does not auto-type `\/goal`/i);
-  assert.match(combined, /attempts native goal binding/i);
+  assert.match(combined, /only (?:on|with|after) the user's (?:exact `yes`|consent)/iu);
   assert.match(combined, /BLOCKED:/u);
   assert.match(combined, /degraded-mode|degraded mode/i);
   assert.match(combined, /durable `litgoal` ledger/u);
@@ -887,31 +888,31 @@ test("documentation lists review-work and litgoal trigger phrases", async () => 
   assert.match(combined, /malformed.*controlled error/i);
 });
 
-test("documentation explains the lit-recap read-only recap trigger", async () => {
+test("documentation explains that lit-recap moved into lit-adhd and its old triggers still open the recap", async () => {
   const readme = await userDocs("en");
   const readmeKo = await userDocs("ko");
   const hooks = await text("docs/hooks.md");
   const combined = `${readme}\n${hooks}`;
 
-  for (const trigger of ["lit recap", "litrecap", "recap", "리캡", "$lit-recap"]) {
+  for (const trigger of ["lit recap", "litrecap", "recap", "리캡", "$lit-recap", "lit adhd recap"]) {
     assert.match(combined, new RegExp(escapeRegExp(trigger), "iu"), `missing ${trigger}`);
   }
 
+  assert.match(hooks, /lit-recap moved into lit-adhd/u);
   assert.match(hooks, new RegExp(escapeRegExp("/litclaude:lit-recap"), "u"));
-  assert.match(hooks, /Skill\(lit-recap\)/u);
-  assert.match(hooks, /read-only session recap/iu);
+  assert.match(hooks, /Skill\(lit-adhd\)/u);
+  assert.match(hooks, /--recap \[session\]/u);
+  assert.match(hooks, /read-only\s+session recap/iu);
   assert.match(hooks, /side-effect-free/iu);
-  assert.match(hooks, /never writes[\s\S]*ledgers or files/iu);
+  assert.match(hooks, /never\s+writes ledgers or files/iu);
   assert.match(hooks, /recapture/u);
   assert.match(hooks, /리캡처/u);
-  assert.match(hooks, /`\/lit-recap`, `\/litrecap`,\s*`\/lit recap`\) do not activate/u);
-  assert.match(hooks, /Korean with fixed[\s\S]*headers by default/iu);
-  assert.match(hooks, /--en/u);
-  assert.match(hooks, /## ⚡ 요약/u);
-  assert.match(hooks, /--brief|짧게/u);
+  assert.match(hooks, /`\/lit-recap`, `\/litrecap` and `\/lit recap` do not activate/u);
+  assert.doesNotMatch(hooks, /Skill\(lit-recap\)/u);
 
-  assert.match(readme, /`lit-plan`, `lit-recap`, `lit-loop`/u, "README skills list must include lit-recap");
-  assert.match(readmeKo, /`lit-plan`, `lit-recap`, `lit-loop`/u, "Korean README skills list must include lit-recap");
+  assert.match(readme, /`lit adhd recap/u, "the English docs name the recap view");
+  assert.match(readmeKo, /`lit adhd recap/u, "the Korean docs name the recap view");
+  assert.doesNotMatch(`${readme}\n${readmeKo}`, /`lit-plan`, `lit-recap`, `lit-loop`/u);
 });
 
 test("README cover matches the accepted Ignition vector master and raster fallback", async () => {

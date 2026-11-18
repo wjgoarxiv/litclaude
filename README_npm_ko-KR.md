@@ -56,7 +56,9 @@ Claude Code를 다시 시작하세요.
 | `<발표자료 만들어줘 …> lit`, `<보고서 써줘 …> lit` | 편집할 수 있는 `.pptx`, `.docx` 파일 |
 | `lit P&ID 그려줘 …`, `lit 장치도 그려줘` | 검사를 거친 장비 도면(SVG, PDF, PNG) |
 | `lit hijack <자료> into <스킬>` | 남이 공개한 기법을 내 스킬로 옮기고 증명한 결과 |
-| `lit adhd`(또는 `lit rewind`), 이어서 `go` | 최근 세션들이 어디까지 왔는지와 다음 할 일 하나 |
+| `lit ultra-brainstorm <주제>` | 아이디어 에이전트 30~300개가 낸 것 중 점수 매긴 상위 10개 |
+| `lit team <목표>` | 이 세션이 팀을 굴리고 결과를 알려 줌 |
+| `lit adhd`(또는 `lit rewind`), 이어서 `go` | 지금 할 한 가지를 담은 여섯 줄 카드, 그리고 그 일 |
 
 Claude 데스크톱 앱과 모바일 앱(Claude Code 2.1.325 이상)에서는 LitClaude가 앱에 Ignition 룩도 입힙니다. LitFamily 색과
 LIT 상태를 따라 쉬고, 타오르고, 신호를 보내고, 터지는 배경입니다. `npx @litfamily/litclaude@latest config look still`은

@@ -30,7 +30,8 @@ test("no A/B heading remains and nothing follows the skills section on the skill
   for (const path of ["README.md", "README_ko-KR.md", "docs/guide.md", "docs/guide_ko-KR.md"]) {
     assert.ok(!read(path).split("\n").some((line) => /^#{1,6} .*A\/B/u.test(line)), `${path} has no A/B heading`);
   }
-  const headings = { "docs/skills.md": "## Skills at a glance", "docs/skills_ko-KR.md": "## 스킬 한눈에 보기" };
+  // The skills page ends with its extension tables (core first, then "## Extensions").
+  const headings = { "docs/skills.md": "## Extensions", "docs/skills_ko-KR.md": "## 확장" };
   for (const [path, skills] of Object.entries(headings)) {
     const lines = read(path).split("\n");
     assert.ok(!lines.some((line) => /^#{1,6} .*A\/B/u.test(line)), `${path} has no A/B heading`);

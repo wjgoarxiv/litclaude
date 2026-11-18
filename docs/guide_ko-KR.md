@@ -159,10 +159,11 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit brainstorm <topic>`, `lit ideation`, `lit idea` | 열린 질문에 아이디어를 많이 내고 점수를 매겨 짧은 목록으로 줄인 뒤, `deep-interview`나 `lit plan`으로 넘깁니다. `$lit-brainstorm`, `/litclaude:lit-brainstorm`도 됩니다. |
 | `lit hijack <sources> into <target>` | 다른 사람이 공개한 기법을 내 스킬이나 시스템으로 옮깁니다. 출처를 기록하고 라이선스를 확인한 뒤, 원문 없이 쓴 명세를 `lit plan`과 `start-work`로 만들고, 바꾸기 전과 후를 비교해 증명합니다. `lit 하이재킹`, `$lit-hijack`, `/litclaude:lit-hijack`도 됩니다. |
 | `lit workflow <objective>` | 여러 에이전트에게 나눠 맡길 큰 작업에 Dynamic workflow를 제안합니다. |
-| `lit team`, `lit teammates` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`을 켜 두었고 사용자가 승인할 때만 Claude Code의 에이전트 팀을 제안합니다. |
+| `lit ultra-brainstorm <topic>`, `ultra-brainstorm <topic>` | 시작 질문을 한 번만 묻고(아이디어 에이전트 30·100·300개, 토큰 비용과 함께) Claude Code Workflow로 브레인스토밍을 돌려 점수를 매긴 상위 10개를 돌려줍니다. `$ultra-brainstorm`, `/litclaude:ultra-brainstorm`도 됩니다. |
+| `lit team <goal>`, `lit teammates` | 이 세션이 오케스트레이터가 됩니다. 서브에이전트, Workflow, herdr 창, worktree 중에서 고르고, 팀 문서를 쓰고, 팀원을 띄워 지켜본 뒤 결과를 합쳐 다시 확인하고 알려 줍니다. 팀원은 커밋하지 않고, 저마다 따로 쓰는 임시 폴더를 받습니다. |
 | `$deep-interview`, `/deep-interview` | 모호한 요청을 바로 결정할 수 있는 요구서로 다듬습니다. |
-| `lit recap`, `litrecap`, `$lit-recap`, `/lit-recap`, `/litclaude:lit-recap` | 파일을 건드리지 않고 세션을 요약합니다. |
-| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 이 저장소의 최근 세션을 KPI 보드 한 장으로 보여 줍니다. 맨 위에 지금 할 일 하나와 입력할 말이 있고, 끝남·진행 중·나를 기다림·남음 개수와 전체 진행 막대, 마일스톤 표, 최근 끝낸 일, 계획 순서대로 남은 일, `할 일 → 할 행동` 꼴의 알림(커밋 안 된 변경, 푸시 안 된 커밋, 아직 일하는 레인, 일주일 넘게 멈춘 계획)이 이어집니다. 세션별 카드는 `lit adhd 자세히`라고 하면 보드 아래에 붙고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
+| `lit adhd recap [session]` | 파일을 건드리지 않고 세션을 요약합니다. 예전 `lit recap`, `litrecap`, `/litclaude:lit-recap`도 그대로 되며, lit-recap이 lit-adhd로 옮겨 갔다는 안내와 함께 이 화면을 엽니다. |
+| `lit adhd`, `lit rewind`, `$lit-adhd`, `$lit-rewind`, `/litclaude:lit-adhd`, `/litclaude:lit-rewind` | 여섯 줄짜리 한국어 판정 카드입니다(`--en`이면 영어). 마지막으로 본 뒤 바뀐 것, 지금 할 한 가지, 얼마나 읽었는지를 보여 줍니다. `lit adhd 자세히`(또는 `detail`)는 이 저장소의 최근 세션을 담은 KPI 보드 전체를 엽니다. 맨 위에 지금 할 일 하나와 입력할 말이 있고, 끝남·진행 중·나를 기다림·남음 개수와 전체 진행 막대, 마일스톤 표, 최근 끝낸 일, 계획 순서대로 남은 일, `할 일 → 할 행동` 꼴의 알림(커밋 안 된 변경, 푸시 안 된 커밋, 아직 일하는 레인, 일주일 넘게 멈춘 계획)이 이어집니다. 세션별 카드는 `lit adhd 자세히`라고 하면 보드 아래에 붙고, `go`라고 하면 그 단계를 이어 갑니다. 파일은 건드리지 않습니다(`lit-rewind`는 계속 쓰는 별칭). |
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
 | `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
 | `lit invite @<github-id>`, `lit invite` | 누가 초대했는지 남깁니다. 프롬프트 전체로 입력해야 합니다. Claude 턴 없이 바로 답하고, 아이디를 이 컴퓨터의 `~/.litclaude/invite.json`에만 저장하고, 쉬고 있는 카드를 클럽 룩으로 바꿉니다(`config club off`로 끕니다). 아이디 없이 입력하면 친구에게 보낼 문장을 보여 줍니다. `litclaude-ai invite`도 같습니다. |
@@ -529,7 +530,7 @@ Claude의 프롬프트에는 들어가지 않습니다. `doctor`는 `OFFICIAL_BU
   skill
 - **Claude skill**에는 `litwork`, `structural-search`, `lit-team`,
   `autoresearch`, `autoconference`도 포함됩니다. 핵심 순서는
-  `lit-plan`, `lit-recap`, `lit-loop`입니다.
+  `lit-plan`, `start-work`, `lit-loop`입니다.
 - 보조 Skill-discovery 항목인 `frontend-ui-ux`, `readme-studio`, `lit-commit`,
   `lsp-setup`, `visual-qa`는 이름을 프롬프트 첫 단어로 쓰거나(bare token)
   `$frontend-ui-ux`처럼 `$`를 붙여 부를 때 시작합니다. 문장 중간에 이름이 나오는 것만으로는
@@ -646,7 +647,7 @@ HUD는 배경색을 강제로 바꾸지 않습니다. Claude가 사용 한도 �
 Claude Code는 세션이 시작될 때, 프롬프트를 보낼 때, 도구가 돌 때, 서브에이전트가 시작하고 끝날
 때, 세션이 끝날 때마다 플러그인에 알립니다. 이 알림은 플러그인 안의 네 부분에 전달됩니다. 프로젝트
 규칙을 읽어 들이는 부분, 작업 흐름을 고르는 부분, 권한을 확인하는 부분, 기록을 남기는 부분입니다.
-이렇게 해서 39개 skill·20개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
+이렇게 해서 39개 skill(핵심 30개와 확장 안내 9개)·20개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
 동작하고, Claude Code가 허용하거나 막는 것은 그대로 적용됩니다.
 
 ```mermaid
@@ -671,8 +672,8 @@ flowchart LR
     LC --> S["39 skills · 20 commands · 11 agents"]
 ```
 
-새로 설치한 컴퓨터에서도 모든 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
-때문입니다. 배포 전 검사가 이를 확인합니다. 참고 자료가 필요한 스킬은 그 자료를 패키지 묶음
+새로 설치한 컴퓨터에서도 모든 핵심 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
+때문입니다. 확장 스킬 아홉 개는 wjgoarxiv-skills 플러그인이 있어야 하고, 그 전에는 안내용 스킬이 설치 명령을 알려 줍니다. 배포 전 검사가 이를 확인합니다. 참고 자료가 필요한 스킬은 그 자료를 패키지 묶음
 안에서 찾아야 하고, 자료 없이 도는 스킬은 그 이유를 허용 목록에 적어 두어야 합니다. 그래서
 개발자의 checkout에만 있는 파일 때문에 설치한 컴퓨터에서 오류가 나는 일을 막습니다.
 
@@ -698,11 +699,18 @@ flowchart LR
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1`로 끌 수 있습니다. Claude Code가 모델에게 worktree 도구를 열어
 주는 환경이라면 `EnterWorktree`를 쓰세요.
 
-목표는 한 가지 원칙을 따릅니다. LitClaude는 사용자를 대신해 `/goal`을 입력하거나
-slash-command text를 보내지 않습니다. 이 경로는 먼저 `get_goal`, `create_goal`, `update_goal`
-같은 native goal 도구가 있는지 살펴 목표 연결(native goal binding)을 시도하고, 이미 걸려 있는
-다른 목표는 바꾸지 않습니다. Claude Code가 그런 도구를 주지 않으면 degraded mode라고 알리고
-로컬 `litgoal` ledger를 기준으로 삼습니다. `lit loop`과 `lit goal`은 `/goal` 한 줄
+목표는 한 가지 원칙을 따릅니다. LitClaude는 사용자가 yes라고 답한 뒤에만 native goal을 겁니다.
+`lit plan`이 계획을 쓰면 계획의 `## Done when` 검사를 조건 하나로 바꾸고 한 번만 묻습니다.
+`Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. 묻기 전에 검사를 한 번 돌려
+목표가 이미 이뤄진 상태가 아닌지 확인합니다. 정확히 `yes`라고 답하면 두 가지가 한 번에 일어납니다.
+그 계획으로 start-work가 시작되고(`/litclaude:start-work <plan>`을 직접 입력할 때와 같은 권한), 목표가
+걸립니다. 다른 작업이 이미 돌고 있거나 계획 파일이 없어서 시작이 막히면 목표도 걸지 않고
+`No goal set: start-work did not start (<이유>)`라고 알려 줍니다. 목표를 걸 수 없는 계획이면
+`Approve plan and start work? (yes / no)`라고 묻고 `No goal set: <이유>` 한 줄을 덧붙입니다. 그러면 LitClaude
+mod가 턴이 끝날 때 `/goal <condition>`을 실행한 뒤 대화 기록에서 확인합니다. 확인이 안 되면
+`Goal not confirmed. Paste: /goal <condition>`이라고 알려 줍니다. LitClaude는 자기가 건 목표만
+지웁니다. 목표를 이뤘을 때, `lit cancel`을 입력했을 때, 작업이 `BLOCKED`를 알렸을 때, 진척이 멈췄을
+때입니다. 사용자가 직접 건 목표는 건드리지 않고, 로컬 `litgoal` ledger가 계속 기록을 맡습니다. `lit loop`과 `lit goal`은 `/goal` 한 줄
 (`READY_TO_PASTE`)을 한 번 보여 주고 바로 일을 이어 갑니다. native goal로 추적하고 싶을 때만
 붙여 넣으면 됩니다. `lit plan`과 `/start-work`에는 이 줄이 없습니다. start-work는 마지막 할 일까지
 스스로 이어 갑니다.
