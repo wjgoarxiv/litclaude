@@ -1239,7 +1239,7 @@ describe("litclaude-ai CLI", () => {
     try {
       const help = runCli(["rewind", "--help"], home);
       assert.equal(help.status, 0, help.stderr);
-      assert.match(help.stdout, /^Usage: litclaude-ai rewind \[--brief/u, "the brief must not start with the wordmark");
+      assert.match(help.stdout, /^Usage: litclaude-ai rewind \[--verdict [^\n]*--brief/u, "the usage line comes first, with no wordmark: the verdict card, then the brief");
 
       const bad = runCli(["rewind", "--nope"], home);
       assert.equal(bad.status, 64);
