@@ -116,13 +116,16 @@ const makeContextBar = (value, width = 3) => {
 const latestUserMessage = (transcriptPath) => {
   if (!transcriptPath || !existsSync(transcriptPath)) return "";
   const lines = readFileSync(transcriptPath, "utf8").split(/\r?\n/u).filter(Boolean);
-  const ignoredPrefixes = ["[Request interrupted", "[Request cancelled", "<local-command-stdout>", "<local-command-stderr>"];
+  // A background task's `<task-notification>` is written as a user entry too; it is the host talking, not a prompt.
+  const ignoredPrefixes = ["[Request interrupted", "[Request cancelled", "<local-command-stdout>", "<local-command-stderr>", "<task-notification>"];
   const hasCommandXml = (text) => /<(?:command-name|command-message|command-args)\b[^>]*>/u.test(text);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
       const event = JSON.parse(lines[index]);
       // Loaded skill bodies and compaction summaries are host-written user entries, not prompts.
       if (event.type !== "user" || event.isMeta === true || event.isCompactSummary === true) continue;
+      // Notifications, peer messages and scheduled firings carry `promptSource: "system"`; only typed prompts count.
+      if (event.promptSource === "system") continue;
       const content = event?.message?.content;
       const text = Array.isArray(content)
         ? content.filter((part) => part?.type === "text").map((part) => part.text).join(" ")

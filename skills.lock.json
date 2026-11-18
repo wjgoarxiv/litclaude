@@ -317,12 +317,12 @@
     },
     "browser-drive": {
       "skillMd": {
-        "bytes": 7443,
-        "sha256": "a75f29451e75c3e3152471e803f130e02227f8ab1ca917f5b1653088f4981e92"
+        "bytes": 7666,
+        "sha256": "ade33cc7faaaccf32a23e288a048fb7ffc2ef7888bc3b604a668cea1269adfb6"
       },
       "files": 3,
-      "bytes": 26671,
-      "sha256": "6c4ba3fa3b6065e0c4ef8c7319613e5755a8ff938049e37abf46b66c46f80afa"
+      "bytes": 33817,
+      "sha256": "28ec5012d888c54af142017c5e92a548f57703eb93d8f43b1173695d2a78712c"
     },
     "comment-checker": {
       "skillMd": {
@@ -357,8 +357,8 @@
         "sha256": "6294b75bc6462717919262f6f6bb61bc011c81f2accca6d62701790a17d77d1c"
       },
       "files": 8,
-      "bytes": 187449,
-      "sha256": "71733fb9cdf657c6d309ff5b798d911b4a18242c5c01b458a61d494a66866020"
+      "bytes": 187754,
+      "sha256": "44de70c802793f4e54bf981e6050777cf66ddf25ca4fef7b1b15275a3dc5118b"
     },
     "lit-adhd": {
       "skillMd": {

@@ -10,7 +10,7 @@
 // name and be something else entirely, so identity is checked against the version banner before the
 // driver is reported as usable. The same discipline `Skill(structural-search)` applies to `sg`.
 import { spawnSync } from "node:child_process";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from "node:fs";
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, win32 } from "node:path";
 import process from "node:process";
@@ -296,17 +296,28 @@ function compareSemver(left, right) {
 // way cmd.exe does, directory by directory in PATH order, trying each PATHEXT extension in turn,
 // so npm's extensionless shell shim (which Windows cannot run) is never picked. This is done here
 // rather than with where.exe, which prints in the console code page: a profile path with Hangul or
-// other non-ASCII characters comes back garbled.
-function findOnWindowsPath(searchPath, pathext) {
+// other non-ASCII characters comes back garbled. Windows compares names without case (npm writes
+// `agent-browser.cmd` while PATHEXT says `.CMD`), so each directory's listing is matched that way
+// and the name on disk is returned, on a case-sensitive host too.
+export function findOnWindowsPath(searchPath, pathext) {
   const extensions = pathext.split(";").map((value) => value.trim()).filter((value) => value.startsWith("."));
   for (const entry of searchPath.split(win32.delimiter)) {
     const directory = entry.trim().replace(/^"(.*)"$/u, "$1");
     if (directory === "") continue;
+    let names;
+    try {
+      names = readdirSync(directory);
+    } catch {
+      continue; /* not a readable directory */
+    }
     for (const extension of extensions) {
-      const candidate = join(directory, `${DRIVER_COMMAND}${extension}`);
-      try {
-        if (statSync(candidate).isFile()) return candidate;
-      } catch { /* not in this directory */ }
+      const wanted = `${DRIVER_COMMAND}${extension}`.toLowerCase();
+      for (const name of names.filter((candidate) => candidate.toLowerCase() === wanted)) {
+        const candidate = join(directory, name);
+        try {
+          if (statSync(candidate).isFile()) return candidate;
+        } catch { /* gone or unreadable */ }
+      }
     }
   }
   return null;

@@ -18,6 +18,7 @@ import {
   BROWSER_DRIVE_BLOCKER,
   BROWSER_PROCESS_CLEANUP_FAILED,
   DRIVER_COMMAND,
+  findOnWindowsPath,
   probeBrowserDriver,
   runBrowserCommand,
 } from "../plugins/litclaude/skills/browser-drive/scripts/capability-probe.mjs";
@@ -1217,6 +1218,16 @@ describe("browser-drive capability probe", () => {
       assert.deepEqual(commands, []);
     });
 
+    it("matches PATHEXT case-insensitively, as Windows does, and returns the name on disk", () => {
+      // npm writes `agent-browser.cmd` in lower case while the default PATHEXT is upper case. A
+      // case-sensitive host (Linux CI) must still find it, and every host must report the real name.
+      const { root } = windowsPrefix("@ECHO off\r\n");
+      assert.equal(findOnWindowsPath(root, ".COM;.EXE;.BAT;.CMD"), join(root, "agent-browser.cmd"));
+      writeFileSync(join(root, "agent-browser.Exe"), "");
+      assert.equal(findOnWindowsPath(root, ".COM;.EXE;.BAT;.CMD"), join(root, "agent-browser.Exe"), "PATHEXT order wins");
+      assert.equal(findOnWindowsPath(root, ".PS1"), null);
+    });
+
     it("reports a PATH holding only the shell shim as unavailable", () => {
       const { root } = windowsPrefix(null);
       const commands = [];
@@ -1226,5 +1237,31 @@ describe("browser-drive capability probe", () => {
       assert.equal(result.blocker, BROWSER_DRIVE_BLOCKER.unavailable);
       assert.deepEqual(commands, []);
     });
+  });
+});
+
+describe("runBrowserCommand stdin", () => {
+  const readStdin = "let n=0;process.stdin.on('data',(c)=>{n+=c.length});process.stdin.on('end',()=>{process.stdout.write(String(n))})";
+
+  it("hands a payload larger than one Linux argument (128 KiB) to the driver on stdin", () => {
+    const payload = "x".repeat(200 * 1024);
+    const result = runBrowserCommand(process.execPath, ["-e", readStdin], { encoding: "utf8", timeout: 10_000, input: payload });
+    assert.equal(result?.error, undefined, result?.error?.message);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, String(payload.length));
+  });
+
+  it("still gives the driver an empty stdin when no input is passed", () => {
+    const result = runBrowserCommand(process.execPath, ["-e", readStdin], { encoding: "utf8", timeout: 10_000 });
+    assert.equal(result?.error, undefined, result?.error?.message);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "0");
+  });
+
+  it("the interface probe sends its page script on stdin, not as one base64 argument", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const source = await readFile(new URL("../plugins/litclaude/skills/frontend-ui-ux/scripts/interface-probe.mjs", import.meta.url), "utf8");
+    assert.doesNotMatch(source, /"eval", "--json", "-b"/u);
+    assert.match(source, /"eval", "--json", "--stdin"\], script\)/u);
   });
 });

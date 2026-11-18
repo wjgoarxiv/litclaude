@@ -840,3 +840,31 @@ test("LitClaude HUD reuses its context measurement while the transcript is uncha
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("LitClaude HUD keeps the last typed prompt when a background task notification arrives", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "litclaude-hud-test-"));
+  try {
+    const transcript = join(tmp, "transcript.jsonl");
+    writeFileSync(transcript, [
+      JSON.stringify({ type: "user", origin: { kind: "human" }, promptSource: "typed", message: { content: "Start the dev server." } }),
+      JSON.stringify({
+        type: "user",
+        origin: { kind: "task-notification", producer: "session-task" },
+        promptSource: "system",
+        message: { content: "<task-notification>\n<task-id>b1pqvzjmk</task-id>\n<status>completed</status>\n</task-notification>" },
+      }),
+      JSON.stringify({ type: "user", message: { content: "<task-notification>\n<task-id>older</task-id>\n</task-notification>" } }),
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [hudPath], {
+      cwd: root,
+      encoding: "utf8",
+      input: `${JSON.stringify({ model: { display_name: "Opus 4.8" }, cwd: root, transcript_path: transcript })}\n`,
+      env: { ...colorEnv, LITCLAUDE_HUD_NO_COLOR: "1", LITCLAUDE_HUD_TEST_USAGE: "", CLAUDE_HUD_TEST_USAGE: "", LITCLAUDE_VERSION: packageJson.version },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /└─ Start the dev server\./u);
+    assert.doesNotMatch(result.stdout, /task-notification|task-id/u);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
