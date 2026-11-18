@@ -7,7 +7,7 @@ const checklistUrl = new URL("../RELEASE_CHECKLIST.md", import.meta.url);
 test("release checklist documents the current release candidate and blocks accidental future publication", async () => {
   const checklist = await readFile(checklistUrl, "utf8");
 
-  assert.match(checklist, /@litfamily\/litclaude@1\.0\.53/u);
+  assert.match(checklist, /@litfamily\/litclaude@1\.0\.54/u);
   assert.match(checklist, /lit-crucible/u);
   assert.match(checklist, /public-source\s+reader\s+runtime/i);
   assert.match(checklist, /5-lane review/i);
@@ -32,9 +32,9 @@ test("release checklist gates v0.2.2 dynamic workflow hardening artifacts", asyn
   const checklist = await readFile(checklistUrl, "utf8");
 
   for (const required of [
-    /package\.json.*1\.0\.53/is,
-    /plugin\.json.*1\.0\.53/is,
-    /litclaude-mcp\.js.*1\.0\.53/is,
+    /package\.json.*1\.0\.54/is,
+    /plugin\.json.*1\.0\.54/is,
+    /litclaude-mcp\.js.*1\.0\.54/is,
     /lit search/u,
     /lit query/u,
     /validator-first/i,

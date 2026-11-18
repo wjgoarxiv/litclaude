@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.54 - 2026-11-18
 
 - One request can now use several LitClaude skills in order. When a `lit` prompt matches more than one skill,
   the hook lists the candidates, the model confirms them against the installed catalog, and the plan is shown
