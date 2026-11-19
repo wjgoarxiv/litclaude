@@ -36,6 +36,7 @@ export const TIMINGS = Object.freeze({
   clock: 1000,
   hue: 4800,
   sparks: 3600,
+  kick: 720,
   // The club look's glint along the top border (full motion only): the first pass waits
   // `clubGlintRest`, each pass lasts `clubGlint`, and passes start `clubGlintPeriod` apart.
   clubGlint: 1400,
@@ -49,12 +50,32 @@ export const TIMINGS = Object.freeze({
 // draws its final frame and starts no frame timer; a clock on the card still ticks each second.
 export const motionProfile = (mode) => {
   if (mode === "off") {
-    return { mode, duration: () => 0, enterEase: EASE.linear, noticeEase: EASE.linear, shimmer: false, embers: false, ambient: null };
+    return { mode, duration: () => 0, enterEase: EASE.linear, noticeEase: EASE.linear, shimmer: false, embers: false, ambient: null, particles: null };
   }
   if (mode === "subtle") {
-    return { mode, duration: (ms) => Math.round(ms * 0.75), enterEase: EASE.outCubic, noticeEase: EASE.outCubic, shimmer: false, embers: false, ambient: { sweep: false, comet: false } };
+    return { mode, duration: (ms) => Math.round(ms * 0.75), enterEase: EASE.outCubic, noticeEase: EASE.outCubic, shimmer: false, embers: false, ambient: { sweep: false, comet: false }, particles: null };
   }
-  return { mode: "full", duration: (ms) => ms, enterEase: EASE.outBack, noticeEase: EASE.outBack, shimmer: true, embers: true, ambient: { sweep: true, comet: true } };
+  return { mode: "full", duration: (ms) => ms, enterEase: EASE.outBack, noticeEase: EASE.outBack, shimmer: true, embers: true, ambient: { sweep: true, comet: true }, particles: PARTICLES };
+};
+
+// The glyph particles that drift through the card's free cells while LitClaude works (full motion
+// only). Every particle is ASCII, so each change repaints (see frame.mjs). A particle is born as a
+// spinning stroke (`| / - \`), cools into a spark (`* +`) and dies as a dot (`. '`); its colour runs
+// white-hot, flame orange, pink, then fades into the card. `rows` names the body rows that carry
+// them (3 the skills row; the map row's text never moves), `count` how many burn per row, `life` a
+// particle's lifetime in ms and `heat` how bright they burn (0 to 1).
+export const PARTICLES = Object.freeze({ rows: Object.freeze([3]), count: 12, life: 1800, heat: 1, ramp: Object.freeze(["|", "/", "-", "\\", "*", "+", "+", "'", "."]) });
+
+// The particle ink by age (0 just born, 1 gone), drawn over the card's background.
+const EMBER_STOPS = Object.freeze(["#fff4e0", "#ffb070", "#ff6337", "#ff2d95", "#30363d"]);
+export const emberColor = (age, heat = 1) => lerpColor("#30363d", gradientAt(EMBER_STOPS, age), heat * Math.sin(Math.PI * Math.min(1, Math.max(0, age)) ** 0.6));
+
+// The stage kick `t` ms after the current stage changed: how far the new stage's pill lights
+// toward white (above 0) or dips toward its ink (below 0): a damped spring that overshoots twice
+// and is still by TIMINGS.kick.
+export const springKick = (t) => {
+  if (!(t >= 0) || t >= TIMINGS.kick) return 0;
+  return Math.exp(-t / 190) * Math.cos((2 * Math.PI * t) / 300);
 };
 
 // The rewind look (plans/lit-adhd.md D7): while lit-adhd runs, the card's border and rails take a

@@ -3,7 +3,7 @@
 // frame (sampleTimeline) and stops its frame timer as soon as nothing moves (timelineBusy). Times are
 // the surface module's own frame clock in milliseconds; nothing here reads a wall clock.
 
-import { EASE, TIMINGS, isSettled, phase, retarget, sample, still } from "./motion.mjs";
+import { EASE, TIMINGS, isSettled, phase, retarget, sample, springKick, still } from "./motion.mjs";
 
 const PHASES = ["plan", "work", "review"];
 // The count the bar follows: the workflow stage's n/m, else the plan or goal progress.
@@ -21,6 +21,12 @@ const stepOf = (model, now) => (model.step ? { name: model.step.name, base: mode
 const lanesOf = (model, now) => {
   const times = (model.lanes?.list ?? []).map(({ elapsedMs }) => elapsedMs).filter(Number.isFinite);
   return times.length ? { base: Math.max(...times), at: now } : null;
+};
+
+// The workflow stage that is now, as one key, so the timeline sees the moment it changes.
+const stageKeyOf = (model) => {
+  const flow = model.workflow;
+  return flow && flow.current >= 0 ? `${flow.family}:${flow.stages[flow.current]?.id}` : null;
 };
 
 const entryEnd = (profile) => 3 * profile.duration(TIMINGS.stagger) + profile.duration(TIMINGS.entry);
@@ -70,6 +76,7 @@ export const createTimeline = (model, now, profile) => {
     leaving: null,
     completion: model.completion ? { data: model.completion, at: now } : null,
     chips: chipsOf(model, now),
+    stage: { key: stageKeyOf(model), at: null },
   };
 };
 
@@ -97,6 +104,10 @@ export const advanceTimeline = (timeline, model, now, profile) => {
     next.completion = model.completion ? { data: model.completion, at: now } : null;
   }
   next.chips = chipsOf(model, now, timeline.chips);
+  const stage = stageKeyOf(model);
+  // Only a step inside one workflow kicks; a switch to another family arrives with its chip's light.
+  const sameFamily = (key) => Boolean(stage && key && key.split(":")[0] === stage.split(":")[0]);
+  if (stage !== (timeline.stage?.key ?? null)) next.stage = { key: stage, at: sameFamily(timeline.stage?.key) ? now : null };
   next.ambient = ambientOf(model, now, profile, timeline.ambient);
   next.glint = glintOf(model, now, profile, timeline.glint);
   next.step = stepOf(model, now);
@@ -156,6 +167,29 @@ const sparksAt = (elapsed) => SPARK_SEEDS.map(({ start, speed, twinkle }) => {
 // the card (`comet`, 0 to 1: the top rule left to right, then the bottom rule right to left),
 // where the bright head stands on the rail leaving the current stage (`flow`, 0 to 1), how far the
 // rewind look's hue has turned (`hue`, 0 to 1 over TIMINGS.hue) and its sparks (`sparks`, full only).
+// The glyph particles of the profile's style: fixed seeds per row (the same LCG idea as the sparks),
+// each burning through its life, reborn at a fresh place every generation. A particle is `x` (0 to
+// 1 across the row's free cells), `age` (0 to 1) and `glyph` (an index into the style's ramp).
+const PARTICLE_SEEDS = (() => {
+  let state = 29;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  return Object.freeze(Array.from({ length: 24 }, () => Object.freeze({ offset: next(), drift: next() - 0.5, place: next(), pace: 0.75 + 0.5 * next() })));
+})();
+const placeOf = (seed, generation) => {
+  const v = Math.sin((seed.place * 977 + generation * 131.7) * 12.9898) * 43758.5453;
+  return v - Math.floor(v);
+};
+const particlesAt = (elapsed, style) => Object.fromEntries(style.rows.map((row, r) => [row, PARTICLE_SEEDS.slice(r * 12, r * 12 + style.count).map((seed) => {
+  const cycle = (elapsed * seed.pace) / style.life + seed.offset;
+  const generation = Math.floor(cycle);
+  const age = cycle - generation;
+  const x = placeOf(seed, generation) + seed.drift * 0.08 * age;
+  return { x: Math.min(0.999, Math.max(0, x)), age, glyph: Math.min(style.ramp.length - 1, Math.floor(age * style.ramp.length)) };
+})]));
+
 const ambientSample = (timeline, now, profile) => {
   if (!ambientActive(timeline, profile)) return null;
   const elapsed = Math.max(0, now - timeline.ambient.at);
@@ -168,6 +202,7 @@ const ambientSample = (timeline, now, profile) => {
     flow: profile.ambient.sweep ? (elapsed % TIMINGS.flow) / TIMINGS.flow : null,
     hue: (elapsed % TIMINGS.hue) / TIMINGS.hue,
     sparks: profile.ambient.sweep ? sparksAt(elapsed) : null,
+    particles: profile.particles ? { style: profile.particles, rows: particlesAt(elapsed, profile.particles) } : null,
   };
 };
 
@@ -181,6 +216,7 @@ export const timelineBusy = (timeline, now, profile) => {
   if (timeline.notice && now < timeline.notice.at + d(TIMINGS.noticeIn)) return true;
   if (timeline.leaving && now < timeline.leaving.at + d(TIMINGS.noticeOut)) return true;
   if (timeline.completion && now < timeline.completion.at + d(TIMINGS.completion)) return true;
+  if (profile.particles && timeline.stage?.at !== null && timeline.stage?.at !== undefined && now < timeline.stage.at + TIMINGS.kick) return true;
   return Object.values(timeline.chips).some((chip) => (chip.arrivedAt !== null && now < chip.arrivedAt + d(TIMINGS.shimmer))
     || (chip.from !== chip.state && now < chip.changedAt + d(TIMINGS.crossfade)));
 };
@@ -251,6 +287,7 @@ export const sampleTimeline = (timeline, now, profile) => {
     glint: glintAt(timeline, now),
     step: timeline.step ? { name: timeline.step.name, elapsedMs: timeline.step.base + Math.max(0, now - timeline.step.at) } : null,
     lanes: timeline.lanes ? { elapsedMs: timeline.lanes.base + Math.max(0, now - timeline.lanes.at) } : null,
+    kick: profile.particles && timeline.stage?.at !== null && timeline.stage?.at !== undefined ? springKick(now - timeline.stage.at) : 0,
     spin: Math.floor(Math.max(0, now) / TIMINGS.spin) % 4,
   };
 };

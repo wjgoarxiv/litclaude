@@ -35,7 +35,7 @@
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { CLUB_GLINT, CLUB_GOLD, CLUB_PILL, CLUB_STOPS, LOOKS, laneColor, lookOf } from "./looks.mjs";
-import { barCells, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
+import { barCells, emberColor, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
 import { formatDuration } from "./view.mjs";
 
@@ -395,7 +395,8 @@ const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(
 // `━` cells by its `rainbow` instead.
 const railSpans = (model, sample, index, cells, accent, rainbow = null) => {
   if (cells === 0) return [span(" ")];
-  const grade = rainbow ?? ((position) => mapColor(accent, position));
+  // Idle, the rails behind the current stage keep their grade but sink toward the rail colour.
+  const grade = rainbow ?? (model.idle ? (position) => lerpColor(mapColor(accent, position), PILL.rail, 0.6) : (position) => mapColor(accent, position));
   const { stages } = model.workflow;
   const last = Math.max(1, stages.length - 1);
   const at = (cell) => (index - 1 + (cell + 0.5) / cells) / last;
@@ -440,10 +441,15 @@ const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window =
       let fill = model.idle ? lerpColor(accent, PILL.muted, 0.5) : accent;
       if (model.ctxWarning) fill = lerpColor(fill, PALETTE.amber, sample.warn);
       if (sample.ambient && !model.idle) fill = lerpColor(fill, "#ffffff", 0.2 * sample.ambient.breath);
+      // The stage just changed: the new stage's pill takes the spring's kick (motion.mjs springKick).
+      const kick = model.idle ? 0 : sample.kick ?? 0;
+      if (kick > 0) fill = lerpColor(fill, "#ffffff", 0.7 * kick);
+      else if (kick < 0) fill = lerpColor(fill, PILL.ink, -0.35 * kick);
       const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
       out.push(...pill(litText(revealed.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs));
     } else {
-      out.push(span(revealed, { fg: stage.state === "done" ? mapColor(accent, index / last) : PALETTE.dim }));
+      const done = mapColor(accent, index / last);
+      out.push(span(revealed, { fg: stage.state === "done" ? (model.idle ? lerpColor(done, PALETTE.dim, 0.6) : done) : PALETTE.dim }));
     }
   });
   if (window && shown.at(-1) < stages.length - 1) out.push(span(" …", { fg: PALETTE.dim }));
@@ -711,6 +717,22 @@ const sparkled = (row, inner, sample, rainbow) => {
   return fitRow([...row, span(" "), ...sky], inner);
 };
 
+// The glyph particles of body row `r`, drifting through the cells the row leaves free (two gap
+// cells kept), while LitClaude works. Each is ASCII and moves by its glyph and colour together.
+const embered = (row, inner, sample, model, r) => {
+  const particles = model.idle ? null : sample.ambient?.particles;
+  const list = particles?.rows[r];
+  const spare = inner - rowWidth(row) - 2;
+  if (!list || spare < 4) return fitRow(row, inner);
+  const sky = Array.from({ length: spare }, () => span(" "));
+  for (const { x, age, glyph } of list) {
+    const cell = Math.min(spare - 1, Math.floor(x * spare));
+    const color = emberColor(age, particles.style.heat);
+    if (color !== PALETTE.faint) sky[cell] = span(particles.style.ramp[glyph], { fg: color, bold: age < 0.3 });
+  }
+  return fitRow([...row, span("  "), ...sky], inner);
+};
+
 // After a break the idle card offers the cross-session brief, in the longest form that fits.
 const AWAY_HINTS = Object.freeze([[" · back? type ", "lit adhd", " to catch up"], [" · back? ", "lit adhd", ""], [" ", "lit adhd", ""]]);
 const awayHint = (room, accent) => {
@@ -732,7 +754,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const invite = inviteChip(model, glyphs);
   if (chips.length === 0) {
     if (!model.idle && model.next && !model.workflow?.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
-    if (!model.idle) return fitRow([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner);
+    if (!model.idle) return embered([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner, sample, model, 3);
     const hints = [
       [span("no LitFamily skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent }), span(" to start one", { fg: PALETTE.dim })],
       [span("no skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent })],
@@ -760,7 +782,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   }
   if (shown < chips.length) row.push(...(row.length ? [span(" ")] : []), ...mutedPill(`+${chips.length - shown}`, glyphs));
   if (model.away) return fitRow([...row, ...awayHint(inner - rowWidth(row), accent)], inner);
-  return withChip(row, invite, inner) ?? sparkled(row, inner, sample, rainbow);
+  return withChip(row, invite, inner) ?? (rainbow ? sparkled(row, inner, sample, rainbow) : embered(row, inner, sample, model, 3));
 };
 
 const noticeRow = (sample, inner) => {
@@ -838,7 +860,7 @@ const edgeColor = (model, sample, accent, look) => {
   if (look === "turn") return sample.ambient ? lerpColor(lerpColor(PALETTE.amber, PALETTE.faint, 0.5), PALETTE.amber, sample.ambient.breath) : PALETTE.amber;
   if (model.warnings.length) return PALETTE.amber;
   if (look === "club") return CLUB_GOLD;
-  if (model.idle) return lerpColor(PALETTE.faint, accent, 0.35);
+  if (model.idle) return lerpColor(PALETTE.faint, accent, 0.2);
   return lerpColor(accent, "#ffffff", 0.15 + 0.3 * (sample.ambient?.breath ?? 0));
 };
 

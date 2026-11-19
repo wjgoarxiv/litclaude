@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- The terminal LIT card now looks alive while LitClaude works. Small embers drift through the free cells of
+  the skills row: each starts as a turning stroke (`| / - \`), cools into a spark (`* +`) and goes out as a
+  dot, fading from white through flame orange to pink. Every ember is plain ASCII, so the terminal always
+  repaints it. The stage map's text stays still and readable.
+- When a workflow moves to its next stage, the new stage's pill flashes and springs: it lights up, dips once
+  below its colour and settles within about 0.7 seconds. Moving to a different workflow does not kick.
+- An idle card is calmer: the embers go out, and the border and the stages already done sink toward the
+  card's colour, so a working card and an idle one are easy to tell apart.
+- The embers and the spring run only with full motion. `subtle` and `off` keep the card as it was.
+
 ## 1.0.54 - 2026-11-18
 
 - One request can now use several LitClaude skills in order. When a `lit` prompt matches more than one skill,
