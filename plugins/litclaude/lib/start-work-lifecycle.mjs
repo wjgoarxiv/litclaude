@@ -490,7 +490,7 @@ export const readPlanProgress = (planPath) => {
   };
 };
 
-const parseGrant = (root, raw, index) => {
+const parseGrant = (raw, index) => {
   if (raw && typeof raw === "object") {
     const action = normalizeAction(raw.action);
     const grantRoot = canonicalDirectory(raw.root, "grant root");
@@ -561,7 +561,7 @@ export const initializeStartWork = (root, request) => withLock(root, () => {
   const worktree = request.worktree ? canonicalDirectory(request.worktree, "worktree root") : null;
   const effectiveWorktree = worktree ?? canonicalCwd;
   const authorityRoot = canonicalDirectory(request.authorityRoot ?? canonicalCwd, "authority root");
-  const grants = request.grants.map((raw, index) => parseGrant(canonicalCwd, raw, index));
+  const grants = request.grants.map((raw, index) => parseGrant(raw, index));
   if (!grants.some((grant) => grantCovers(grant, "read", planRoot))) {
     throw new StartWorkLifecycleError("plan root requires a read grant", 77);
   }
