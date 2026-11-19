@@ -366,8 +366,10 @@ describe("scaffold-plan — generation and resume safety", () => {
       Array.from({ length: 6 }, () => runAsync(cwd, ["concurrent-writer"])),
     );
     assert.ok(results.some((result) => result.status === 0), results.map((result) => result.stderr).join("\n"));
+    // A losing writer refuses: usually on the lock, sometimes on the drafts folder a sibling created
+    // between its look and its open. Both are fail-closed refusals, and nothing is written twice.
     assert.ok(
-      results.every((result) => result.status === 0 || /write lock exists/u.test(result.stderr)),
+      results.every((result) => result.status === 0 || /write lock exists|write parent changed while it was opened/u.test(result.stderr)),
       results.map((result) => `${result.status}: ${result.stderr}`).join("\n"),
     );
     assert.equal(checkPlanStructure(readFileSync(join(cwd, "plans", "concurrent-writer.md"), "utf8")).ok, false);
