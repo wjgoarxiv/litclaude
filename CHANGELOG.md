@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.56 - 2026-11-20
 
 - `litclaude-ai extensions prune-versions` lists the version folders older LitClaude installs left in
   the plugin cache and in `~/.litclaude/litclaude-ai`, with their sizes, and deletes them with `--yes`. It
