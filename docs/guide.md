@@ -313,7 +313,9 @@ install the extensions.
 and any same-name skill of your own with the line that moves it aside. `install`, `update` and `remove`
 print the `claude plugin` lines they would run and run them with `--yes`; install stops at a same-name
 skill, and remove never touches one. `prune-backups` lists the dated folders in `extension-backups` and
-deletes them with `--yes`. Offline, `--from <path>` uses a local clone of wjgoarxiv-skills.
+deletes them with `--yes`. `prune-versions` lists the version folders that older LitClaude installs left
+in the plugin cache and in `~/.litclaude/litclaude-ai`, keeps the current one, and deletes the rest with
+`--yes`; close older Claude Code sessions first. Offline, `--from <path>` uses a local clone of wjgoarxiv-skills.
 
 Ask for slides or a report and end the prompt with `lit`, for example
 `팀 워크숍 발표자료 만들어줘 lit` or `write a project proposal lit`, and you get Office

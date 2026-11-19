@@ -243,6 +243,7 @@ litclaude-ai extensions install decks --yes   # 필요하면 선반을 추가하
 litclaude-ai extensions update --yes          # 선반을 새로 받고 설치된 플러그인을 모두 업데이트
 litclaude-ai extensions remove decks --yes    # Claude Code를 통해 플러그인을 제거
 litclaude-ai extensions prune-backups         # extension-backups의 날짜 폴더 목록; --yes로 삭제
+litclaude-ai extensions prune-versions        # 예전 LitClaude 버전 폴더 목록; --yes로 삭제
 ```
 
 인터넷이 없으면 `--from <경로>`로 wjgoarxiv-skills 로컬 클론을 선반으로 쓸 수 있습니다. `litclaude-ai doctor`는 확장 상태를 한 줄로 알려 주고, 안내가

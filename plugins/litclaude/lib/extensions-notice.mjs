@@ -58,9 +58,15 @@ const homeRelative = (path, home) => {
  * What older LitClaude versions left on disk: old version folders of the plugin cache and of the
  * compatibility copy, and the two runtime caches the moved skills used. Only folders that exist.
  */
+const versionParents = (claudeHome, litHome) => [join(claudeHome, "plugins", "cache", "litclaude-ai", "litclaude"), join(litHome, "litclaude-ai")];
+
+/** Every old version folder of the plugin cache and of the compatibility copy, as { parent, name, path }. */
+export const oldVersionFolders = ({ claudeHome, litHome, currentVersion }) => versionParents(claudeHome, litHome)
+  .flatMap((parent) => oldVersions(parent, currentVersion).map((name) => ({ parent, name, path: join(parent, name) })));
+
 export const extensionLeftovers = ({ claudeHome, litHome, cacheHome, currentVersion, home = homedir() }) => {
   const rows = [];
-  for (const parent of [join(claudeHome, "plugins", "cache", "litclaude-ai", "litclaude"), join(litHome, "litclaude-ai")]) {
+  for (const parent of versionParents(claudeHome, litHome)) {
     const versions = oldVersions(parent, currentVersion);
     if (versions.length > 0) rows.push(`${homeRelative(parent, home)}/ old versions ${versions.join(", ")} (keep ${currentVersion})`);
   }
@@ -158,6 +164,7 @@ export const extensionsNoticeLines = ({ leftovers = [], sameName = [] } = {}) =>
     "  sessions are closed. The extensions reuse the runtime caches, so delete those only if you do not",
     "  install them:",
     ...leftovers.map((row) => `    ${row}`),
+    "  `litclaude-ai extensions prune-versions` lists the old version folders; --yes deletes them.",
   ]),
 ];
 

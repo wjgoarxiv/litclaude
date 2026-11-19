@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `litclaude-ai extensions prune-versions` lists the version folders older LitClaude installs left in
+  the plugin cache and in `~/.litclaude/litclaude-ai`, with their sizes, and deletes them with `--yes`. It
+  keeps the current version, skips symlinks and leaves the runtime caches alone, since the extensions reuse
+  them. The install notice now names it.
+
 ## 1.0.55 - 2026-11-19
 
 - The terminal LIT card now looks alive while LitClaude works. Small embers drift through the free cells of

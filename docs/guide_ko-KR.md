@@ -297,7 +297,9 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 설치된 것과, 같은 이름의 내 스킬이 있으면 그 폴더를 옮기는 명령을 보여 줍니다. `install`, `update`,
 `remove`는 실행할 `claude plugin` 명령을 먼저 보여 주고 `--yes`를 붙이면 실행합니다. 설치는 같은
 이름의 내 스킬을 만나면 멈추고, 제거는 그런 폴더를 건드리지 않습니다. `prune-backups`는
-`extension-backups`의 날짜 폴더를 보여 주고 `--yes`를 붙이면 지웁니다. 인터넷이 없으면
+`extension-backups`의 날짜 폴더를 보여 주고 `--yes`를 붙이면 지웁니다. `prune-versions`는 예전
+LitClaude 설치가 플러그인 캐시와 `~/.litclaude/litclaude-ai`에 남긴 버전 폴더를 보여 주고, 지금 버전은
+남긴 채 나머지를 `--yes`로 지웁니다. 먼저 예전 Claude Code 창을 닫으세요. 인터넷이 없으면
 `--from <경로>`로 wjgoarxiv-skills 로컬 클론을 씁니다.
 
 발표자료나 보고서를 부탁하면서 끝에 `lit`을 붙이면(`팀 워크숍 발표자료 만들어줘 lit`,

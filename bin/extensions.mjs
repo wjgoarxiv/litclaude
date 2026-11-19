@@ -13,6 +13,7 @@ import {
   MARKETPLACE_LINE,
   extensionLeftovers,
   installLine,
+  oldVersionFolders,
   sameNameSkills,
 } from "../plugins/litclaude/lib/extensions-notice.mjs";
 
@@ -238,15 +239,16 @@ export const checkExtensions = ({ claudeHome, cwd, home = homedir(), litHome, ca
   return { ...state, problems, notes };
 };
 
-const VERBS = new Set(["list", "check", "install", "update", "remove", "prune-backups"]);
+const VERBS = new Set(["list", "check", "install", "update", "remove", "prune-backups", "prune-versions"]);
 
-const usageText = `Usage: ${CLI} <list|check|install|update|remove|prune-backups> [...]
+const usageText = `Usage: ${CLI} <list|check|install|update|remove|prune-backups|prune-versions> [...]
   list [--json]                     each extension: installed, not installed, or a skill of your own
   check [--json]                    what needs action, with the line that fixes it (exit 1 when something does)
   install <id|plugin...|--all>      add the shelf if needed, then claude plugin install
   update [<id|plugin...>|--all]     refresh the shelf, then claude plugin update each installed plugin
   remove <id|plugin...>             claude plugin uninstall; never touches a skill folder of your own
   prune-backups [--older-than <days>]  list dated backups in extension-backups; delete them with --yes
+  prune-versions                    list the version folders older LitClaude installs left; delete them with --yes
 Write verbs only print their plan; add --yes to run it. --from <path> uses a local wjgoarxiv-skills clone,
 and --allow-shadow lets install go on beside a same-name skill of your own (with a warning).
 `;
@@ -425,6 +427,36 @@ export const runExtensionsCli = (args, {
     for (const row of chosen) {
       // Look again right before deleting: still a real folder directly inside the vetted extension-backups folder.
       if (!realDir(row.path) || realpath(row.path) !== join(row.parent, row.name)) continue;
+      try {
+        rmSync(row.path, { recursive: true, force: false });
+        write(`  deleted ${row.path}`);
+      } catch (error) {
+        warn(`  could not delete ${row.path}: ${error.code ?? error.message}`);
+        failed = true;
+      }
+    }
+    if (failed) return 1;
+    write(`  Freed ${formatBytes(bytes)}.`);
+    return 0;
+  }
+
+  if (options.verb === "prune-versions") {
+    const rows = oldVersionFolders({ claudeHome, litHome, currentVersion }).map((row) => ({ ...row, bytes: folderBytes(row.path) }));
+    write(`Old LitClaude version folders (keeping ${currentVersion})`);
+    if (rows.length === 0) {
+      write("  No old LitClaude version folders.");
+      return 0;
+    }
+    for (const row of rows) write(`  ${row.path}  ${formatBytes(row.bytes)}`);
+    const bytes = sumBytes(rows);
+    if (!options.yes) {
+      write(`  Would delete ${rows.length} folder(s), ${formatBytes(bytes)}. Nothing changed; close older Claude Code sessions first, then add --yes.`);
+      return 0;
+    }
+    let failed = false;
+    for (const row of rows) {
+      // Look again right before deleting: still a real folder directly inside its version parent.
+      if (!realDir(row.path) || realpath(row.path) !== join(realpath(row.parent) ?? "", row.name)) continue;
       try {
         rmSync(row.path, { recursive: true, force: false });
         write(`  deleted ${row.path}`);

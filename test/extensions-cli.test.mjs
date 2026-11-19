@@ -222,6 +222,38 @@ describe("litclaude-ai extensions", () => {
     assert.ok(existsSync(join(box.path, "elsewhere")), "a symlink target is never followed");
   });
 
+  it("prune-versions deletes old LitClaude version folders only with --yes and keeps the current one and the runtimes", (t) => {
+    const box = sandbox(t);
+    const current = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
+    const parents = [join(box.claude, "plugins", "cache", "litclaude-ai", "litclaude"), join(box.path, "lit", "litclaude-ai")];
+    for (const parent of parents) {
+      for (const name of ["1.0.1", current]) {
+        mkdirSync(join(parent, name), { recursive: true });
+        writeFileSync(join(parent, name, "plugin.txt"), "x".repeat(1024));
+      }
+    }
+    mkdirSync(join(box.path, "elsewhere"));
+    symlinkSync(join(box.path, "elsewhere"), join(parents[0], "1.0.2"));
+    const runtime = join(box.path, "cache", "litclaude", "office-runtime");
+    mkdirSync(runtime, { recursive: true });
+
+    const dry = ok(box.run("prune-versions"));
+    for (const parent of parents) assert.ok(dry.includes(`${join(parent, "1.0.1")}  1.0 KiB`), dry);
+    assert.match(dry, /Would delete 2 folder\(s\), 2\.0 KiB\. Nothing changed/u);
+    assert.match(dry, /close older Claude Code sessions first/u);
+    for (const parent of parents) assert.ok(existsSync(join(parent, "1.0.1")));
+
+    const done = ok(box.run("prune-versions", "--yes"));
+    for (const parent of parents) {
+      assert.ok(done.includes(`deleted ${join(parent, "1.0.1")}`), done);
+      assert.ok(!existsSync(join(parent, "1.0.1")));
+      assert.ok(existsSync(join(parent, current)), "the current version stays");
+    }
+    assert.ok(existsSync(join(box.path, "elsewhere")) && existsSync(join(parents[0], "1.0.2")), "a symlinked version folder is left alone");
+    assert.ok(existsSync(runtime), "the runtime caches stay; the extensions reuse them");
+    assert.match(ok(box.run("prune-versions")), /No old LitClaude version folders/u);
+  });
+
   it("stops before any change when the shelf cannot be fetched or --from is not a clone", (t) => {
     const box = sandbox(t);
     const offline = box.run("install", "decks", "--yes");
@@ -336,7 +368,7 @@ describe("litclaude-ai extensions", () => {
   it("help names the extensions verbs, and an unknown verb or option is refused", (t) => {
     const box = sandbox(t);
     const help = spawnSync(process.execPath, [join(root, "bin", "litclaude-ai.js"), "--help"], { encoding: "utf8", env: box.env });
-    assert.match(help.stdout, /extensions <list\|check\|install\|update\|remove\|prune-backups>/u);
+    assert.match(help.stdout, /extensions <list\|check\|install\|update\|remove\|prune-backups\|prune-versions>/u);
     assert.match(ok(box.run("--help")), /prune-backups \[--older-than <days>\]/u);
     assert.equal(box.run("frobnicate").status, 64);
     assert.equal(box.run("install", "decks", "--force").status, 64);

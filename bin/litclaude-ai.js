@@ -128,7 +128,7 @@ Commands:
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
   update        Reinstall this package version and refresh the Claude plugin registry.
   uninstall     Remove LitClaude-managed install state.
-  extensions <list|check|install|update|remove|prune-backups>
+  extensions <list|check|install|update|remove|prune-backups|prune-versions>
                 Manage the LitFamily extensions (decks, documents, figures, design,
                 video-covers) through Claude Code's own plugin commands. list and
                 check only read; install, update and remove print the claude

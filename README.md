@@ -272,6 +272,7 @@ litclaude-ai extensions install decks --yes   # adds the shelf if needed, then i
 litclaude-ai extensions update --yes          # refreshes the shelf, then updates every installed plugin
 litclaude-ai extensions remove decks --yes    # uninstalls the plugin through Claude Code
 litclaude-ai extensions prune-backups         # lists the dated folders in extension-backups; --yes deletes them
+litclaude-ai extensions prune-versions        # lists old LitClaude version folders; --yes deletes them
 ```
 
 Offline, `--from <path>` points the shelf at a local clone of wjgoarxiv-skills. `litclaude-ai doctor` prints
