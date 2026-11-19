@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.55 - 2026-11-19
 
 - The terminal LIT card now looks alive while LitClaude works. Small embers drift through the free cells of
   the skills row: each starts as a turning stroke (`| / - \`), cools into a spark (`* +`) and goes out as a
