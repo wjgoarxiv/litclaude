@@ -174,11 +174,16 @@ slash command and this session may expose no model-facing goal tools. Bind goals
 like this:
 
 - LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Never clobber a different active goal without explicit replacement.
-- Without an armed goal, report explicit `BLOCKED:` / degraded mode,
-  **propose a concrete, ready-to-paste `/goal <completion condition>`** or
-  `claude -p "/goal <completion condition>"` for the user, and keep driving the
-  local evidence ledger meanwhile. LitClaude must not auto-type or send `/goal`
-  text or claim native activation without observed evidence.
+- A lit-loop with no plan gets one question too. When the project has a test command (`npm test`,
+  `pytest`, `cargo test`, `go test ./...`), the prompt hook shows the user
+  `Set goal for this lit-loop: /goal <cond>? (yes / no)` itself at the loop's first activation; do
+  not ask it again. Without one, once a failing check proves the objective (after the RED step), run
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" --loop --check "<check>" <objective>` and end
+  the reply with the line it prints; a check that already passes, cannot run or is not allowlisted
+  prints `No goal set: <reason>` and records nothing. Either way only the user's exact `yes` on a
+  later prompt arms it, and the LitClaude mod runs `/goal <cond>` when that turn ends.
+- Without an armed goal, go on in degraded mode with the local evidence ledger. LitClaude never
+  types or sends `/goal` itself and never claims native activation without observed evidence.
 - Forward-compat only: if a future Claude Code build exposes model-facing goal tools, prefer
   them according to the no-clobber rule above.
 - litgoal sets and keeps the finish line; lit-loop and start-work run toward it.

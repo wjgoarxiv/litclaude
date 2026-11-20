@@ -7,6 +7,7 @@ export const GOAL_DIR = ".litclaude/goal";
 export const GOAL_STATUS = Object.freeze({
   asked: (cond) => `Approve plan, start work and set goal: /goal ${cond}? (yes / edit / no)`,
   startOnly: "Approve plan and start work? (yes / no)",
+  loopAsked: (cond) => `Set goal for this lit-loop: /goal ${cond}? (yes / no)`,
   skipped: (reason) => `No goal set: ${reason}`,
   notStarted: (why) => `No goal set: start-work did not start (${why})`,
   armed: (id) => `LitClaude goal armed [lit:${id}]; it is set when this turn ends.`,

@@ -6,11 +6,12 @@
 // (yes starts the work and arms the goal), or, when no goal can be set for a readable plan, the
 // start-only question and the `No goal set: <reason>` line. It never sets a goal or starts work
 // itself; only the user's exact `yes` on the next prompt does, through the prompt hook.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { GOAL_DIR, GOAL_STATUS, compileCondition, conditionHash, falsify, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { GOAL_DIR, GOAL_STATUS, compileCondition, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
 
 const record = (cwd, consent) => {
   const dir = join(cwd, GOAL_DIR);
@@ -51,7 +52,42 @@ export const proposeGoal = ({ cwd, planArg, now = Date.now(), timeoutMs, run } =
   return { line: GOAL_STATUS.asked(built.condition), consent };
 };
 
+// `goal-propose.mjs --loop --check "<cmd>" <objective...>`: lit-loop's question, once its failing check
+// exists. With no settable goal it records nothing and prints only `No goal set: <reason>`.
+// The project's own test command, for the question the prompt hook shows; null when there is none.
+export const detectCheck = (cwd) => {
+  try {
+    if (typeof JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"))?.scripts?.test === "string") return "npm test";
+  } catch {
+    // No readable package.json.
+  }
+  for (const [file, check] of [["pytest.ini", "pytest"], ["pyproject.toml", "pytest"], ["Cargo.toml", "cargo test"], ["go.mod", "go test ./..."]]) {
+    if (existsSync(join(cwd, file))) return check;
+  }
+  return null;
+};
+
+// falsifyNow: false skips the dry run (the prompt hook cannot wait on a test run); the objective clause
+// still keeps such a goal false until the work is done.
+export const proposeLoopGoal = ({ cwd, check, objective, now = Date.now(), timeoutMs, run, falsifyNow = true } = {}) => {
+  const goal = normalizeGoalObjective(String(objective ?? ""));
+  const command = String(check ?? "").trim();
+  if (!goal) return { line: GOAL_STATUS.skipped("name what the loop should finish") };
+  const built = compileLoopCondition({ objective: goal, check: command });
+  if (!built.ok) return { line: GOAL_STATUS.skipped(built.reason) };
+  const lint = lintCondition(built.condition, command);
+  if (!lint.ok) return { line: GOAL_STATUS.skipped(lint.reasons.join("; ")) };
+  const dry = falsifyNow ? falsifyLoop({ cwd, check: command, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) }) : { ok: true };
+  if (!dry.ok) return { line: GOAL_STATUS.skipped(dry.reason) };
+  const consent = { version: 1, kind: "loop", condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan: null, objective: goal, askedAt: new Date(now).toISOString() };
+  record(cwd, consent);
+  return { line: GOAL_STATUS.loopAsked(built.condition), consent };
+};
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { line } = proposeGoal({ cwd: process.cwd(), planArg: process.argv[2] });
+  const [first, ...rest] = process.argv.slice(2);
+  const { line } = first === "--loop" && rest[0] === "--check"
+    ? proposeLoopGoal({ cwd: process.cwd(), check: rest[1], objective: rest.slice(2).join(" ") })
+    : proposeGoal({ cwd: process.cwd(), planArg: first });
   process.stdout.write(`${line}\n`);
 }

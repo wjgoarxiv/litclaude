@@ -464,7 +464,7 @@ describe("Claude hook runner", () => {
     assert.doesNotMatch(litworkSkill, /get_goal|create_goal|update_goal/u);
     assert.match(litworkSkill, /yes \/ edit \/ no/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\/goal/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /BLOCKED: native `\/goal` not programmatically bound/u);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /goal-propose\.mjs" --loop --check|has shown the user this goal question/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /durable `litgoal` ledger/u);
     assert.match(litworkSkill, /claude -p "\/goal/u);
     assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /native goal (is )?(active|bound|created|updated)/iu);
@@ -473,7 +473,7 @@ describe("Claude hook runner", () => {
     assert.match(litworkSkill, /claude --worktree/u);
     assert.match(parsed.hookSpecificOutput.additionalContext, /call the Workflow tool/u);
     assert.match(litworkSkill, /EnterWorktree/u);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /Do not auto-type or inject the user's slash commands/u);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /Never type or send \/goal yourself/u);
     assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /rm -rf/u);
   });
 
@@ -642,14 +642,25 @@ describe("Claude hook runner", () => {
     assert.match(context, /lit-plan/u);
     assert.doesNotMatch(context, /READY_TO_PASTE|Native goal binding attempt/u);
     const loop = JSON.parse(runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "lit loop build a widget", cwd: root }).stdout).hookSpecificOutput.additionalContext;
-    assert.match(loop, /READY_TO_PASTE/u, "lit-loop keeps its one-time /goal offer");
+    assert.match(loop, /goal-propose\.mjs" --loop --check|has shown the user this goal question/u, "lit-loop asks its one-time /goal question");
+    assert.doesNotMatch(loop, /READY_TO_PASTE/u, "the mod sets a lit-loop goal; nothing is pasted");
   });
 
   it("adds honest native-goal degraded guidance for goal-bearing routes", () => {
     for (const prompt of [
-      "lit goal ship native goal binding",
       "lit implement a long-running migration",
       "litwork ship the release",
+    ]) {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+      assert.match(context, /Native goal: LitClaude (?:can set \/goal for this run|has shown the user this goal question)/u, prompt);
+      assert.match(context, /the user's exact `yes`/u, prompt);
+      assert.match(context, /durable `litgoal` ledger/u, prompt);
+      assert.doesNotMatch(context, /READY_TO_PASTE|native goal (is )?(active|bound|created|updated)/iu, prompt);
+    }
+    for (const prompt of [
+      "lit goal ship native goal binding",
     ]) {
       const result = runHook("user-prompt-submit", {
         hook_event_name: "UserPromptSubmit",

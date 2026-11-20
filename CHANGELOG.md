@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- A lit-loop, litwork or other run with no plan can now get a native `/goal` too. Once its failing check
+  exists, the loop asks one question, `Set goal for this lit-loop: /goal <cond>? (yes / no)`, where the
+  condition is that check exiting 0 with the objective done. When the project has a test command, the
+  prompt hook shows that question itself as the loop starts, so it never depends on the model asking. An exact `yes` lets the LitClaude mod run `/goal`
+  when that turn ends, the same way a plan's goal is set, and starts no start-work. A check that already
+  passes, cannot run or is not an allowlisted test command asks nothing. litgoal keeps its ready-to-paste line.
+
 ## 1.0.56 - 2026-11-20
 
 - `litclaude-ai extensions prune-versions` lists the version folders older LitClaude installs left in

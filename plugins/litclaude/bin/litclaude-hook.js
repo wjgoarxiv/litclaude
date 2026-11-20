@@ -69,6 +69,7 @@ import { inviteMessage, parseInvitePrompt, recordInvite, shareLine } from "../li
 import { claimSessionExtensionsNotice } from "../lib/extensions-notice.mjs";
 import { buildSkillPlan, installedExtensionPlugins, parseSkillHatch, skillPlanContext, skillPlanIds } from "../lib/skill-plan.mjs";
 import { GOAL_DIR, GOAL_STATUS, consentAnswer, consentIsLive } from "../lib/goal-pipeline.mjs";
+import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
   try {
@@ -1173,14 +1174,39 @@ const objectiveTail = (prompt) => {
   const raw = withoutCode(prompt);
   const match = /\blit(?:work)?\b\s*(.*)$/isu.exec(raw);
   const tail = (match?.[1] ?? raw).replace(
-    /^\s*(?:-loop|-plan|goal|plan|workflow|dynamic\s+workflow|work)\b\s*/iu,
+    /^\s*(?:-loop|-plan|loop|goal|plan|workflow|dynamic\s+workflow|work)\b\s*/iu,
     "",
   );
   return normalizeGoalObjective(tail);
 };
 
-const goalBindingContext = ({ discipline, prompt, activeGoal }) => {
-  if (!["lit-loop", "litgoal", "native-workflow", "litwork", "lit-hijack"].includes(discipline)) return [];
+// A run route gets one question and the mod sets the goal on the user's yes; litgoal, the hand-held
+// goal tool, keeps its ready-to-paste line.
+const LOOP_GOAL_LINE = "Native goal: LitClaude can set /goal for this run. Once one failing check proves the objective (after the RED test), run `node \"${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs\" --loop --check \"<check>\" <objective>` and ask the line it prints once, as the last line of your reply; only the user's exact `yes` on the next prompt lets the LitClaude mod run /goal when that turn ends. If it prints `No goal set: <reason>`, or no single check proves the objective, go on without a goal and keep the durable `litgoal` ledger authoritative. Never type or send /goal yourself.";
+
+const RUN_GOAL_ROUTES = new Set(["lit-loop", "native-workflow", "litwork", "lit-hijack"]);
+
+// A run's first activation asks the goal question itself, shown to the user by the hook, when the project
+// has a test command and LitClaude owns or asks no goal yet. Returns { line, consent } or null.
+const offerLoopGoal = (discipline, input) => {
+  if (!RUN_GOAL_ROUTES.has(discipline)) return null;
+  try {
+    const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+    const objective = objectiveTail(input.prompt ?? "");
+    if (!objective || readGoalFile(cwd, "owner.json") || readGoalFile(cwd, "consent.json")) return null;
+    const check = detectCheck(cwd);
+    if (!check) return null;
+    const offer = proposeLoopGoal({ cwd, check, objective, falsifyNow: false });
+    return offer.consent ? offer : null;
+  } catch {
+    return null;
+  }
+};
+
+const goalBindingContext = ({ discipline, prompt, activeGoal, loopGoal }) => {
+  if (loopGoal) return [`Native goal: LitClaude has shown the user this goal question: ${loopGoal.line} Do not ask it again. Never type or send /goal yourself: the user's exact \`yes\` on a later prompt lets the LitClaude mod run /goal when that turn ends. Until then, keep the durable \`litgoal\` ledger authoritative.`];
+  if (RUN_GOAL_ROUTES.has(discipline)) return [LOOP_GOAL_LINE];
+  if (discipline !== "litgoal") return [];
   const guidance = buildNativeGoalBindingGuidance({ objective: objectiveTail(prompt), activeGoal });
   if (!guidance.command) return [guidance.message];
   return [`Native goal binding attempt: BLOCKED: native \`/goal\` not programmatically bound. READY_TO_PASTE: Copy, paste, and send this line in the current Claude Code session: ${guidance.command} Offer it to the user once. Do not auto-type or inject the user's slash commands. Keep the durable \`litgoal\` ledger authoritative.`];
@@ -1342,7 +1368,7 @@ const litworkContext = ({ command, skill, skillId, discipline, softConfirm, safe
   ...(agentId ? [`Native agent route: litclaude:${agentId}. Preserve the shipped agent permissions and delegation gates; a prompt hook does not launch or switch agents.`] : []),
   ...canonicalFamilySourceContext(discipline),
   "Secret-bearing prompt material is never persisted raw; record only redacted summaries and evidence paths in durable state.",
-  ...goalBindingContext({ discipline, prompt: input.prompt, activeGoal: input.native_goal ?? input.active_goal ?? input.goal }),
+  ...goalBindingContext({ discipline, prompt: input.prompt, activeGoal: input.native_goal ?? input.active_goal ?? input.goal, loopGoal: input.loopGoal }),
   llmContractReference,
   ...skillBodyPointerContext({ skillId, safetyBlock }),
   "Dynamic workflow: propose one for broad, risky, parallel, or long-running work; call the Workflow tool only after the user opts in or the session already permits it.",
@@ -1556,11 +1582,18 @@ const goalConsentOf = (prompt, input) => {
   if (!consent) return null;
   const answer = consentAnswer(prompt);
   dropGoalFile(cwd, "consent.json");
-  const startOnly = consent.condition === null;
-  if (!answer || !consentIsLive(consent, Date.now()) || (startOnly && answer === "edit")) return null;
+  const noEdit = consent.condition === null || consent.kind === "loop";
+  if (!answer || !consentIsLive(consent, Date.now()) || (noEdit && answer === "edit")) return null;
   return { cwd, consent, answer };
 };
-const goalConsentTurn = ({ consent, answer }) => {
+const goalConsentTurn = ({ cwd, consent, answer }, sessionId) => {
+  if (consent.kind === "loop") {
+    if (answer === "no") return [`The user answered no to the lit-loop goal question, so no goal is set. Make the first line of your reply exactly \`${GOAL_STATUS.skipped("you said no")}\`, then go on with the lit-loop work.`, "LitClaude goal: not set."];
+    const armed = writeGoalFile(cwd, "intent.json", { version: 1, condition: consent.condition, hash: consent.hash, id: consent.id, plan: null, sessionId, armedAt: new Date().toISOString() });
+    return armed
+      ? [`The user approved the lit-loop goal with yes. Make the first line of your reply exactly \`${GOAL_STATUS.armed(consent.id)}\`, then go on with the lit-loop work: when this turn ends, LitClaude runs /goal with the approved condition. Do not run /goal yourself.`, "LitClaude goal: armed."]
+      : [`The goal could not be armed. Make the first line of your reply exactly \`${GOAL_STATUS.notConfirmed(consent.condition)}\`, then go on with the lit-loop work.`, "LitClaude goal: not armed."];
+  }
   if (answer === "no") {
     return consent.condition === null
       ? ["The user answered no to the plan approval question: start-work did not start. Ask how to go on with the plan in one sentence; start nothing.", "LitClaude plan: not started."]
@@ -1921,7 +1954,7 @@ switch (eventName) {
     // takes that run over instead (D8).
     // An exact `yes` to lit-plan's approval question is a typed start-work for that plan (R1).
     const consentReply = trustedResume ? null : goalConsentOf(prompt, input);
-    const approved = consentReply?.answer === "yes" ? consentReply : null;
+    const approved = consentReply?.answer === "yes" && consentReply.consent.kind !== "loop" ? consentReply : null;
     const briefed = trustedResume || approved ? null : briefedStep(prompt, input);
     const parsedInvocation = trustedResume ? null : approved ? { kind: "start", plan: approved.consent.plan } : briefed?.invocation ?? parseStartWorkInvocation(prompt);
     // `lit cancel` counts only as a prompt the user typed: a payload naming another event is not one.
@@ -1972,7 +2005,7 @@ switch (eventName) {
     }
     // approve, deny and cancel are answered here alone: no workflow trigger, ignition or stage record.
     const settlesBoundary = Boolean(invocation) && invocation.kind !== "start";
-    const goalAnswer = consentReply && !approved && !invocation ? goalConsentTurn(consentReply) : null;
+    const goalAnswer = consentReply && !approved && !invocation ? goalConsentTurn(consentReply, typeof input.session_id === "string" ? input.session_id : null) : null;
     const goalNote = approved ? approvedGoalNote(approved, { invoked, adoption, sessionId: typeof input.session_id === "string" ? input.session_id : null }) : "";
     if (invocation?.kind === "cancel" && invoked) invoked.goalClear = requestGoalClear(typeof input.cwd === "string" ? input.cwd : null, "lit cancel");
     const exactBareHandoff = isExactBareHandoff(prompt);
@@ -2079,14 +2112,15 @@ switch (eventName) {
     } else if (trigger && trigger.discipline === "lit-comprehend") {
       writeContext(withPromptRules(`${probeInstruction(trigger.discipline)}\n\n${comprehendContext(trigger)}`), activationMessage(trigger.discipline));
     } else if (trigger) {
-      const systemMessage = activationMessage(effectiveDiscipline);
+      const loopGoal = reentry || trigger.safetyBlock ? null : offerLoopGoal(trigger.discipline, input);
+      const systemMessage = loopGoal ? `${activationMessage(effectiveDiscipline)}\n${loopGoal.line}` : activationMessage(effectiveDiscipline);
       let context = reentry?.context ?? (["frontend-ui-ux", "visual-qa"].includes(trigger.discipline)
         ? uiuxActivationContext({ ...trigger, uiMode: interfaceMode(normalizedTriggerText(prompt)) })
         : ["lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"].includes(trigger.discipline)
           ? pointerStubActivationContext(trigger)
           : ["lit-pptx", "lit-docx"].includes(trigger.discipline)
             ? officeActivationContext(trigger)
-            : litworkContext(trigger, input));
+            : litworkContext(trigger, loopGoal ? { ...input, loopGoal } : input));
       if (skillPlan.plan) context = `${context}\n\n${skillPlanContext(skillPlan.plan, skillPlan.installed)}`;
       if (!reentry) {
         if (trigger.renameFrom) context = `${renameNote(trigger.renameFrom)}\n\n${context}`;

@@ -254,11 +254,10 @@ describe("sections that become visible", () => {
     }
   });
 
-  it("offers the /goal line with the user's objective, redacted when the prompt carries a secret", () => {
-    assert.match(promptContext("lit fix the typo in README.md"), /\/goal Continue until this LitClaude objective is complete: fix the typo in README\.md\./u);
-    assert.match(promptContext("lit README.md 오타를 고쳐줘"), /\/goal Continue until this LitClaude objective is complete: README\.md 오타를 고쳐줘\./u);
+  it("offers the native goal path and never repeats a secret the prompt carries", () => {
+    assert.match(promptContext("lit fix the typo in README.md"), /Native goal: LitClaude (?:can set \/goal for this run|has shown the user this goal question)/u);
+    assert.match(promptContext("lit README.md 오타를 고쳐줘"), /Native goal: LitClaude/u);
     const secret = promptContext("lit rotate the key api_key=abc123secret now");
-    assert.match(secret, /\[REDACTED\]/u);
     assert.doesNotMatch(secret, /abc123secret/u);
   });
 

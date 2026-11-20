@@ -7,7 +7,7 @@ import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { GOAL_STATUS, STALL_CHECKS, compileCondition, conditionHash, consentAnswer, falsify, goalStateFromTranscript, goalStep, lintCondition, parseDoneWhen } from "../plugins/litclaude/lib/goal-pipeline.mjs";
-import { proposeGoal } from "../plugins/litclaude/scripts/goal-propose.mjs";
+import { proposeGoal, proposeLoopGoal } from "../plugins/litclaude/scripts/goal-propose.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const plugin = join(root, "plugins", "litclaude");
@@ -210,6 +210,93 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
     assert.match(context, started);
     assert.equal(existsSync(join(cwd, ".litclaude", "goal", "intent.json")), false);
     assert.deepEqual(goalFiles(cwd), []);
+  });
+});
+
+describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
+  const loopProject = (name, testExit = 1) => {
+    const cwd = join(temp, name);
+    mkdirSync(cwd, { recursive: true });
+    writeFileSync(join(cwd, "package.json"), JSON.stringify({ name, scripts: { test: `node -e "process.exit(${testExit})"` } }));
+    return cwd;
+  };
+
+  it("asks once with a condition built from the check and the objective, and records the question", () => {
+    const cwd = loopProject("loop-ask");
+    const { line, consent } = proposeLoopGoal({ cwd, check: "npm test", objective: "fix the login redirect" });
+    assert.match(line, /^Set goal for this lit-loop: \/goal `npm test` exits 0 and this is done: fix the login redirect \[lit:[0-9a-f]{8}\]\? \(yes \/ no\)$/u);
+    assert.equal(consent.kind, "loop");
+    assert.equal(consent.plan, null);
+    assert.equal(consent.hash, conditionHash(consent.condition));
+    assert.deepEqual(goalFiles(cwd), ["consent.json"]);
+    const secret = proposeLoopGoal({ cwd: loopProject("loop-secret"), check: "npm test", objective: "rotate api_key=abc123secret now" });
+    assert.match(secret.line, /\[REDACTED\]/u);
+    assert.doesNotMatch(JSON.stringify(secret.consent), /abc123secret/u);
+  });
+
+  it("asks nothing when the check already passes, is not allowlisted, or the objective is empty", () => {
+    for (const [name, args, exit, reason] of [
+      ["loop-green", { check: "npm test", objective: "add a flag" }, 0, /already passes/u],
+      ["loop-push", { check: "git push", objective: "ship it" }, 1, /not an allowlisted test command|push, publish or release/u],
+      ["loop-empty", { check: "npm test", objective: "   " }, 1, /name what the loop should finish/u],
+    ]) {
+      const cwd = loopProject(name, exit);
+      const { line, consent } = proposeLoopGoal({ cwd, ...args });
+      assert.match(line, /^No goal set: /u, name);
+      assert.match(line, reason, name);
+      assert.equal(consent, undefined, name);
+      assert.deepEqual(goalFiles(cwd), [], name);
+    }
+  });
+
+  it("the CLI takes --loop --check <cmd> and the rest as the objective", () => {
+    const cwd = loopProject("loop-cli");
+    const result = spawnSync(process.execPath, [join(plugin, "scripts", "goal-propose.mjs"), "--loop", "--check", "npm test", "fix", "the", "redirect"], { cwd, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /\/goal `npm test` exits 0 and this is done: fix the redirect \[lit:/u);
+  });
+
+  it("a lit-loop prompt shows the question itself when the project has a test command", () => {
+    const cwd = loopProject("loop-hook");
+    const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+      cwd,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+      input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "lit loop fix the login redirect", cwd, session_id: "s-loop-hook", prompt_id: "p-loop-hook" }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const out = JSON.parse(result.stdout);
+    assert.match(out.systemMessage, /Set goal for this lit-loop: \/goal `npm test` exits 0 and this is done: fix the login redirect \[lit:[0-9a-f]{8}\]\? \(yes \/ no\)/u);
+    assert.match(out.hookSpecificOutput.additionalContext, /LitClaude has shown the user this goal question/u);
+    assert.deepEqual(goalFiles(cwd), ["consent.json"]);
+    assert.ok(hook(cwd, "yes", "s-loop-hook").includes("LitClaude goal armed"));
+    assert.deepEqual(goalFiles(cwd), ["intent.json"]);
+
+    const bare = join(temp, "loop-no-check");
+    mkdirSync(bare, { recursive: true });
+    const context = hook(bare, "lit loop fix the login redirect", "s-loop-bare");
+    assert.match(context, /Native goal: LitClaude can set \/goal for this run/u);
+    assert.deepEqual(goalFiles(bare), [], "no test command, no question");
+  });
+
+  it("yes arms the goal for the mod and starts no start-work; no arms nothing", () => {
+    const cwd = loopProject("loop-yes");
+    const { consent } = proposeLoopGoal({ cwd, check: "npm test", objective: "fix the login redirect" });
+    const context = hook(cwd, "yes");
+    assert.ok(context.includes(GOAL_STATUS.armed(consent.id)), context);
+    assert.match(context, /Do not run \/goal yourself/u);
+    assert.doesNotMatch(context, /started start-work/u);
+    assert.equal(existsSync(join(cwd, ".litclaude", "boulder.json")), false, "no start-work run");
+    const intent = JSON.parse(readFileSync(join(cwd, ".litclaude", "goal", "intent.json"), "utf8"));
+    assert.equal(intent.condition, consent.condition);
+    assert.equal(intent.plan, null);
+    assert.deepEqual(goalFiles(cwd), ["intent.json"]);
+
+    const other = loopProject("loop-no");
+    proposeLoopGoal({ cwd: other, check: "npm test", objective: "fix it" });
+    const no = hook(other, "no");
+    assert.match(no, /No goal set: you said no/u);
+    assert.deepEqual(goalFiles(other), []);
   });
 });
 

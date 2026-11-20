@@ -126,7 +126,7 @@ describe("lit re-entry: continue the active discipline", () => {
     const cwd = markerCwd();
     const sid = sessionId();
     const first = prompt(cwd, sid, "lit fix the bug");
-    assert.match(first, /\/goal Continue until/u);
+    assert.match(first, /Native goal: LitClaude can set \/goal for this run/u);
     setTopCount(cwd, sid, { n: 2, total: 5, unit: "step" });
     const second = prompt(cwd, sid, "lit add a test");
     assert.doesNotMatch(second, /\/goal/u);
@@ -176,7 +176,7 @@ describe("lit re-entry: switch, restart and a new session", () => {
       prompt(cwd, sid, "lit fix the bug");
       const context = prompt(cwd, sid, `lit ${word} refactor the parser`);
       assertFull(context, `lit ${word}`);
-      assert.match(context, /\/goal Continue until/u, "a restart offers its goal line again");
+      assert.match(context, /Native goal: LitClaude can set \/goal for this run/u, "a restart offers its goal line again");
       assertContinue(prompt(cwd, sid, "lit also the lexer"), `repeat after lit ${word}`);
     }
   });

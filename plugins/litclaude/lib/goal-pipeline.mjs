@@ -67,6 +67,14 @@ export const compileCondition = ({ plan, check }) => {
   return { ok: true, condition, id };
 };
 
+/** A lit-loop's condition: its check exits 0 and its objective is done. No plan, so no rows. */
+export const compileLoopCondition = ({ objective, check }) => {
+  const id = goalId(`loop\u0000${objective}`, check);
+  const condition = `\`${check}\` exits 0 and this is done: ${objective} [lit:${id}]`;
+  if (condition.length > GOAL_MAX_CHARS) return { ok: false, reason: `the condition is over ${GOAL_MAX_CHARS} characters; shorten the objective` };
+  return { ok: true, condition, id };
+};
+
 /** Rejects judgment words, outward-only success and conditions over the cap. */
 export const lintCondition = (condition, check) => {
   const reasons = [];
@@ -96,6 +104,16 @@ export const falsify = ({ cwd, plan, planText, check, timeoutMs = FALSIFY_TIMEOU
   return { ok: true, open, exit: result.status };
 };
 
+/** A lit-loop has no unticked rows to keep its goal false, so its check must fail right now. */
+export const falsifyLoop = ({ cwd, check, timeoutMs = FALSIFY_TIMEOUT_MS, run = spawnSync }) => {
+  const [cmd, ...args] = check.split(/\s+/u);
+  const result = run(cmd, args, { cwd, encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "ignore", "ignore"], shell: false });
+  if (result.error?.code === "ETIMEDOUT" || result.signal === "SIGTERM") return { ok: false, reason: `\`${check}\` did not finish within ${Math.round(timeoutMs / 1000)} s` };
+  if (result.error || result.status === 127) return { ok: false, reason: `\`${check}\` cannot run here` };
+  if (result.status === 0) return { ok: false, reason: `\`${check}\` already passes, so the goal would be met at once; write the failing test first` };
+  return { ok: true, exit: result.status };
+};
+
 /** `yes` (exactly, any case) arms; `edit` and `no` are answers too; anything else is no answer. */
 export const consentAnswer = (prompt) => {
   const text = String(prompt ?? "").trim().toLowerCase();
@@ -103,8 +121,11 @@ export const consentAnswer = (prompt) => {
 };
 
 /** The consent record is fresh and is the one the user is answering. */
-export const consentIsLive = (consent, now) => Boolean(consent && typeof consent.plan === "string"
-  && (typeof consent.condition === "string" ? consent.hash === conditionHash(consent.condition) : consent.condition === null && consent.hash === startOnlyHash(consent.plan))
+export const consentIsLive = (consent, now) => Boolean(consent
+  && (consent.kind === "loop"
+    ? consent.plan === null && typeof consent.condition === "string" && consent.hash === conditionHash(consent.condition)
+    : typeof consent.plan === "string"
+      && (typeof consent.condition === "string" ? consent.hash === conditionHash(consent.condition) : consent.condition === null && consent.hash === startOnlyHash(consent.plan)))
   && Number.isFinite(Date.parse(consent.askedAt)) && now - Date.parse(consent.askedAt) <= CONSENT_TTL_MS);
 
 /** The hash a start-only question (no goal could be set) binds: the plan it would start. */

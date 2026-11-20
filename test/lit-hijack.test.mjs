@@ -151,7 +151,7 @@ describe("lit-hijack routing", () => {
   it("names the installed SKILL.md and offers a /goal line for the long run", () => {
     const { context } = routeOf("lit hijack the brief technique from this post into my skill");
     assert.match(context, /<litclaude-skill-body name="lit-hijack">\s*Load this exact installed entrypoint "[^"]+\/skills\/lit-hijack\/SKILL\.md"/u);
-    assert.match(context, /\/goal Continue until/u);
+    assert.match(context, /Native goal: LitClaude (?:can set \/goal for this run|has shown the user this goal question)/u);
   });
 
   it("keeps the neighbouring routes where they were", () => {
