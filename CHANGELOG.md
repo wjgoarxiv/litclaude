@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.57 - 2026-11-20
 
 - A lit-loop, litwork or other run with no plan can now get a native `/goal` too. Once its failing check
   exists, the loop asks one question, `Set goal for this lit-loop: /goal <cond>? (yes / no)`, where the
