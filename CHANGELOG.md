@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.58 - 2026-11-21
+
+- A finished goal no longer blocks the next lit-loop question. Once the LitClaude mod has cleared a
+  goal it set (met, stalled or gone), the next lit-loop run in that project asks again.
+
 ## 1.0.57 - 2026-11-20
 
 - A lit-loop, litwork or other run with no plan can now get a native `/goal` too. Once its failing check

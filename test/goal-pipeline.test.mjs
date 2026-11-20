@@ -249,6 +249,20 @@ describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
     }
   });
 
+  it("a finished goal does not stop the next lit-loop from asking", () => {
+    const cwd = loopProject("loop-after-met");
+    mkdirSync(join(cwd, ".litclaude", "goal"), { recursive: true });
+    writeFileSync(join(cwd, ".litclaude", "goal", "owner.json"), JSON.stringify({ version: 1, id: "0badc0de", condition: "old [lit:0badc0de]", sessionId: "s-old", closed: "met" }));
+    const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+      cwd,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+      input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "lit loop fix the next bug", cwd, session_id: "s-new", prompt_id: "p-after-met" }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(JSON.parse(result.stdout).systemMessage, /Set goal for this lit-loop: .*fix the next bug/u);
+  });
+
   it("the CLI takes --loop --check <cmd> and the rest as the objective", () => {
     const cwd = loopProject("loop-cli");
     const result = spawnSync(process.execPath, [join(plugin, "scripts", "goal-propose.mjs"), "--loop", "--check", "npm test", "fix", "the", "redirect"], { cwd, encoding: "utf8" });

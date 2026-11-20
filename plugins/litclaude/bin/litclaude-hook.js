@@ -1193,7 +1193,8 @@ const offerLoopGoal = (discipline, input) => {
   try {
     const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
     const objective = objectiveTail(input.prompt ?? "");
-    if (!objective || readGoalFile(cwd, "owner.json") || readGoalFile(cwd, "consent.json")) return null;
+    const owner = readGoalFile(cwd, "owner.json");
+    if (!objective || (owner && !owner.closed) || readGoalFile(cwd, "consent.json")) return null;
     const check = detectCheck(cwd);
     if (!check) return null;
     const offer = proposeLoopGoal({ cwd, check, objective, falsifyNow: false });
