@@ -186,3 +186,80 @@ describe("piped check receipts (gap 2)", () => {
     assert.equal(rewrittenCommand(h, "npm test | tail"), null);
   });
 });
+
+describe("leading && chain receipts", () => {
+  const activate = (h) => startWorkflowStage(h.project, { sessionId: SID, skill: "lit-loop" });
+
+  it("records exit 1 for true && npm test; echo, and the echo still sees 1", () => {
+    const h = receiptHarness();
+    activate(h);
+    const original = "true && npm test; echo \"exit=$?\"";
+    const command = rewrittenCommand(h, original);
+    assert.equal(command.startsWith("true && { npm test;"), true, command);
+    assert.equal(command.endsWith("; echo \"exit=$?\""), true, command);
+    const ran = spawnSync("bash", ["-c", command], { cwd: h.project, encoding: "utf8" });
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.match(ran.stdout, /exit=1/u);
+    h.run("post-tool-use", passingBash(command));
+    assert.equal(h.receipts().length, 1);
+    assert.equal(h.receipts()[0].exit, 1);
+    assert.equal(h.receipts()[0].check, "npm test");
+    assert.equal(existsSync(join(h.dir, "check-rc")), false);
+  });
+
+  it("records exit 0 for a passing true && npm test | tail -3", () => {
+    const h = receiptHarness();
+    activate(h);
+    writeFileSync(join(h.project, "t.js"), "process.exit(0)\n");
+    const command = rewrittenCommand(h, "true && npm test | tail -3");
+    assert.equal(command.startsWith("true && { npm test;"), true, command);
+    assert.equal(command.endsWith("| tail -3"), true, command);
+    const ran = spawnSync("bash", ["-c", command], { cwd: h.project, encoding: "utf8" });
+    assert.equal(ran.status, 0, ran.stderr);
+    h.run("post-tool-use", passingBash(command));
+    assert.equal(h.receipts().length, 1);
+    assert.equal(h.receipts()[0].exit, 0);
+    assert.equal(h.receipts()[0].check, "npm test");
+    assert.equal(existsSync(join(h.dir, "check-rc")), false);
+  });
+
+  it("writes no receipt and no rc file when an earlier && part fails", () => {
+    const h = receiptHarness();
+    activate(h);
+    mkdirSync(h.dir, { recursive: true });
+    writeFileSync(join(h.dir, "check-rc"), "0\n");
+    const command = rewrittenCommand(h, "false && npm test; echo x");
+    assert.equal(existsSync(join(h.dir, "check-rc")), false);
+    assert.equal(command.startsWith("false && { npm test;"), true, command);
+    assert.equal(command.endsWith("; echo x"), true, command);
+    const ran = spawnSync("bash", ["-c", command], { cwd: h.project, encoding: "utf8" });
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.match(ran.stdout, /^x\n$/u);
+    assert.equal(existsSync(join(h.dir, "check-rc")), false);
+    h.run("post-tool-use", passingBash(command));
+    assert.deepEqual(h.receipts(), []);
+    assert.equal(existsSync(join(h.dir, "check-rc")), false);
+  });
+
+  it("keeps a quoted semicolon in an earlier && part outside the wrap", () => {
+    const h = receiptHarness();
+    activate(h);
+    const original = "sed -i '' 's/=> a + b;/=> 0;/' index.js && cat index.js && npm test; echo \"exit=$?\"";
+    const command = rewrittenCommand(h, original);
+    const head = "sed -i '' 's/=> a + b;/=> 0;/' index.js && cat index.js && ";
+    assert.equal(command.startsWith(`${head}{ npm test;`), true, command);
+    assert.equal(command.endsWith("; echo \"exit=$?\""), true, command);
+  });
+
+  it("does not rewrite when the check is not the last && element, or || appears before it", () => {
+    const h = receiptHarness();
+    activate(h);
+    assert.equal(rewrittenCommand(h, "npm test && true; echo x"), null);
+    assert.equal(rewrittenCommand(h, "a || npm test; echo"), null);
+    assert.equal(rewrittenCommand(h, "true || false && npm test; echo x"), null);
+    assert.equal(rewrittenCommand(h, "true && npm test | tail -3", { run_in_background: true }), null);
+    assert.equal(rewrittenCommand(h, "set -o pipefail && true && npm test | tail -3"), null);
+    const idle = receiptHarness();
+    assert.equal(rewrittenCommand(idle, "true && npm test; echo x"), null);
+  });
+});

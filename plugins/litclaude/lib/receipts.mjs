@@ -10,7 +10,8 @@
 // lastCodeEditAt comes from Write, Edit, MultiEdit, NotebookEdit. baselineCodeSha is the code
 // fingerprint taken the first time lit-loop, litwork or start-work activates. codeSha is that same
 // fingerprint at the check. A piped or `;`-chained check records the integer in check-rc, not the
-// pipeline's status and not anything parsed from the command's output.
+// pipeline's status and not anything parsed from the command's output. A check that ends a leading
+// `&&` chain is wrapped alone; if an earlier part of that chain fails, the check never runs.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { closeSync, constants, lstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
@@ -107,12 +108,16 @@ export const codeShaOf = (cwd) => {
 
 const shellQuote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 
-// Index of the first unquoted `|` (not `||`) or `;`. A bare `&` marks a background command.
+// Index of the first unquoted `|` (not `||`) or `;`. `orOr` is an unquoted `||` before that split.
+// `lastAndEnd` is the index just after the last unquoted `&&` before it, or -1. A bare `&` marks
+// a background command. Quotes hide all three.
 const findPipeOrSemi = (command) => {
   let quote = null;
   let escape = false;
   let background = false;
   let index = -1;
+  let orOr = false;
+  let lastAndEnd = -1;
   for (let i = 0; i < command.length; i += 1) {
     const ch = command[i];
     if (escape) { escape = false; continue; }
@@ -124,12 +129,20 @@ const findPipeOrSemi = (command) => {
     }
     if (ch === "\\") { escape = true; continue; }
     if (ch === "'" || ch === '"') { quote = ch; continue; }
-    if (ch === "|" && command[i + 1] === "|") { i += 1; continue; }
+    if (ch === "|" && command[i + 1] === "|") {
+      if (index < 0) orOr = true;
+      i += 1;
+      continue;
+    }
     if ((ch === "|" || ch === ";") && index < 0) index = i;
-    if (ch === "&" && command[i + 1] === "&") { i += 1; continue; }
+    if (ch === "&" && command[i + 1] === "&") {
+      if (index < 0) lastAndEnd = i + 2;
+      i += 1;
+      continue;
+    }
     if (ch === "&" && command[i - 1] !== ">" && command[i - 1] !== "<" && command[i - 1] !== "|") background = true;
   }
-  return { index, background };
+  return { index, background, orOr, lastAndEnd };
 };
 
 const sessionGated = (cwd, sessionId) => {
@@ -137,9 +150,13 @@ const sessionGated = (cwd, sessionId) => {
   return [...frames, ...history].some((entry) => GATED_SKILLS.has(entry?.skill));
 };
 
+const shellWhitespace = (ch) => ch === " " || ch === "\t";
+
 /**
- * The command with its first check segment wrapped so the check's exit is written to `check-rc`
- * and the group's exit stays the check's. Null when nothing should change.
+ * The command with its check wrapped so the check's exit is written to `check-rc` and the group's
+ * exit stays the check's. A check that is the whole prefix is wrapped as before. A check that is the
+ * last part of a leading `&&` chain is wrapped alone; the earlier parts stay byte-identical. Null
+ * when nothing should change.
  */
 export const planCheckRewrite = ({ cwd, sessionId, command, runInBackground = false }) => {
   try {
@@ -147,25 +164,50 @@ export const planCheckRewrite = ({ cwd, sessionId, command, runInBackground = fa
     if (typeof command !== "string" || command.length === 0 || command.length > MAX_COMMAND) return null;
     if (command.includes("pipefail")) return null;
     const split = findPipeOrSemi(command);
-    if (split.index < 0 || split.background) return null;
-    if (normalizeCheck(command.slice(0, split.index)) === null) return null;
+    if (split.index < 0 || split.background || split.orOr) return null;
+    const prefix = command.slice(0, split.index);
+    let head = "";
+    let trailing = "";
+    let checkSegment = prefix;
+    if (split.lastAndEnd >= 0) {
+      let start = split.lastAndEnd;
+      while (start < split.index && shellWhitespace(command[start])) start += 1;
+      let end = split.index;
+      while (end > start && shellWhitespace(command[end - 1])) end -= 1;
+      // An opening `&&` with nothing before it, or a blank last element, is not a chain to wrap.
+      if (!/\S/u.test(command.slice(0, split.lastAndEnd - 2)) || start >= end) return null;
+      head = command.slice(0, start);
+      trailing = command.slice(end, split.index);
+      checkSegment = command.slice(start, end);
+    }
+    if (normalizeCheck(checkSegment) === null) return null;
     if (!sessionGated(cwd, sessionId)) return null;
     const dir = sessionStateDir(cwd, sessionId);
     if (dir === null) return null;
     const rcPath = join(dir, CHECK_RC_FILE);
     if (lstatSync(rcPath, { throwIfNoEntry: false })?.isSymbolicLink()) return null;
-    const prefix = command.slice(0, split.index);
-    return `{ ${prefix}; __lit_rc=$?; printf '%s\\n' "$__lit_rc" > ${shellQuote(rcPath)}; (exit $__lit_rc); }${command.slice(split.index)}`;
+    // A short-circuited chain never writes a new exit. Drop a leftover file so it cannot be recorded.
+    try {
+      unlinkSync(rcPath);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    const wrapped = `{ ${checkSegment}; __lit_rc=$?; printf '%s\\n' "$__lit_rc" > ${shellQuote(rcPath)}; (exit $__lit_rc); }`;
+    return `${head}${wrapped}${trailing}${command.slice(split.index)}`;
   } catch {
     return null;
   }
 };
 
 const checkFromWrapped = (command) => {
-  if (typeof command !== "string" || !command.startsWith("{ ")) return null;
+  if (typeof command !== "string") return null;
   const at = command.indexOf(WRAP_MARK);
   if (at < 2) return null;
-  return normalizeCheck(command.slice(2, at));
+  if (command.startsWith("{ ")) return normalizeCheck(command.slice(2, at));
+  const marker = command.lastIndexOf("&&", at);
+  if (marker < 0) return null;
+  const braced = /^\s*\{ ([\s\S]*)$/u.exec(command.slice(marker + 2, at));
+  return braced ? normalizeCheck(braced[1]) : null;
 };
 
 // Reads and removes check-rc. A symlink is left in place and counts as no exit.

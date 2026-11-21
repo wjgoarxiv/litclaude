@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A test command at the end of a leading `&&` chain keeps its own exit in the receipt when a pipe or
+  `;` follows the chain. Earlier parts of the chain stay as written. If one of them fails, the check
+  does not run and no receipt is written.
 - A second `lit loop <objective>` in the same session asks the goal question again once the earlier
   goal has closed. Before, any repeat of a discipline already active in the session skipped it. A bare
   `lit`, `lit continue` or a start-work resume still carries on without asking.
