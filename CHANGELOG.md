@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.59 - 2026-11-21
 
 - A test command at the end of a leading `&&` chain keeps its own exit in the receipt when a pipe or
   `;` follows the chain. Earlier parts of the chain stay as written. If one of them fails, the check
