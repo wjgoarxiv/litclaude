@@ -1,14 +1,16 @@
 // lit-plan persistence gate. UserPromptSubmit records a lit-plan turn at
-// `.litclaude/lit-plan/turn.json`; the Stop hook then refuses to end the turn until a
+// `.litclaude/sessions/<session>/lit-plan-turn.json` (the shared `.litclaude/lit-plan/turn.json` is
+// still read when the session has none); the Stop hook then refuses to end the turn until a
 // `plans/*.md` newer than the prompt carries at least one `- [ ] N.` task row. The
 // block counter is the loop brake: at most LIT_PLAN_MAX_BLOCKS blocks per session,
 // after which the stop passes with a warning. Any unreadable state fails SAFE (allow).
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { describeScopePath, uncoveredScopePaths } from "./plan-scope-roots.mjs";
 import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { findProjectRoot } from "./rules/discovery.mjs";
+import { clearSessionRecord, readWithLegacyFallback, sessionStateDir, sessionStatePath } from "./session-state.mjs";
 
 export const LIT_PLAN_MAX_BLOCKS = 2;
 export const LIT_PLAN_BLOCK_REASON = "lit-plan must persist plans/<slug>.md (run scaffold-plan.mjs) before finishing";
@@ -18,12 +20,19 @@ export const LIT_PLAN_SCOPE_REASON = "lit-plan must grant the outside folders it
 const MTIME_TOLERANCE_MS = 1000;
 const TASK_ROW = /^- \[ \] \d+\./mu;
 
-export const litPlanTurnPath = (cwd = resolveProjectStateRoot()) => join(resolveProjectStateRoot(cwd), ".litclaude", "lit-plan", "turn.json");
+const TURN_FILE = "lit-plan-turn.json";
+const legacyTurnPath = (cwd) => join(resolveProjectStateRoot(cwd), ".litclaude", "lit-plan", "turn.json");
 
-const readTurn = (cwd) => {
-  const path = litPlanTurnPath(cwd);
-  if (!existsSync(path)) return null;
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
+/** The session's turn record; the legacy shared path when the session id is missing or unsafe. */
+export const litPlanTurnPath = (cwd = resolveProjectStateRoot(), sessionId = null) => {
+  const dir = sessionStatePath(cwd, sessionId);
+  return dir === null ? legacyTurnPath(cwd) : join(dir, TURN_FILE);
+};
+
+const readTurn = (cwd, sessionId) => {
+  const found = readWithLegacyFallback(litPlanTurnPath(cwd, sessionId), legacyTurnPath(cwd));
+  if (!found) return null;
+  const parsed = JSON.parse(found.text);
   if (
     !parsed
     || typeof parsed !== "object"
@@ -38,8 +47,9 @@ const readTurn = (cwd) => {
 };
 
 const writeTurn = (cwd, state) => {
-  const target = litPlanTurnPath(cwd);
-  requireStateDir(join(target, ".."));
+  const dir = sessionStateDir(cwd, state.sessionId);
+  const target = dir === null ? legacyTurnPath(cwd) : join(dir, TURN_FILE);
+  if (dir === null) requireStateDir(join(target, ".."));
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
@@ -49,7 +59,7 @@ const writeTurn = (cwd, state) => {
 export const recordLitPlanTurn = (cwd, { sessionId, now = Date.now() }) => {
   let previous = null;
   try {
-    previous = readTurn(cwd);
+    previous = readTurn(cwd, sessionId);
   } catch {
     previous = null;
   }
@@ -62,8 +72,8 @@ export const recordLitPlanTurn = (cwd, { sessionId, now = Date.now() }) => {
   });
 };
 
-export const clearLitPlanTurn = (cwd) => {
-  rmSync(litPlanTurnPath(cwd), { force: true });
+export const clearLitPlanTurn = (cwd, sessionId = null) => {
+  clearSessionRecord(litPlanTurnPath(cwd, sessionId), legacyTurnPath(cwd), sessionId);
 };
 
 const newestPlanAfter = (directory, promptAt) => {
@@ -98,7 +108,7 @@ const planDirectories = (cwd) => {
 };
 
 export const evaluateLitPlanStop = ({ cwd, sessionId, now = Date.now() }) => {
-  const turn = readTurn(cwd);
+  const turn = readTurn(cwd, sessionId);
   if (!turn || turn.sessionId !== sessionId) return { action: "allow", why: "no-lit-plan-turn" };
 
   let newest = null;

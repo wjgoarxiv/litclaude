@@ -2,6 +2,10 @@
 // what the transcript says about goals, and the one step to take at an idle. No Node built-ins, so the
 // mods loader can import it; lib/goal-pipeline.mjs re-exports it for the hook and the CLI.
 export const GOAL_DIR = ".litclaude/goal";
+// Each session keeps its own goal records under `.litclaude/sessions/<id>/goal`; the shared GOAL_DIR
+// above is the legacy place, still read when a session has no record of its own.
+export const SESSION_STATE_ID = /^[A-Za-z0-9-]{1,80}$/u;
+export const sessionGoalDir = (sessionId) => (typeof sessionId === "string" && SESSION_STATE_ID.test(sessionId) ? `.litclaude/sessions/${sessionId}/goal` : null);
 
 // Fixed status lines, one per outcome. The mod and the CLI print these and nothing else.
 export const GOAL_STATUS = Object.freeze({

@@ -484,6 +484,21 @@ installation was changed by hand or doesn't look like one LitClaude made, it ref
 touch it; the [ownership guidance](./migration.md#ownership-conflicts) explains what
 to do.
 
+Two more commands only read. Run them inside a project. `litclaude sessions` lists the live Claude
+sessions in this project (seen in the last day and not ended), with when each was last seen and the
+start-work run or goal it owns. Each session writes its plan gate, goal question and goal state into its own
+`.litclaude/sessions/<id>/` folder, so two sessions in one project no longer overwrite each other. A
+session folder unused for 7 days moves to `.litclaude/archive/sessions/` when a new session starts,
+and nothing is deleted. `litclaude why "<prompt>"` shows which workflow that prompt would start, the
+rule that picked it and the runner-up, using the same matcher as the prompt hook.
+
+During a lit-loop, litwork or start-work run, LitClaude writes a receipt each time a test command
+runs and notes when code files last changed. If the session tries to stop after a code change with
+no passing test run since, you see one warning. `litclaude config receiptGate enforce` makes that a
+block naming the check to run, once per prompt: after that block the host marks the next Stop with
+`stop_hook_active`, and LitClaude lets the session stop. `litclaude config receiptGate off` turns it
+off. Edits to Markdown, text files and `docs/` never count as code changes.
+
 If an existing installation reports `INSTALL_OWNERSHIP_CONFLICT`, stop there. Before you
 retry or move any folders, read the same
 [ownership guidance](./migration.md#ownership-conflicts).

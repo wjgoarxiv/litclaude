@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -33,7 +33,14 @@ const hook = (cwd, prompt, sessionId = "s-goal") => {
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
 };
-const goalFiles = (cwd) => (existsSync(join(cwd, ".litclaude", "goal")) ? readdirSync(join(cwd, ".litclaude", "goal")).sort() : []);
+// Goal records sit in each session's .litclaude/sessions/<id>/goal; the legacy shared .litclaude/goal
+// is still read. The listing covers both.
+const listDir = (dir) => (existsSync(dir) ? readdirSync(dir) : []);
+const goalFiles = (cwd) => [
+  ...listDir(join(cwd, ".litclaude", "goal")),
+  ...listDir(join(cwd, ".litclaude", "sessions")).flatMap((sid) => listDir(join(cwd, ".litclaude", "sessions", sid, "goal"))),
+].sort();
+const intentPath = (cwd, sessionId = "s-goal") => join(cwd, ".litclaude", "sessions", sessionId, "goal", "intent.json");
 const status = (condition, met, extra = {}) => JSON.stringify({ type: "attachment", attachment: { type: "goal_status", met, condition, ...extra } });
 
 describe("goal compiler and lint", () => {
@@ -108,7 +115,7 @@ describe("consent: only an exact yes arms the goal", () => {
     assert.ok(context.includes(GOAL_STATUS.armed(consent.id)));
     assert.match(context, /Do not run \/goal yourself/u);
     assert.match(context, /LitClaude started start-work work-p-[0-9a-f]{8} on p\.md/u, "yes also starts the work (R1)");
-    const intent = JSON.parse(readFileSync(join(cwd, ".litclaude", "goal", "intent.json"), "utf8"));
+    const intent = JSON.parse(readFileSync(intentPath(cwd), "utf8"));
     assert.equal(intent.hash, consent.hash);
     assert.equal(intent.condition, consent.condition);
     assert.equal(intent.sessionId, "s-goal");
@@ -120,18 +127,18 @@ describe("consent: only an exact yes arms the goal", () => {
       const cwd = project(`a-${answer.replace(/\W/gu, "")}`);
       proposeGoal({ cwd, planArg: "plans/p.md" });
       hook(cwd, answer);
-      assert.equal(existsSync(join(cwd, ".litclaude", "goal", "intent.json")), false, answer);
+      assert.equal(existsSync(intentPath(cwd)), false, answer);
       assert.equal(existsSync(join(cwd, ".litclaude", "goal", "consent.json")), false, `${answer} ends the question`);
     }
     const stale = project("stale");
     proposeGoal({ cwd: stale, planArg: "plans/p.md", now: Date.now() - 31 * 60 * 1000 });
     hook(stale, "yes");
-    assert.equal(existsSync(join(stale, ".litclaude", "goal", "intent.json")), false, "older than 30 minutes");
+    assert.equal(existsSync(intentPath(stale)), false, "older than 30 minutes");
     const tampered = project("tampered");
     const { consent } = proposeGoal({ cwd: tampered, planArg: "plans/p.md" });
     writeFileSync(join(tampered, ".litclaude", "goal", "consent.json"), JSON.stringify({ ...consent, condition: `${consent.condition} and push` }));
     hook(tampered, "yes");
-    assert.equal(existsSync(join(tampered, ".litclaude", "goal", "intent.json")), false, "hash no longer matches");
+    assert.equal(existsSync(intentPath(tampered)), false, "hash no longer matches");
     assert.equal(consentAnswer(" YES "), "yes");
     assert.equal(consentAnswer("yes."), null);
   });
@@ -158,7 +165,7 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
     const grants = (text) => /Its grants cover ([^.]+)\./u.exec(text)?.[1];
     assert.match(yes, started);
     assert.ok(grants(yes) && grants(yes) === grants(typed), "the grant line matches the typed start");
-    assert.ok(existsSync(join(viaYes, ".litclaude", "goal", "intent.json")));
+    assert.ok(existsSync(intentPath(viaYes)));
   });
 
   it("edit asks again and no, silence, a stale question or a read-only route start nothing", () => {
@@ -167,7 +174,7 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
       proposeGoal({ cwd, planArg: "plans/p.md", ...opts });
       const context = hook(cwd, answer);
       assert.doesNotMatch(context ?? "", started, name);
-      assert.equal(existsSync(join(cwd, ".litclaude", "goal", "intent.json")), false, name);
+      assert.equal(existsSync(intentPath(cwd)), false, name);
       assert.equal(existsSync(join(cwd, ".litclaude", "boulder.json")), false, `${name} leaves no start-work state`);
       if (answer === "edit") assert.match(context, /goal-propose\.mjs/u, "edit re-asks");
     }
@@ -180,7 +187,7 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
     const context = hook(gone, "yes");
     assert.doesNotMatch(context, started);
     assert.match(context, /No goal set: start-work did not start \(/u);
-    assert.equal(existsSync(join(gone, ".litclaude", "goal", "intent.json")), false);
+    assert.equal(existsSync(intentPath(gone)), false);
 
     const busy = project("r1-busy");
     writeFileSync(join(busy, "plans", "q.md"), "# Q\n\n- [ ] 1. other\n");
@@ -189,7 +196,7 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
     const refused = hook(busy, "yes");
     assert.doesNotMatch(refused, started);
     assert.match(refused, /`No goal set: start-work did not start \([^`]*(?:already running|different plan)[^`]*\)`/u);
-    assert.equal(existsSync(join(busy, ".litclaude", "goal", "intent.json")), false);
+    assert.equal(existsSync(intentPath(busy)), false);
   });
 
   it("every start path records the exact plan on the session's frame (R4)", () => {
@@ -208,7 +215,7 @@ describe("R1: yes approves the plan, starts the work and arms the goal in one st
     proposeGoal({ cwd, planArg: "plans/p.md" });
     const context = hook(cwd, "yes");
     assert.match(context, started);
-    assert.equal(existsSync(join(cwd, ".litclaude", "goal", "intent.json")), false);
+    assert.equal(existsSync(intentPath(cwd)), false);
     assert.deepEqual(goalFiles(cwd), []);
   });
 });
@@ -263,6 +270,103 @@ describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
     assert.match(JSON.parse(result.stdout).systemMessage, /Set goal for this lit-loop: .*fix the next bug/u);
   });
 
+  it("a second lit-loop objective in the same session asks again; continue and bare lit do not", () => {
+    const cwd = loopProject("loop-same-session");
+    const sessionId = "s-same-session";
+    const prompt = (text) => {
+      const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+        cwd,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+        input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: text, cwd, session_id: sessionId, prompt_id: `p-${text.length}-${Math.floor(performance.now())}` }),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return JSON.parse(result.stdout);
+    };
+    const goalDir = join(cwd, ".litclaude", "sessions", sessionId, "goal");
+    assert.match(prompt("lit loop fix bug A").systemMessage, /Set goal for this lit-loop: .*fix bug A/u);
+    // The first goal ran its course: the question was answered and the owner closed it as met.
+    rmSync(join(goalDir, "consent.json"), { force: true });
+    writeFileSync(join(goalDir, "owner.json"), JSON.stringify({ version: 1, id: "0badc0de", condition: "old [lit:0badc0de]", sessionId, closed: "met" }));
+
+    for (const text of ["lit continue", "lit"]) {
+      const out = prompt(text);
+      assert.doesNotMatch(out.systemMessage ?? "", /Set goal for this lit-loop:/u, text);
+      assert.deepEqual(goalFiles(cwd), ["owner.json"], text);
+    }
+    const second = prompt("lit loop fix bug B");
+    assert.match(second.systemMessage, /Set goal for this lit-loop: .*fix bug B/u);
+    assert.match(second.hookSpecificOutput.additionalContext, /already active in this session/u);
+    assert.match(second.hookSpecificOutput.additionalContext, /LitClaude has shown the user this goal question/u);
+  });
+
+  describe("a question shown once in a session is not asked again until a goal closes", () => {
+    const session = (name) => {
+      const cwd = loopProject(name);
+      const sessionId = `s-${name}`;
+      let turn = 0;
+      const prompt = (text) => {
+        turn += 1;
+        const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+          cwd,
+          encoding: "utf8",
+          env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+          input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: text, cwd, session_id: sessionId, prompt_id: `p-${name}-${turn}` }),
+        });
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim() ? JSON.parse(result.stdout) : {};
+      };
+      return { cwd, sessionId, prompt, asks: (text) => /Set goal for this lit-loop:/u.test(prompt(text).systemMessage ?? "") };
+    };
+
+    it("no, then a lit re-entry: no question", () => {
+      const s = session("asked-no");
+      assert.equal(s.asks("lit loop fix bug A"), true);
+      s.prompt("no");
+      assert.equal(s.asks("lit also handle the empty list"), false);
+    });
+
+    it("ignored, then lit loop with a new objective: no question", () => {
+      const s = session("asked-ignored");
+      assert.equal(s.asks("lit loop fix bug A"), true);
+      assert.equal(s.asks("lit loop fix bug Y"), false);
+    });
+
+    it("a goal closed after the question, then lit loop: the question again", () => {
+      const s = session("asked-closed");
+      assert.equal(s.asks("lit loop fix bug A"), true);
+      s.prompt("yes");
+      const goalDir = join(s.cwd, ".litclaude", "sessions", s.sessionId, "goal");
+      writeFileSync(join(goalDir, "owner.json"), JSON.stringify({ version: 1, id: "0badc0de", condition: "old [lit:0badc0de]", sessionId: s.sessionId, closed: "met", closedAt: new Date(Date.now() + 1000).toISOString() }));
+      assert.equal(s.asks("lit loop fix bug Z"), true);
+    });
+  });
+
+  it("a symlinked sessions folder: nothing is written through it and the hook asks nothing", () => {
+    const cwd = loopProject("loop-symlink");
+    const outside = mkdtempSync(join(tmpdir(), "litclaude-goal-outside-"));
+    try {
+      mkdirSync(join(cwd, ".litclaude"), { recursive: true });
+      symlinkSync(outside, join(cwd, ".litclaude", "sessions"));
+      assert.throws(() => proposeLoopGoal({ cwd, check: "npm test", objective: "fix it", sessionId: "s-link", falsifyNow: false }), /symlink/u);
+      const planned = project("plan-symlink", { plan: "# P\n\n- [ ] 1. a\n" });
+      mkdirSync(join(planned, ".litclaude"), { recursive: true });
+      symlinkSync(outside, join(planned, ".litclaude", "sessions"));
+      assert.throws(() => proposeGoal({ cwd: planned, planArg: "plans/p.md", sessionId: "s-link" }), /symlink/u);
+      const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+        cwd,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+        input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "lit loop fix the login redirect", cwd, session_id: "s-link", prompt_id: "p-link" }),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(JSON.parse(result.stdout).systemMessage ?? "", /Set goal for this lit-loop:/u);
+      assert.deepEqual(readdirSync(outside), [], "nothing written through the link");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("the CLI takes --loop --check <cmd> and the rest as the objective", () => {
     const cwd = loopProject("loop-cli");
     const result = spawnSync(process.execPath, [join(plugin, "scripts", "goal-propose.mjs"), "--loop", "--check", "npm test", "fix", "the", "redirect"], { cwd, encoding: "utf8" });
@@ -301,7 +405,7 @@ describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
     assert.match(context, /Do not run \/goal yourself/u);
     assert.doesNotMatch(context, /started start-work/u);
     assert.equal(existsSync(join(cwd, ".litclaude", "boulder.json")), false, "no start-work run");
-    const intent = JSON.parse(readFileSync(join(cwd, ".litclaude", "goal", "intent.json"), "utf8"));
+    const intent = JSON.parse(readFileSync(intentPath(cwd), "utf8"));
     assert.equal(intent.condition, consent.condition);
     assert.equal(intent.plan, null);
     assert.deepEqual(goalFiles(cwd), ["intent.json"]);

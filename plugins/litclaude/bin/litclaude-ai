@@ -16,8 +16,10 @@ const SUBCOMMANDS = {
   },
   "workflow-stage": async (load, rest) => (await load("../lib/workflow-stage.mjs")).runWorkflowStageCli(rest, process.cwd()),
   rewind: async (load, rest) => (await load("../lib/rewind/collect.mjs")).runRewindCli(rest, process.cwd()),
+  sessions: async (load, rest) => (await load("../lib/session-state.mjs")).runSessionsCli(rest, process.cwd()),
   wikify: async (load, rest) => (await load("../lib/wikify-knowledge-cli.mjs")).runWikifyKnowledgeCli(rest, undefined, process.cwd()),
   "agent-file": async (load, rest) => (await load("../lib/agent-file/cli.mjs")).runAgentFileCli(rest, { cwd: process.cwd() }),
+  why: async (load, rest) => (await load("../lib/route-why-cli.mjs")).runWhyCli(rest),
 };
 
 const main = async () => {

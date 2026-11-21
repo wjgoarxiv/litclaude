@@ -41,7 +41,8 @@ describe("lit-diagram-drawer stub enrollment", () => {
 
   it("is wired to the prompt hook and documented in both guides, the hook guide, and the changelog", () => {
     const hook = readFileSync(hookPath, "utf8");
-    assert.match(hook, /"lit-diagram-drawer": \{ command: "\/litclaude:lit-diagram-drawer"/u);
+    // The trigger table moved with the router into lib/route-match.mjs, which the hook imports.
+    assert.match(readFileSync(join(pluginRoot, "lib", "route-match.mjs"), "utf8"), /"lit-diagram-drawer": \{ command: "\/litclaude:lit-diagram-drawer"/u);
     assert.match(hook, /"lit-diagram-drawer": "Mode contract: lit-diagram-drawer moved/u);
     for (const doc of ["docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md", "docs/hooks.md", "CHANGELOG.md"]) {
       assert.match(readFileSync(join(root, doc), "utf8"), /lit-diagram-drawer/u, `${doc} must document the skill`);

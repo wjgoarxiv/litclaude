@@ -33,6 +33,7 @@ import { readPublicSource } from "../plugins/litclaude/lib/public-source-reader/
 import { shellFreeCommand } from "../plugins/litclaude/lib/npm-invocation.mjs";
 import { MOD_CHOICES } from "../plugins/litclaude/lib/mod/settings.mjs";
 import { MARK_MODES, readMarkMode, writeMarkMode } from "../plugins/litclaude/lib/mark.mjs";
+import { RECEIPT_GATE_MODES, readReceiptGateMode, writeReceiptGateMode } from "../plugins/litclaude/lib/receipt-gate.mjs";
 import {
   AGENT_FILE_ID,
   AGENT_FILE_MODES,
@@ -63,7 +64,9 @@ import { runLitgoalCli } from "../plugins/litclaude/lib/litgoal/cli.mjs";
 import { runWorkflowCheckCli } from "../plugins/litclaude/lib/workflow-check.mjs";
 import { runWorkflowStageCli } from "../plugins/litclaude/lib/workflow-stage.mjs";
 import { runRewindCli } from "../plugins/litclaude/lib/rewind/collect.mjs";
+import { runSessionsCli } from "../plugins/litclaude/lib/session-state.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
+import { runWhyCli } from "../plugins/litclaude/lib/route-why-cli.mjs";
 import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plugins/litclaude/lib/invite.mjs";
@@ -88,7 +91,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const version = packageJson.version;
 
-const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|extensions|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|start-work|start-work-next|public-read> [...args]
+const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|extensions|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|sessions|start-work|start-work-next|public-read|why> [...args]
        litclaude-ai --version
 
 Commands:
@@ -104,6 +107,8 @@ Commands:
                 block in the global CLAUDE.md; your own text there is never touched.
                 \`config attribution <keep|off>\` keeps or hides Claude Code's
                 Co-Authored-By and pull request line (keep is the default).
+                \`config receiptGate <off|shadow|enforce>\` sets what Stop does when
+                code changed after the last passing check (shadow warns, the default).
   agent-file project [--dir <path>]
                 Write the LitFamily project block into the repo's AGENTS.md, and a
                 CLAUDE.md that imports it when the repo has none (what \`lit init\` runs).
@@ -125,7 +130,11 @@ Commands:
   rewind [--brief [--lang ko|en] | --json] [--here] [--since 7d] [--max 12]
                 Draw the lit-adhd brief: what recent sessions in this project's
                 worktrees asked, did and wait on, with plan gauges and one next step.
+  sessions      List this project's per-session state folders (session, last seen, owned
+                start-work, LitClaude goal). Read-only.
   public-read   Read a public http(s) source with FetchAttempt/FetchVerdict JSON.
+  why "<prompt>" Show which workflow a prompt routes to, the rule that chose it and
+                the runner-up. Shows at most 80 characters of the prompt.
   update        Reinstall this package version and refresh the Claude plugin registry.
   uninstall     Remove LitClaude-managed install state.
   extensions <list|check|install|update|remove|prune-backups|prune-versions>
@@ -425,7 +434,7 @@ const familyBanner = ({ color = shouldColorInstall() } = {}) => [
 ].join("\n");
 
 const printCommandBanner = (parsed) => {
-  if (["install", "update", "workflow-stage", "rewind"].includes(parsed.command)) return;
+  if (["install", "update", "workflow-stage", "rewind", "sessions", "why"].includes(parsed.command)) return;
   if (parsed.rest.some((arg) => arg === "--json" || arg.startsWith("--json="))) return;
   const color = shouldColorInstall();
   process.stdout.write(`${renderLitClaudeWordmark({ color }).join("\n")}\n`);
@@ -923,6 +932,7 @@ const configModOptions = (rest, home = claudeHome()) => {
     process.stdout.write(`${"mark".padEnd(7)} ${readMarkMode({ litHome: litHome() }).padEnd(7)} (${MARK_MODES.join(", ")})\n`);
     process.stdout.write(`agentFile ${readAgentFileMode({ litHome: litHome() }).padEnd(5)} (${AGENT_FILE_MODES.join(", ")})\n`);
     process.stdout.write(`attribution ${readAttributionMode({ litHome: litHome() }).padEnd(4)} (${ATTRIBUTION_MODES.join(", ")})\n`);
+    process.stdout.write(`receiptGate ${readReceiptGateMode({ litHome: litHome() }).padEnd(7)} (${RECEIPT_GATE_MODES.join(", ")})\n`);
     process.stdout.write("Change one with: litclaude-ai config <option> <value>. New Claude Code sessions, terminal or desktop app, pick it up.\n");
     return;
   }
@@ -951,6 +961,18 @@ const configModOptions = (rest, home = claudeHome()) => {
     process.stdout.write(`AGENT_FILE: ${value}\n${agentFileLine(writeAgentFile(value === "off" ? "uninstall" : "install"))}\n`);
     return;
   }
+  // `receiptGate` is read by the Stop hook from config.json: off, shadow (warn) or enforce (block).
+  if (key === "receiptGate") {
+    const value = String(raw ?? "").trim().toLowerCase();
+    if (!RECEIPT_GATE_MODES.includes(value) || rest.length > 2) fail(`receiptGate takes one of: ${RECEIPT_GATE_MODES.join(", ")}`, 64);
+    try {
+      writeReceiptGateMode(litHome(), value);
+    } catch (error) {
+      fail(error.message);
+    }
+    process.stdout.write(`RECEIPT_GATE: ${value}\n`);
+    return;
+  }
   // `attribution` sets Claude Code's own setting and the block line together.
   if (key === "attribution") {
     const value = String(raw ?? "").trim().toLowerCase();
@@ -965,7 +987,7 @@ const configModOptions = (rest, home = claudeHome()) => {
     process.stdout.write(`ATTRIBUTION: ${value}\n${block ? `${agentFileLine(block)}\n` : ""}`);
     return;
   }
-  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark", "agentFile", "attribution"].join(", ")}`, 64);
+  if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark", "agentFile", "attribution", "receiptGate"].join(", ")}`, 64);
   const value = String(raw ?? "").trim().toLowerCase();
   if (!MOD_CHOICES[key].includes(value) || rest.length > 2) fail(`${key} takes one of: ${MOD_CHOICES[key].join(", ")}`, 64);
   const settings = readClaudeSettings(home);
@@ -2048,6 +2070,9 @@ const main = async () => {
     case "rewind":
       exitAfterFlush(runRewindCli(parsed.rest, process.cwd()));
       break;
+    case "sessions":
+      exitAfterFlush(runSessionsCli(parsed.rest, process.cwd()));
+      break;
     case "public-read":
       exitAfterFlush(await runPublicRead(parsed));
       break;
@@ -2062,6 +2087,9 @@ const main = async () => {
       break;
     case "agent-file":
       exitAfterFlush(runAgentFileCli(parsed.rest, { dryRun: parsed.dryRun }));
+      break;
+    case "why":
+      exitAfterFlush(runWhyCli(parsed.rest));
       break;
     case "extensions":
       exitAfterFlush(runExtensionsCli(parsed.dryRun ? [...parsed.rest, "--dry-run"] : parsed.rest, extensionsContext()));

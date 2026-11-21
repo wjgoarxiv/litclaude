@@ -2,26 +2,30 @@
 // `node <plugin>/scripts/goal-propose.mjs plans/<slug>.md`: lit-plan runs this once, after the plan is
 // written, and adds the line it prints to the approval question. It compiles the plan's `## Done when`
 // block into one `/goal` condition, lints it, runs the check once to prove the condition is false
-// now, and records the question in `.litclaude/goal/consent.json`. It prints the consent question
+// now, and records the question in the session's `.litclaude/sessions/<id>/goal/consent.json` (the
+// legacy shared `.litclaude/goal/consent.json` without a session id). It prints the consent question
 // (yes starts the work and arms the goal), or, when no goal can be set for a readable plan, the
 // start-only question and the `No goal set: <reason>` line. It never sets a goal or starts work
 // itself; only the user's exact `yes` on the next prompt does, through the prompt hook.
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { GOAL_DIR, GOAL_STATUS, compileCondition, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { goalWritePath } from "../lib/goal-files.mjs";
+import { GOAL_STATUS, compileCondition, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
 import { normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
+import { prepareStateDir, STATE_WRITE_FLAG } from "../lib/project-state-root.mjs";
 
-const record = (cwd, consent) => {
-  const dir = join(cwd, GOAL_DIR);
-  mkdirSync(dir, { recursive: true });
-  const staging = join(dir, `consent.json.${process.pid}.tmp`);
-  writeFileSync(staging, `${JSON.stringify(consent)}\n`);
-  renameSync(staging, join(dir, "consent.json"));
+// A symlinked or non-folder state path throws instead of writing through it.
+const record = (cwd, sessionId, consent) => {
+  const target = goalWritePath(cwd, sessionId, "consent.json");
+  if (!prepareStateDir(dirname(target))) throw new Error("the LitClaude goal state folder is a symlink or not a folder; refusing to write");
+  const staging = `${target}.${process.pid}.tmp`;
+  writeFileSync(staging, `${JSON.stringify(consent)}\n`, { flag: STATE_WRITE_FLAG });
+  renameSync(staging, target);
 };
 
-export const proposeGoal = ({ cwd, planArg, now = Date.now(), timeoutMs, run } = {}) => {
+export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), timeoutMs, run } = {}) => {
   const planPath = resolve(cwd, String(planArg ?? ""));
   const plan = relative(cwd, planPath);
   if (!planArg || isAbsolute(plan) || plan.startsWith("..") || !/^plans\/[\w.-]+\.md$/u.test(plan)) return { line: GOAL_STATUS.skipped("give the plan as plans/<slug>.md inside this project") };
@@ -35,7 +39,7 @@ export const proposeGoal = ({ cwd, planArg, now = Date.now(), timeoutMs, run } =
   // A readable plan with no settable goal still gets the start question; yes then starts the work only.
   const startOnly = (reason) => {
     const consent = { version: 1, condition: null, hash: startOnlyHash(plan), id: null, plan, reason, askedAt };
-    record(cwd, consent);
+    record(cwd, sessionId, consent);
     return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, consent };
   };
   if (/^goal:\s*never\s*$/mu.test(planText)) return startOnly("this plan is marked goal: never");
@@ -48,7 +52,7 @@ export const proposeGoal = ({ cwd, planArg, now = Date.now(), timeoutMs, run } =
   const dry = falsify({ cwd, plan, planText, check: done.check, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) });
   if (!dry.ok) return startOnly(dry.reason);
   const consent = { version: 1, condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan, askedAt };
-  record(cwd, consent);
+  record(cwd, sessionId, consent);
   return { line: GOAL_STATUS.asked(built.condition), consent };
 };
 
@@ -69,7 +73,7 @@ export const detectCheck = (cwd) => {
 
 // falsifyNow: false skips the dry run (the prompt hook cannot wait on a test run); the objective clause
 // still keeps such a goal false until the work is done.
-export const proposeLoopGoal = ({ cwd, check, objective, now = Date.now(), timeoutMs, run, falsifyNow = true } = {}) => {
+export const proposeLoopGoal = ({ cwd, check, objective, sessionId = null, now = Date.now(), timeoutMs, run, falsifyNow = true } = {}) => {
   const goal = normalizeGoalObjective(String(objective ?? ""));
   const command = String(check ?? "").trim();
   if (!goal) return { line: GOAL_STATUS.skipped("name what the loop should finish") };
@@ -80,14 +84,21 @@ export const proposeLoopGoal = ({ cwd, check, objective, now = Date.now(), timeo
   const dry = falsifyNow ? falsifyLoop({ cwd, check: command, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) }) : { ok: true };
   if (!dry.ok) return { line: GOAL_STATUS.skipped(dry.reason) };
   const consent = { version: 1, kind: "loop", condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan: null, objective: goal, askedAt: new Date(now).toISOString() };
-  record(cwd, consent);
+  record(cwd, sessionId, consent);
   return { line: GOAL_STATUS.loopAsked(built.condition), consent };
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [first, ...rest] = process.argv.slice(2);
-  const { line } = first === "--loop" && rest[0] === "--check"
-    ? proposeLoopGoal({ cwd: process.cwd(), check: rest[1], objective: rest.slice(2).join(" ") })
-    : proposeGoal({ cwd: process.cwd(), planArg: first });
+  // Claude Code names the session in the Bash tool's environment; without it the shared path is used.
+  const sessionId = process.env.CLAUDE_CODE_SESSION_ID || null;
+  let line;
+  try {
+    ({ line } = first === "--loop" && rest[0] === "--check"
+      ? proposeLoopGoal({ cwd: process.cwd(), sessionId, check: rest[1], objective: rest.slice(2).join(" ") })
+      : proposeGoal({ cwd: process.cwd(), sessionId, planArg: first }));
+  } catch (error) {
+    line = GOAL_STATUS.skipped(error instanceof Error ? error.message : "the question could not be recorded");
+  }
   process.stdout.write(`${line}\n`);
 }

@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
 const hookSource = readFileSync(hookPath, "utf8");
-const turnStatePath = (cwd) => join(cwd, ".litclaude", "lit-plan", "turn.json");
+// Each session keeps its own turn record under .litclaude/sessions/<id>/.
+const turnStatePath = (cwd, sessionId = "session-plan-1") => join(cwd, ".litclaude", "sessions", sessionId, "lit-plan-turn.json");
 
 const BLOCK_REASON = "lit-plan must persist plans/<slug>.md (run scaffold-plan.mjs) before finishing";
 

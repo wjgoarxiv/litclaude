@@ -72,10 +72,11 @@ test("the mod keeps to the static rules: own files only, no dynamic import, no N
 
 test("the mod is read-only apart from its native goal: no other writes, processes, network, model calls or prompts", () => {
   const closure = modClosure();
-  // S4: its one write is its own goal records under .litclaude/goal/, its one command `/goal`.
+  // S4: its one write is its own goal records (the session's .litclaude/sessions/<id>/goal/ or the legacy
+  // .litclaude/goal/, found by findGoalRecord), its one command `/goal`.
   const hooksText = closure.get(join(pluginRoot, "hooks", "lit-mod.mjs"));
   const writes = [...hooksText.matchAll(/\$\.fs\.write\(([^,]+),/gu)].map((match) => match[1].trim());
-  assert.ok(writes.length > 0 && writes.every((target) => /^`\$\{(?:dir|path)\}(?:\/(?:intent|owner|clear)\.json)?`$|^path$/u.test(target)), writes.join(" "));
+  assert.ok(writes.length > 0 && writes.every((target) => /^`\$\{(?:dir|path)\}(?:\/(?:intent|owner|clear)\.json)?`$|^(?:path|intentPath|ownerPath|clearPath)$|^intentPath\.replace\(\/intent\\\.json\$\/u$/u.test(target)), writes.join(" "));
   assert.deepEqual([...new Set([...hooksText.matchAll(/\$\.command\.run\(\{ command: "([a-z]+)"/gu)].map((match) => match[1]))], ["goal"]);
   for (const [path, text] of closure) if (path !== join(pluginRoot, "hooks", "lit-mod.mjs")) assert.doesNotMatch(text, /\$\.(?:fs\.write|command\.run)/u, relative(pluginRoot, path));
   const forbidden = /\$\.(?:process\.|http\.|model\.|store\.(?:set|delete)|env\.set|prompt\.(?:submit|fill)|session\.(?:append|send|compact)|tool\.call|agent\.spawn|mcp\.|audio\.)/u;

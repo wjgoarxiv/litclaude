@@ -1,7 +1,10 @@
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { closeSync, existsSync, fsyncSync, lstatSync, openSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
+import { acquireOwnerLock, OwnerLockError, readOwnerLock, releaseOwnerLock } from "../owner-lock.mjs";
 import { requireStateDir, STATE_WRITE_FLAG } from "../project-state-root.mjs";
+import { directoryIdentity, sameDirectoryIdentity } from "../secure-path-read.mjs";
 
 export class LitgoalStateError extends Error {
   constructor(message, status = 65) {
@@ -42,28 +45,45 @@ export const writeLitgoalState = (path, state) => {
   }
 };
 
-const sleepSync = (milliseconds) => {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+// A lock older than this whose owner is dead, or that has no owner record at all, is recovered.
+export const LITGOAL_LOCK_TIMEOUT_MS = 5000;
+
+// Locks taken before the owner-lock switch are bare folders with no owner record, so the owner-lock
+// takeover cannot judge them and a crashed run left one that blocked every later litgoal call. An
+// ownerless folder past the timeout is moved aside to `.lock.stale.<id>` (kept, not deleted); if the
+// rename caught a different folder, it is put back.
+const moveOwnerlessLockAside = (lockDir) => {
+  const stats = lstatSync(lockDir, { throwIfNoEntry: false });
+  if (!stats || stats.isSymbolicLink() || !stats.isDirectory()) return;
+  if (Date.now() - stats.mtimeMs < LITGOAL_LOCK_TIMEOUT_MS || readOwnerLock(lockDir)) return;
+  const aside = `${lockDir}.stale.${randomUUID()}`;
+  try {
+    renameSync(lockDir, aside);
+  } catch {
+    return;
+  }
+  const moved = lstatSync(aside, { throwIfNoEntry: false });
+  if (moved && sameDirectoryIdentity(directoryIdentity(moved), directoryIdentity(stats)) && !readOwnerLock(aside)) return;
+  try {
+    if (!existsSync(lockDir)) renameSync(aside, lockDir);
+  } catch {
+    // The aside folder stays for inspection.
+  }
 };
 
 export const withLitgoalLock = (lockDir, fn) => {
   requireStateDir(dirname(lockDir));
-  const startedAt = Date.now();
-  while (true) {
-    try {
-      mkdirSync(lockDir, { recursive: false });
-      break;
-    } catch (error) {
-      if (Date.now() - startedAt > 5000) {
-        throw new LitgoalStateError("litgoal state lock timed out");
-      }
-      sleepSync(20);
-    }
+  moveOwnerlessLockAside(lockDir);
+  let owner;
+  try {
+    owner = acquireOwnerLock(lockDir, { timeoutMs: LITGOAL_LOCK_TIMEOUT_MS, staleMs: LITGOAL_LOCK_TIMEOUT_MS });
+  } catch (error) {
+    if (error instanceof OwnerLockError) throw new LitgoalStateError(`litgoal ${error.message}`);
+    throw error;
   }
-
   try {
     return fn();
   } finally {
-    rmSync(lockDir, { recursive: true, force: true });
+    releaseOwnerLock(lockDir, owner);
   }
 };

@@ -31,7 +31,7 @@ import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
 import { detectIconFont, readGitBranch, readInvited, readLedgerTail, readLitSnapshot, readPluginVersions } from "../lib/mod/state.mjs";
 import { settledSample } from "../lib/mod/timeline.mjs";
-import { GOAL_DIR, goalStep, transcriptPathFor } from "../lib/mod/goal.mjs";
+import { GOAL_DIR, goalStep, sessionGoalDir, transcriptPathFor } from "../lib/mod/goal.mjs";
 import {
   EMPTY_ACTIVITY,
   EMPTY_LISTS,
@@ -164,6 +164,15 @@ async function readGoalRecord($, path) {
   }
 }
 
+// The session's own record, else the legacy shared one, as { value, path }; writes go back to that path.
+async function findGoalRecord($, dirs, name) {
+  for (const dir of dirs) {
+    const value = await readGoalRecord($, `${dir}/${name}.json`);
+    if (value) return { value, path: `${dir}/${name}.json` };
+  }
+  return null;
+}
+
 // One idle's goal work: read the records and the transcript, take the step goalStep picks, say it in
 // its fixed status line. Runs after the turn settled (a hook the turn waits on cannot run a command).
 async function goalTick($, live) {
@@ -171,28 +180,31 @@ async function goalTick($, live) {
   live.goalBusy = true;
   try {
     const [cwd, sessionId] = await Promise.all([$.session.cwd(), $.session.id()]);
-    const dir = `${cwd}/${GOAL_DIR}`;
-    const [intent, owner, clear] = await Promise.all(["intent", "owner", "clear"].map((name) => readGoalRecord($, `${dir}/${name}.json`)));
+    const own = sessionGoalDir(sessionId);
+    const dirs = own ? [`${cwd}/${own}`, `${cwd}/${GOAL_DIR}`] : [`${cwd}/${GOAL_DIR}`];
+    const found = await Promise.all(["intent", "owner", "clear"].map((name) => findGoalRecord($, dirs, name)));
+    const [intent, owner, clear] = found.map((record) => record?.value ?? null);
+    const [intentPath, ownerPath, clearPath] = found.map((record) => record?.path);
     if ((!intent || intent.consumedAt) && (!owner || owner.closed)) return;
     const transcript = live.configDir ? await $.fs.read(transcriptPathFor(live.configDir, cwd, sessionId)).catch(() => "") : "";
     const step = goalStep({ intent, owner, clear, transcript, sessionId });
     const now = new Date(await $.clock.now()).toISOString();
-    if (step.do === "skip-yours" || step.do === "set") await $.fs.write(`${dir}/intent.json`, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
+    if (step.do === "skip-yours" || step.do === "set") await $.fs.write(intentPath, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
     if (step.do === "set") {
       try {
         await $.command.run({ command: "goal", args: step.condition });
-        await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ version: 1, condition: intent.condition, hash: intent.hash, id: intent.id, plan: intent.plan, sessionId, setAt: now, confirmed: false })}\n`);
+        await $.fs.write(intentPath.replace(/intent\.json$/u, "owner.json"), `${JSON.stringify({ version: 1, condition: intent.condition, hash: intent.hash, id: intent.id, plan: intent.plan, sessionId, setAt: now, confirmed: false })}\n`);
       } catch {
         $.ui.toast(`Goal not confirmed. Paste: /goal ${step.condition}`);
         return;
       }
     }
-    if (step.do === "confirm") await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ ...owner, confirmed: true, confirmedAt: now })}\n`);
+    if (step.do === "confirm") await $.fs.write(ownerPath, `${JSON.stringify({ ...owner, confirmed: true, confirmedAt: now })}\n`);
     if (step.do === "clear") {
       await $.command.run({ command: "goal", args: "clear" }).catch(() => null);
-      if (clear) await $.fs.write(`${dir}/clear.json`, `${JSON.stringify({ ...clear, consumedAt: now })}\n`);
+      if (clear) await $.fs.write(clearPath, `${JSON.stringify({ ...clear, consumedAt: now })}\n`);
     }
-    if (step.do === "close" || step.do === "clear") await $.fs.write(`${dir}/owner.json`, `${JSON.stringify({ ...owner, closed: step.why, closedAt: now })}\n`);
+    if (step.do === "close" || step.do === "clear") await $.fs.write(ownerPath, `${JSON.stringify({ ...owner, closed: step.why, closedAt: now })}\n`);
     if (step.status) $.ui.toast(step.status);
   } catch {
     // The goal record is best effort; the card keeps drawing.

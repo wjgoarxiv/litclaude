@@ -73,7 +73,8 @@ const writePlan = (cwd, slug = "demo") => {
   writeFileSync(join(cwd, "plans", `${slug}.md`), completePlan(slug));
 };
 
-const turnFile = (cwd) => join(cwd, ".litclaude", "lit-plan", "turn.json");
+// The lit-plan turn lives in each session's own folder; the shared .litclaude/lit-plan/turn.json is legacy.
+const turnFile = (cwd, sid) => join(cwd, ".litclaude", "sessions", sid, "lit-plan-turn.json");
 // The session's top workflow frame, read and refined the way the model's stage call would.
 const topFrame = (cwd, sid) => readStack(cwd, sid).frames.at(-1);
 const setTopCount = (cwd, sid, counts) => {
@@ -161,12 +162,12 @@ describe("lit re-entry: switch, restart and a new session", () => {
     const plan = prompt(cwd, sid, "lit plan the migration");
     assertFull(plan, "lit plan after lit-loop");
     assert.match(plan, /planning-only/u);
-    assert.equal(existsSync(turnFile(cwd)), true, "the plan persistence gate is armed for the plan turn");
+    assert.equal(existsSync(turnFile(cwd, sid)), true, "the plan persistence gate is armed for the plan turn");
     assertContinue(prompt(cwd, sid, "lit plan the rollback too"), "second lit plan");
-    assert.equal(existsSync(turnFile(cwd)), true, "a repeated lit plan keeps the gate armed");
+    assert.equal(existsSync(turnFile(cwd, sid)), true, "a repeated lit plan keeps the gate armed");
     // lit-loop's contract is still in the conversation, so going back to it gets the short note.
     assertContinue(prompt(cwd, sid, "lit fix the bug in the parser"), "back to lit-loop");
-    assert.equal(existsSync(turnFile(cwd)), false, "leaving lit plan disarms the gate");
+    assert.equal(existsSync(turnFile(cwd, sid)), false, "leaving lit plan disarms the gate");
   });
 
   it("restarts on lit new and lit restart with the full activation", () => {
@@ -223,7 +224,7 @@ describe("lit re-entry: resume and confirmation", () => {
       assert.match(context, /plans\/demo\.md/u);
       assert.match(context, /LIT IGNITED · lit-plan/u);
       assert.doesNotMatch(context, /Soft-confirm|resum/iu);
-      assert.equal(existsSync(turnFile(cwd)), true, "the plan gate stays armed");
+      assert.equal(existsSync(turnFile(cwd, sid)), true, "the plan gate stays armed");
       assert.equal(topFrame(cwd, sid).n, 1, "no stage reset");
       assert.deepEqual(readdirSync(join(cwd, "plans")), ["demo.md"], "no new plan");
     }
@@ -244,7 +245,7 @@ describe("lit re-entry: resume and confirmation", () => {
       assert.doesNotMatch(context, SKILL_LOAD_LINE);
       assert.doesNotMatch(context, /Soft-confirm/u);
       assert.deepEqual(readdirSync(join(cwd, "plans")), before, "resume writes no plan");
-      assert.equal(existsSync(turnFile(cwd)), false, "resume does not arm the plan gate");
+      assert.equal(existsSync(turnFile(cwd, sid)), false, "resume does not arm the plan gate");
     }
   });
 

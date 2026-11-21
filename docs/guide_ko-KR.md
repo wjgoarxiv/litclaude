@@ -458,6 +458,21 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 않고 거절합니다. 그때 할 일은 [소유권 충돌 안내](./migration.md#ownership-conflicts)에
 있습니다.
 
+읽기만 하는 명령이 두 개 더 있어요. 둘 다 프로젝트 안에서 실행하세요. `litclaude sessions`는 이
+프로젝트에서 지금 살아 있는 Claude 세션(지난 하루 안에 보였고 끝나지 않은 세션)을 보여줘요. 세션마다 마지막으로 보인 시각과, 그 세션이
+맡은 start-work 실행이나 목표가 함께 나와요. 세션은 계획 확인, 목표 질문, 목표 상태를 각자의
+`.litclaude/sessions/<id>/` 폴더에 적어요. 그래서 한 프로젝트에서 세션 두 개를 열어도 서로 덮어쓰지
+않아요. 7일 동안 쓰지 않은 세션 폴더는 새 세션이 시작될 때 `.litclaude/archive/sessions/`로 옮겨지고,
+지워지는 건 없어요. `litclaude why "<프롬프트>"`는 그 프롬프트가 어떤 워크플로를 시작할지 알려줘요.
+골라낸 규칙과 그다음 후보도 같이 보여줘요. 프롬프트 훅과 같은 판별 코드를 써요.
+
+lit-loop, litwork, start-work를 돌리는 동안 LitClaude는 테스트 명령이 실행될 때마다 영수증을 남기고,
+코드 파일이 마지막으로 바뀐 시각을 적어 둬요. 코드를 바꾼 뒤 통과한 테스트 없이 세션이 멈추려고 하면
+경고가 한 번 떠요. `litclaude config receiptGate enforce`로 바꾸면 경고 대신 멈춤을 막고, 돌려야 할
+검사를 알려줘요. 막는 건 한 프롬프트에 한 번이에요. 그다음 Stop에는 호스트가 `stop_hook_active`를
+붙이고, LitClaude는 그때 세션을 멈추게 둬요. `litclaude config receiptGate off`로 끌 수 있어요.
+Markdown, 텍스트 파일, `docs/` 수정은 코드 변경으로 치지 않아요.
+
 기존 설치에서 `INSTALL_OWNERSHIP_CONFLICT`가 나오면 거기서 멈추세요. 설치를 다시 돌리거나
 폴더를 옮기기 전에 같은 [소유권 충돌 안내](./migration.md#ownership-conflicts)를 먼저
 읽어야 합니다.

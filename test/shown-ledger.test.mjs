@@ -65,8 +65,12 @@ const startSession = (f) => {
 
 const ledgerFile = (project) => join(project, ".litclaude", "shown", "ledger.jsonl");
 const ledgerRows = (project) => readFileSync(ledgerFile(project), "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
-// The next day: the nudge's own once-a-day marker no longer holds it back.
-const nextDay = (project) => writeFileSync(join(project, ".litclaude", "adhd", "suggested.json"), `${JSON.stringify({ day: "2000-01-01" })}\n`);
+// The next day: the nudge's own once-a-day marker no longer holds it back. Each session keeps its own
+// marker, so only the legacy shared one is set to a past day here.
+const nextDay = (project) => {
+  mkdirSync(join(project, ".litclaude", "adhd"), { recursive: true });
+  writeFileSync(join(project, ".litclaude", "adhd", "suggested.json"), `${JSON.stringify({ day: "2000-01-01" })}\n`);
+};
 
 describe("shown ledger: notices", () => {
   it("shows the lit-adhd nudge once while its text is unchanged, also on a later day", (t) => {

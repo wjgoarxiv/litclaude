@@ -48,7 +48,7 @@ describe("interface-probe hand-off gate: a lit-loop turn that edits an interface
     const context = prompt(cwd, LOOP_PROMPT);
     assert.match(context, /lit-loop/u);
     assert.match(context, /Skill\(frontend-ui-ux\), whose interface probe must pass before done/u);
-    assert.ok(existsSync(interfaceProbeTurnPath(cwd)));
+    assert.ok(existsSync(interfaceProbeTurnPath(cwd, "session-ui-1")));
   });
 
   it("holds the stop until the probe has run after the last interface edit", () => {
@@ -124,7 +124,7 @@ describe("interface-probe hand-off gate: a lit-loop turn that edits an interface
     const cwd = workspace();
     prompt(cwd, LOOP_PROMPT);
     write(cwd, "index.html");
-    writeFileSync(interfaceProbeTurnPath(cwd), "{not json");
+    writeFileSync(interfaceProbeTurnPath(cwd, "session-ui-1"), "{not json");
     assert.equal(stop(cwd), null);
   });
 });
@@ -140,7 +140,7 @@ describe("interface-probe hand-off gate: turns that must not wait for a probe", 
   it("an interface edit outside a lit workflow turn is not held", () => {
     const cwd = workspace();
     prompt(cwd, "what does this function return?");
-    assert.equal(existsSync(interfaceProbeTurnPath(cwd)), false);
+    assert.equal(existsSync(interfaceProbeTurnPath(cwd, "session-ui-1")), false);
     write(cwd, "index.html");
     assert.equal(stop(cwd), null);
   });

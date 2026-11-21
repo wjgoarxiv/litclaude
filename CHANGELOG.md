@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- A second `lit loop <objective>` in the same session asks the goal question again once the earlier
+  goal has closed. Before, any repeat of a discipline already active in the session skipped it. A bare
+  `lit`, `lit continue` or a start-work resume still carries on without asking.
+- Each Claude session keeps its lit-plan gate, interface-probe gate, lit-adhd nudge and goal files in
+  its own `.litclaude/sessions/<id>/` folder, so two sessions in one project stop overwriting each
+  other. The old shared files are still read when a session has none of its own. Folders unused for
+  7 days move to `.litclaude/archive/sessions/` at session start; nothing is deleted.
+- The litgoal lock recovers from a dead owner and from an empty lock folder left by a crash, so
+  `litclaude-ai litgoal status` no longer times out on a stale lock.
+- `litclaude-ai sessions` lists this project's live sessions (seen in the last day and not ended),
+  when each was last seen and the work or goal it owns. It only reads.
+- `litclaude-ai why "<prompt>"` shows which workflow a prompt would start, the rule that matched and
+  the runner-up. It uses the same matcher as the prompt hook, now in `lib/route-match.mjs`.
+- LitClaude keeps a receipt each time a test command runs in a session (`npm test`, `node --test`,
+  `pytest` and the like): when it ran, the check name, pass or fail, and hashes of the output and the
+  working tree. It stores no prompt text, arguments or output. Edits to code files mark the time of the
+  last code change.
+- When a lit-loop, litwork or start-work session tries to stop after changing code with no passing
+  test run since, LitClaude now warns once. `litclaude-ai config receiptGate enforce` turns the
+  warning into a block that names the check to run, once per prompt: the host then marks the next Stop
+  with `stop_hook_active` and LitClaude lets it through. `off` turns the gate off.
+  Documentation-only edits never trigger it.
+
 ## 1.0.58 - 2026-11-21
 
 - A finished goal no longer blocks the next lit-loop question. Once the LitClaude mod has cleared a

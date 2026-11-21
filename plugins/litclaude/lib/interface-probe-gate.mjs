@@ -8,10 +8,11 @@
 // anything the hook cannot read are not clean. The block
 // counter is the loop brake: at most INTERFACE_PROBE_MAX_BLOCKS blocks per turn, then the stop
 // passes with a warning. Any unreadable state fails SAFE (allow).
-import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { extname, isAbsolute, join } from "node:path";
 
 import { requireStateDir, resolveProjectStateRoot, STATE_WRITE_FLAG } from "./project-state-root.mjs";
+import { clearSessionRecord, readWithLegacyFallback, sessionStateDir, sessionStatePath } from "./session-state.mjs";
 
 export const INTERFACE_PROBE_MAX_BLOCKS = 2;
 // start-work is left out: its prompt turn must stay side-effect-free, and the plan rows it runs
@@ -26,12 +27,19 @@ const OUT_ARGUMENT = /interface-probe\.mjs[^\n;&|]*?--out[=\s]+(?:"([^"]+)"|'([^
 const MATRIX_ROWS = 7;
 const MAX_PATHS = 5;
 
-export const interfaceProbeTurnPath = (cwd = resolveProjectStateRoot()) => join(resolveProjectStateRoot(cwd), ".litclaude", "interface-probe", "turn.json");
+// Each session keeps its own turn; the shared legacy path is still read when the session has none.
+const TURN_FILE = "interface-probe-turn.json";
+const legacyTurnPath = (cwd) => join(resolveProjectStateRoot(cwd), ".litclaude", "interface-probe", "turn.json");
 
-const readTurn = (cwd) => {
-  const path = interfaceProbeTurnPath(cwd);
-  if (!existsSync(path)) return null;
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
+export const interfaceProbeTurnPath = (cwd = resolveProjectStateRoot(), sessionId = null) => {
+  const dir = sessionStatePath(cwd, sessionId);
+  return dir === null ? legacyTurnPath(cwd) : join(dir, TURN_FILE);
+};
+
+const readTurn = (cwd, sessionId) => {
+  const found = readWithLegacyFallback(interfaceProbeTurnPath(cwd, sessionId), legacyTurnPath(cwd));
+  if (!found) return null;
+  const parsed = JSON.parse(found.text);
   if (!parsed || typeof parsed !== "object" || typeof parsed.sessionId !== "string" || !Number.isInteger(parsed.blockCount) || parsed.blockCount < 0) {
     throw new Error("invalid interface-probe turn state");
   }
@@ -39,8 +47,9 @@ const readTurn = (cwd) => {
 };
 
 const writeTurn = (cwd, state) => {
-  const target = interfaceProbeTurnPath(cwd);
-  requireStateDir(join(target, ".."));
+  const dir = sessionStateDir(cwd, state.sessionId);
+  const target = dir === null ? legacyTurnPath(cwd) : join(dir, TURN_FILE);
+  if (dir === null) requireStateDir(join(target, ".."));
   const tmp = `${target}.tmp`;
   writeFileSync(tmp, JSON.stringify(state), { flag: STATE_WRITE_FLAG });
   renameSync(tmp, target);
@@ -50,7 +59,7 @@ const writeTurn = (cwd, state) => {
 // Every prompt re-arms or clears the turn, so the gate never outlives the turn that armed it.
 export const recordInterfaceProbeTurn = (cwd, { sessionId, discipline, now = Date.now() }) => {
   if (!INTERFACE_PROBE_WORKFLOWS.includes(discipline)) {
-    rmSync(interfaceProbeTurnPath(cwd), { force: true });
+    clearSessionRecord(interfaceProbeTurnPath(cwd, sessionId), legacyTurnPath(cwd), sessionId);
     return null;
   }
   return writeTurn(cwd, { sessionId: typeof sessionId === "string" ? sessionId : "", discipline, promptAt: now, editAt: null, paths: [], probeAt: null, issue: null, issueAt: null, blockCount: 0, warned: false });
@@ -87,7 +96,7 @@ const probeIssue = ({ output, command, workdir, editAt }) => {
 export const observeInterfaceProbeTool = (cwd, { input, filePaths, now = Date.now() }) => {
   let turn;
   try {
-    turn = readTurn(cwd);
+    turn = readTurn(cwd, input.session_id);
   } catch {
     return null;
   }
@@ -106,7 +115,7 @@ export const observeInterfaceProbeTool = (cwd, { input, filePaths, now = Date.no
 };
 
 export const evaluateInterfaceProbeStop = ({ cwd, sessionId, now = Date.now() }) => {
-  const turn = readTurn(cwd);
+  const turn = readTurn(cwd, sessionId);
   if (!turn || turn.sessionId !== sessionId || turn.editAt === null) return { action: "allow", why: "no-interface-edit" };
   if (turn.probeAt !== null && turn.probeAt >= turn.editAt) return { action: "allow", why: "probed" };
   const detail = turn.issue && turn.issueAt >= turn.editAt

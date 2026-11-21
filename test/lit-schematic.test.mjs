@@ -43,7 +43,8 @@ describe("lit-schematic stub enrollment", () => {
 
   it("is wired to the prompt hook and documented in both guides, both skills pages, both READMEs, the hook guide and the changelog", () => {
     const hook = readFileSync(hookPath, "utf8");
-    assert.match(hook, /"lit-schematic": \{ command: "\/litclaude:lit-schematic"/u);
+    // The trigger table moved with the router into lib/route-match.mjs, which the hook imports.
+    assert.match(readFileSync(join(pluginRoot, "lib", "route-match.mjs"), "utf8"), /"lit-schematic": \{ command: "\/litclaude:lit-schematic"/u);
     assert.match(hook, /"lit-schematic": "Mode contract: lit-schematic moved/u);
     for (const doc0 of ["docs/guide.md", "docs/guide_ko-KR.md", "docs/skills.md", "docs/skills_ko-KR.md", "docs/hooks.md", "README.md", "README_ko-KR.md", "CHANGELOG.md"]) {
       assert.match(readFileSync(join(root, doc0), "utf8"), /lit-schematic/u, `${doc0} must document the skill`);
