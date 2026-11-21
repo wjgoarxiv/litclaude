@@ -3,11 +3,13 @@
 // noOutputExpected} and no exit field; a non-zero exit reaches PostToolUseFailure instead, with
 // `error: "Exit code <n>\n..."` and `is_interrupt`.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { editPayload, failingBash, passingBash, receiptHarness, SENTINELS } from "./helpers/receipt-harness.mjs";
+import { startWorkflowStage } from "../plugins/litclaude/lib/workflow-stage.mjs";
+import { editPayload, failingBash, passingBash, receiptHarness, SENTINELS, SID } from "./helpers/receipt-harness.mjs";
 
 const receiptsLib = () => import("../plugins/litclaude/lib/receipts.mjs");
 
@@ -25,6 +27,7 @@ describe("receipt ledger from PostToolUse (row 3)", () => {
     assert.equal(receipts[0].check, "npm test");
     assert.match(receipts[0].outputSha256, /^[0-9a-f]{64}$/u);
     assert.match(receipts[0].treeSha, /^[0-9a-f]{64}$/u);
+    assert.match(receipts[0].codeSha, /^[0-9a-f]{64}$/u);
     assert.ok(Number.isFinite(Date.parse(receipts[0].at)));
   });
 
@@ -62,6 +65,7 @@ describe("receipt ledger from PostToolUse (row 3)", () => {
     const h = receiptHarness({ git: false });
     h.run("post-tool-use", passingBash("npm test"));
     assert.equal(h.receipts()[0].treeSha, null);
+    assert.equal(h.receipts()[0].codeSha, null);
   });
 
   it("updates lastCodeEditAt for a code edit and not for a README edit", () => {
@@ -107,5 +111,78 @@ describe("check command normalisation", () => {
       "$(npm test)": null,
     };
     for (const [command, expected] of Object.entries(cases)) assert.equal(normalizeCheck(command), expected, command);
+  });
+});
+
+const preBash = (h, command, extra = {}) => h.run("pre-tool-use", {
+  hook_event_name: "PreToolUse",
+  tool_name: "Bash",
+  tool_input: { command, description: "run", ...extra },
+});
+
+const rewrittenCommand = (h, command, extra = {}) => {
+  const result = preBash(h, command, extra);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.includes("permissionDecision"), false, result.stdout);
+  const parsed = result.stdout.trim() ? JSON.parse(result.stdout) : {};
+  return parsed.hookSpecificOutput?.updatedInput?.command ?? null;
+};
+
+describe("piped check receipts (gap 2)", () => {
+  const activate = (h) => startWorkflowStage(h.project, { sessionId: SID, skill: "lit-loop" });
+
+  it("records exit 1 for a failing npm test | tail, and exit 0 when that check passes", () => {
+    const failing = receiptHarness();
+    activate(failing);
+    const failCommand = rewrittenCommand(failing, "npm test | tail -20");
+    assert.ok(failCommand, "a gated piped check is rewritten");
+    const failRun = spawnSync("bash", ["-c", failCommand], { cwd: failing.project, encoding: "utf8" });
+    assert.equal(failRun.status, 0, failRun.stderr);
+    failing.run("post-tool-use", passingBash(failCommand));
+    assert.equal(failing.receipts()[0].exit, 1);
+    assert.equal(failing.receipts()[0].check, "npm test");
+    assert.equal(existsSync(join(failing.dir, "check-rc")), false);
+
+    const passing = receiptHarness();
+    activate(passing);
+    writeFileSync(join(passing.project, "t.js"), "process.exit(0)\n");
+    const passCommand = rewrittenCommand(passing, "npm test | tail -20");
+    spawnSync("bash", ["-c", passCommand], { cwd: passing.project, encoding: "utf8" });
+    passing.run("post-tool-use", passingBash(passCommand));
+    assert.equal(passing.receipts()[0].exit, 0);
+    assert.equal(passing.receipts()[0].check, "npm test");
+  });
+
+  it("keeps the real exit in $? for npm test; echo, and the receipt matches it", () => {
+    const h = receiptHarness();
+    activate(h);
+    writeFileSync(join(h.project, "t.js"), "process.exit(0)\n");
+    const command = rewrittenCommand(h, "npm test; echo \"exit=$?\"");
+    const ran = spawnSync("bash", ["-c", command], { cwd: h.project, encoding: "utf8" });
+    assert.match(ran.stdout, /exit=0/u);
+    h.run("post-tool-use", passingBash(command));
+    assert.equal(h.receipts()[0].exit, 0);
+    assert.equal(h.receipts()[0].check, "npm test");
+  });
+
+  it("leaves a non-check, a background run, pipefail, and an inactive session untouched", () => {
+    const h = receiptHarness();
+    activate(h);
+    assert.equal(rewrittenCommand(h, "ls | tail"), null);
+    assert.equal(rewrittenCommand(h, "npm test | tail", { run_in_background: true }), null);
+    assert.equal(rewrittenCommand(h, "npm test | tail &"), null);
+    assert.equal(rewrittenCommand(h, "set -o pipefail && npm test | tail"), null);
+    const idle = receiptHarness();
+    assert.equal(rewrittenCommand(idle, "npm test | tail"), null);
+  });
+
+  it("does not rewrite when the sessions directory is a symlink", () => {
+    const h = receiptHarness();
+    const elsewhere = join(h.temp, "elsewhere");
+    mkdirSync(join(h.project, ".litclaude"), { recursive: true });
+    mkdirSync(elsewhere, { recursive: true });
+    symlinkSync(elsewhere, join(h.project, ".litclaude", "sessions"));
+    activate(h);
+    assert.equal(rewrittenCommand(h, "npm test | tail"), null);
   });
 });

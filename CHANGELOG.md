@@ -24,6 +24,15 @@
   warning into a block that names the check to run, once per prompt: the host then marks the next Stop
   with `stop_hook_active` and LitClaude lets it through. `off` turns the gate off.
   Documentation-only edits never trigger it.
+- A code edit made from the shell now arms that gate. LitClaude fingerprints the working-tree contents
+  of tracked and untracked code files, skipping Markdown, text, and `docs/`. The fingerprint is taken
+  when lit-loop, litwork, or start-work starts, stored on each receipt, and compared again at stop.
+  Committing or staging does not change it. A passing receipt counts when its fingerprint matches the
+  tree at stop. If the fingerprint cannot be computed, the gate keeps the edit-time rule.
+- A test command whose first segment is a recognised check, and which then pipes or continues with
+  `;`, keeps that check's own exit status in the receipt. `$?`, the pipe, and later commands behave
+  as before. A command that is not a check, a background run, a command that sets `pipefail`, and a
+  session outside lit-loop, litwork, or start-work is left unchanged.
 
 ## 1.0.58 - 2026-11-21
 

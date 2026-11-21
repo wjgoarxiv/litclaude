@@ -115,6 +115,52 @@ describe("Stop receipt gate (row 4)", () => {
     assert.equal(h.stop(), null);
   });
 
+  it("warns when code was written from the shell, and a passing receipt of that tree is silent", () => {
+    const h = gateHarness();
+    writeFileSync(join(h.project, "src", "a.js"), "export const n = 2;\n");
+    assert.deepEqual(h.stop(), { systemMessage: SHADOW_MESSAGE });
+    h.run("post-tool-use", passingBash("npm test"));
+    assert.equal(h.stop(), null);
+  });
+
+  it("stays silent for a doc-only working-tree change", () => {
+    const h = gateHarness({ mode: "enforce" });
+    mkdirSync(join(h.project, "docs"), { recursive: true });
+    writeFileSync(join(h.project, "README.md"), "notes\n");
+    writeFileSync(join(h.project, "docs", "a.js"), "export const doc = 1;\n");
+    assert.equal(h.stop(), null);
+  });
+
+  it("stays silent after a commit of a tree that already passed", () => {
+    const h = gateHarness({ mode: "enforce" });
+    writeFileSync(join(h.project, "src", "a.js"), "export const n = 3;\n");
+    h.run("post-tool-use", passingBash("npm test"));
+    assert.equal(h.stop(), null);
+    spawnSync("git", ["add", "src/a.js"], { cwd: h.project });
+    assert.equal(h.stop(), null);
+    const committed = spawnSync("git", ["-c", "user.email=f@x", "-c", "user.name=f", "commit", "-q", "-m", "save"], { cwd: h.project });
+    assert.equal(committed.status, 0, committed.stderr?.toString());
+    assert.equal(h.stop(), null);
+  });
+
+  it("keeps the edit-time rule outside a git repository", () => {
+    const h = receiptHarness({ git: false });
+    mkdirSync(h.env.LITCLAUDE_HOME, { recursive: true });
+    writeFileSync(join(h.env.LITCLAUDE_HOME, "config.json"), `${JSON.stringify({ receiptGate: "shadow" })}\n`);
+    startWorkflowStage(h.project, { sessionId: SID, skill: "lit-loop" });
+    writeFileSync(join(h.project, "src", "a.js"), "export const n = 4;\n");
+    const stop = () => {
+      const result = h.run("stop", { hook_event_name: "Stop", stop_hook_active: false });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim() ? JSON.parse(result.stdout.trim()) : null;
+    };
+    assert.equal(stop(), null);
+    h.run("post-tool-use", editPayload(join(h.project, "src", "a.js")));
+    assert.deepEqual(stop(), { systemMessage: SHADOW_MESSAGE });
+    h.run("post-tool-use", passingBash("npm test"));
+    assert.equal(stop(), null);
+  });
+
   it("fails open on unreadable state", () => {
     const h = gateHarness({ mode: "enforce" });
     h.editCode();

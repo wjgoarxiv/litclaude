@@ -23,6 +23,7 @@ import { litgoalGoalsPath, litgoalLedgerPath } from "./litgoal/paths.mjs";
 import { readLitgoalState } from "./litgoal/state.mjs";
 import { acquireOwnerLock, OwnerLockError, releaseOwnerLock } from "./owner-lock.mjs";
 import { readPlanProgress } from "./start-work-lifecycle.mjs";
+import { recordBaselineCodeSha } from "./receipts.mjs";
 import { applyStackEvent, readStack, stackPath, writeStack } from "./workflow-stack.mjs";
 
 const MAX_VERDICTS = 8;
@@ -105,7 +106,13 @@ export const endWorkflowStack = (cwd, sessionId, now = new Date()) => {
  */
 export const startWorkflowStage = (cwd, { sessionId, skill, ref, restart = false, now = new Date() }) => {
   if (typeof sessionId !== "string" || !sessionId || typeof skill !== "string") return [];
-  return applyAndWrite(cwd, sessionId, { type: "start", skill, ref, restart }, now).transitions;
+  const result = applyAndWrite(cwd, sessionId, { type: "start", skill, ref, restart }, now);
+  try {
+    recordBaselineCodeSha({ cwd, sessionId, skill });
+  } catch {
+    // No baseline leaves the receipt gate on its edit-time rule.
+  }
+  return result.transitions;
 };
 
 /** `lit continue` on a side frame: closes it and resumes the paused spine (plans/lit-adhd.md D1). */

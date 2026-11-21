@@ -466,12 +466,16 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude uninstall
 지워지는 건 없어요. `litclaude why "<프롬프트>"`는 그 프롬프트가 어떤 워크플로를 시작할지 알려줘요.
 골라낸 규칙과 그다음 후보도 같이 보여줘요. 프롬프트 훅과 같은 판별 코드를 써요.
 
-lit-loop, litwork, start-work를 돌리는 동안 LitClaude는 테스트 명령이 실행될 때마다 영수증을 남기고,
-코드 파일이 마지막으로 바뀐 시각을 적어 둬요. 코드를 바꾼 뒤 통과한 테스트 없이 세션이 멈추려고 하면
-경고가 한 번 떠요. `litclaude config receiptGate enforce`로 바꾸면 경고 대신 멈춤을 막고, 돌려야 할
+lit-loop, litwork, start-work를 돌리는 동안 LitClaude는 테스트 명령이 실행될 때마다 영수증을 남깁니다.
+영수증에는 시각, 검사 이름, 종료 코드, 출력과 작업 트리의 해시만 들어가고, 프롬프트나 인자, 출력
+원문은 들어가지 않아요. 코드 변경은 Markdown, 텍스트 파일, `docs/`를 뺀 파일이 바뀌는 것이고, 편집
+도구가 아니라 셸에서 고친 경우도 포함해요. 실행이 시작될 때 그 파일들의 내용 지문을 찍어 두고, 세션이
+멈추려 할 때 다시 비교해요. 커밋하거나 스테이징해도 지문은 바뀌지 않아요. 지문을 만들지 못하면 예전처럼
+편집 도구가 코드를 고친 시각으로 판단해요. 코드가 바뀐 뒤 그 코드에 대해 통과한 검사가 없으면 경고가
+한 번 떠요. `npm test | tail`처럼 파이프를 붙이거나 `npm test; echo`처럼 이어서 실행해도 검사 자체의
+종료 코드를 영수증에 적어요. `litclaude config receiptGate enforce`로 바꾸면 경고 대신 멈춤을 막고, 돌려야 할
 검사를 알려줘요. 막는 건 한 프롬프트에 한 번이에요. 그다음 Stop에는 호스트가 `stop_hook_active`를
 붙이고, LitClaude는 그때 세션을 멈추게 둬요. `litclaude config receiptGate off`로 끌 수 있어요.
-Markdown, 텍스트 파일, `docs/` 수정은 코드 변경으로 치지 않아요.
 
 기존 설치에서 `INSTALL_OWNERSHIP_CONFLICT`가 나오면 거기서 멈추세요. 설치를 다시 돌리거나
 폴더를 옮기기 전에 같은 [소유권 충돌 안내](./migration.md#ownership-conflicts)를 먼저

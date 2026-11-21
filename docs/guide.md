@@ -493,11 +493,18 @@ and nothing is deleted. `litclaude why "<prompt>"` shows which workflow that pro
 rule that picked it and the runner-up, using the same matcher as the prompt hook.
 
 During a lit-loop, litwork or start-work run, LitClaude writes a receipt each time a test command
-runs and notes when code files last changed. If the session tries to stop after a code change with
-no passing test run since, you see one warning. `litclaude config receiptGate enforce` makes that a
-block naming the check to run, once per prompt: after that block the host marks the next Stop with
-`stop_hook_active`, and LitClaude lets the session stop. `litclaude config receiptGate off` turns it
-off. Edits to Markdown, text files and `docs/` never count as code changes.
+runs. The receipt stores when it ran, the check name, the exit status, and hashes of the output and
+of the working tree. It does not store the prompt, the arguments, or the output. A code change is an
+edit to a file other than Markdown, plain text, or anything under `docs/`, including a change made
+from the shell rather than from an edit tool. At the start of the run LitClaude fingerprints the
+contents of those files, and it compares that fingerprint again when the session stops. Committing
+or staging does not change it. When the fingerprint cannot be computed, LitClaude falls back to the
+time of the last edit-tool change. If the session tries to stop after a code change with no passing
+check of the current code, you see one warning. A check piped into another command, or followed by
+`;`, still counts: the receipt keeps that check's own exit status. `litclaude config receiptGate enforce`
+makes that a block naming the check to run, once per prompt: after that block the host marks the next
+Stop with `stop_hook_active`, and LitClaude lets the session stop. `litclaude config receiptGate off`
+turns it off.
 
 If an existing installation reports `INSTALL_OWNERSHIP_CONFLICT`, stop there. Before you
 retry or move any folders, read the same

@@ -4,21 +4,31 @@
 // the host's own `Exit code <n>` line. The event is the pass/fail signal; the number comes from that
 // anchored host line only, never from the command's output. A receipt keeps the check's name (the
 // command and its script, no arguments), the exit, and hashes; never a prompt, argument or output.
-//   sessions/<sid>/receipts.jsonl  {at, check, exit, outputSha256, treeSha}, one line per check run
-//   sessions/<sid>/edits.json      {lastCodeEditAt} from Write, Edit, MultiEdit, NotebookEdit
+//   sessions/<sid>/receipts.jsonl  {at, check, exit, outputSha256, treeSha, codeSha}, one line per check run
+//   sessions/<sid>/edits.json      {lastCodeEditAt, baselineCodeSha}
+//   sessions/<sid>/check-rc        one integer, written by a rewritten piped check and removed on read
+// lastCodeEditAt comes from Write, Edit, MultiEdit, NotebookEdit. baselineCodeSha is the code
+// fingerprint taken the first time lit-loop, litwork or start-work activates. codeSha is that same
+// fingerprint at the check. A piped or `;`-chained check records the integer in check-rc, not the
+// pipeline's status and not anything parsed from the command's output.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, openSync, readFileSync, renameSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, constants, lstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import { resolveProjectStateRoot, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { sessionStateDir, sessionStatePath } from "./session-state.mjs";
+import { readStack } from "./workflow-stack.mjs";
 
 export const RECEIPTS_FILE = "receipts.jsonl";
 export const EDITS_FILE = "edits.json";
 const MAX_COMMAND = 4096;
 const GIT_TIMEOUT_MS = 4000;
+const CODE_FILE_CAP = 20000;
 const EDIT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
+const GATED_SKILLS = new Set(["lit-loop", "litwork", "start-work"]);
+export const CHECK_RC_FILE = "check-rc";
+const WRAP_MARK = "; __lit_rc=$?; printf '%s\\n' \"$__lit_rc\" > ";
 const HOST_EXIT_LINE = /^Exit code (\d{1,3})(?:\n|$)/u;
 const ENV_PREFIX = /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/u;
 // Redirections never change a command's exit status, so they are dropped before matching.
@@ -52,6 +62,132 @@ export const normalizeCheck = (command) => {
 
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 
+const gitBytes = (cwd, args, input) => execFileSync("git", args, {
+  cwd,
+  input,
+  timeout: GIT_TIMEOUT_MS,
+  maxBuffer: 64 * 1024 * 1024,
+  stdio: ["pipe", "pipe", "ignore"],
+});
+
+const isDocRel = (rel) => {
+  const path = String(rel).replaceAll("\\", "/");
+  return /\.(?:md|txt)$/iu.test(path) || path.startsWith("docs/");
+};
+
+/**
+ * sha256 of working-tree contents for tracked and untracked code files, ordered by path.
+ * Null when this is not a git checkout, the listing is over CODE_FILE_CAP, or git fails.
+ * Staging and committing do not change it: the hash is of file bytes, not of HEAD or the index.
+ */
+export const codeShaOf = (cwd) => {
+  try {
+    const inside = gitBytes(cwd, ["rev-parse", "--is-inside-work-tree"]).toString("utf8").trim();
+    if (inside !== "true") return null;
+    const listed = gitBytes(cwd, ["ls-files", "-co", "--exclude-standard", "-z"])
+      .toString("utf8").split("\0").filter(Boolean);
+    if (listed.length > CODE_FILE_CAP) return null;
+    const paths = listed.filter((path) => !isDocRel(path) && !path.includes("\n")).filter((path) => {
+      const stats = lstatSync(join(cwd, path), { throwIfNoEntry: false });
+      return Boolean(stats && (stats.isFile() || stats.isSymbolicLink()));
+    }).sort();
+    if (paths.length > CODE_FILE_CAP) return null;
+    const hash = createHash("sha256");
+    if (paths.length > 0) {
+      const blobs = gitBytes(cwd, ["hash-object", "--stdin-paths"], Buffer.from(`${paths.join("\n")}\n`))
+        .toString("utf8").trim().split("\n");
+      if (blobs.length !== paths.length || blobs.some((blob) => !/^[0-9a-f]{40}$/u.test(blob))) return null;
+      for (let i = 0; i < paths.length; i += 1) hash.update(`${paths[i]}\0${blobs[i]}\n`);
+    }
+    return hash.digest("hex");
+  } catch {
+    return null;
+  }
+};
+
+const shellQuote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+
+// Index of the first unquoted `|` (not `||`) or `;`. A bare `&` marks a background command.
+const findPipeOrSemi = (command) => {
+  let quote = null;
+  let escape = false;
+  let background = false;
+  let index = -1;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (escape) { escape = false; continue; }
+    if (quote === "'") { if (ch === "'") quote = null; continue; }
+    if (quote === '"') {
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') quote = null;
+      continue;
+    }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === "'" || ch === '"') { quote = ch; continue; }
+    if (ch === "|" && command[i + 1] === "|") { i += 1; continue; }
+    if ((ch === "|" || ch === ";") && index < 0) index = i;
+    if (ch === "&" && command[i + 1] === "&") { i += 1; continue; }
+    if (ch === "&" && command[i - 1] !== ">" && command[i - 1] !== "<" && command[i - 1] !== "|") background = true;
+  }
+  return { index, background };
+};
+
+const sessionGated = (cwd, sessionId) => {
+  const { frames, history } = readStack(cwd, sessionId);
+  return [...frames, ...history].some((entry) => GATED_SKILLS.has(entry?.skill));
+};
+
+/**
+ * The command with its first check segment wrapped so the check's exit is written to `check-rc`
+ * and the group's exit stays the check's. Null when nothing should change.
+ */
+export const planCheckRewrite = ({ cwd, sessionId, command, runInBackground = false }) => {
+  try {
+    if (runInBackground === true) return null;
+    if (typeof command !== "string" || command.length === 0 || command.length > MAX_COMMAND) return null;
+    if (command.includes("pipefail")) return null;
+    const split = findPipeOrSemi(command);
+    if (split.index < 0 || split.background) return null;
+    if (normalizeCheck(command.slice(0, split.index)) === null) return null;
+    if (!sessionGated(cwd, sessionId)) return null;
+    const dir = sessionStateDir(cwd, sessionId);
+    if (dir === null) return null;
+    const rcPath = join(dir, CHECK_RC_FILE);
+    if (lstatSync(rcPath, { throwIfNoEntry: false })?.isSymbolicLink()) return null;
+    const prefix = command.slice(0, split.index);
+    return `{ ${prefix}; __lit_rc=$?; printf '%s\\n' "$__lit_rc" > ${shellQuote(rcPath)}; (exit $__lit_rc); }${command.slice(split.index)}`;
+  } catch {
+    return null;
+  }
+};
+
+const checkFromWrapped = (command) => {
+  if (typeof command !== "string" || !command.startsWith("{ ")) return null;
+  const at = command.indexOf(WRAP_MARK);
+  if (at < 2) return null;
+  return normalizeCheck(command.slice(2, at));
+};
+
+// Reads and removes check-rc. A symlink is left in place and counts as no exit.
+const takeCheckRc = (dir) => {
+  const path = join(dir, CHECK_RC_FILE);
+  let fd;
+  try {
+    const stats = lstatSync(path, { throwIfNoEntry: false });
+    if (!stats || stats.isSymbolicLink() || !stats.isFile()) return null;
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const text = readFileSync(fd, "utf8");
+    closeSync(fd);
+    fd = undefined;
+    unlinkSync(path);
+    const match = /^([0-9]{1,3})\n?$/u.exec(text);
+    return match ? Number(match[1]) : null;
+  } catch {
+    if (fd !== undefined) closeSync(fd);
+    return null;
+  }
+};
+
 /** sha256 of `git diff HEAD --binary` plus the untracked file list; null outside a git work tree. */
 export const treeShaOf = (cwd) => {
   try {
@@ -82,11 +218,30 @@ export const recordCheckRun = ({ cwd, sessionId, input, failed = false, now = ne
   if (input?.tool_name !== "Bash") return null;
   // A background run reaches PostToolUse when it starts, before any result exists.
   if (input.tool_input?.run_in_background === true || input.tool_response?.backgroundTaskId) return null;
-  const check = normalizeCheck(input.tool_input?.command);
+  const command = input.tool_input?.command;
+  const bare = normalizeCheck(command);
+  const wrapped = bare === null ? checkFromWrapped(command) : null;
+  const check = bare ?? wrapped;
   if (check === null) return null;
+  const dir = sessionStateDir(cwd, sessionId);
+  if (dir === null) return null;
+  const rcExit = takeCheckRc(dir);
+  // A wrapped check has no receipt until its own exit is on disk. The event status is the
+  // pipeline's or the later command's, so it is not a substitute.
+  if (wrapped !== null && rcExit === null) return null;
   let exit;
   let output;
-  if (failed) {
+  if (wrapped !== null) {
+    exit = rcExit;
+    if (failed) {
+      if (input.is_interrupt === true) return null;
+      output = typeof input.error === "string" ? input.error : "";
+    } else {
+      const response = input.tool_response ?? {};
+      if (response.interrupted === true) return null;
+      output = `${response.stdout ?? ""}\0${response.stderr ?? ""}`;
+    }
+  } else if (failed) {
     if (input.is_interrupt === true) return null;
     output = typeof input.error === "string" ? input.error : "";
     const hostLine = HOST_EXIT_LINE.exec(output);
@@ -97,9 +252,7 @@ export const recordCheckRun = ({ cwd, sessionId, input, failed = false, now = ne
     exit = 0;
     output = `${response.stdout ?? ""}\0${response.stderr ?? ""}`;
   }
-  const dir = sessionStateDir(cwd, sessionId);
-  if (dir === null) return null;
-  const receipt = { at: now.toISOString(), check, exit, outputSha256: sha256(String(output)), treeSha: treeShaOf(cwd) };
+  const receipt = { at: now.toISOString(), check, exit, outputSha256: sha256(String(output)), treeSha: treeShaOf(cwd), codeSha: codeShaOf(cwd) };
   appendLine(join(dir, RECEIPTS_FILE), receipt);
   return receipt;
 };
@@ -118,17 +271,46 @@ export const recordCodeEdit = ({ cwd, sessionId, input, filePaths = [], now = ne
   if (!paths.some((path) => typeof path === "string" && !isDocPath(root, path))) return false;
   const dir = sessionStateDir(cwd, sessionId);
   if (dir === null) return false;
+  const existing = readEditsObject(dir);
+  const next = { ...existing, lastCodeEditAt: now.toISOString() };
+  writeEdits(dir, next);
+  return true;
+};
+
+const readEditsObject = (dir) => {
+  try {
+    const parsed = JSON.parse(readFileSync(join(dir, EDITS_FILE), "utf8"));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    if (error?.code === "ENOENT") return {};
+    throw error;
+  }
+};
+
+const writeEdits = (dir, record) => {
   const path = join(dir, EDITS_FILE);
   const staging = `${path}.${process.pid}.tmp`;
-  writeFileSync(staging, `${JSON.stringify({ lastCodeEditAt: now.toISOString() })}\n`, { flag: STATE_WRITE_FLAG, mode: 0o600 });
+  writeFileSync(staging, `${JSON.stringify(record)}\n`, { flag: STATE_WRITE_FLAG, mode: 0o600 });
   renameSync(staging, path);
+};
+
+/** Stores baselineCodeSha the first time a gated discipline activates, when the fingerprint exists. */
+export const recordBaselineCodeSha = ({ cwd, sessionId, skill }) => {
+  if (!GATED_SKILLS.has(skill)) return false;
+  const dir = sessionStateDir(cwd, sessionId);
+  if (dir === null) return false;
+  const existing = readEditsObject(dir);
+  if (typeof existing.baselineCodeSha === "string") return false;
+  const codeSha = codeShaOf(cwd);
+  if (typeof codeSha !== "string") return false;
+  writeEdits(dir, { ...existing, baselineCodeSha: codeSha });
   return true;
 };
 
 /** The session's receipts (unparseable lines skipped) and its last code edit time (NaN when none). */
 export const readReceiptState = (cwd, sessionId) => {
   const dir = sessionStatePath(cwd, sessionId);
-  if (dir === null) return { receipts: [], lastCodeEditAt: Number.NaN };
+  if (dir === null) return { receipts: [], lastCodeEditAt: Number.NaN, baselineCodeSha: null };
   const read = (name) => {
     try {
       return readFileSync(join(dir, name), "utf8");
@@ -146,5 +328,10 @@ export const readReceiptState = (cwd, sessionId) => {
     }
   });
   const edits = read(EDITS_FILE);
-  return { receipts, lastCodeEditAt: edits ? Date.parse(JSON.parse(edits)?.lastCodeEditAt) : Number.NaN };
+  const parsed = edits ? JSON.parse(edits) : null;
+  return {
+    receipts,
+    lastCodeEditAt: parsed ? Date.parse(parsed.lastCodeEditAt) : Number.NaN,
+    baselineCodeSha: typeof parsed?.baselineCodeSha === "string" ? parsed.baselineCodeSha : null,
+  };
 };

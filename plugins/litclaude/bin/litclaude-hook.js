@@ -73,7 +73,7 @@ import { dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, request
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
 import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, naturalLitCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, withoutCode } from "../lib/route-match.mjs";
-import { recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
+import { planCheckRewrite, recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
 import { evaluateReceiptGate, readReceiptGateMode } from "../lib/receipt-gate.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
@@ -1603,11 +1603,22 @@ switch (eventName) {
             : "",
           humanizerContext,
         ].filter(Boolean);
-        if (contexts.length > 0) {
+        // A piped or `;`-chained check records its own exit. No permissionDecision: the user's
+        // normal permission prompt stays in place, and updatedInput only replaces the command.
+        const rewrittenCommand = guardInput.tool_name === "Bash" && guardInput.tool_input && typeof guardInput.tool_input === "object"
+          ? planCheckRewrite({
+            cwd,
+            sessionId: guardInput.session_id,
+            command: guardInput.tool_input.command,
+            runInBackground: guardInput.tool_input.run_in_background === true,
+          })
+          : null;
+        if (contexts.length > 0 || rewrittenCommand) {
           console.log(JSON.stringify({
             hookSpecificOutput: {
               hookEventName: "PreToolUse",
-              additionalContext: contexts.join("\n\n"),
+              ...(contexts.length > 0 ? { additionalContext: contexts.join("\n\n") } : {}),
+              ...(rewrittenCommand ? { updatedInput: { ...guardInput.tool_input, command: rewrittenCommand } } : {}),
             },
           }));
         }

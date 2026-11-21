@@ -1,5 +1,8 @@
 // Stop receipt gate. A session that ran lit-loop, litwork or start-work and changed code should end
-// with a passing check newer than that change (the receipts in lib/receipts.mjs). `receiptGate` in
+// with a passing check of that code (the receipts in lib/receipts.mjs). A code change is an edit-tool
+// timestamp or a code fingerprint that differs from the one taken when the discipline started. When
+// the fingerprint is available, the passing receipt's codeSha must match the tree at stop; otherwise
+// the receipt has to be newer than the edit. `receiptGate` in
 // LitClaude's config.json picks what happens when it does not: `off`; `shadow` (the default) warns in
 // a systemMessage and logs a line to `sessions/<sid>/receipt-gate.jsonl`; `enforce` blocks the stop
 // naming the check, at most RECEIPT_GATE_MAX_BLOCKS times per prompt_id, then ends the session with
@@ -11,7 +14,7 @@ import { join } from "node:path";
 
 import { markLitHome, readLitConfigKey, writeLitConfigKey } from "./mark.mjs";
 import { STATE_APPEND_FLAG, resolveProjectStateRoot } from "./project-state-root.mjs";
-import { readReceiptState } from "./receipts.mjs";
+import { codeShaOf, readReceiptState } from "./receipts.mjs";
 import { sessionStateDir } from "./session-state.mjs";
 import { readStack } from "./workflow-stack.mjs";
 
@@ -63,9 +66,21 @@ export const evaluateReceiptGate = ({ cwd, input, mode, detectCheck, now = new D
   if (mode === "off" || !RECEIPT_GATE_MODES.includes(mode)) return none;
   if (mode === "enforce" && input?.stop_hook_active === true) return none;
   if (!sessionActivated(cwd, sessionId)) return none;
-  const { receipts, lastCodeEditAt } = readReceiptState(cwd, sessionId);
-  if (!Number.isFinite(lastCodeEditAt)) return none;
-  if (receipts.some((receipt) => receipt.exit === 0 && Date.parse(receipt.at) > lastCodeEditAt)) return none;
+  const { receipts, lastCodeEditAt, baselineCodeSha } = readReceiptState(cwd, sessionId);
+  let currentCodeSha = null;
+  try {
+    currentCodeSha = codeShaOf(cwd);
+  } catch {
+    currentCodeSha = null;
+  }
+  const fingerprint = typeof currentCodeSha === "string" && typeof baselineCodeSha === "string";
+  const edited = Number.isFinite(lastCodeEditAt);
+  const drifted = fingerprint && currentCodeSha !== baselineCodeSha;
+  if (!edited && !drifted) return none;
+  const passed = fingerprint
+    ? receipts.some((receipt) => receipt.exit === 0 && receipt.codeSha === currentCodeSha)
+    : edited && receipts.some((receipt) => receipt.exit === 0 && Date.parse(receipt.at) > lastCodeEditAt);
+  if (passed) return none;
   const check = detectCheck(cwd) ?? detectCheck(resolveProjectStateRoot(cwd)) ?? receipts.findLast((receipt) => typeof receipt.check === "string")?.check ?? null;
   if (check === null) return none;
   const dir = sessionStateDir(cwd, sessionId);
@@ -79,7 +94,7 @@ export const evaluateReceiptGate = ({ cwd, input, mode, detectCheck, now = new D
   const blocks = readGateLog(dir).filter((entry) => entry.action === "block" && entry.promptId === promptId).length;
   if (blocks < RECEIPT_GATE_MAX_BLOCKS) {
     logDecision(dir, { at, mode, action: "block", check, promptId });
-    return { action: "block", reason: `LitClaude receipt gate: code changed after the last passing check. Run \`${check}\` on its own (no pipe, \`;\` or \`| tail\` after it, which hides its exit status) and fix what fails before finishing.` };
+    return { action: "block", reason: `LitClaude receipt gate: code changed after the last passing check. Run \`${check}\` on its own and fix what fails before finishing.` };
   }
   logDecision(dir, { at, mode, action: "stop", check, promptId });
   return { action: "stop", stopReason: `LitClaude: stopped after ${RECEIPT_GATE_MAX_BLOCKS} reminders; code changed and \`${check}\` has not passed since.` };
