@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.60 - 2026-11-22
+
+- The goal question now comes with an answer guide, so a first-time user knows what to type. Under
+  lit-plan's approval question and lit-loop's goal question, Claude shows a short table of each answer
+  (`yes`, `edit`, `no`) and what it does, ending `Type the word alone.` The descriptions follow the
+  user's language; the answer words stay the same. The question the prompt hook prints carries the same
+  guide as plain lines.
+- A whole prompt of `lit handoff` now opens the handoff the same way `handoff` does.
+  `lit deep interview <idea>`, `lit deep-interview <idea>` and `lit interview <idea>` start the
+  clarifying interview. `litclaude-ai why` reports both routes as the prompt hook takes them.
+- The English and Korean READMEs, on GitHub and on npm, open with a plain one-line pitch and a "Two ways
+  to use it" section: the easy way, with `lit` added to an ordinary request, and the full step-by-step
+  workflow from brainstorm to handoff.
+
 ## 1.0.59 - 2026-11-21
 
 - A test command at the end of a leading `&&` chain keeps its own exit in the receipt when a pipe or
