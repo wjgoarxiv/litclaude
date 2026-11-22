@@ -27,6 +27,11 @@ const GOLDEN = [
   ["lit brainstorm names for the app", "lit-brainstorm", "single"],
   ["lit ultra-brainstorm pricing models", "ultra-brainstorm", "single"],
   ["lit hijack the retry technique from this paper", "lit-hijack", "single"],
+  ["handoff", "lit-handoff", "single"],
+  ["lit handoff", "lit-handoff", "single"],
+  ["lit deep interview the auth redesign", "deep-interview", "single"],
+  ["lit interview me about the onboarding flow", "deep-interview", "single"],
+  ["lit deep-interview a plan for the launch", "deep-interview", "two"],
   ["lit comprehend the scheduler", "lit-comprehend", "single"],
   ["lit adhd", "lit-adhd", "single"],
   ["lit recap", "lit-adhd", "single"],
@@ -99,8 +104,8 @@ const hookRoute = (prompt, index) => {
 };
 
 describe("litclaude-ai why: golden routing table", () => {
-  it("holds 50 labelled prompts, with at least five two-route and five inert rows", () => {
-    assert.equal(GOLDEN.length, 50);
+  it("holds 55 labelled prompts, with at least five two-route and five inert rows", () => {
+    assert.equal(GOLDEN.length, 55);
     assert.ok(GOLDEN.filter(([, , kind]) => kind === "two").length >= 5);
     assert.ok(GOLDEN.filter(([, , kind]) => kind === "inert").length >= 5);
   });
@@ -124,6 +129,9 @@ describe("litclaude-ai why: golden routing table", () => {
     });
     assert.equal(explainRoute("lit plan the login fix").ruleId, "natural:plan");
     assert.deepEqual(explainRoute("lit review the plan").runnerUp, { route: "lit-plan", ruleId: "natural:plan" });
+    assert.equal(explainRoute("handoff").ruleId, "exact:handoff");
+    assert.equal(explainRoute("lit handoff").ruleId, "exact:handoff");
+    assert.equal(explainRoute("lit deep interview the auth redesign").ruleId, "natural:deep-interview");
   });
 
   it("marks fenced, quoted and host-authored prompts inert, and nothing else", () => {

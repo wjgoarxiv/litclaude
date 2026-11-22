@@ -314,6 +314,13 @@ const hasExplicitBrainstormRoute = (normalized) => /\blit(?:work)?\s+(?:brainsto
 // hijack" and "lit review the hijack ledger" keep their own routes, and the bare word never activates.
 // `lit ultra-brainstorm <topic>` (the hyphen reads as a space here); ahead of the plain brainstorm route.
 const hasExplicitUltraBrainstormRoute = (normalized) => /\blit(?:work)?\s+ultra\s?brainstorm(?:ing)?(?=$|[^\w-])/u.test(normalized);
+// `lit deep interview <idea>`, `lit deep-interview <idea>`, `lit interview <idea>`: the clarifying interview
+// before a plan. The route word must sit directly after `lit`, so "lit fix the interview scheduler" stays a
+// loop. Ahead of plan and review: "lit deep interview a plan for the launch" asks to be interviewed.
+const hasExplicitInterviewRoute = (normalized) => /\blit(?:work)?\s+(?:deep\s?interview|interview|인터뷰|딥\s?인터뷰)(?=$|[^\w-])/u.test(normalized);
+// A whole prompt of `handoff` or `lit handoff` (outer whitespace aside). The hook answers it before the
+// cascade below with the handoff payload; explainRoute reports it as `exact:handoff`.
+const isExactBareHandoff = (prompt) => typeof prompt === "string" && /^\s*(?:lit\s+)?handoff\s*$/iu.test(prompt);
 const hasExplicitHijackRoute = (normalized) => /\blit(?:work)?\s+(?:hijack(?:ing)?|하이재킹|하이잭)(?=$|[^\w-])/u.test(normalized);
 const hasExplicitTeamRoute = (normalized) => /\blit(?:work)?\s+(?:team(?:\s+mode)?|teammates)\b/u.test(normalized);
 // A casual one-line request ends with `lit` ("… 조사해줘 lit"), so the research verb is not next to
@@ -522,6 +529,7 @@ const findNaturalLitTrigger = (prompt) => {
   // Ahead of plan, review and research for the same reason: "lit hijack the review lanes into my plan
   // skill" names other skills as material, not as the route.
   if (hasExplicitHijackRoute(normalized)) return { ...triggerByToken["lit-hijack"], source: "natural-language" };
+  if (hasExplicitInterviewRoute(normalized)) return { ...triggerByToken["deep-interview"], source: "natural-language" };
   if (containsPlainWord(normalized, "plan") && hasReviewModifier(prompt)) {
     return { ...triggerByToken["lit-plan"], source: "natural-language" };
   }
@@ -649,6 +657,7 @@ const ROUTE_RULES = [
   { id: "natural:ultra-brainstorm", lit: true, match: ({ normalized }) => hasExplicitUltraBrainstormRoute(normalized) && routeOf("ultra-brainstorm") },
   { id: "natural:brainstorm", lit: true, match: ({ normalized }) => hasExplicitBrainstormRoute(normalized) && routeOf("lit-brainstorm") },
   { id: "natural:hijack", lit: true, match: ({ normalized }) => hasExplicitHijackRoute(normalized) && routeOf("lit-hijack") },
+  { id: "natural:deep-interview", lit: true, match: ({ normalized }) => hasExplicitInterviewRoute(normalized) && routeOf("deep-interview") },
   { id: "natural:plan-review-modifier", lit: true, match: ({ normalized, prompt }) => containsPlainWord(normalized, "plan") && hasReviewModifier(prompt) && routeOf("lit-plan") },
   { id: "natural:review", lit: true, match: ({ normalized }) => containsPlainWord(normalized, "review") && routeOf("review-work") },
   { id: "natural:debug", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging")) && routeOf("debugging") },
@@ -679,10 +688,11 @@ const ROUTE_RULES = [
 // `{route, ruleId, runnerUp, inert}` for one prompt. route is the discipline the hook ignites (null for
 // none); runnerUp is the next non-fallback rule that matched a different route. inert is true when no
 // route fired because text was set aside (a fence, inline code, a host block) or a stop rule held.
-// Routes the hook decides before this cascade (an exact `handoff`, a `lit +…` skill plan, start-work
-// invocations and replies) are outside it.
+// An exact `handoff` / `lit handoff` is reported as the hook answers it. Other routes the hook decides
+// before this cascade (a `lit +…` skill plan, start-work invocations and replies) are outside it.
 export const explainRoute = (prompt) => {
   if (typeof prompt !== "string") return { route: null, ruleId: null, runnerUp: null, inert: false };
+  if (isExactBareHandoff(prompt)) return { route: "lit-handoff", ruleId: "exact:handoff", runnerUp: null, inert: false };
   const route = findWorkflowTrigger(prompt)?.discipline ?? null;
   const raw = rawTriggerText(prompt);
   const context = { prompt, raw, normalized: normalizedTriggerText(prompt), lit: hasLitTrigger(raw) };
@@ -719,6 +729,7 @@ export {
   findWorkflowTrigger,
   hasLitTrigger,
   hasReviewModifier,
+  isExactBareHandoff,
   naturalLitCompanions,
   normalizedTriggerText,
   rawTriggerText,

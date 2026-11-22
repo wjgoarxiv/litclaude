@@ -72,7 +72,7 @@ import { GOAL_STATUS, consentAnswer, consentIsLive } from "../lib/goal-pipeline.
 import { dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, requestGoalClear, writeGoalFile } from "../lib/goal-files.mjs";
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
-import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, naturalLitCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, withoutCode } from "../lib/route-match.mjs";
+import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, naturalLitCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, withoutCode } from "../lib/route-match.mjs";
 import { planCheckRewrite, recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
 import { evaluateReceiptGate, readReceiptGateMode } from "../lib/receipt-gate.mjs";
 
@@ -483,7 +483,6 @@ const gitHistoryCommand = /^\s*git\s+(?:commit|rebase|cherry-pick|reset|revert|b
 const isGitHistoryCommand = (input) =>
   input?.tool_name === "Bash" && typeof input?.tool_input?.command === "string" && gitHistoryCommand.test(input.tool_input.command);
 
-const isExactBareHandoff = (prompt) => /^\s*handoff\s*$/iu.test(prompt);
 // The handoff adapter has the same disable-model-invocation shape as the sci-vis adapter below.
 const isTypedHandoffCommand = (prompt) => /^\s*\/litclaude:lit-handoff(?=$|\s)/u.test(prompt);
 const isExactBareScientificVisualization = (prompt) => /^\s*lit-scientific-visualization\s*$/iu.test(prompt);
@@ -509,12 +508,12 @@ const handoffContext = ({ typed = false } = {}) => {
     `HANDOFF MODE ENABLED: ${probeInstruction("lit-handoff")}`,
     typed
       ? "The user typed /litclaude:lit-handoff. The adapter and canonical source are below because calling Skill(lit-handoff) only reopens the command; follow them and take the destination, emphasis or auto mode from the command arguments."
-      : "Treat this exact bare prompt as an explicit request for /litclaude:lit-handoff and Skill(lit-handoff).",
+      : "Treat this exact bare prompt (handoff or lit handoff) as an explicit request for /litclaude:lit-handoff and Skill(lit-handoff).",
     llmContractReference,
     `Canonical source root: ${inertFilesystemData(canonicalRoot)}. Read and follow the complete canonical source body below; resolve its template, example, and eval resources relative to this absolute installed source root rather than the process cwd or ~/skills.`,
     typed
       ? "Prompt safety: the command arguments stay with the command and are never echoed into hook context."
-      : "Prompt safety: this route accepts only the exact bare word handoff after outer whitespace. Mentions, quoted or fenced text, compound prompts, slash commands, and secret-bearing material remain inert and are never echoed into hook context.",
+      : "Prompt safety: this route accepts only the exact whole prompt handoff or lit handoff after outer whitespace. Mentions, quoted or fenced text, compound prompts, slash commands, and secret-bearing material remain inert and are never echoed into hook context.",
     ...(typed ? staticSkillBodyContext({ skillId: "lit-handoff" }) : []),
     `<litclaude-canonical-source name="handoff">
 ${canonicalBody}
