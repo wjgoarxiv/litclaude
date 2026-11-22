@@ -2,7 +2,7 @@
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
-<p align="center">Claude Code에서 세션마다 계획하고, 만들고, 확인한 뒤 다음 세션이 이어받을 기록을 남기게 돕는 플러그인입니다.</p>
+<p align="center">LitClaude는 Claude Code에 붙이는 추가 기능입니다. Claude가 "다 됐어요"라고 말하기 전에 자기 작업을 직접 확인하게 하고, 다음 세션이 이어서 시작할 수 있도록 기록을 남기게 합니다.</p>
 <p align="center">
   <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/docs/assets/readme/badge-version.svg" alt="1.0.59" />
   <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
@@ -11,10 +11,32 @@
   <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/README.md">English</a>
 </p>
 
-Claude Code 프롬프트에 `lit`을 붙이면 Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고,
-실제 결과를 확인한 뒤 프로젝트에 기록을 남깁니다. 작업을 멈출 때 `handoff`를 입력하면 다음
-세션이 그 기록을 읽고 이어갑니다. Claude Code로 실제 프로젝트를 하면서 Claude가 "다 됐습니다"라고
-말하기 전에 근거를 보고 싶은 분께 맞습니다.
+Claude에게 기능을 하나 부탁하면 코드를 쓰고 끝났다고 말합니다. 그런데 다음 날 보니 테스트는 한 번도 돌지 않았습니다. 새 세션을 열면 프로젝트 설명을 처음부터 다시 해야 합니다.
+
+LitClaude를 쓰면 같은 요청에 `lit`만 붙이면 됩니다. Claude는 먼저 이 작업에서 "끝났다"가 무슨 뜻인지 적고, 실패하는 테스트를 추가해 통과시킨 뒤, 무엇을 확인했고 무엇을 확인하지 못했는지 알려 줍니다. 작업을 멈출 때 `handoff`라고 치면 Claude가 기록을 남기고, 다음 세션이 그 기록을 읽고 이어서 합니다.
+
+## 두 가지 사용법
+
+**간단하게.** 평소처럼 요청을 쓰고, 앞이나 끝에 `lit`을 붙입니다.
+
+```text
+src/dates.js의 날짜 파싱 버그 고쳐줘 lit
+```
+
+Claude가 목표를 정하고, 실패하는 테스트를 쓰고, 버그를 고치고, 결과를 확인한 뒤 확인한 내용을 알려 줍니다. 대부분의 작업은 이것으로 충분합니다.
+
+**본격적으로.** 큰 작업은 한 단계씩 나아갑니다. 각 단계가 남긴 파일을 다음 단계가 읽고, 필요 없는 단계는 건너뛰면 됩니다.
+
+| 단계 | 입력 | 하는 일 |
+| --- | --- | --- |
+| 1. 넓게 보기 | `/litclaude:lit-brainstorm <질문>` | 선택지를 많이 낸 뒤 점수를 매겨 몇 개로 추립니다 |
+| 2. 구체화 | `/litclaude:deep-interview <아이디어>` | 목표가 분명해질 때까지 Claude가 질문합니다 |
+| 3. 계획 | `lit-crucible <접근법>` 또는 `/litclaude:lit-plan <작업>` | crucible은 접근법의 약점을 먼저 찌른 뒤 계획으로 넘기고, lit-plan은 단계를 쓰고 승인을 기다립니다 |
+| 4. 실행 | 계획에 `yes`, 또는 `/litclaude:lit-loop <작업>` | 테스트와 확인을 거치며 작업합니다 |
+| 5. 검토 | `/litclaude:review-work` | 다섯 갈래로 검토하고 발견한 문제부터 알려 줍니다 |
+| 6. 넘겨주기 | `handoff` | 결정과 다음 할 일을 파일로 남깁니다 |
+
+설치는 한 줄입니다(자세한 내용은 바로 아래 설치 절에 있습니다). 그다음 프로젝트에서 Claude Code를 실행하세요.
 
 ## 설치
 

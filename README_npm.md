@@ -2,7 +2,7 @@
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
-<p align="center">A Claude Code plugin that helps every session plan the work, build it, check it, and leave a note the next session can pick up.</p>
+<p align="center">LitClaude is an add-on for Claude Code. It makes Claude check its own work before it says "done", and leaves a note so the next session starts where this one stopped.</p>
 <p align="center">
   <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/docs/assets/readme/badge-version.svg" alt="1.0.59" />
   <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
@@ -11,10 +11,37 @@
   <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.59/README_ko-KR.md">한국어</a>
 </p>
 
-Add `lit` to a Claude Code prompt and Claude pins the goal, writes a failing test first,
-checks the real result and leaves a record in your project. Type `handoff` when you stop, and
-the next session reads that record and picks up where this one left off. It suits people who
-use Claude Code on real projects and want proof before "done".
+You ask Claude for a feature. It writes the code and says it is finished, and a day later you find the tests
+never ran. You open a new session and explain the whole project again.
+
+With LitClaude you add `lit` to the same request. Claude first writes down what "finished" means for this
+task, adds a test that fails, makes it pass, and ends by telling you what it checked and what it could not.
+When you stop, type `handoff`. Claude saves a note, and the next session reads it and carries on.
+
+## Two ways to use it
+
+**The easy way.** Write your request as usual and put `lit` at the start or at the end:
+
+```text
+fix the date parsing bug in src/dates.js lit
+```
+
+Claude sets the goal, writes a failing test, fixes the bug, checks the result and tells you what it checked.
+Most tasks need nothing more.
+
+**The full workflow.** For a bigger job, go one step at a time. Each step leaves a file the next step reads,
+and you can skip any step you do not need.
+
+| Step | Type | What happens |
+| --- | --- | --- |
+| 1. Explore | `/litclaude:lit-brainstorm <question>` | Many options, scored, cut to a short list |
+| 2. Clarify | `/litclaude:deep-interview <idea>` | Claude asks questions until the goal is clear |
+| 3. Plan | `lit-crucible <approach>` or `/litclaude:lit-plan <task>` | Crucible attacks the approach first, then plans; lit-plan writes the steps and waits for your yes |
+| 4. Build | `yes` to the plan, or `/litclaude:lit-loop <task>` | Claude works through it with tests and checks |
+| 5. Review | `/litclaude:review-work` | A review in five lanes, findings first |
+| 6. Hand off | `handoff` | Decisions and the next step, saved to a file |
+
+Install with one line (the next section has the details), then start Claude Code in your project.
 
 ## Install
 
