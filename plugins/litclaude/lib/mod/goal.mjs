@@ -7,11 +7,39 @@ export const GOAL_DIR = ".litclaude/goal";
 export const SESSION_STATE_ID = /^[A-Za-z0-9-]{1,80}$/u;
 export const sessionGoalDir = (sessionId) => (typeof sessionId === "string" && SESSION_STATE_ID.test(sessionId) ? `.litclaude/sessions/${sessionId}/goal` : null);
 
+// The answers each goal question takes and what each one does. The question's `(yes / …)` tail and
+// the answer guide shown under it are both built from these lists, so the two cannot drift apart.
+export const GOAL_ANSWERS = Object.freeze({
+  asked: [["yes", "starts the work now and sets this goal when this reply ends"], ["edit", "change the goal's check first"], ["no", "nothing starts"]],
+  startOnly: [["yes", "starts the work now, with no goal"], ["no", "nothing starts"]],
+  loopAsked: [["yes", "set this goal when this turn ends"], ["no", "keep working without a goal"]],
+});
+const GUIDE_TITLES = Object.freeze({ asked: "approve plan · start work · set goal", startOnly: "approve plan · start work", loopAsked: "set goal for this lit-loop" });
+const answerTail = (kind) => `(${GOAL_ANSWERS[kind].map(([word]) => word).join(" / ")})`;
+
+/** The guide for plain terminal text (hook systemMessage): aligned lines, no Markdown. */
+export const goalGuidePlain = (kind) => {
+  const width = Math.max(...GOAL_ANSWERS[kind].map(([word]) => word.length));
+  return [...GOAL_ANSWERS[kind].map(([word, does]) => `  ${word.padEnd(width)}  → ${does}`), "  Type the word alone."].join("\n");
+};
+
+/** The guide for a model-written reply: a quoted Markdown table the model renders under the question. */
+export const goalGuideMarkdown = (kind, cond = null) => [
+  `**▶ Answer: ${GUIDE_TITLES[kind]}**`,
+  ...(cond ? ["", `Goal: \`\` /goal ${cond} \`\``] : []),
+  "",
+  "| Type | What happens |",
+  "|---|---|",
+  ...GOAL_ANSWERS[kind].map(([word, does]) => `| **\`${word}\`** | ${does[0].toUpperCase()}${does.slice(1)} |`),
+  "",
+  "Type the word alone.",
+].map((line) => (line ? `> ${line}` : ">")).join("\n");
+
 // Fixed status lines, one per outcome. The mod and the CLI print these and nothing else.
 export const GOAL_STATUS = Object.freeze({
-  asked: (cond) => `Approve plan, start work and set goal: /goal ${cond}? (yes / edit / no)`,
-  startOnly: "Approve plan and start work? (yes / no)",
-  loopAsked: (cond) => `Set goal for this lit-loop: /goal ${cond}? (yes / no)`,
+  asked: (cond) => `Approve plan, start work and set goal: /goal ${cond}? ${answerTail("asked")}`,
+  startOnly: `Approve plan and start work? ${answerTail("startOnly")}`,
+  loopAsked: (cond) => `Set goal for this lit-loop: /goal ${cond}? ${answerTail("loopAsked")}`,
   skipped: (reason) => `No goal set: ${reason}`,
   notStarted: (why) => `No goal set: start-work did not start (${why})`,
   armed: (id) => `LitClaude goal armed [lit:${id}]; it is set when this turn ends.`,

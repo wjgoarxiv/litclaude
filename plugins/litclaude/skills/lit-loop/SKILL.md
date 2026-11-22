@@ -179,7 +179,10 @@ like this:
   `Set goal for this lit-loop: /goal <cond>? (yes / no)` itself at the loop's first activation; do
   not ask it again. Without one, once a failing check proves the objective (after the RED step), run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" --loop --check "<check>" <objective>` and end
-  the reply with the line it prints; a check that already passes, cannot run or is not allowlisted
+  the reply with the line it prints and, under it, the answer guide it prints (a quoted table of
+  `yes` / `no` and what each does, ending `Type the word alone.`; descriptions in the user's
+  language, answer words unchanged). The hook's own question already carries that guide as plain
+  lines. A check that already passes, cannot run or is not allowlisted
   prints `No goal set: <reason>` and records nothing. Either way only the user's exact `yes` on a
   later prompt arms it, and the LitClaude mod runs `/goal <cond>` when that turn ends.
 - Without an armed goal, go on in degraded mode with the local evidence ledger. LitClaude never

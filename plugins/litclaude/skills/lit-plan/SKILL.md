@@ -315,7 +315,12 @@ unavailable:
   `Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`, or, when no goal can
   be set, `Approve plan and start work? (yes / no)` followed by `No goal set: <reason>`. A start
   that is refused (another run active, plan gone) arms no goal and prints
-  `No goal set: start-work did not start (<why>)`. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. If a `ProposeGoal` tool is in your live tool
+  `No goal set: start-work did not start (<why>)`.
+- Under the question, render the answer guide the script prints after a blank line: a quoted block
+  headed `**▶ Answer: …**`, the `/goal` line when there is one, a `| Type | What happens |` table
+  with one row per answer (`yes` / `edit` / `no`, or `yes` / `no` for a start-only question) and
+  `Type the word alone.` Translate the descriptions into the user's language but keep the answer
+  words exactly `yes`, `edit` and `no`; the question line above it stays unchanged. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. If a `ProposeGoal` tool is in your live tool
   list, you may call it with `ask_user=true` instead of printing the line; never
   otherwise. Avoid clobbering a different active goal without explicit replacement.
 - Write no `/goal` line into the plan: start-work's

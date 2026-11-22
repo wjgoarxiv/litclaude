@@ -68,7 +68,7 @@ import { checkBackDenial, clearTimerStarted, isCheckBackPrompt, takeCheckBack, t
 import { inviteMessage, parseInvitePrompt, recordInvite, shareLine } from "../lib/invite.mjs";
 import { claimSessionExtensionsNotice } from "../lib/extensions-notice.mjs";
 import { buildSkillPlan, installedExtensionPlugins, parseSkillHatch, skillPlanContext, skillPlanIds } from "../lib/skill-plan.mjs";
-import { GOAL_STATUS, consentAnswer, consentIsLive } from "../lib/goal-pipeline.mjs";
+import { GOAL_STATUS, consentAnswer, consentIsLive, goalGuidePlain } from "../lib/goal-pipeline.mjs";
 import { dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, requestGoalClear, writeGoalFile } from "../lib/goal-files.mjs";
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
@@ -584,7 +584,7 @@ const objectiveTail = (prompt) => {
 
 // A run route gets one question and the mod sets the goal on the user's yes; litgoal, the hand-held
 // goal tool, keeps its ready-to-paste line.
-const LOOP_GOAL_LINE = "Native goal: LitClaude can set /goal for this run. Once one failing check proves the objective (after the RED test), run `node \"${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs\" --loop --check \"<check>\" <objective>` and ask the line it prints once, as the last line of your reply; only the user's exact `yes` on the next prompt lets the LitClaude mod run /goal when that turn ends. If it prints `No goal set: <reason>`, or no single check proves the objective, go on without a goal and keep the durable `litgoal` ledger authoritative. Never type or send /goal yourself.";
+const LOOP_GOAL_LINE = "Native goal: LitClaude can set /goal for this run. Once one failing check proves the objective (after the RED test), run `node \"${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs\" --loop --check \"<check>\" <objective>` and end your reply once with what it prints: the question, then its answer guide; only the user's exact `yes` on the next prompt lets the LitClaude mod run /goal when that turn ends. If it prints `No goal set: <reason>`, or no single check proves the objective, go on without a goal and keep the durable `litgoal` ledger authoritative. Never type or send /goal yourself.";
 
 const RUN_GOAL_ROUTES = new Set(["lit-loop", "native-workflow", "litwork", "lit-hijack"]);
 
@@ -977,7 +977,7 @@ const goalConsentTurn = ({ cwd, consent, answer }, sessionId) => {
       ? ["The user answered no to the plan approval question: start-work did not start. Ask how to go on with the plan in one sentence; start nothing.", "LitClaude plan: not started."]
       : [`The user answered no to the plan approval question: start-work did not start and no goal is set. Reply with exactly \`${GOAL_STATUS.skipped("you said no")}\` and ask how to go on with the plan; start nothing.`, "LitClaude goal: not set."];
   }
-  return [`The user wants to edit the goal. Ask what to change in the plan's \`## Done when\` check (one question), update ${consent.plan}, run \`node "\${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" ${consent.plan}\` again and ask its line again. Start and set nothing yourself.`, "LitClaude goal: edit."];
+  return [`The user wants to edit the goal. Ask what to change in the plan's \`## Done when\` check (one question), update ${consent.plan}, run \`node "\${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" ${consent.plan}\` again and ask its line again with the answer guide it prints under it. Start and set nothing yourself.`, "LitClaude goal: edit."];
 };
 // After an approving yes: the start-work the hook just ran decides the goal. A start that holds (new,
 // already running here on that plan, or taken over) arms it; a refused start arms nothing.
@@ -1496,7 +1496,7 @@ switch (eventName) {
       // A repeat of an already activated discipline carries a new objective, so it asks too; a bare `lit`,
       // `lit continue` or start-work resume (stackHandled) only carries on and never asks.
       const loopGoal = (reentry?.stackHandled ?? false) || trigger.safetyBlock ? null : offerLoopGoal(trigger.discipline, input);
-      const systemMessage = loopGoal ? `${activationMessage(effectiveDiscipline)}\n${loopGoal.line}` : activationMessage(effectiveDiscipline);
+      const systemMessage = loopGoal ? `${activationMessage(effectiveDiscipline)}\n${loopGoal.line}\n${goalGuidePlain("loopAsked")}` : activationMessage(effectiveDiscipline);
       let context = reentry?.context ?? (["frontend-ui-ux", "visual-qa"].includes(trigger.discipline)
         ? uiuxActivationContext({ ...trigger, uiMode: interfaceMode(normalizedTriggerText(prompt)) })
         : ["lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"].includes(trigger.discipline)

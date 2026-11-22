@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import { GOAL_DIR, GOAL_STATUS } from "./mod/goal.mjs";
 import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 
-export { GOAL_DIR, GOAL_STATUS, STALL_CHECKS, goalStateFromTranscript, goalStep, lastAssistantText, transcriptPathFor } from "./mod/goal.mjs";
+export { GOAL_ANSWERS, GOAL_DIR, GOAL_STATUS, STALL_CHECKS, goalGuideMarkdown, goalGuidePlain, goalStateFromTranscript, goalStep, lastAssistantText, transcriptPathFor } from "./mod/goal.mjs";
 
 export const GOAL_MAX_CHARS = 500;
 export const CONSENT_TTL_MS = 30 * 60 * 1000;

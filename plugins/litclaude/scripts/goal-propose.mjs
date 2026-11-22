@@ -12,7 +12,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { goalWritePath } from "../lib/goal-files.mjs";
-import { GOAL_STATUS, compileCondition, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { GOAL_STATUS, compileCondition, goalGuideMarkdown, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
 import { normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
 import { prepareStateDir, STATE_WRITE_FLAG } from "../lib/project-state-root.mjs";
 
@@ -40,7 +40,7 @@ export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), 
   const startOnly = (reason) => {
     const consent = { version: 1, condition: null, hash: startOnlyHash(plan), id: null, plan, reason, askedAt };
     record(cwd, sessionId, consent);
-    return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, consent };
+    return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, guide: goalGuideMarkdown("startOnly"), consent };
   };
   if (/^goal:\s*never\s*$/mu.test(planText)) return startOnly("this plan is marked goal: never");
   const done = parseDoneWhen(planText);
@@ -53,7 +53,7 @@ export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), 
   if (!dry.ok) return startOnly(dry.reason);
   const consent = { version: 1, condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan, askedAt };
   record(cwd, sessionId, consent);
-  return { line: GOAL_STATUS.asked(built.condition), consent };
+  return { line: GOAL_STATUS.asked(built.condition), guide: goalGuideMarkdown("asked", built.condition), consent };
 };
 
 // `goal-propose.mjs --loop --check "<cmd>" <objective...>`: lit-loop's question, once its failing check
@@ -85,7 +85,7 @@ export const proposeLoopGoal = ({ cwd, check, objective, sessionId = null, now =
   if (!dry.ok) return { line: GOAL_STATUS.skipped(dry.reason) };
   const consent = { version: 1, kind: "loop", condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan: null, objective: goal, askedAt: new Date(now).toISOString() };
   record(cwd, sessionId, consent);
-  return { line: GOAL_STATUS.loopAsked(built.condition), consent };
+  return { line: GOAL_STATUS.loopAsked(built.condition), guide: goalGuideMarkdown("loopAsked", built.condition), consent };
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -93,12 +93,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // Claude Code names the session in the Bash tool's environment; without it the shared path is used.
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID || null;
   let line;
+  let guide;
   try {
-    ({ line } = first === "--loop" && rest[0] === "--check"
+    ({ line, guide } = first === "--loop" && rest[0] === "--check"
       ? proposeLoopGoal({ cwd: process.cwd(), sessionId, check: rest[1], objective: rest.slice(2).join(" ") })
       : proposeGoal({ cwd: process.cwd(), sessionId, planArg: first }));
   } catch (error) {
     line = GOAL_STATUS.skipped(error instanceof Error ? error.message : "the question could not be recorded");
   }
-  process.stdout.write(`${line}\n`);
+  process.stdout.write(guide ? `${line}\n\n${guide}\n` : `${line}\n`);
 }
