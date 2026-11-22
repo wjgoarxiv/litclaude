@@ -2,7 +2,7 @@
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
-<p align="center">Claude Code에서 세션마다 계획하고, 만들고, 확인한 뒤 다음 세션이 이어받을 기록을 남기게 돕는 플러그인입니다.</p>
+<p align="center">LitClaude는 Claude Code에 붙이는 추가 기능입니다. Claude가 "다 됐어요"라고 말하기 전에 자기 작업을 직접 확인하게 하고, 다음 세션이 이어서 시작할 수 있도록 기록을 남기게 합니다.</p>
 
 <p align="center">
 <a href="https://www.npmjs.com/package/@litfamily/litclaude"><img src="https://img.shields.io/npm/v/@litfamily/litclaude?color=FF6337&amp;label=npm" alt="npm 버전" /></a>
@@ -11,15 +11,40 @@
 <a href="https://github.com/wjgoarxiv/litclaude/stargazers"><img src="https://img.shields.io/github/stars/wjgoarxiv/litclaude?style=flat" alt="GitHub 스타" /></a>
 </p>
 
-Claude Code 작업 앞에 `lit`을 붙이면 Claude가 목표를 고정하고, 실패하는 테스트를 먼저 쓰고, 실제 결과를 확인하고 그 내용을 적어 둡니다. 작업을 멈출 때 `handoff`를
-입력해 두면 다음 세션은 처음부터가 아니라 그 기록에서 출발합니다.
+Claude에게 기능을 하나 부탁하면 코드를 쓰고 끝났다고 말합니다. 그런데 다음 날 보니 테스트는 한 번도 돌지 않았습니다. 새 세션을 열면 프로젝트 설명을 처음부터 다시 해야 합니다.
 
-> [!TIP]
-> npm 명령 한 줄로 설치하고, 그다음 작업 앞에 `lit`을 붙여 Claude에게 맡기면 됩니다. 명령은 [빠른 시작](#빠른-시작)에 있습니다.
+LitClaude를 쓰면 같은 요청에 `lit`만 붙이면 됩니다. Claude는 먼저 이 작업에서 "끝났다"가 무슨 뜻인지 적고, 실패하는 테스트를 추가해 통과시킨 뒤, 무엇을 확인했고 무엇을 확인하지 못했는지 알려 줍니다. 작업을 멈출 때 `handoff`라고 치면 Claude가 기록을 남기고, 다음 세션이 그 기록을 읽고 이어서 합니다.
 
 <p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="#이런-걸-만들-수-있어요">작업 예시</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
 <!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="영상은 LIT 마크, LitClaude, The lit workflow for Claude Code가 적힌 제목 화면으로 시작해 LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션으로 넘어가며, 단계마다 번호가 붙은 두 줄 자막이 나옵니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답합니다. 프롬프트 위 LIT 카드는 ready에서 lit-loop으로 바뀌고, PIN, RED, GREEN, VERIFY, REVIEW, RECORD로 이어지는 작업 지도를 그리며 PIN에 불을 켭니다. Claude가 셸로 새 테스트를 덧붙여 돌리자 테스트가 실패하고 지도가 RED로 넘어갑니다. greet.js를 고치는 동안 카드의 실시간 단계 줄에는 지금 도는 도구와 걸린 시간이 Bash · 0:00처럼 나옵니다. 명령이 끝나면 테스트가 통과하고, 지도는 GREEN에 체크를 하고 VERIFY에 불을 켭니다. 실시간 단계 줄이 비고 카드는 idle로 돌아가며, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
+
+## 두 가지 사용법
+
+**간단하게.** 평소처럼 요청을 쓰고, 앞이나 끝에 `lit`을 붙입니다.
+
+```text
+src/dates.js의 날짜 파싱 버그 고쳐줘 lit
+```
+
+Claude가 목표를 정하고, 실패하는 테스트를 쓰고, 버그를 고치고, 결과를 확인한 뒤 확인한 내용을 알려 줍니다. 대부분의 작업은 이것으로 충분합니다.
+
+**본격적으로.** 큰 작업은 한 단계씩 나아갑니다. 각 단계가 남긴 파일을 다음 단계가 읽고, 필요 없는 단계는 건너뛰면 됩니다.
+
+| 단계 | 입력 | 하는 일 |
+| --- | --- | --- |
+| 1. 넓게 보기 | `/litclaude:lit-brainstorm <질문>` | 선택지를 많이 낸 뒤 점수를 매겨 몇 개로 추립니다 |
+| 2. 구체화 | `/litclaude:deep-interview <아이디어>` | 목표가 분명해질 때까지 Claude가 질문합니다 |
+| 3. 계획 | `lit-crucible <접근법>` 또는 `/litclaude:lit-plan <작업>` | crucible은 접근법의 약점을 먼저 찌른 뒤 계획으로 넘기고, lit-plan은 단계를 쓰고 승인을 기다립니다 |
+| 4. 실행 | 계획에 `yes`, 또는 `/litclaude:lit-loop <작업>` | 테스트와 확인을 거치며 작업합니다 |
+| 5. 검토 | `/litclaude:review-work` | 다섯 갈래로 검토하고 발견한 문제부터 알려 줍니다 |
+| 6. 넘겨주기 | `handoff` | 결정과 다음 할 일을 파일로 남깁니다 |
+
+설치는 한 줄입니다. 그다음 프로젝트에서 Claude Code를 실행하세요(처음 써 보는 전체 과정은 [빠른 시작](#빠른-시작)에 있습니다).
+
+```bash
+npx @litfamily/litclaude@latest install
+```
 
 ## 어디서 시작할까요
 

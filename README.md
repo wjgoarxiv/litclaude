@@ -2,7 +2,7 @@
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
-<p align="center">A Claude Code plugin that helps every session plan the work, build it, check it, and leave a note the next session can pick up.</p>
+<p align="center">LitClaude is an add-on for Claude Code. It makes Claude check its own work before it says "done", and leaves a note so the next session starts where this one stopped.</p>
 
 <p align="center">
 <a href="https://www.npmjs.com/package/@litfamily/litclaude"><img src="https://img.shields.io/npm/v/@litfamily/litclaude?color=FF6337&amp;label=npm" alt="npm version" /></a>
@@ -11,17 +11,45 @@
 <a href="https://github.com/wjgoarxiv/litclaude/stargazers"><img src="https://img.shields.io/github/stars/wjgoarxiv/litclaude?style=flat" alt="GitHub stars" /></a>
 </p>
 
-Put `lit` in front of a Claude Code task and Claude pins the goal, writes a failing test first, checks the
-real result and writes down what it found. Type `handoff` when you stop, and the next session starts from that
-note instead of from scratch.
+You ask Claude for a feature. It writes the code and says it is finished, and a day later you find the tests
+never ran. You open a new session and explain the whole project again.
 
-> [!TIP]
-> One npm line installs LitClaude; after that, give Claude a task with `lit` in front.
-> [Quick start](#quick-start) has the lines.
+With LitClaude you add `lit` to the same request. Claude first writes down what "finished" means for this
+task, adds a test that fails, makes it pass, and ends by telling you what it checked and what it could not.
+When you stop, type `handoff`. Claude saves a note, and the next session reads it and carries on.
 
 <p align="center"><a href="#install">Install</a> &nbsp; <a href="#quick-start">Quick start</a> &nbsp; <a href="#what-you-can-make">Showcase</a> &nbsp; <a href="./docs/guide.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> Guide</a> &nbsp; <a href="./docs/skills.md">Skills</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> Film</a> &nbsp; <a href="./docs/guide.md#safety"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> Safety</a> &nbsp; <a href="./README_ko-KR.md">한국어</a></p>
 
 <!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="The film opens on a title card with the LIT mark, LitClaude and The lit workflow for Claude Code, then cuts to a Claude Code session in a small Node project with LitClaude installed, where a numbered two-line caption names each step. The prompt &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot; is sent, and the hook answers with the LIT mark and LIT IGNITED · lit-loop. The LIT card above the prompt switches from ready to lit-loop and draws its workflow map, PIN, RED, GREEN, VERIFY, REVIEW and RECORD, with PIN lit. Claude appends the new test through the shell and runs it; the test fails and the map turns RED. While Claude changes greet.js, the live step on the card names the running tool and how long it has run, Bash · 0:00. When the command finishes the tests pass, and the map checks GREEN and lights VERIFY. The live step clears, the card goes idle, and the film ends on the LitClaude mark and the install command npx @litfamily/litclaude@latest install." /></p>
+
+## Two ways to use it
+
+**The easy way.** Write your request as usual and put `lit` at the start or at the end:
+
+```text
+fix the date parsing bug in src/dates.js lit
+```
+
+Claude sets the goal, writes a failing test, fixes the bug, checks the result and tells you what it checked.
+Most tasks need nothing more.
+
+**The full workflow.** For a bigger job, go one step at a time. Each step leaves a file the next step reads,
+and you can skip any step you do not need.
+
+| Step | Type | What happens |
+| --- | --- | --- |
+| 1. Explore | `/litclaude:lit-brainstorm <question>` | Many options, scored, cut to a short list |
+| 2. Clarify | `/litclaude:deep-interview <idea>` | Claude asks questions until the goal is clear |
+| 3. Plan | `lit-crucible <approach>` or `/litclaude:lit-plan <task>` | Crucible attacks the approach first, then plans; lit-plan writes the steps and waits for your yes |
+| 4. Build | `yes` to the plan, or `/litclaude:lit-loop <task>` | Claude works through it with tests and checks |
+| 5. Review | `/litclaude:review-work` | A review in five lanes, findings first |
+| 6. Hand off | `handoff` | Decisions and the next step, saved to a file |
+
+Install with one line, then start Claude Code in your project ([Quick start](#quick-start) has the full first run):
+
+```bash
+npx @litfamily/litclaude@latest install
+```
 
 ## Pick your path
 
