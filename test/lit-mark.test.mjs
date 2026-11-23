@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { it } from "node:test";
 import * as mark from "../bin/litfamily-banner.mjs";
+import { synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
@@ -18,11 +19,13 @@ const hook = (cwd, event, input = {}) => {
   return JSON.parse(result.stdout);
 };
 
-it("help prints the Ignition B banner and product lockup without ANSI in a pipe", () => {
-  const result = spawnSync(process.execPath, [join(root, "bin/litclaude-ai.js"), "--help"], { cwd: root, env, encoding: "utf8" });
+it("help prints only the plain mark line and version without ANSI in a pipe", () => {
+  const result = spawnSync(process.execPath, [join(root, "bin/litclaude-ai.js"), "--help"], {
+    cwd: root, env: { ...env, COLUMNS: "80" }, encoding: "utf8",
+  });
   assert.equal(result.status, 0, result.stderr);
-  assert.ok(result.stdout.startsWith(mark.banner[0].trimEnd() + "\n"), "Ignition B banner missing");
-  assert.ok(result.stdout.includes(`claude v${version}`));
+  assert.ok(result.stdout.startsWith(`${synthwaveRows({ mode: "plain" })[0]}\nlitclaude v${version}\n`), "plain mark line missing");
+  assert.doesNotMatch(result.stdout, /[█▀▄░]/u);
   assert.doesNotMatch(result.stdout, /\x1b|██╗/u);
 });
 

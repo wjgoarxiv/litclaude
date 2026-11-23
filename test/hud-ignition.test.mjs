@@ -10,6 +10,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const hudPath = join(root, "plugins", "litclaude", "bin", "litclaude-hud.js");
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
 const stripAnsi = (value) => value.replace(/\x1b\[[0-9;]*m/gu, "");
+// Truecolor dark terminals draw the brand as a Synthwave pill without brackets; other depths keep [🔥LIT vX].
+const BRAND_PREFIX = /^(?:\[🔥LIT v[\d.]+\]| 🔥LIT v[\d.]+ ) \| /u;
 
 const colorEnv = (overrides = {}) => {
   const env = { ...process.env };
@@ -52,7 +54,7 @@ test("prompt hook records the ignited discipline per session, and the HUD leaves
     assert.equal(lit.status, 0, lit.stderr);
     const litPlain = stripAnsi(lit.stdout);
     assert.doesNotMatch(litPlain, /IGNITED/u, "the ignition segment no longer crowds the status line");
-    assert.match(litPlain, /^\[🔥LIT v[\d.]+\] \| /u, "the brand prefix stays");
+    assert.match(litPlain, BRAND_PREFIX, "the brand prefix stays");
 
     const idle = runHook({ session_id: sessionId, cwd: join(tmp, "workspace"), prompt: "what time is it in Seoul?" }, env);
     assert.equal(idle.status, 0, idle.stderr);
@@ -62,7 +64,7 @@ test("prompt hook records the ignited discipline per session, and the HUD leaves
     assert.equal(cooled.status, 0, cooled.stderr);
     const cooledPlain = stripAnsi(cooled.stdout);
     assert.doesNotMatch(cooledPlain, /IGNITED|🔥 LIT/u);
-    assert.match(cooledPlain, /^\[🔥LIT v[\d.]+\] \| /u, "cooled line returns to the plain prefix layout");
+    assert.match(cooledPlain, BRAND_PREFIX, "cooled line returns to the plain prefix layout");
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -112,7 +114,7 @@ test("unsafe session ids cannot escape the ignition state root", () => {
     assert.equal(hook.status, 0, hook.stderr);
     const hud = runHud(statusFor(tmp, "../../escape"), env);
     assert.equal(hud.status, 0, hud.stderr);
-    assert.match(stripAnsi(hud.stdout), /^\[🔥LIT v[\d.]+\] \| /u);
+    assert.match(stripAnsi(hud.stdout), BRAND_PREFIX);
     assert.equal(existsSync(join(tmp, "escape.json")), false);
     assert.ok(readdirSync(join(tmp, "hud-state")).every((name) => /^[A-Za-z0-9._-]+\.json$/u.test(name)));
   } finally {

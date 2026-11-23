@@ -15,7 +15,11 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { banner } from "../bin/litfamily-banner.mjs";
+// In a pipe the Synthwave mark shrinks to its one plain line, so agents never read rows of art.
+const assertSynthwaveBanner = (stdout) => {
+  assert.ok(stdout.startsWith(`LIT · claude code\nlitclaude v${packageJson.version}\n`), "plain mark line missing");
+  assert.doesNotMatch(stdout, /[█▀▄░]/u);
+};
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const packageSpec = new URL("..", import.meta.url).href;
@@ -97,7 +101,7 @@ describe("litclaude-ai CLI", () => {
       );
 
       assert.equal(result.status, 0, result.stderr);
-      assert.ok(result.stdout.startsWith(`${banner[0].trimEnd()}\n`), "Ignition B banner missing");
+      assertSynthwaveBanner(result.stdout);
       assert.equal(lastOutputLine(result.stdout), packageJson.version);
     } finally {
       rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
@@ -118,7 +122,7 @@ describe("litclaude-ai CLI", () => {
       });
 
       assert.equal(result.status, 0, result.stderr);
-      assert.ok(result.stdout.startsWith(`${banner[0].trimEnd()}\n`), "Ignition B banner missing");
+      assertSynthwaveBanner(result.stdout);
       assert.equal(lastOutputLine(result.stdout), packageJson.version);
       assert.equal(result.stderr, "");
     }

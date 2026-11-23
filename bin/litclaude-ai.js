@@ -73,7 +73,8 @@ import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plug
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertOwnedPluginTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
-import { banner, lockup, colorMode, supportsBlocks, terminalRows } from "./litfamily-banner.mjs";
+import { colorMode, supportsBlocks } from "./litfamily-banner.mjs";
+import { SIZES, pickSize, synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import {
   ICON_FONT,
   ICON_FONT_QUESTION,
@@ -393,7 +394,7 @@ const formatInstallStep = (label) => {
 };
 
 // Shared LitFamily banner frame (plans/references/installer-choice-contract.md):
-// the canonical Ignition B mark plus the existing install plan frame.
+// the Synthwave mark plus the existing install plan frame.
 const FAMILY_RULE = `  ${"━".repeat(46)}`;
 // The banner keeps its short tagline; package.json carries the longer npm search description.
 const BANNER_TAGLINE = "Claude Code-native workflow distribution.";
@@ -413,11 +414,16 @@ const INSTALL_STAGES = [
   ["04", "Cache", "refresh the compatibility pointer"],
   ["05", "Verify", "confirm every installed surface"],
 ];
+// Human-facing Synthwave mark: the size follows the terminal width; no colour gives the glyph-only scene.
+// A pipe (agents, CI logs) gets the one plain line, so tool output never carries rows of art.
+const terminalColumns = () => process.stdout.columns || Number.parseInt(process.env.COLUMNS ?? "", 10) || 80;
 const renderLitClaudeWordmark = ({ color = shouldColorInstall() } = {}) => {
-  if (!supportsBlocks()) return ["LIT", `litclaude v${version}`];
-  return terminalRows(lockup(`claude v${version}`, banner).map((row) => row.trimEnd()), {
-    mode: color ? colorMode() : "none",
-  });
+  if (!supportsBlocks() || !process.stdout.isTTY) return synthwaveRows({ mode: "plain" }).concat(`litclaude v${version}`);
+  const cols = terminalColumns();
+  const rows = synthwaveRows({ cols, mode: color ? colorMode() : "mono" });
+  const versionLine = `litclaude v${version}`;
+  const markWidth = SIZES.find((size) => size.name === pickSize(cols))?.minCols ?? versionLine.length;
+  return rows.concat(`${" ".repeat(Math.max(0, Math.floor((markWidth - versionLine.length) / 2)))}${versionLine}`);
 };
 
 const familyBanner = ({ color = shouldColorInstall() } = {}) => [

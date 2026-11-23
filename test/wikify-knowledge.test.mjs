@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { banner } from "../bin/litfamily-banner.mjs";
+import { synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 
 import {
   captureKnowledgeEvent,
@@ -68,11 +68,15 @@ const decisionEvent = (overrides = {}) => ({
   ...overrides,
 });
 
-// Human-facing CLI commands now begin with the twenty-line Ignition B lockup. Keep these
-// knowledge-runtime assertions focused on the command payload and its empty-output contracts.
-const stripCliBanner = (stdout) => stdout.startsWith(`${banner[0].trimEnd()}\n`)
-  ? stdout.split("\n").slice(20).join("\n")
-  : stdout;
+// Human-facing CLI commands begin with the Synthwave mark and a version line; in a pipe the mark is its one
+// plain line. Keep these knowledge-runtime assertions focused on the command payload and its empty-output
+// contracts by cutting through the version line.
+const markTop = new Set([synthwaveRows({ mode: "plain" })[0], ...[80, 44, 24].map((cols) => synthwaveRows({ cols, mode: "mono" })[0])]);
+const stripCliBanner = (stdout) => {
+  const lines = stdout.split("\n");
+  const end = lines.findIndex((line) => /^\s*litclaude v\d/u.test(line));
+  return markTop.has(lines[0]) && end > 0 ? lines.slice(end + 1).join("\n") : stdout;
+};
 const runWikify = (project, args, env = {}) => {
   const result = spawnSync(
     process.execPath,

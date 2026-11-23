@@ -63,6 +63,8 @@ export const ansi16CodeForAccent = (value) => ({
 const NEON_BRAND = "LIT";
 export const NEON_START = Object.freeze([255, 45, 149]); // #ff2d95 hot pink
 export const NEON_END = Object.freeze([0, 229, 255]); // #00e5ff electric cyan
+const PILL_START = Object.freeze([139, 233, 253]); // #8be9fd, Synthwave chrome stop 1
+const PILL_END = Object.freeze([255, 154, 213]); // #ff9ad5, Synthwave chrome stop 4
 
 export const supportsTruecolor = (env = process.env) => {
   // The portable signal: terminals that export COLORTERM=truecolor|24bit.
@@ -101,15 +103,14 @@ export const litBrandPrefix = (version, { noColor = false, truecolor = false, de
     // 256-color neon fallback: bright magenta, bold.
     return `\x1b[0m\x1b[1m\x1b[38;5;201m${label}\x1b[0m`;
   }
-  const n = NEON_BRAND.length;
-  let out = `\x1b[0m\x1b[1m[🔥`;
+  // Synthwave badge: the label sits on a cyan-to-rose pill (LitClaude chrome stops) in dark ink.
+  const pill = [...` 🔥${NEON_BRAND} v${version} `];
+  const n = pill.length;
+  let out = "\x1b[0m\x1b[1m\x1b[38;2;11;14;20m";
   for (let i = 0; i < n; i += 1) {
     const t = n === 1 ? 0 : i / (n - 1);
-    const r = Math.round(NEON_START[0] + (NEON_END[0] - NEON_START[0]) * t);
-    const g = Math.round(NEON_START[1] + (NEON_END[1] - NEON_START[1]) * t);
-    const b = Math.round(NEON_START[2] + (NEON_END[2] - NEON_START[2]) * t);
-    out += `\x1b[38;2;${r};${g};${b}m${NEON_BRAND[i]}`;
+    const [r, g, b] = PILL_START.map((v, k) => Math.round(v + (PILL_END[k] - v) * t));
+    out += `\x1b[48;2;${r};${g};${b}m${pill[i]}`;
   }
-  out += `\x1b[38;2;${NEON_END[0]};${NEON_END[1]};${NEON_END[2]}m v${version}]\x1b[0m`;
-  return out;
+  return `${out}\x1b[0m`;
 };

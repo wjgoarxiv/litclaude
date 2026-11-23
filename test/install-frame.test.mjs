@@ -6,7 +6,6 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { banner, lockup } from "../bin/litfamily-banner.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const binPath = join(root, "bin", "litclaude-ai.js");
@@ -44,7 +43,7 @@ const runCliAsTty = (args, env) => {
 };
 
 describe("shared LitFamily installer frame", () => {
-  it("prints the family banner: Ignition B mark, tagline, stage rows", () => {
+  it("prints the family banner: Synthwave mark, tagline, stage rows", () => {
     const home = makeHome();
     const claudeHome = makeClaudeHome();
     try {
@@ -53,13 +52,15 @@ describe("shared LitFamily installer frame", () => {
         CLAUDE_CONFIG_DIR: claudeHome,
         LITCLAUDE_SPINNER: "1",
         NO_COLOR: "1",
+        COLUMNS: "80",
       });
       assert.equal(result.status, 0, result.stderr);
       const rule = `  ${"━".repeat(46)}`;
       assert.ok(result.stdout.includes(`${rule}\n`), "46-glyph rule line missing");
       assert.equal(result.stdout.split(`${rule}\n`).length - 1 >= 2, true, "banner needs opening and closing rules");
-      const expectedWordmark = lockup(`claude v${packageJson.version}`, banner).map((row) => row.trimEnd()).join("\n");
-      assert.ok(result.stdout.includes(expectedWordmark), "Ignition B banner lockup missing");
+      // A pipe gets the one plain line, never rows of art.
+      assert.ok(result.stdout.includes(`LIT · claude code\nlitclaude v${packageJson.version}\n`), "plain mark line missing");
+      assert.doesNotMatch(result.stdout, /[█▀▄░]/u);
       assert.doesNotMatch(result.stdout, /🔥  l  i  t  claude/u);
       assert.match(result.stdout, /Claude Code-native workflow distribution\./u);
       assert.match(result.stdout, /╭─ INSTALL PLAN/u);
@@ -105,6 +106,9 @@ describe("--yes non-interactive install", () => {
         LITCLAUDE_NO_AUTO_UPDATE: "1",
       });
       assert.equal(result.status, 0, result.stderr);
+      const plain = result.stdout.replace(/\x1b\[[0-9;]*m/gu, "");
+      assert.match(plain, /[▀▄█]/u, "a terminal gets the Synthwave art");
+      assert.match(plain, /LIT · claude code/u);
       assert.doesNotMatch(result.stdout, /Choose LitClaude HUD brand color/u);
       assert.doesNotMatch(result.stdout, /Choose LitClaude output style/u);
       const settings = JSON.parse(readFileSync(join(claudeHome, "settings.json"), "utf8"));

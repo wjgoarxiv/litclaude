@@ -137,9 +137,9 @@ test("LitClaude HUD renders a truecolor neon gradient brand when COLORTERM=truec
   });
 
   assert.equal(result.status, 0, result.stderr);
-  // bold + 🔥 + first letter at hot-pink #ff2d95 ... last letter at electric-cyan #00e5ff
-  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
+  // Synthwave pill: dark bold ink on a background running from #8be9fd to #ff9ad5
+  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\x1b\[38;2;11;14;20m\x1b\[48;2;139;233;253m /u);
+  assert.match(result.stdout, /\x1b\[48;2;255;154;213m \x1b\[0m/u);
 });
 
 test("LitClaude HUD renders the truecolor gradient in Windows Terminal/WSL2 (WT_SESSION, no COLORTERM)", () => {
@@ -160,8 +160,8 @@ test("LitClaude HUD renders the truecolor gradient in Windows Terminal/WSL2 (WT_
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
+  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\x1b\[38;2;11;14;20m\x1b\[48;2;139;233;253m /u);
+  assert.match(result.stdout, /\x1b\[48;2;255;154;213m \x1b\[0m/u);
 });
 
 test("LitClaude HUD renders the truecolor gradient in WSL2 even when Claude drops WT_SESSION", () => {
@@ -184,8 +184,8 @@ test("LitClaude HUD renders the truecolor gradient in WSL2 even when Claude drop
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\[🔥\x1b\[38;2;255;45;149mL/u);
-  assert.match(result.stdout, /\x1b\[38;2;0;229;255mT/u);
+  assert.match(result.stdout, /^\x1b\[0m\x1b\[1m\x1b\[38;2;11;14;20m\x1b\[48;2;139;233;253m /u);
+  assert.match(result.stdout, /\x1b\[48;2;255;154;213m \x1b\[0m/u);
   assert.doesNotMatch(result.stdout, /^\x1b\[0m\x1b\[1m\x1b\[38;5;201m/u);
 });
 

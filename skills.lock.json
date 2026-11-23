@@ -925,6 +925,8 @@
     "plugins/litclaude/lib/start-work-continuation.mjs",
     "plugins/litclaude/lib/start-work-lifecycle.mjs",
     "plugins/litclaude/lib/strict-json.mjs",
+    "plugins/litclaude/lib/synthwave-mark.mjs",
+    "plugins/litclaude/lib/synthwave-rows.mjs",
     "plugins/litclaude/lib/wikify-knowledge-cli.mjs",
     "plugins/litclaude/lib/wikify-knowledge.mjs",
     "plugins/litclaude/lib/workflow-check.mjs",
