@@ -276,7 +276,7 @@ describe("rules engine — compact-sourced SessionStart re-injection budget", ()
     write(project, ".claude/rules/always.md", "---\nalwaysApply: true\n---\nLIVE OWNER RULE");
     const lockPath = join(project, ".litclaude", "rules", "session-live-owner.lock");
     mkdirSync(lockPath, { recursive: true });
-    writeFileSync(join(lockPath, "owner.json"), `${JSON.stringify({ nonce: "live-owner", pid: process.pid, acquired_at_ms: 0 })}\n`);
+    writeFileSync(join(lockPath, "owner.json"), `${JSON.stringify({ nonce: "live-owner", pid: process.pid, acquired_at_ms: Date.now() - 60_000 })}\n`);
 
     const context = contextOf(runHook("session-start", compactEvent(project, "live-owner")));
     assert.doesNotMatch(context, /LIVE OWNER RULE/u);

@@ -12,7 +12,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["lib/mark.mjs", "8f3d1c3ff2c471d264e8d73fca97595c93cf4b43d7935c285d72ee1ddfa8c67c"],
     ["lib/npm-invocation.mjs", "8d7b98e65836f5400b33163083cfa842fcbbf0659923290b0c680395737d3716"],
     ["lib/output_mark.py", "f6f9a06361f8cf515a19053f59156a1807ddd686632b2f3cccb1e9a0b046d9ae"],
-    ["lib/owner-lock.mjs", "d70c57b603987f0865add60dad442489acb42541a8dedeb3fe254429f4bfa7b6"],
+    ["lib/owner-lock.mjs", "5acc8fe966ad4fc2b92f5ff2b826942eb0999390ceb05debb602f248591f20bd"],
     ["lib/plan-task-rows.mjs", "ca45412631cdfa805102a42dbb3cfc9a43f6f1ecbcdabe1cc5059d2dcb5e58df"],
     ["lib/rename-aliases.mjs", "3ee93aec10d0dbe785c554ab3040173ee94fde27da1b440a54b0513e5d11a508"],
     ["lib/rewind/board.mjs", "26e504014d18d77bd7533278a10543d76516cac3300578fe31e6f3b93c4a4f3e"],

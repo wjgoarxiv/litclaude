@@ -22,6 +22,9 @@ import {
 } from "./secure-path-read.mjs";
 
 const MAX_OWNER_BYTES = 4096;
+// No caller holds this lock for more than a moment, so an owner older than this crashed even when its
+// recorded pid now names another live process (pids are reused, often on WSL).
+const OWNER_LOCK_MAX_HOLD_MS = 10 * 60 * 1000;
 const sleepSync = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 const monotonicNowMs = () => Number(process.hrtime.bigint()) / 1_000_000;
 
@@ -213,7 +216,13 @@ const takeoverWinner = (lockDir, incumbent, ownClaim, staleAfter, expectedLockDi
   for (const name of names) {
     assertLockDirectory(lockDir, expectedLockDirectory);
     const claimRecord = readTakeoverClaim(lockDir, name, incumbent.nonce);
-    if (claimRecord === null) return null;
+    if (claimRecord === null) {
+      // A claim a contender died while writing can never be read, and would block every takeover.
+      const claimStats = lstatSync(join(lockDir, name), { throwIfNoEntry: false });
+      if (!claimStats?.isFile() || Date.now() - claimStats.mtimeMs < staleAfter) return null;
+      rmSync(join(lockDir, name), { force: true });
+      continue;
+    }
     const { claim, identity, text } = claimRecord;
     const alive = processIsAlive(claim.pid);
     const oldEnough = Date.now() - claim.acquired_at_ms >= staleAfter;
@@ -249,6 +258,7 @@ export const acquireOwnerLock = (lockDir, { timeoutMs = 500, staleMs = 30_000 } 
   const timeout = Number.isFinite(timeoutMs) ? Math.max(0, timeoutMs) : 500;
   const staleAfter = Number.isFinite(staleMs) ? Math.max(0, staleMs) : 30_000;
   const startedAt = monotonicNowMs();
+  const arrivedAtMs = Date.now();
   let takeoverClaim = null;
 
   while (true) {
@@ -275,9 +285,21 @@ export const acquireOwnerLock = (lockDir, { timeoutMs = 500, staleMs = 30_000 } 
 
       lockDirectory = assertLockDirectory(lockDir);
       const incumbent = readOwnerLock(lockDir);
+      if (!incumbent && lockDirectory) {
+        // A holder that died between creating the folder and writing its owner record left a lock
+        // nobody can judge. One already old when this caller arrived is moved aside and the acquisition
+        // retried; one that only aged while we waited is left for the next caller.
+        const folder = lstatSync(lockDir, { throwIfNoEntry: false });
+        if (folder && arrivedAtMs - folder.mtimeMs >= staleAfter) {
+          const aside = `${lockDir}.stale.ownerless.${randomUUID()}`;
+          try {
+            if (removeVerifiedPath(lockDir, lockDirectory, undefined, aside, (quarantine) => !readOwnerLock(quarantine))) continue;
+          } catch { /* A lock that changed under us is judged again on the next pass. */ }
+        }
+      }
+      const age = incumbent ? Date.now() - incumbent.acquired_at_ms : 0;
       const stale = incumbent
-        && Date.now() - incumbent.acquired_at_ms >= staleAfter
-        && !processIsAlive(incumbent.pid);
+        && (age >= OWNER_LOCK_MAX_HOLD_MS || (age >= staleAfter && !processIsAlive(incumbent.pid)));
       if (stale) {
         if (takeoverClaim?.owner_nonce !== incumbent.nonce) {
           takeoverClaim = {
@@ -320,7 +342,10 @@ export const acquireOwnerLock = (lockDir, { timeoutMs = 500, staleMs = 30_000 } 
         }
       }
 
-      if (monotonicNowMs() - startedAt >= timeout) throw new OwnerLockError("state lock timed out");
+      if (monotonicNowMs() - startedAt >= timeout) {
+        const holder = incumbent ? `held by pid ${incumbent.pid} for ${Math.round(age / 1000)} s` : "with no owner record";
+        throw new OwnerLockError(`state lock timed out (${holder}; lock ${lockDir})`);
+      }
       sleepSync(Math.min(20, Math.max(1, timeout)));
     }
   }

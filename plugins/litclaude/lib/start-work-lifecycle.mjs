@@ -108,6 +108,31 @@ const readLockOwner = (root) => {
   }
 };
 
+// No state update holds this lock for more than a moment, so a lock older than this belongs to a
+// crashed holder even when its recorded pid now names another live process (pids are reused, often on WSL).
+const START_WORK_LOCK_MAX_HOLD_MS = 10 * 60 * 1000;
+
+// An ownerless lock is a holder that died between creating the folder and writing its owner record.
+const lockAgeMs = (lockDir, owner) => {
+  if (owner) return Date.now() - owner.acquired_at_ms;
+  const stats = lstatSync(lockDir, { throwIfNoEntry: false });
+  return stats ? Date.now() - stats.mtimeMs : 0;
+};
+
+// A takeover claim whose writer died before finishing the takeover would refuse every later
+// contender (`wx` fails on it), so a claim from a dead or long-gone writer is cleared first.
+const clearDeadTakeoverClaim = (claim, staleMs) => {
+  try {
+    const stats = lstatSync(claim, { throwIfNoEntry: false });
+    if (!stats?.isFile()) return;
+    const pid = Number.parseInt(readFileSync(claim, "utf8"), 10);
+    if (processIsAlive(pid) && Date.now() - stats.mtimeMs < staleMs) return;
+    rmSync(claim, { force: true });
+  } catch {
+    // A claim that cannot be read or removed leaves the takeover to time out and report it.
+  }
+};
+
 export const acquireStartWorkLock = (root, options = {}) => {
   const lockDir = startWorkLockDir(root);
   requireStateDir(dirname(lockDir));
@@ -131,15 +156,18 @@ export const acquireStartWorkLock = (root, options = {}) => {
     } catch (error) {
       if (error?.code !== "EEXIST") throw new StartWorkLifecycleError("start-work state lock failed");
       const incumbent = readLockOwner(root);
+      const age = lockAgeMs(lockDir, incumbent);
       const stale = incumbent
-        && Date.now() - incumbent.acquired_at_ms >= staleMs
-        && !processIsAlive(incumbent.pid);
+        ? age >= START_WORK_LOCK_MAX_HOLD_MS || (age >= staleMs && !processIsAlive(incumbent.pid))
+        : age >= staleMs;
       if (stale) {
-        const claim = join(lockDir, `.takeover-${incumbent.nonce}`);
-        const displaced = `${lockDir}.stale.${incumbent.nonce}.${randomUUID()}`;
+        const tag = incumbent?.nonce ?? "ownerless";
+        const claim = join(lockDir, `.takeover-${tag}`);
+        const displaced = `${lockDir}.stale.${tag}.${randomUUID()}`;
         try {
+          clearDeadTakeoverClaim(claim, staleMs);
           writeFileSync(claim, `${process.pid}\n`, { mode: 0o600, flag: "wx" });
-          if (readLockOwner(root)?.nonce !== incumbent.nonce) continue;
+          if (readLockOwner(root)?.nonce !== incumbent?.nonce) continue;
           renameSync(lockDir, displaced);
           rmSync(displaced, { recursive: true, force: true });
           continue;
@@ -149,7 +177,12 @@ export const acquireStartWorkLock = (root, options = {}) => {
           }
         }
       }
-      if (Date.now() - started >= timeout) throw new StartWorkLifecycleError("start-work state lock timed out", 75);
+      if (Date.now() - started >= timeout) {
+        const holder = incumbent
+          ? `held by pid ${incumbent.pid} for ${Math.round(age / 1000)} s`
+          : "with no owner record";
+        throw new StartWorkLifecycleError(`start-work state lock timed out (${holder}; lock ${lockDir})`, 75);
+      }
       sleepSync(Math.min(20, Math.max(1, timeout)));
     }
   }
@@ -1630,13 +1663,28 @@ const idleMs = (work, now) => Math.max(0, now - (lastActivityMs(work) || now));
 // A heartbeat for the owner and its lanes (they share its session id): at most one state write a
 // minute, with no ledger event, so a busy run never looks idle to another session.
 const ACTIVITY_WRITE_MS = 60_000;
-const recordToolActivity = (root, state, work, now) => {
+// It takes the lock only briefly and skips when another writer holds it: a heartbeat is never worth
+// delaying a tool call, and the next call a minute on writes it instead.
+const HEARTBEAT_LOCK_WAIT_MS = 200;
+const recordToolActivity = (root, work, now) => {
   if (now - lastActivityMs(work) < ACTIVITY_WRITE_MS) return;
-  work.last_tool_at = new Date(now).toISOString();
+  let owner;
   try {
+    owner = acquireStartWorkLock(root, { timeoutMs: HEARTBEAT_LOCK_WAIT_MS });
+  } catch {
+    return;
+  }
+  try {
+    const state = readState(root);
+    const current = state.works[work.work_id];
+    if (!current || current.root_session_id !== work.root_session_id || !["active", "paused"].includes(current.status)) return;
+    if (now - lastActivityMs(current) < ACTIVITY_WRITE_MS) return;
+    current.last_tool_at = new Date(now).toISOString();
     saveState(root, state);
   } catch {
     // A failed heartbeat must not refuse a call the guard allowed.
+  } finally {
+    releaseStartWorkLock(root, owner);
   }
 };
 const isStale = (work, now) => Boolean(work.root_session_ended_at) || idleMs(work, now) >= START_WORK_STALE_MS;
@@ -1990,25 +2038,32 @@ const cancelNoticeDecision = (root, state, input) => {
 export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}) => {
   const canonicalRoot = canonicalDirectory(root, "cwd root");
   if (!existsSync(startWorkStatePath(canonicalRoot))) return { decision: "allow-normal" };
-  return withLock(canonicalRoot, () => {
-    const state = readState(canonicalRoot);
-    const work = state.active_work_id ? state.works[state.active_work_id] : null;
-    const running = Boolean(work && ["active", "paused"].includes(work.status));
-    if (!running || work.root_session_id !== input?.session_id) {
-      const notice = cancelNoticeDecision(canonicalRoot, state, input);
-      if (notice) return notice;
-    }
-    if (!running) return { decision: "allow-normal" };
-    if (typeof input?.session_id !== "string" || input.session_id !== work.root_session_id) {
-      return otherSessionDecision(canonicalRoot, work, input, now);
-    }
-    const decided = ownerToolDecision(canonicalRoot, state, work, input);
-    if (decided.decision === "allow-normal") recordToolActivity(canonicalRoot, state, work, now);
-    return decided;
-  });
+  // The verdict only reads the state, which every writer replaces whole by rename, so it is taken
+  // from a snapshot without the lock. Waiting on the lock here let other sessions' writes of a large
+  // state on a slow drive refuse every tool call. A snapshot that cannot be read is retried under
+  // the lock, which fails closed as before.
+  let state;
+  try {
+    state = readState(canonicalRoot);
+  } catch {
+    state = withLock(canonicalRoot, () => readState(canonicalRoot));
+  }
+  const work = state.active_work_id ? state.works[state.active_work_id] : null;
+  const running = Boolean(work && ["active", "paused"].includes(work.status));
+  if (!running || work.root_session_id !== input?.session_id) {
+    const notice = cancelNoticeDecision(canonicalRoot, state, input);
+    if (notice) return notice;
+  }
+  if (!running) return { decision: "allow-normal" };
+  if (typeof input?.session_id !== "string" || input.session_id !== work.root_session_id) {
+    return otherSessionDecision(canonicalRoot, work, input, now);
+  }
+  const decided = ownerToolDecision(canonicalRoot, state, work, input);
+  if (decided.decision === "allow-normal") recordToolActivity(canonicalRoot, work, now);
+  return decided;
 };
 
-// The owner session's verdict for one tool call, under the lock the caller holds.
+// The owner session's verdict for one tool call, from the caller's state snapshot.
 const ownerToolDecision = (canonicalRoot, state, work, input) => {
   const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
   const classified = classifyToolAuthority(executionRoot, input);

@@ -254,7 +254,7 @@ describe("simulated Linux inode reuse — bounded reads", () => {
     writeFileSync(join(lock, "owner.json"), JSON.stringify({ nonce: "stale-owner", pid: 999999, acquired_at_ms: 0 }) + "\n", { mode: 0o600 });
     const replacement = join(root, "lock.replacement");
     mkdirSync(replacement);
-    writeFileSync(join(replacement, "owner.json"), JSON.stringify({ nonce: "live-owner", pid: process.pid, acquired_at_ms: 0 }) + "\n", { mode: 0o600 });
+    writeFileSync(join(replacement, "owner.json"), JSON.stringify({ nonce: "live-owner", pid: process.pid, acquired_at_ms: Date.now() }) + "\n", { mode: 0o600 });
     const result = runChild(
       `import { acquireOwnerLock } from ${JSON.stringify(pathToFileURL(join(repoRoot, "plugins/litclaude/lib/owner-lock.mjs")).href)};
 try { acquireOwnerLock(process.argv[1], { timeoutMs: 80, staleMs: 0 }); } catch (error) { process.exitCode = error?.status ?? 1; }`,
