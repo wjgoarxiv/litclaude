@@ -397,6 +397,46 @@ describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
     assert.deepEqual(goalFiles(bare), [], "no test command, no question");
   });
 
+  it("a request that ends with lit, lit-loop or litwork asks the goal question with the words before it", () => {
+    for (const [i, [prompt, objective]] of [
+      ["fix the login redirect lit", "fix the login redirect"],
+      ["로그인 리다이렉트 고쳐줘. 부탁해 lit", "로그인 리다이렉트 고쳐줘. 부탁해"],
+      ["로그인 버튼 고쳐줘 lit-loop", "로그인 버튼 고쳐줘"],
+      ["fix the login button litwork", "fix the login button"],
+    ].entries()) {
+      const cwd = loopProject(`loop-trailing-${i}`);
+      const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+        cwd,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+        input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd, session_id: `s-trailing-${i}`, prompt_id: `p-trailing-${i}` }),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const message = JSON.parse(result.stdout).systemMessage ?? "";
+      assert.ok(message.includes(`this is done: ${objective} [lit:`), `${prompt} -> ${message}`);
+    }
+  });
+
+  it("a leading lit-loop, litwork or lit-hijack asks the goal question with the task after it", () => {
+    for (const [i, [prompt, objective]] of [
+      ["lit-loop fix the login button", "fix the login button"],
+      ["litwork fix the login button", "fix the login button"],
+      ["lit-hijack the retry technique from this paper", "the retry technique from this paper"],
+      ["port this paper's retry technique lit-hijack", "port this paper's retry technique"],
+    ].entries()) {
+      const cwd = loopProject(`loop-leading-${i}`);
+      const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+        cwd,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+        input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd, session_id: `s-leading-${i}`, prompt_id: `p-leading-${i}` }),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const message = JSON.parse(result.stdout).systemMessage ?? "";
+      assert.ok(message.includes(`this is done: ${objective} [lit:`), `${prompt} -> ${message}`);
+    }
+  });
+
   it("yes arms the goal for the mod and starts no start-work; no arms nothing", () => {
     const cwd = loopProject("loop-yes");
     const { consent } = proposeLoopGoal({ cwd, check: "npm test", objective: "fix the login redirect" });

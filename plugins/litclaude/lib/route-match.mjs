@@ -254,6 +254,14 @@ const findLeadingBareCommandTrigger = (raw) => {
   return { ...triggerByToken[match[1]], source: "bare-command" };
 };
 
+// The trailing-token table: a run word that ends a request ("fix the login button lit-loop") routes
+// like the same word at the start. A closing question mark keeps "how do I use lit-loop?" unrouted.
+const trailingRunTokenPattern = /(?:^|\s)(lit-loop|litwork|lit-hijack)[\s.!]*$/u;
+const findTrailingRunTokenTrigger = (raw) => {
+  const match = trailingRunTokenPattern.exec(raw);
+  return match ? { ...triggerByToken[match[1]], source: "bare-command" } : undefined;
+};
+
 // A bare `lit` carries no task. `lit continue` asks to carry on what exists. `lit new` and
 // `lit restart` ask for a fresh start, so the session's earlier activation does not count.
 const bareLitPattern = /^\s*lit(?:work)?[\s.!?]*$/u;
@@ -594,6 +602,8 @@ const findWorkflowTrigger = (prompt) => {
   if (adhdPhraseTrigger) return adhdPhraseTrigger;
   const bareCommandTrigger = findLeadingBareCommandTrigger(raw);
   if (bareCommandTrigger) return bareCommandTrigger;
+  const trailingRunTrigger = findTrailingRunTokenTrigger(raw);
+  if (trailingRunTrigger) return trailingRunTrigger;
   for (const token of ["lit-crucible", "lit-init", "lit-burnoff", "lit-burnoff-file"]) {
     if (containsCompoundBoundedWord(raw, token)) return { ...triggerByToken[token], source: "bare-command" };
     const oldId = Object.keys(renameAliases).find((id) => renameAliases[id] === token);
@@ -639,6 +649,7 @@ const ROUTE_RULES = [
   { id: "phrase:lit-comprehend", match: ({ raw }) => findComprehendPhraseTrigger(raw) },
   { id: "phrase:lit-adhd", match: ({ raw }) => findAdhdPhraseTrigger(raw) },
   { id: (trigger) => namedRuleId("bare-command", trigger), match: ({ raw }) => findLeadingBareCommandTrigger(raw) },
+  { id: (trigger) => namedRuleId("trailing-command", trigger), match: ({ raw }) => findTrailingRunTokenTrigger(raw) },
   {
     id: (trigger) => namedRuleId("token", trigger),
     match: ({ raw }) => {

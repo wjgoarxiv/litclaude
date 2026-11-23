@@ -149,6 +149,24 @@ describe("litclaude-ai why: golden routing table", () => {
   });
 });
 
+describe("litclaude-ai why: a run word at the end of a request", () => {
+  it("routes like the same word at the start, and a question about the word stays unrouted", () => {
+    [
+      ["fix the login button lit-loop", "lit-loop"],
+      ["로그인 버튼 고쳐줘 lit-loop", "lit-loop"],
+      ["tidy the logs litwork", "litwork"],
+      ["로그 정리해줘. 부탁해 litwork", "litwork"],
+      ["port this paper's retry technique lit-hijack", "lit-hijack"],
+      ["what does lit-loop do?", null],
+      ["how do I use lit-loop?", null],
+    ].forEach(([prompt, expected], index) => {
+      const hook = hookRoute(prompt, 1000 + index);
+      assert.equal(hook, expected, prompt);
+      assert.equal(explainRoute(prompt).route, hook, `explainRoute disagrees with the hook on ${prompt}`);
+    });
+  });
+});
+
 describe("litclaude-ai why: CLI", () => {
   const cliEnv = { PATH: process.env.PATH, HOME: join(temp, "cli-home"), NO_COLOR: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", LITCLAUDE_NO_AUTO_UPDATE: "1", NO_UPDATE_NOTIFIER: "1" };
   const run = (bin, args) => spawnSync(process.execPath, [bin, ...args], { cwd: temp, env: cliEnv, encoding: "utf8" });

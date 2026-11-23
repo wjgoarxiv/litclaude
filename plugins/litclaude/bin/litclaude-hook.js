@@ -576,9 +576,11 @@ const objectiveTail = (prompt) => {
   const raw = withoutCode(prompt);
   const match = /\blit(?:work)?\b\s*(.*)$/isu.exec(raw);
   const tail = (match?.[1] ?? raw).replace(
-    /^\s*(?:-loop|-plan|loop|goal|plan|workflow|dynamic\s+workflow|work)\b\s*/iu,
+    /^\s*(?:-loop|-plan|-hijack|loop|goal|plan|workflow|dynamic\s+workflow|work)\b\s*/iu,
     "",
   );
+  // A request that ends with the word (`fix the redirect lit`) carries its objective before it.
+  if (match && !tail.trim()) return normalizeGoalObjective(raw.slice(0, match.index));
   return normalizeGoalObjective(tail);
 };
 
