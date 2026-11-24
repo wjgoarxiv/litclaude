@@ -433,13 +433,19 @@ const idempotentReplay = (state, key, fingerprint) => {
   const entry = state.idempotency[key];
   if (!entry) return null;
   if (entry.request_hash !== fingerprint) throw new StartWorkLifecycleError("idempotency key conflict", 409);
+  // A receipt keeps the response without its state copy; the replay attaches the current state.
+  // Entries written before receipts still carry their own state and replay as stored.
+  if (entry.state_omitted) return { ...clone(entry.response), state: publicState(state) };
   return clone(entry.response);
 };
 
 const rememberIdempotency = (state, key, fingerprint, response) => {
+  // Storing `response.state` here kept a full copy of the state per key (16 keys reached ~1 MB).
+  const { state: omitted, ...receipt } = response;
   state.idempotency[key] = {
     request_hash: fingerprint,
-    response: clone(response),
+    response: clone(receipt),
+    ...(omitted === undefined ? {} : { state_omitted: true }),
     recorded_at: nowIso(),
   };
 };
@@ -2464,9 +2470,10 @@ export const startWorkFromInvocation = (root, { sessionId, promptId, plan = null
     issuedBy: "user-invocation",
     originPromptId: promptId,
   });
-  const work = response.state.works[workId];
+  // A replayed start reads the current state, where a finished work may already be trimmed away.
+  const work = response.state.works[workId] ?? response.state.history.find(({ work_id: id }) => id === workId);
   const inside = relative(canonicalRoot, planPath);
-  return { started: { workId, plan: work.plan_name, next: work.progress.next_task, ...(inside && !inside.startsWith("..") && !isAbsolute(inside) ? { ref: inside.split(/[\\/]/u).join("/") } : {}) } };
+  return { started: { workId, plan: work?.plan_name ?? planPath.split(/[\\/]/u).at(-1), next: work?.progress?.next_task ?? null, ...(inside && !inside.startsWith("..") && !isAbsolute(inside) ? { ref: inside.split(/[\\/]/u).join("/") } : {}) } };
 };
 
 const pendingFor = (state, sessionId) => {

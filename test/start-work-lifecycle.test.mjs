@@ -109,6 +109,35 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     }
   });
 
+  it("keeps a small receipt per replay key and still replays an entry stored with its state", () => {
+    const root = fixtureRoot();
+    try {
+      writePlan(root);
+      const first = runCli(root, initArgs(root));
+      assert.equal(first.status, 0, first.stderr);
+      const statePath = join(root, ".litclaude", "boulder.json");
+      const stored = JSON.parse(readFileSync(statePath, "utf8"));
+      const entry = stored.idempotency["init-1"];
+      assert.equal(entry.response.state, undefined, "the receipt must not copy the whole state");
+      assert.equal(entry.state_omitted, true);
+      assert.ok(JSON.stringify(entry).length < 2048, `receipt is ${JSON.stringify(entry).length} bytes`);
+
+      const replay = runCli(root, initArgs(root));
+      assert.equal(replay.status, 0, replay.stderr);
+      assert.deepEqual(parse(replay), parse(first), "a receipt replay must return the original result");
+
+      // An entry written by an older version keeps its stored state and replays it unchanged.
+      const legacyState = { marker: "legacy" };
+      stored.idempotency["init-1"] = { request_hash: entry.request_hash, response: { ok: true, operation: "init", state: legacyState }, recorded_at: entry.recorded_at };
+      writeFileSync(statePath, JSON.stringify(stored));
+      const legacy = runCli(root, initArgs(root));
+      assert.equal(legacy.status, 0, legacy.stderr);
+      assert.deepEqual(parse(legacy).state, legacyState);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects an exact replay when the current plan no longer has visible top-level tasks", () => {
     const root = fixtureRoot();
     try {
