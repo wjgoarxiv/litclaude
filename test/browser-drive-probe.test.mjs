@@ -678,7 +678,8 @@ describe("browser-drive capability probe", () => {
     let driverPid = null;
     let groupPid = null;
     try {
-      assert.equal(waitForFile(pidPath), true, "the hanging driver must start");
+      // The driver writes group.pid second, so waiting for it means both PIDs are on disk.
+      assert.equal(waitForFile(groupPidPath), true, "the hanging driver must start");
       driverPid = Number(readFileSync(pidPath, "utf8"));
       groupPid = Number(readFileSync(groupPidPath, "utf8"));
       childPids.add(driverPid);
