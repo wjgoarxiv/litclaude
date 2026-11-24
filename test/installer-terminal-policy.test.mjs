@@ -11,8 +11,8 @@ import { SHARED_COLOURS } from "../plugins/litclaude/lib/synthwave-rows.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const pty = join(root, "test/helpers/installer-pty.py");
-// The plain mark a terminal without block glyphs gets: the mark's one text line, then the version.
-const plainMark = `${synthwaveRows({ mode: "plain" }).join("\n")}\nlitclaude v${version}`;
+// The plain mark a terminal without block glyphs gets: the mark's one text line in ASCII, then the version.
+const plainMark = `${synthwaveRows({ mode: "plain" }).join("\n").replace("·", "-")}\nlitclaude v${version}`;
 // SGR for a palette colour at one colour depth (xterm 6x6x6 cube for 256).
 const markSgr = (hex, layer, mode) => {
   const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
@@ -92,6 +92,8 @@ for (const [name, policy, blocks] of modes) {
       if (!blocks) {
         assert.ok(result.output.replace(/\r\n/gu, "\n").includes(`\n${plainMark}\n`), `${name}; forced=${explicit}: plain mark`);
         assert.doesNotMatch(result.output, /[▀▄]/u, `${name}; forced=${explicit}: no mark pixels`);
+        const odd = [...new Set(result.output.match(/[^\x09\x0a\x0d\x20-\x7e]/gu) ?? [])];
+        assert.deepEqual(odd, [], `${name}; forced=${explicit}: non-ASCII characters on an ASCII terminal`);
       }
       assert.equal(result.settings.litclaude.permissionMode, explicit ? "balanced" : "safe");
       assert.equal(result.settings.litclaude.hudAccent, explicit ? "gold" : "cyan");
@@ -150,7 +152,7 @@ it("actual TTY Verify-stage failure retains stopped receipts and every no-escape
     const result = install({ env: { ...policy, LITCLAUDE_SPINNER: "1" }, stageFailure: true });
     assert.doesNotMatch(result.output, /\x1b|INSTALL_PASS/u);
     assert.match(result.output, /INSTALL STOPPED/u);
-    assert.match(result.output, /Stage\s+05 \/ 05 · INSTALL VERIFICATION/u);
+    assert.match(result.output, /Stage\s+05 \/ 05 [·-] INSTALL VERIFICATION/u);
     assert.match(result.output, /installed plugin is missing bin\/litclaude-hook\.js/u);
     assert.match(result.output, /Exit without reporting success/u);
   }

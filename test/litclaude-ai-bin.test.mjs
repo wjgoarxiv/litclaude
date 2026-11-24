@@ -748,6 +748,33 @@ describe("litclaude-ai CLI", () => {
     }
   });
 
+  it("prints only ASCII on a TERM=dumb terminal and keeps the frame glyphs elsewhere", () => {
+    const home = makeHome();
+    const claudeHome = makeClaudeHome();
+    const env = { LITCLAUDE_HOME: home, CLAUDE_CONFIG_DIR: claudeHome };
+    try {
+      for (const run of [runCliWithEnv, runCliAsTty]) {
+        for (const args of [["--help"], ["install", "--dry-run"]]) {
+          const dumb = run(args, { ...env, TERM: "dumb" });
+          assert.equal(dumb.status, 0, dumb.stderr);
+          assert.doesNotMatch(dumb.stdout, /[^\x09\x0a\x0d\x20-\x7e]/u, `${run.name} ${args.join(" ")} printed a non-ASCII character`);
+          assert.match(dumb.stdout, /LIT - claude code/u);
+        }
+      }
+      const utf8 = runCliWithEnv(["install", "--dry-run"], env);
+      assert.equal(utf8.status, 0, utf8.stderr);
+      assert.match(utf8.stdout, /LIT · claude code/u);
+      assert.match(utf8.stdout, /╭─ INSTALL PLAN/u);
+      // An unset locale (Windows Terminal, minimal containers) keeps the frame glyphs.
+      const unset = runCliWithEnv(["install", "--dry-run"], { ...env, LC_ALL: "", LC_CTYPE: "", LANG: "" });
+      assert.equal(unset.status, 0, unset.stderr);
+      assert.match(unset.stdout, /╭─ INSTALL PLAN/u);
+    } finally {
+      rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(claudeHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  });
+
   it("shows a forced fancy spinner during install", () => {
     const home = makeHome();
     const claudeHome = makeClaudeHome();

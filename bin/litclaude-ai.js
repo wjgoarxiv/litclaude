@@ -426,7 +426,20 @@ const renderLitClaudeWordmark = ({ color = shouldColorInstall() } = {}) => {
   return rows.concat(`${" ".repeat(Math.max(0, Math.floor((markWidth - versionLine.length) / 2)))}${versionLine}`);
 };
 
-const familyBanner = ({ color = shouldColorInstall() } = {}) => [
+// TERM=dumb or a locale that names a non-UTF-8 charset gets ASCII stand-ins for the frame glyphs.
+// An unset locale keeps the frame: Windows Terminal and minimal containers draw it fine.
+const FRAME_ASCII = Object.freeze({ "━": "=", "─": "-", "│": "|", "╭": "+", "╰": "+", "·": "-", "—": "-", "✓": "ok", "✗": "x" });
+const asciiTerminal = () => {
+  const locale = process.env.LC_ALL || process.env.LC_CTYPE || process.env.LANG || "";
+  return process.env.TERM === "dumb" || (locale !== "" && !/utf-?8/iu.test(locale));
+};
+const asciiFrame = (text) => asciiTerminal()
+  ? text.replace(/[━─│╭╰·—✓✗]/gu, (glyph) => FRAME_ASCII[glyph]).replace(/[⠀-⣿]/gu, "-")
+  : text;
+
+const familyBanner = (options) => asciiFrame(familyBannerRows(options));
+
+const familyBannerRows = ({ color = shouldColorInstall() } = {}) => [
   brandOrange(FAMILY_RULE, color),
   "",
   ...renderLitClaudeWordmark({ color }),
@@ -443,7 +456,7 @@ const printCommandBanner = (parsed) => {
   if (["install", "update", "workflow-stage", "rewind", "sessions", "why"].includes(parsed.command)) return;
   if (parsed.rest.some((arg) => arg === "--json" || arg.startsWith("--json="))) return;
   const color = shouldColorInstall();
-  process.stdout.write(`${renderLitClaudeWordmark({ color }).join("\n")}\n`);
+  process.stdout.write(asciiFrame(`${renderLitClaudeWordmark({ color }).join("\n")}\n`));
 };
 
 const createInstallProgress = () => {
@@ -452,19 +465,21 @@ const createInstallProgress = () => {
   // Explicit spinner mode keeps structured progress, but cannot enable terminal escapes.
   const live = animated && shouldColorInstall();
 
+  const write = (chunk) => process.stdout.write(asciiFrame(chunk));
+
   const clearLiveLine = () => {
-    if (live) process.stdout.write("\r\x1b[2K");
+    if (live) write("\r\x1b[2K");
   };
 
   return {
     prepare({ claudeTarget, litTarget }) {
       if (!animated) {
-        process.stdout.write(`\n${familyBanner({ color: false })}`);
-        process.stdout.write(`INSTALL_STEP: Installing LitClaude ${version}\n`);
+        write(`\n${familyBanner({ color: false })}`);
+        write(`INSTALL_STEP: Installing LitClaude ${version}\n`);
         return;
       }
-      process.stdout.write(`\n${familyBanner()}\n`);
-      process.stdout.write(
+      write(`\n${familyBanner()}\n`);
+      write(
         `\n╭─ PREPARING INSTALL\n` +
         `│ Package       LitClaude ${version}\n` +
         `│ Action        Installing LitClaude ${version}\n` +
@@ -476,11 +491,11 @@ const createInstallProgress = () => {
     },
     async run({ number, title, label, purpose, target }, work) {
       if (!animated) {
-        process.stdout.write(`INSTALL_STEP: ${label}\n`);
+        write(`INSTALL_STEP: ${label}\n`);
         return work();
       }
 
-      process.stdout.write(
+      write(
         `${String(number).padStart(2, "0")} / 05  ${title}\n` +
         `     ${purpose}\n` +
         `     target  ${target}\n`,
@@ -490,7 +505,7 @@ const createInstallProgress = () => {
         const frame = spinnerFrames[frameIndex % spinnerFrames.length];
         frameIndex += 1;
         const line = `  ${color256(81, frame)} ${formatInstallStep(label)}`;
-        process.stdout.write(live ? `\r\x1b[2K${line}` : `${line}\n`);
+        write(live ? `\r\x1b[2K${line}` : `${line}\n`);
       };
       renderSpinner();
       const timer = live ? setInterval(renderSpinner, 80) : undefined;
@@ -499,12 +514,12 @@ const createInstallProgress = () => {
         const result = await work();
         if (timer) clearInterval(timer);
         clearLiveLine();
-        process.stdout.write(`  ${color256(119, "✓")} ${bold(label)}\n\n`);
+        write(`  ${color256(119, "✓")} ${bold(label)}\n\n`);
         return result;
       } catch (error) {
         if (timer) clearInterval(timer);
         clearLiveLine();
-        process.stdout.write(
+        write(
           `  ${color256(203, "✗")} ${bold(`${label} failed`)}\n\n` +
           `╭─ INSTALL STOPPED\n` +
           `│ Stage         ${String(number).padStart(2, "0")} / 05 · ${title}\n` +
@@ -517,11 +532,11 @@ const createInstallProgress = () => {
     },
     receipt(rows) {
       if (!animated) return;
-      process.stdout.write("\n╭─ INSTALL RECEIPT\n");
+      write("\n╭─ INSTALL RECEIPT\n");
       for (const [key, value] of rows) {
-        process.stdout.write(`│ ${key.padEnd(13)} ${value}\n`);
+        write(`│ ${key.padEnd(13)} ${value}\n`);
       }
-      process.stdout.write("╰─ Installation complete\n\n");
+      write("╰─ Installation complete\n\n");
     },
   };
 };
@@ -1697,9 +1712,9 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write(`Marketplace: ${localMarketplace}\n`);
   process.stdout.write(`Plugin path: ${intendedPluginPath(home)}\n`);
   process.stdout.write(hudManaged ? `HUD: LitClaude statusLine installed (${hudAccent})\n` : "HUD: user statusLine setting preserved\n");
-  process.stdout.write(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`);
-  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)\n`);
-  process.stdout.write("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n");
+  process.stdout.write(asciiFrame(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`));
+  process.stdout.write(asciiFrame(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)\n`));
+  process.stdout.write(asciiFrame("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n"));
   if (wantsIconFont) await runIconFontInstall();
   await installAttribution({ assumeYes });
   await installAgentFile({ assumeYes, agentFile });
