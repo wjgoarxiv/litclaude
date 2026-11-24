@@ -5,10 +5,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
+import { SHARED_COLOURS } from "../plugins/litclaude/lib/synthwave-rows.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const pty = join(root, "test/helpers/installer-pty.py");
+// The plain mark a terminal without block glyphs gets: the mark's one text line, then the version.
+const plainMark = `${synthwaveRows({ mode: "plain" }).join("\n")}\nlitclaude v${version}`;
+// SGR for a palette colour at one colour depth (xterm 6x6x6 cube for 256).
+const markSgr = (hex, layer, mode) => {
+  const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  if (mode === "truecolor") return `${layer};2;${channels.join(";")}`;
+  const [r, g, b] = channels.map((v) => Math.round((v / 255) * 5));
+  return `${layer};5;${16 + 36 * r + 6 * g + b}`;
+};
 const modes = [
   ["CI present-empty", { CI: "" }, true],
   ["NO_COLOR present-empty", { NO_COLOR: "" }, true],
@@ -78,7 +89,10 @@ for (const [name, policy, blocks] of modes) {
       assert.match(result.output, /INSTALL PLAN/u);
       assert.doesNotMatch(result.output, /Choose LitClaude/u);
       assert.equal(/[█▓]/u.test(result.output), blocks);
-      if (!blocks) assert.match(result.output, /(?:^|\n)LIT\r?\n/u);
+      if (!blocks) {
+        assert.ok(result.output.replace(/\r\n/gu, "\n").includes(`\n${plainMark}\n`), `${name}; forced=${explicit}: plain mark`);
+        assert.doesNotMatch(result.output, /[▀▄]/u, `${name}; forced=${explicit}: no mark pixels`);
+      }
       assert.equal(result.settings.litclaude.permissionMode, explicit ? "balanced" : "safe");
       assert.equal(result.settings.litclaude.hudAccent, explicit ? "gold" : "cyan");
       assert.equal(result.settings.outputStyle, explicit ? "LitClaude — ELI5" : undefined);
@@ -99,10 +113,13 @@ for (const mode of ["truecolor", "256"]) {
     const env = { COLORTERM: mode === "truecolor" ? "truecolor" : "", LITCLAUDE_SPINNER: "1" };
     const result = install({ env });
     assert.match(result.output, /\x1b\[2K/u);
-    const symbolColors = mode === "truecolor"
-      ? ["38;2;255;99;55", "38;2;215;247;91", "38;2;242;239;223"]
-      : ["38;5;203", "38;5;191", "38;5;230"];
-    for (const color of symbolColors) assert.ok(result.output.includes(`\x1b[${color}m`), `missing Ignition symbol color ${color}`);
+    // The orange family rule, the synthwave sky behind the letters, and the mark's own gradient tagline.
+    const ruleColor = mode === "truecolor" ? "38;2;255;99;55" : "38;5;203";
+    assert.ok(result.output.includes(`\x1b[${ruleColor}m`), `missing family rule color ${ruleColor}`);
+    const sky = markSgr(SHARED_COLOURS["!"], 48, mode);
+    assert.ok(result.output.includes(`\x1b[${sky}m`), `missing synthwave sky color ${sky}`);
+    const tagline = synthwaveRows({ mode }).at(-1).trimStart();
+    assert.ok(result.output.includes(tagline), `missing synthwave ${mode} tagline`);
     if (mode === "256") assert.doesNotMatch(result.output, /\x1b\[38;2;/u);
     assert.match(result.output, /\x1b\[38;5;81m⠋/u);
     assert.match(result.output, /INSTALL RECEIPT/u);
