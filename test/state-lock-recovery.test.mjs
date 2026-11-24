@@ -40,6 +40,15 @@ describe("start-work state lock recovery", () => {
     assert.throws(() => acquireStartWorkLock(root, { timeoutMs: 100 }), /timed out/u);
   }));
 
+  it("never takes a folder a holder created a moment ago, even with a zero stale window", () => withRoot((root) => {
+    const lockDir = startWorkLock(root);
+    mkdirSync(lockDir, { recursive: true });
+    const second = new Date(Date.now() - 1_000);
+    utimesSync(lockDir, second, second);
+    assert.throws(() => acquireStartWorkLock(root, { timeoutMs: 100, staleMs: 0 }), /timed out/u);
+    assert.ok(existsSync(lockDir));
+  }));
+
   it("reclaims a dead owner's lock even when a crashed contender left its takeover claim", () => withRoot((root) => {
     const lockDir = startWorkLock(root);
     mkdirSync(lockDir, { recursive: true });
@@ -103,6 +112,18 @@ describe("owner lock recovery", () => {
     const owner = acquireOwnerLock(lockDir, { timeoutMs: 300 });
     assert.notEqual(owner.nonce, "recycled");
     assert.ok(releaseOwnerLock(lockDir, owner));
+  }));
+
+  // A holder writes its owner record right after creating the folder. With a zero stale window a
+  // contender once moved that folder aside in between, and the holder failed its own acquisition
+  // (Linux CI, "lock ownership receipt failed").
+  it("never takes a folder a holder created a moment ago, even with a zero stale window", () => withRoot((root) => {
+    const lockDir = join(root, "state", ".lock");
+    mkdirSync(lockDir, { recursive: true });
+    const second = new Date(Date.now() - 1_000);
+    utimesSync(lockDir, second, second);
+    assert.throws(() => acquireOwnerLock(lockDir, { timeoutMs: 100, staleMs: 0 }), /timed out/u);
+    assert.ok(existsSync(lockDir));
   }));
 
   it("names the lock path when it times out", () => withRoot((root) => {

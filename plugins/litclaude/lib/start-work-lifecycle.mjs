@@ -113,6 +113,9 @@ const readLockOwner = (root) => {
 const START_WORK_LOCK_MAX_HOLD_MS = 10 * 60 * 1000;
 
 // An ownerless lock is a holder that died between creating the folder and writing its owner record.
+// A live holder writes that record at once, so the folder is only judged after this grace, whatever
+// stale window the caller passed; otherwise a contender could move it aside mid-acquisition.
+const OWNERLESS_GRACE_MS = 5_000;
 const lockAgeMs = (lockDir, owner) => {
   if (owner) return Date.now() - owner.acquired_at_ms;
   const stats = lstatSync(lockDir, { throwIfNoEntry: false });
@@ -159,7 +162,7 @@ export const acquireStartWorkLock = (root, options = {}) => {
       const age = lockAgeMs(lockDir, incumbent);
       const stale = incumbent
         ? age >= START_WORK_LOCK_MAX_HOLD_MS || (age >= staleMs && !processIsAlive(incumbent.pid))
-        : age >= staleMs;
+        : age >= Math.max(staleMs, OWNERLESS_GRACE_MS);
       if (stale) {
         const tag = incumbent?.nonce ?? "ownerless";
         const claim = join(lockDir, `.takeover-${tag}`);
