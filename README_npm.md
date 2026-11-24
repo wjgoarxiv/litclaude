@@ -1,14 +1,14 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">LitClaude is an add-on for Claude Code. It makes Claude check its own work before it says "done", and leaves a note so the next session starts where this one stopped.</p>
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/assets/readme/badge-version.svg" alt="1.0.61" />
-  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
+  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/assets/readme/badge-version.svg" alt="1.0.62" />
+  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/README_ko-KR.md">한국어</a>
+  <a href="https://github.com/wjgoarxiv/litclaude#readme">Full guide and skills gallery on GitHub</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/README_ko-KR.md">한국어</a>
 </p>
 
 You ask Claude for a feature. It writes the code and says it is finished, and a day later you find the tests
@@ -116,7 +116,7 @@ the lock folder the message names.
 ## More
 
 - [Full guide and skills gallery on GitHub](https://github.com/wjgoarxiv/litclaude#readme)
-- [Privacy and network behavior](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/privacy.md)
-- [Migration and ownership conflicts](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/docs/migration.md)
-- [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/CHANGELOG.md)
-- [MIT license](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.61/LICENSE)
+- [Privacy and network behavior](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/privacy.md)
+- [Migration and ownership conflicts](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/docs/migration.md)
+- [Release history](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/CHANGELOG.md)
+- [MIT license](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.62/LICENSE)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.62 - 2026-11-24
+
+- `lit continue`, `lit resume` and `lit 계속` in a fresh session now carry on the existing work. Before,
+  they asked the goal question with the objective "continue".
+- The English and Korean READMEs, the npm READMEs and the guide now explain the synthwave LIT mark and
+  its plain one-line fallback, that a request ending with `lit`, `lit-loop` or `litwork` works like one
+  starting with it, and how a lock left by a crashed session clears itself.
+
 ## 1.0.61 - 2026-11-24
 
 - Install, doctor and help open with the synthwave LIT mark, and the HUD, card and status line show
