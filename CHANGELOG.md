@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.64 - 2026-11-25
 
 - The installer asks its questions on cards in a real terminal: the step, a title, one sentence on what the answer
   does, the choices and the keys. Lists take arrows, `j`/`k`, numbers and Enter, with the status-line preview on every
