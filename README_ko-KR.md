@@ -29,6 +29,10 @@ src/dates.js의 날짜 파싱 버그 고쳐줘 lit
 
 Claude가 목표를 정하고, 실패하는 테스트를 쓰고, 버그를 고치고, 결과를 확인한 뒤 확인한 내용을 알려 줍니다. 대부분의 작업은 이것으로 충분합니다.
 
+`lit`을 끝에 붙여도 앞에 붙인 것과 똑같이 움직입니다. 프로젝트에 테스트 명령이 있으면 Claude는 먼저 `lit` 앞에 쓴 말을 Claude Code의 목표로 삼을지
+한 번 묻고, `yes`, `edit`, `no` 중 하나로 답하면 됩니다. `lit-loop`와 `litwork`도 앞뒤 어디에 두든 같은 흐름을 시작합니다. `lit continue`는 하던 일을
+이어 갈 뿐 새로 묻지 않습니다.
+
 **본격적으로.** 큰 작업은 한 단계씩 나아갑니다. 각 단계가 남긴 파일을 다음 단계가 읽고, 필요 없는 단계는 건너뛰면 됩니다.
 
 | 단계 | 입력 | 하는 일 |
@@ -636,12 +640,21 @@ npx @litfamily/litclaude@latest update      # 최신 릴리스를 지금 설치
 npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 ```
 
+`install`, `doctor`, `--help`는 신스웨이브 LIT 마크로 시작합니다. 마크 크기는 터미널 너비에 맞춰집니다. 색을 쓸 수 없는 곳(`NO_COLOR`, CI 로그)에서는
+같은 장면을 기호로만 그립니다. UTF-8을 쓰지 않는 터미널, `TERM=dumb`, 아주 좁은 창, 다른 프로그램으로 넘기는 출력에는 `LIT · claude code` 한 줄과 버전만
+나옵니다. 트루컬러 터미널에서는 상태 줄도 같은 색을 씁니다. `🔥LIT v<버전>` 배지가 얼음빛 파랑에서 장밋빛으로 번지는 알약 모양 위에 놓입니다.
+
 문제가 없으면 `doctor`는 `DOCTOR_PASS`로 끝납니다. `update`를 직접 입력할 일은 많지 않습니다. 새 Claude Code 세션은 하루 한 번까지 백그라운드에서 npm의 새
 버전을 확인하고, 이후 세션이 작업을 시작하기 전에 설치합니다. `uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄, 권한, 로컬 상태 항목만 지우고, 직접 수정한 설치라면
 그대로 두고 [소유권 충돌 안내](./docs/migration.md#ownership-conflicts)를 알려 줍니다.
 
 마켓플레이스로 추가한 플러그인에는 LitClaude 상태 줄이 없고, 업데이트와 제거는 Claude Code의 `/plugin` 메뉴에서 합니다. 이제 발표자료와 문서를 만드는
 wjgoarxiv-skills의 `decks`·`documents` 플러그인은 처음 쓸 때 버전을 고정한 도구를 `~/.cache/litclaude/office-runtime`에 설치합니다.
+
+LitClaude는 두 세션이 같은 파일을 동시에 쓰지 않도록 작업 상태를 작은 잠금 폴더로 지킵니다. 세션이 비정상으로 끝나 잠금이 남아도 저절로 풀립니다.
+5초가 지나도 주인 기록이 없는 잠금 폴더, 프로세스가 이미 끝난 잠금, 10분 넘게 잡혀 있는 잠금은 다음 세션이 넘겨받습니다. start-work 가드는 도구 호출마다
+상태의 사본을 읽고 판단하므로, 잠금이 바빠도 도구나 `lit cancel`이 멈추지 않습니다. 그래도 `state lock timed out`이 보이면 메시지에 잠금 폴더와 그
+잠금을 잡은 프로세스가 적혀 있습니다. 그 프로젝트의 Claude Code 세션을 모두 닫은 뒤 적힌 폴더를 지우면 됩니다.
 
 ## 참고
 

@@ -53,6 +53,12 @@ Claude settings stay as they are. This picture shows a dark terminal.
 
 *Captured from the installer.*
 
+These pictures were captured before the mark changed. Now `install`, `doctor` and `--help`
+open with the synthwave LIT mark, sized to the terminal's width, where the block letters stand above.
+Without colour (`NO_COLOR` or a CI log) the scene is drawn in plain glyphs. A terminal without UTF-8,
+`TERM=dumb`, a very narrow window or piped output gets one plain line, `LIT · claude code`, and the
+version.
+
 The five stages each print a short block that ends in a check mark, and then the installer
 prints a receipt. It names the version, the plugin, the folder the files went to, the HUD
 accent, the permission mode (safe adds no permission rules) and the command that starts Claude
@@ -107,6 +113,12 @@ the MP4 carries a generated music bed. The Korean page shows the same film with 
 
 End a prompt with `lit` and LitClaude adds a short note telling Claude which workflow to
 follow. Claude Code still does the work.
+
+The word works the same at the start or at the end. When the project has a test command, the
+first run of a request asks once whether to set Claude Code's goal to the words around `lit`
+(`fix the login redirect lit` asks about "fix the login redirect"). `lit-loop` and `litwork`
+start the same workflow at either end. `lit continue`, `lit resume` and `lit 계속` carry on
+the existing work and ask nothing new.
 
 | Prompt or route | Effect |
 | --- | --- |
@@ -675,7 +687,8 @@ LitClaude keeps track of the rules it inserted and removes only those.
 ### The HUD
 
 Interactive installation previews the available HUD accents. The LitClaude HUD
-uses `[🔥LIT vX.Y.Z]`, the model with its reasoning effort (`O5.5 [high]`), a compact
+uses `[🔥LIT vX.Y.Z]` (in a truecolor terminal, ` 🔥LIT vX.Y.Z ` on a pill that fades from
+ice blue to rose), the model with its reasoning effort (`O5.5 [high]`), a compact
 `ctx [▎░░]` bar, and a `5h [▏░]4% ↻` rate-limit reset countdown. Set `LITCLAUDE_HUD_ACCENT` before installation to
 choose an accent.
 
@@ -702,8 +715,8 @@ Two separate settings decide how the HUD looks: whether your terminal background
 or light, and how many colors the terminal can show.
 
 - The background setting defaults to `dark`. The model, context, usage, reset and Git text
-  take your accent, usage percentages change color with the level, and the brand uses
-  the neon gradient. On a light background, or if you are not sure, set
+  take your accent, usage percentages change color with the level, and the brand sits on
+  the synthwave pill (bold magenta at 256 colors). On a light background, or if you are not sure, set
   `LITCLAUDE_HUD_APPEARANCE=light` or `unknown`. That text and the brand then use the
   terminal's default foreground, and only the bar shapes and separators carry the accent.
 - The color depth is detected for you, including truecolor under WSL. If the guess is
@@ -804,6 +817,15 @@ the project; nothing needs to be copied. The exact route also still works:
 
 When `stop_hook_active` is `true`, the hook stays silent, so an old prompt never gets
 replayed.
+
+The run state lives in `.litclaude/start-work/`, behind a lock folder (`.lock`) that lets only
+one session write it at a time. A lock left behind by a session that crashed clears itself: the
+next session takes it over when the folder still has no owner record after five seconds, when
+its process has ended, or when it has been held for more than ten minutes. The guard that decides
+each tool call reads a snapshot of the state and never waits on the lock, so a busy lock does not
+hold up your tools or `lit cancel`. A lock that still cannot be taken fails with
+`start-work state lock timed out (held by pid <pid> for <n> s; lock <path>)`. Close the Claude
+Code sessions in that project and delete the folder it names.
 
 A task marked `BLOCKED: <reason>` (on its line or an indented line under it) waits for you: the
 run skips it, and when every open task is blocked it tells you once and stops. Remove the marker

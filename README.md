@@ -33,6 +33,11 @@ fix the date parsing bug in src/dates.js lit
 Claude sets the goal, writes a failing test, fixes the bug, checks the result and tells you what it checked.
 Most tasks need nothing more.
 
+The end of the request works just like the start. When the project has a test command, Claude first asks once
+whether to set Claude Code's goal to the words before `lit`, and you answer `yes`, `edit` or `no`. `lit-loop`
+and `litwork` also work at either end and start the same workflow wherever you put them. `lit continue` picks
+up the work you already have and asks no new question.
+
 **The full workflow.** For a bigger job, go one step at a time. Each step leaves a file the next step reads,
 and you can skip any step you do not need.
 
@@ -737,6 +742,12 @@ npx @litfamily/litclaude@latest update      # install the latest release now
 npx @litfamily/litclaude@latest uninstall   # remove what LitClaude installed
 ```
 
+`install`, `doctor` and `--help` open with the synthwave LIT mark, sized to your terminal's width. Without
+colour (`NO_COLOR` or a CI log) the same scene is drawn in plain glyphs. A terminal without UTF-8, `TERM=dumb`,
+a very narrow window or output piped into another program gets one plain line instead, `LIT · claude code`,
+followed by the version. In a truecolor terminal the status line shows the same colours: its `🔥LIT v<version>`
+badge sits on a pill that fades from ice blue to rose.
+
 A healthy `doctor` run ends in `DOCTOR_PASS`. You rarely need `update` by hand: once a day at most, a new
 Claude Code session checks npm for a newer version in the background, and a later session installs it before
 it starts work. `uninstall` removes only the plugin, status line, permission and local state entries LitClaude
@@ -747,6 +758,13 @@ If you added the plugin through the marketplace, it has no LitClaude status line
 from Claude Code's `/plugin` menu. The `decks` and `documents` plugins of wjgoarxiv-skills, which now make
 slides and documents, install their pinned tools into `~/.cache/litclaude/office-runtime` the first time you
 use them.
+
+LitClaude keeps its run state behind small lock folders, so two sessions never write the same file at once.
+A lock left behind by a session that crashed clears itself: the next session takes over a lock folder that
+still has no owner record after five seconds, one whose process has ended, or one held for more than ten
+minutes. The start-work guard decides each tool call from a snapshot of the state, so a busy lock no longer
+holds up your tools or `lit cancel`. If you still see `state lock timed out`, the message names the lock folder
+and the process holding it. Close the Claude Code sessions in that project, then delete the folder it names.
 
 ## Reference
 

@@ -27,7 +27,8 @@ fix the date parsing bug in src/dates.js lit
 ```
 
 Claude sets the goal, writes a failing test, fixes the bug, checks the result and tells you what it checked.
-Most tasks need nothing more.
+Most tasks need nothing more. The end of the request works just like the start: Claude asks once whether to
+set the goal to the words before `lit`, and `lit-loop` or `litwork` at the end start their own workflow.
 
 **The full workflow.** For a bigger job, go one step at a time. Each step leaves a file the next step reads,
 and you can skip any step you do not need.
@@ -106,6 +107,11 @@ it, and that state never goes into the npm package. `uninstall` removes only the
 LitClaude manages and refuses to touch an install that was changed by hand. A plugin added
 through the Claude Code marketplace instead has no status line and is updated or removed from
 the `/plugin` menu.
+
+These commands open with the synthwave LIT mark; a terminal without colour gets it in plain glyphs, and one
+without UTF-8, or piped output, gets the single line `LIT · claude code`. A lock left by a crashed session
+clears itself. If `state lock timed out` still appears, close the project's Claude Code sessions and delete
+the lock folder the message names.
 
 ## More
 
