@@ -56,7 +56,8 @@ test("both guides show every capture with alt text that quotes what it shows", (
     const landing = read(readme);
     const demo = landing.split("\n").find((line) => line.startsWith("<!-- demo-gif -->"));
     assert.ok(demo, `${readme} keeps the demo slot`);
-    assert.ok(demo.includes('<img src="./docs/assets/demo.webp" width="960"'), `${readme} demo slot plays the session film`);
+    const loop = readme === "README.md" ? "demo.webp" : "demo-ko.webp";
+    assert.ok(demo.includes(`<img src="./docs/assets/${loop}" width="960"`), `${readme} demo slot plays ${loop}`);
     assert.doesNotMatch(landing, /assets\/screens\//u, `${readme}: the captures live in the guide`);
     assert.ok(landing.includes(`](./${file}#`), `${readme} links ${file}`);
     const content = read(file);
@@ -97,17 +98,21 @@ test("screen captures stay out of the npm tarball and off the npm cards", () => 
   for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /assets\/screens/u);
 });
 
-test("the README demo film is an animated WebP that stays out of the package and off the npm cards", () => {
-  const film = readFileSync(new URL("docs/assets/demo.webp", root));
-  assert.equal(film.subarray(0, 4).toString(), "RIFF", "demo.webp is a RIFF container");
-  assert.equal(film.subarray(8, 12).toString(), "WEBP", "demo.webp is a WebP");
-  assert.ok(film.includes(Buffer.from("ANIM")), "demo.webp is animated");
-  assert.ok(film.length <= 8 * 1024 * 1024, `demo.webp stays within 8 MiB (${film.length} bytes)`);
+test("the README demo loops are animated WebP files that stay out of the package and off the npm cards", () => {
   const files = JSON.parse(read("package.json")).files;
-  assert.ok(!files.some((entry) => !entry.startsWith("!") && ("docs/assets/demo.webp" === entry || "docs/assets/demo.webp".startsWith(`${entry.replace(/\/$/u, "")}/`))), "package.json files never ships demo.webp");
-  assert.ok(!read("tools/check-pack-payload.mjs").includes("demo.webp"), "the pack guard never approves demo.webp");
-  for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /demo\.(?:gif|webp)/u, `${card} does not embed the demo film`);
+  for (const name of ["demo.webp", "demo-ko.webp"]) {
+    const film = readFileSync(new URL(`docs/assets/${name}`, root));
+    assert.equal(film.subarray(0, 4).toString(), "RIFF", `${name} is a RIFF container`);
+    assert.equal(film.subarray(8, 12).toString(), "WEBP", `${name} is a WebP`);
+    assert.ok(film.includes(Buffer.from("ANIM")), `${name} is animated`);
+    assert.ok(film.length <= 8 * 1024 * 1024, `${name} stays within 8 MiB (${film.length} bytes)`);
+    const path = `docs/assets/${name}`;
+    assert.ok(!files.some((entry) => !entry.startsWith("!") && (path === entry || path.startsWith(`${entry.replace(/\/$/u, "")}/`))), `package.json files never ships ${name}`);
+  }
+  assert.ok(!read("tools/check-pack-payload.mjs").includes("demo.webp") && !read("tools/check-pack-payload.mjs").includes("demo-ko.webp"), "the pack guard never approves the demo files");
+  for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /demo(?:-ko)?\.(?:gif|webp)/u, `${card} does not embed the demo film`);
 });
+
 
 // The LIT card in its four states, drawn by the card's own renderer; both READMEs show them.
 const cardShots = {

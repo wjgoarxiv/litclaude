@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The README demo is a new silent loop of one request (the hook, the sunset LIT card with its map, three lanes, the failing then passing test, COMPLETE), with a Korean copy for the Korean page; the Claude Code chat around the card is redrawn.
 - The Claude desktop and mobile apps wear the sunset too. The LIT card is drawn with a half-sunk sun, its reflection,
   a layered sea, stars and a neon border, only where no words are; rows, words and size stay as they were. `subtle`
   and an idle card hold the sunset still.

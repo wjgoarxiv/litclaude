@@ -20,7 +20,11 @@ When you stop, type `handoff`. Claude saves a note, and the next session reads i
 
 <p align="center"><a href="#install">Install</a> &nbsp; <a href="#quick-start">Quick start</a> &nbsp; <a href="#what-you-can-make">Showcase</a> &nbsp; <a href="./docs/guide.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> Guide</a> &nbsp; <a href="./docs/skills.md">Skills</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> Film</a> &nbsp; <a href="./docs/guide.md#safety"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> Safety</a> &nbsp; <a href="./README_ko-KR.md">한국어</a></p>
 
-<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="The film opens on a title card with the LIT mark, LitClaude and The lit workflow for Claude Code, then cuts to a Claude Code session in a small Node project with LitClaude installed, where a numbered two-line caption names each step. The prompt &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot; is sent, and the hook answers with the LIT mark and LIT IGNITED · lit-loop. The LIT card above the prompt switches from ready to lit-loop and draws its workflow map, PIN, RED, GREEN, VERIFY, REVIEW and RECORD, with PIN lit. Claude appends the new test through the shell and runs it; the test fails and the map turns RED. While Claude changes greet.js, the live step on the card names the running tool and how long it has run, Bash · 0:00. When the command finishes the tests pass, and the map checks GREEN and lights VERIFY. The live step clears, the card goes idle, and the film ends on the LitClaude mark and the install command npx @litfamily/litclaude@latest install." /></p>
+<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="A silent loop of one LitClaude request in Claude Code. The prompt &quot;lit fix the --shout flag so it prints capitals, with a test&quot; is sent and the hook answers with the LIT mark and LIT IGNITED · lit-loop. The LIT card above the prompt draws its map, PIN, RED, GREEN, VERIFY, REVIEW and RECORD, at criterion 0/1. Three subagent lanes appear under it while a striped sun stands over a sea of light. The first npm test fails and the map turns RED; after the fix the test passes and the map checks GREEN, VERIFY and REVIEW. The card ends on COMPLETE · goal met · 1/1 criteria." /></p>
+
+The loop above is one request from start to finish. You type `lit` and the request, the hook names the route, and the LIT card above the prompt lights its map. Claude pins one criterion it can check, three helper lanes work side by side, the new test fails first and then passes, and the card ends on COMPLETE.
+
+<p align="center"><sub>The card, the hook text and the status line are LitClaude's own output; the Claude Code chat around them is redrawn.</sub></p>
 
 ## Two ways to use it
 
@@ -878,7 +882,8 @@ or sells it under another name, please [open an issue](https://github.com/wjgoar
 The seven armored robots on the cover stand for the seven LitFamily products; each runs on its own in its own
 host, so install just the one you use. The cover is brand motion, and the
 [Ignition film](./docs/assets/readme/ignition-film.mp4) is a short brand film in the same spirit. The demo
-near the top of this page is the one that shows a real Claude Code session.
+near the top of this page follows one request from start to finish: the card, the hook text and the status line are
+LitClaude's own output, and the Claude Code chat around them is redrawn.
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LitClaude ASCII logo" /></p>
 

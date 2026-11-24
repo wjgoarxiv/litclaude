@@ -17,7 +17,11 @@ LitClaude를 쓰면 같은 요청에 `lit`만 붙이면 됩니다. Claude는 먼
 
 <p align="center"><a href="#설치">설치</a> &nbsp; <a href="#빠른-시작">빠른 시작</a> &nbsp; <a href="#이런-걸-만들-수-있어요">작업 예시</a> &nbsp; <a href="./docs/guide_ko-KR.md"><img src="./docs/assets/readme/lucide-book-open.svg" width="16" alt="" /> 안내서</a> &nbsp; <a href="./docs/skills_ko-KR.md">스킬</a> &nbsp; <a href="./docs/assets/readme/ignition-film.mp4"><img src="./docs/assets/readme/lucide-play.svg" width="16" alt="" /> 영상</a> &nbsp; <a href="./docs/guide_ko-KR.md#안전"><img src="./docs/assets/readme/lucide-shield-check.svg" width="16" alt="" /> 안전</a> &nbsp; <a href="./README.md">English</a></p>
 
-<!-- demo-gif --><p align="center"><img src="./docs/assets/demo.webp" width="960" alt="영상은 LIT 마크, LitClaude, The lit workflow for Claude Code가 적힌 제목 화면으로 시작해 LitClaude를 설치한 작은 Node 프로젝트의 Claude Code 세션으로 넘어가며, 단계마다 번호가 붙은 두 줄 자막이 나옵니다. &quot;lit add a --shout flag that prints the greeting in capitals, with a test&quot;를 보내면 hook이 LIT 마크와 LIT IGNITED · lit-loop으로 응답합니다. 프롬프트 위 LIT 카드는 ready에서 lit-loop으로 바뀌고, PIN, RED, GREEN, VERIFY, REVIEW, RECORD로 이어지는 작업 지도를 그리며 PIN에 불을 켭니다. Claude가 셸로 새 테스트를 덧붙여 돌리자 테스트가 실패하고 지도가 RED로 넘어갑니다. greet.js를 고치는 동안 카드의 실시간 단계 줄에는 지금 도는 도구와 걸린 시간이 Bash · 0:00처럼 나옵니다. 명령이 끝나면 테스트가 통과하고, 지도는 GREEN에 체크를 하고 VERIFY에 불을 켭니다. 실시간 단계 줄이 비고 카드는 idle로 돌아가며, 영상은 LitClaude 마크와 설치 명령 npx @litfamily/litclaude@latest install로 끝납니다." /></p>
+<!-- demo-gif --><p align="center"><img src="./docs/assets/demo-ko.webp" width="960" alt="Claude Code에서 LitClaude로 요청 하나를 처리하는 무음 반복 영상입니다. 프롬프트 &quot;lit fix the --shout flag so it prints capitals, with a test&quot;를 보내면 훅이 LIT 마크와 LIT IGNITED · lit-loop로 답합니다. 프롬프트 위의 LIT 카드는 PIN, RED, GREEN, VERIFY, REVIEW, RECORD 지도를 그리고 기준은 0/1입니다. 서브에이전트 세 레인이 그 아래에 나타나고 줄무늬 해가 빛의 바다 위에 섭니다. 첫 npm test가 실패하면 지도가 RED로 바뀌고, 고친 뒤에는 통과해 GREEN, VERIFY, REVIEW가 체크됩니다. 카드는 COMPLETE · goal met · 1/1 criteria로 끝납니다." /></p>
+
+위 영상은 요청 하나가 끝나기까지의 한 판입니다. `lit`과 요청을 입력하면 훅이 경로를 알려 주고, 프롬프트 위의 LIT 카드가 작업 지도를 밝힙니다. Claude가 확인할 수 있는 기준 하나를 정하고, 도우미 레인 세 개가 나란히 일하고, 새 테스트가 먼저 실패한 뒤 통과하며, 카드는 COMPLETE로 끝납니다.
+
+<p align="center"><sub>카드, 훅이 찍는 글, 상태줄은 LitClaude가 직접 만든 출력이고, 그 주변의 Claude Code 채팅 화면은 다시 그린 것입니다.</sub></p>
 
 ## 두 가지 사용법
 
@@ -754,8 +758,8 @@ LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,
 ## LITFAMILY
 
 표지의 아머드 로봇 일곱 대는 LitFamily 제품 일곱 개를 뜻하고, 각 제품은 자기 호스트에서 따로 동작하니 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이고,
-[Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드 영상입니다. 실제 Claude Code 세션은 이 페이지 위쪽의 데모
-영상에서 볼 수 있습니다.
+[Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드 영상입니다. 이 페이지 위쪽의 데모는 요청 하나가 끝나기까지의
+한 판으로, 카드, 훅이 찍는 글, 상태줄은 LitClaude가 직접 만든 출력이고 주변의 Claude Code 채팅 화면은 다시 그린 것입니다.
 
 <p align="center"><img src="./docs/assets/readme/ascii-readme.svg" width="480" alt="LitClaude ASCII logo" /></p>
 

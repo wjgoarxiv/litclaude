@@ -70,7 +70,8 @@ function assertPresentation(content, installAnchor, guidePage) {
     assert.ok(!beforeFirstSection.includes(artwork), `${artwork} does not stack above the first section`);
   }
   const demo = content.split("\n").find((line) => line.startsWith("<!-- demo-gif -->"));
-  assert.match(demo, /^<!-- demo-gif --><p align="center"><img src="\.\/docs\/assets\/demo\.webp" width="960" alt="[^"]{60,}" \/><\/p>$/u, "the demo slot plays the session film");
+  const film = installAnchor === "install" ? "demo.webp" : "demo-ko.webp";
+  assert.match(demo, new RegExp(`^<!-- demo-gif --><p align="center"><img src="\\./docs/assets/${film.replace(".", "\\.")}" width="960" alt="[^"]{60,}" /></p>$`, "u"), "the demo slot plays the session film");
   assert.ok(content.split("\n").some((line) => line.toLowerCase() === `## ${installAnchor}`), "install action must resolve to its section");
   const litfamily = content.indexOf("\n## LITFAMILY\n");
   assert.ok(litfamily > 0, "the LITFAMILY section holds the brand mark");
