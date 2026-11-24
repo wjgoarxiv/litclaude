@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.63 - 2026-11-25
+
+- The LIT card wears a sunset in the terminal: a half-sunk sun whose light ripples, a sea that runs outward from it,
+  twinkling stars and a neon border from pink to the accent. It is drawn only where no words are, moves while Claude
+  works and holds still at rest, and the card's rows, words and widths stay as they were.
+- The gauges on the card and the status line have round ends with the icon font, and without it in Windows
+  Terminal 1.21 or later and VS Code. `LITCLAUDE_HUD_GLYPHS=basic` and `glyphs basic` bring the square ends back.
+- A usage window that will run out before its reset shows `! out 1h28m` on the status line.
+- The session state keeps a small receipt for each replay key, so it no longer grows with every start.
+- `TERM=dumb` terminals get plain ASCII art.
+- The READMEs, the guide and the card reference describe and show the new card.
+
 ## 1.0.62 - 2026-11-24
 
 - `lit continue`, `lit resume` and `lit 계속` in a fresh session now carry on the existing work. Before,
