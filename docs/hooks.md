@@ -534,12 +534,18 @@ step's spinner (`- \ | /`) and clock are ASCII, and a glyph swaps only together 
 The desktop app's Code tab, and the other surfaces that are not a terminal, draw a mod's `Text` in
 a proportional font and cut each span to the cells it was laid out for, so the card above comes
 apart there. On those surfaces the mod draws the same five rows as one `Svg` element instead
-(`lib/mod/svg-card.mjs`): monospace text placed by counted cells, real pills and a rounded border.
-It shows the settled state, with no entrances or crossfades. While LitClaude works it moves with
+(`lib/mod/svg-card.mjs`): monospace text placed by counted cells, real pills and a rounded border
+that runs from pink through violet to the accent (amber while it waits on you, red or amber for a
+warning). `lib/mod/svg-sunset.mjs` draws the sunset behind the words: a half-sunk sun with dark
+slits and a soft glow, its reflection on a layered sea, stars, and the border lit under the sun.
+Every word and pill is measured first; a sun, star or wave is drawn only where none of them is, and
+on a crowded card the sun gets smaller, steps aside, sinks to its rim or is left out. Gauges have
+round ends. It shows the settled state, with no entrances or crossfades. While LitClaude works it moves with
 SMIL animation inside the drawing, which runs in the image the surface draws it as: the
 pill and the border breathe and the step's spinner turns, and on `full` a light crosses the
 current stage and the current chips, a head runs the rail leaving it, the count bar's head
-shimmers and a comet runs around the border; what breathes, sweeps or shuttles eases in and out,
+shimmers, a comet runs around the border, the sea and the reflection move, the stars twinkle and a
+shooting star passes; `subtle` and an idle card hold the sunset still; what breathes, sweeps or shuttles eases in and out,
 and the spinner, the comet and the drifting sparks keep an even pace. An idle card is a still
 image. The app loads each new drawing from scratch and restarts its animation, so this card names
 the running tool without its clock and shows the loop round without its countdown, and each new
@@ -596,7 +602,8 @@ between passes the card draws no frames. With `subtle` or `off` motion the ring 
 never makes a band show that `band: auto` would hide. No look flips more than a quarter of the card's brightness more than three
 times a second; with `motion` off or reduced motion each look is one still frame, and with
 `NO_COLOR` set the card keeps its labels and draws no colour (basic glyphs, no motion). The desktop
-drawing shows the labels of these looks, not the lane segments, the embers or the sunset scene.
+drawing shows the labels of these looks and its own sunset (`svg-sunset.mjs`), not the lane
+segments or the embers.
 
 The icons on `nerd` (the rounded pill caps U+E0B6 and U+E0B4, the chip bolt and the branch mark)
 come from a Nerd Font. `litclaude-ai install
@@ -657,8 +664,17 @@ panel also makes a few machine gestures: a text spinner beside the state block, 
 under the stage counts that moves a row a step, registration marks that turn an eighth a step, and
 at the power-on a row of slashes that wipes out along the rail from the column. The scene's own width media rules drop the readouts below 1240 px; below 1040 px they drop
 the frame, the labels and the embers and move the plan and verify cells in behind the glass. It
-is drawn like a measuring instrument throughout: graph paper and halftone, a ruler under the fuse,
+is drawn like a measuring instrument throughout: a halftone at both edges, a ruler under the fuse,
 square cells with a 2 px outline and a hard offset shadow.
+
+Behind the instruments lies a synthwave sunset: a violet-to-pink sky with twinkling stars and a
+shooting star now and then, a slit sun low behind the column, a ridge of hills and a neon floor
+that runs to the horizon in perspective. A calm column, gutter to gutter, lies over it where the
+conversation is, so the sun reads through the glass as a faint warmth. The sun stands low at rest, up
+in a run and after it, and a little lower while the work waits on you; it rises with the power-on
+(1 s) and sinks with the power-down (1.8 s). The floor rolls only in a run. The frame is a neon
+line from orange through pink and violet to cyan (it starts lime while asking or done). Light mode is
+a pale dawn in the same shapes; a narrow box dims the sun.
 
 Idle and a lit run look clearly different. Idle is a dormant panel: the burnt fuse cold and dim,
 lit cells banked low, a few dim embers, low heat, a dim frame and `STATE: STANDBY`. A run powers it

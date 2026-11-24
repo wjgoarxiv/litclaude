@@ -286,7 +286,7 @@ test("v5 geometry: the plan and verify cells, the frame, the readouts and the em
     }
     assert.match(source, /<svg x="50%" y="0" overflow="visible"><g class="wd"><text class="rd[^"]*" x="-470" y="150" text-anchor="end"/u, `${name}: readouts right-aligned to the frame`);
     assert.ok(source.includes("@media (max-width: 1239px){.wd{display:none}}"), `${name}: readouts need a wide box`);
-    assert.ok(source.includes("@media (max-width: 1039px){.gt{display:none}.el,.er{display:none}.pl{transform:translateX(152px)}.pr{transform:translateX(-152px)}}"), `${name}: a narrow box drops the gutters and tucks P and V behind the glass`);
+    assert.ok(source.includes("@media (max-width: 1039px){.gt{display:none}.el,.er{display:none}.sn{opacity:.3}.pl{transform:translateX(152px)}.pr{transform:translateX(-152px)}.pl,.pr{opacity:.82}}"), `${name}: a narrow box drops the gutters and tucks P and V behind the glass`);
     assert.doesNotMatch(source, /<svg x="(?!50%|100%)[\d.]+%"/u, `${name}: nothing placed by a share of the box`);
   }
 });
@@ -311,7 +311,7 @@ test("the power change plays once: on into a run, a slower off back to idle, nev
   const on = composeScene(STATES["working-1of3"], { clockMs: 0, power: { dir: "on", ageMs: 0 } }).source;
   assert.match(on, /<g class="pwn pw0">/u);
   assert.match(on, /--pa:0s;/u);
-  assert.match(on, /\.pwn,\.pwf,\.pgw\{animation-delay:calc\(var\(--k,0s\) - var\(--pa\)\)\}/u, "less the time since the change");
+  assert.match(on, /\.pwn,\.pwf,\.pgw,\.suon,\.suoff\{animation-delay:calc\(var\(--k,0s\) - var\(--pa\)\)\}/u, "less the time since the change");
   // A row of slashes wipes out along the rail, a glyph a step, within 0.9 s.
   const slashes = [...on.matchAll(/<text class="pgw w(\d+) off"/gu)];
   assert.equal(slashes.length, 36);

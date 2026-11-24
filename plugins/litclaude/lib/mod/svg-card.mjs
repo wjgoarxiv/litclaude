@@ -12,7 +12,8 @@
 // brand pill and the border breathe (full and subtle), a light crosses the current stage and this
 // request's chips, a bright head runs along the rail leaving the current stage, the count bar's
 // head shimmers, the step spinner turns and a comet runs around the border (full only). Idle, it is
-// still. The drawing carries no step clock and no loop countdown: the surface loads each new
+// still. The sunset (svg-sunset.mjs) stands where no word does: it runs with the full motion and holds
+// still otherwise. The drawing carries no step clock and no loop countdown: the surface loads each new
 // drawing afresh, restarting every animation, so a figure that moves with time alone would make the
 // card blink on every poll. Each loop opens where the session clock has it (see `loop`), so a fresh
 // load carries on from the frame the last one showed rather than opening on a dim border and a
@@ -24,10 +25,10 @@
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { CLUB_GLINT, CLUB_GOLD, CLUB_PILL, CLUB_STOPS, LOOKS, lookOf } from "./looks.mjs";
-import { TIMINGS, barCells, gradientAt, rainbowAt } from "./motion.mjs";
+import { BAR_STOPS, TIMINGS, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
+import { BRAND_STOPS, SKY, neonStops, shoreSvg, stopsOf, sunsetSvg } from "./svg-sunset.mjs";
 
 const C = Object.freeze({
-  bg: "#0d1117",
   pink: "#ff2d95",
   orange: "#ff6337",
   green: "#6bdb8f",
@@ -79,12 +80,18 @@ const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").
 const widthOf = (text) => textWidth(text) * SVG_CARD.cell;
 const levelColor = (percent) => (percent >= 90 ? C.hudRed : percent >= 70 ? C.hudYellow : C.hudGreen);
 
+// The rectangles the card's words and pills take, collected while its rows are composed, so the
+// sunset can keep clear of them.
+let taken = [];
+
 // Edge spaces become offsets: an SVG text element drops leading and trailing whitespace.
 const text = (x, y, body, { fill = C.white, bold = false, anchor = "start" } = {}) => {
   const lead = String(body).length - String(body).trimStart().length;
   const trimmed = String(body).trim();
   if (!trimmed) return "";
   const at = anchor === "start" ? x + lead * SVG_CARD.cell : x;
+  const from = anchor === "start" ? at : at - widthOf(trimmed);
+  taken.push({ x0: from, y0: y - 11, x1: from + widthOf(trimmed), y1: y + 4 });
   return `<text x="${at.toFixed(1)}" y="${y}" fill="${fill}"${bold ? ' font-weight="700"' : ""}${anchor === "start" ? "" : ` text-anchor="${anchor}"`}>${esc(trimmed)}</text>`;
 };
 
@@ -104,12 +111,19 @@ const run = (x, y, pieces) => {
 const pill = (x, y, label, { fill, ink, bold = true, sweep = false, breath = null, breathPeak = 0.85, veil = false }) => {
   const w = widthOf(label) + 16;
   const top = y - PILL_H + 6;
+  taken.push({ x0: x, y0: top, x1: x + w, y1: top + PILL_H });
   const parts = [`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${fill}"/>`];
   if (veil) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="#ffffff" opacity="0.3"/>`);
   if (breath) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${breath}" opacity="0"><animate attributeName="opacity" values="0;${breathPeak};0" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/></rect>`);
   if (sweep) parts.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="url(#lit-sweep)"/>`);
   parts.push(text(x + 8, y, label, { fill: ink, bold }));
   return { markup: parts.join(""), end: x + w };
+};
+
+// A round-ended gauge filled to `fraction`; an empty one draws its track alone.
+const gaugeSvg = (x, y, w, h, fraction, fill) => {
+  const bar = (width, color) => `<rect x="${x.toFixed(1)}" y="${y}" width="${width.toFixed(1)}" height="${h}" rx="${h / 2}" fill="${color}"/>`;
+  return bar(w, C.empty) + (fraction > 0 ? bar(Math.max(h, w * Math.min(1, fraction)), fill) : "");
 };
 
 const indicatorOf = (model, accent) => {
@@ -138,7 +152,7 @@ const topRow = (model, accent, animate, rewind = false) => {
   const from = club ? pad + widthOf("✧ ") : pad;
   const brand = rewind
     ? pill(from, y, "🔥 LIT", { fill: "url(#lit-rainbow)", ink: C.ink, veil: true })
-    : pill(from, y, "🔥 LIT", { fill: club ? CLUB_GOLD : C.pink, ink: C.ink, breath: animate.breath ? C.orange : null });
+    : pill(from, y, "🔥 LIT", { fill: club ? CLUB_GOLD : "url(#lit-brand)", ink: C.ink, breath: animate.breath ? "url(#lit-brand-hot)" : null });
   const indicator = rewind && !model.completion ? { label: "REWIND <<", fill: "url(#lit-rainbow)" } : indicatorOf(model, accent);
   // The club pill is 16 wider than the bare indicator text; it ends where the text would.
   const pillWide = club ? 16 : 0;
@@ -186,7 +200,7 @@ const phaseRow = (model, accent, animate) => {
     }
     if (state === "now") {
       const fill = model.idle ? C.muted : model.ctxWarning && id === "work" ? C.amber : accent;
-      const drawn = pill(x, y, LABELS[id], { fill, ink: model.idle ? C.mutedText : C.ink, sweep: animate.sweep });
+      const drawn = pill(x, y, LABELS[id], { fill: stageFill(model, accent, fill), ink: model.idle ? C.mutedText : C.ink, sweep: animate.sweep });
       out.push(drawn.markup);
       x = drawn.end;
     } else {
@@ -206,6 +220,9 @@ const phaseRow = (model, accent, animate) => {
 };
 
 const mapColor = (accent, position) => gradientAt([C.orange, C.pink, accent], position);
+// The current stage's pill: violet into the accent, as on the terminal card; a look, a context
+// warning and the resting card keep their own fill.
+const stageFill = (model, accent, plain) => ((model.look ?? null) === null && plain === accent ? "url(#lit-stage)" : plain);
 const shortLabel = (label) => label.replace(/^[A-Za-z]+/u, (word) => word.slice(0, 3));
 
 // Right-aligned groups after `x`, the leftmost dropped first when the row is short of room.
@@ -258,7 +275,7 @@ const mapRowSvg = (model, accent, animate) => {
       x = drawn.end;
     } else if (stage.state === "now") {
       const fill = model.idle ? C.muted : model.ctxWarning ? C.amber : accent;
-      const drawn = pill(x, y, label, { fill, ink: model.idle ? C.mutedText : C.ink, sweep: animate.sweep, breath: animate.breath ? "#ffffff" : null, breathPeak: 0.2 });
+      const drawn = pill(x, y, label, { fill: stageFill(model, accent, fill), ink: model.idle ? C.mutedText : C.ink, sweep: animate.sweep, breath: animate.breath ? "#ffffff" : null, breathPeak: 0.2 });
       out.push(drawn.markup);
       x = drawn.end;
     } else {
@@ -301,10 +318,12 @@ const detailRowSvg = (model, accent, animate) => {
     const drawn = run(x, y, [[`${unit} `, { fill: C.dim }], [String(done), { fill: C.white, bold: true }], [`/${total} `, { fill: C.dim }]]);
     out.push(drawn.markup);
     x = drawn.end;
-    const cells = barCells(total > 0 ? done / total : 0, 8);
-    cells.forEach(({ glyph, color }, index) => out.push(`<rect x="${(x + index * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="${glyph === "█" ? color : C.empty}"/>`));
-    const head = cells.findLastIndex(({ glyph }) => glyph === "█");
-    if (head >= 0 && animate.sweep) out.push(`<rect x="${(x + head * 9).toFixed(1)}" y="${y - 10}" width="7" height="10" rx="1.5" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/></rect>`);
+    const fraction = total > 0 ? Math.min(1, done / total) : 0;
+    const bar = { w: 70, h: 10 };
+    out.push(`<defs><linearGradient id="lit-bar" x1="0" x2="1" y1="0" y2="0">${stopsOf([[0, BAR_STOPS[0]], [1, gradientAt(BAR_STOPS, fraction)]])}</linearGradient></defs>`
+      + gaugeSvg(x, y - 10, bar.w, bar.h, fraction, "url(#lit-bar)"));
+    taken.push({ x0: x, y0: y - 10, x1: x + bar.w, y1: y });
+    if (fraction > 0 && animate.sweep) out.push(`<circle cx="${(x + Math.max(bar.h, bar.w * fraction) - bar.h / 2).toFixed(1)}" cy="${y - 10 + bar.h / 2}" r="${bar.h / 2 - 1}" fill="#ffffff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/></circle>`);
     x += 8 * 9 + 4;
   }
   const pieces = [];
@@ -429,8 +448,8 @@ const bottomRow = (model, accent, shift = 0) => {
     out.push(drawn.markup);
     x = drawn.end;
     if (group.bar !== undefined) {
-      const filled = Math.max(0, Math.min(5, Math.round(group.bar / 20)));
-      for (let i = 0; i < 5; i += 1) out.push(`<rect x="${(x + 8 + i * 10).toFixed(1)}" y="${y - 9}" width="7" height="8" rx="1.5" fill="${i < filled ? accent : C.empty}"/>`);
+      out.push(gaugeSvg(x + 8, y - 9, 47, 8, group.bar / 100, accent));
+      taken.push({ x0: x + 8, y0: y - 9, x1: x + 55, y1: y });
       x += 60;
     }
   });
@@ -493,9 +512,10 @@ const threadRowsSvg = (model, { animate = false, rewind = false } = {}) => {
     const mark = thread.task ? TASK_MARK[thread.task] ?? "$" : stateMark;
     const name = truncateToWidth(thread.name, nameCells);
     const drawn = gauge(thread.done, thread.total);
+    const [cells, count] = drawn ? drawn.split(" ") : [];
     const facts = drawn ? null : threadFacts(thread);
     const progress = drawn
-      ? [[` ${drawn}`, { fill: C.white }], [` ${thread.state}`, { fill: color }]]
+      ? [[" ", {}], [" ".repeat(textWidth(cells)), { gauge: thread.done / thread.total, color: rewind ? "url(#lit-rainbow)" : color }], [` ${count}`, { fill: C.white }], [` ${thread.state}`, { fill: color }]]
       : [[" ", {}], [PULSE, { fill: rewind ? "url(#lit-rainbow)" : C.rail, pulse: true }], [" ", {}],
         ...(facts.startsWith(thread.state) ? [[facts, { fill: color }]] : [[thread.state, { fill: color }], [` · ${facts}`, { fill: C.dim }]])];
     const pieces = [
@@ -519,17 +539,20 @@ const threadRowsSvg = (model, { animate = false, rewind = false } = {}) => {
       used += cells;
     }
     out.push(run(pad, y, kept).markup);
+    const gaugeAt = kept.findIndex(([, style]) => style.gauge !== undefined);
+    if (gaugeAt >= 0) {
+      const x = pad + kept.slice(0, gaugeAt).reduce((sum, [body]) => sum + widthOf(body), 0);
+      out.push(gaugeSvg(x, y - 9, widthOf(kept[gaugeAt][0]), 9, kept[gaugeAt][1].gauge, kept[gaugeAt][1].color));
+      taken.push({ x0: x, y0: y - 9, x1: x + widthOf(kept[gaugeAt][0]), y1: y });
+    }
     const before = kept.findIndex(([, style]) => style.pulse);
     if (before >= 0) out.push(pulseSvg(pad + kept.slice(0, before).reduce((sum, [body]) => sum + widthOf(body), 0), y, animate, rewind ? "#ffffff" : C.white));
   });
   return out.join("");
 };
 
-const borderColor = (model, accent) => {
-  if (model.warnings.some(({ tone }) => tone === "red")) return C.red;
-  if (model.warnings.length) return C.amber;
-  return model.idle ? C.faint : accent;
-};
+// A warning's border; otherwise the border is neon from pink through violet to the accent.
+const borderColor = (model) => (model.warnings.some(({ tone }) => tone === "red") ? C.red : C.amber);
 
 // The rewind look's border (plans/lit-adhd.md D7): a rainbow gradient whose stops each walk the hue
 // wheel over TIMINGS.hue while the card moves, so the colours cycle; with motion off it stands still.
@@ -547,7 +570,7 @@ const rainbowDefs = (animate) => {
 // The club look's ring: gold on the left side through rose to violet on the right, so the top edge
 // and the bottom edge each carry the whole velvet and the ring closes gold on gold at the left, as
 // the terminal card lays it clockwise. The pill gradient fills `CLUB ✦`.
-const gradientStops = (stops) => stops.map((color, i) => `<stop offset="${(i / (stops.length - 1)).toFixed(3)}" stop-color="${color}"/>`).join("");
+const gradientStops = (colors) => stopsOf(colors.map((color, i) => [(i / (colors.length - 1)).toFixed(3), color]));
 const clubDefs = () => `<defs><linearGradient id="lit-club" x1="0" x2="1" y1="0" y2="0">${gradientStops(CLUB_STOPS.slice(0, 3))}</linearGradient>`
   + `<linearGradient id="lit-club-pill" x1="0" x2="1" y1="0" y2="0">${gradientStops(CLUB_PILL)}</linearGradient></defs>`;
 
@@ -593,10 +616,12 @@ export const svgCardAlt = (model) => {
  */
 export const composeSvgCard = (model, { motion = "full", accent = "#5fd7ff", clock = 0 } = {}) => {
   clockMs = clock;
+  taken = [];
   try {
     return composeCard(model, motion, accent);
   } finally {
     clockMs = 0;
+    taken = [];
   }
 };
 
@@ -609,17 +634,26 @@ const composeCard = (model, motion, accent) => {
   const working = (!model.idle || rewind) && motion !== "off";
   const animate = { breath: working, sweep: working && motion === "full", comet: working && motion === "full" };
   const club = model.look === "club" && model.warnings.length === 0;
-  const edge = rewind ? "url(#lit-rainbow)" : club ? "url(#lit-club)" : borderColor(model, accent);
+  const calm = model.idle && !rewind && !club && model.look !== "turn";
+  const edge = rewind ? "url(#lit-rainbow)" : club ? "url(#lit-club)" : model.warnings.length ? borderColor(model) : "url(#lit-neon)";
   const perimeter = 1000;
-  const defs = (rewind ? rainbowDefs(animate.breath) : club ? clubDefs() : "") + (animate.sweep
+  const across = (id, stops) => `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="${width}" y1="0" y2="0">${stopsOf(stops)}</linearGradient>`;
+  const turn = model.look === "turn" ? ["#ff9a3c", "#ffc95a", C.amber].map((color, i) => [i / 2, color]) : null;
+  const defs = `<defs>${across("lit-sky", SKY.map((color, i) => [i / 2, color]))}${edge === "url(#lit-neon)" ? across("lit-neon", turn ?? neonStops(accent, calm)) : ""}`
+    + `<linearGradient id="lit-brand" x1="0" x2="1" y1="0" y2="0">${gradientStops(BRAND_STOPS)}</linearGradient>`
+    + (animate.breath ? `<linearGradient id="lit-brand-hot" x1="0" x2="1" y1="0" y2="0">${gradientStops(BRAND_STOPS.map((color) => lerpColor(color, "#ffffff", 0.32)))}</linearGradient>` : "")
+    + (model.idle ? "" : `<linearGradient id="lit-stage" x1="0" x2="1" y1="0" y2="0">${gradientStops([lerpColor(accent, C.violet, 0.75), accent])}</linearGradient>`) + "</defs>"
+    + (rewind ? rainbowDefs(animate.breath) : club ? clubDefs() : "")
+    + (animate.sweep
     ? `<defs><linearGradient id="lit-sweep" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" ${loop(TIMINGS.sweep, 0.5, 2)}/></linearGradient></defs>`
     : "");
-  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="${C.bg}" stroke="${edge}" stroke-width="${model.idle && !rewind && !club ? "1.5" : "2.5"}"${model.idle && !rewind && !club ? ' stroke-opacity="0.8"' : ""}>`
+  const frame = `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="url(#lit-sky)" stroke="${edge}" stroke-width="${calm ? "1.5" : "2.5"}"${calm ? ' stroke-opacity="0.8"' : ""}>`
     + (animate.breath && !model.warnings.length ? `<animate attributeName="stroke-opacity" values="0.85;1;0.85" ${loop(TIMINGS.breath, BREATH_PHASE, 3)}/>` : "")
-    + "</rect>";
+    + "</rect>"
+    // The neon's own light on the card, just inside the border.
+    + (calm ? "" : [[2.5, 2, 0.16], [5.5, 5, 0.06]].map(([inset, w, alpha]) => `<rect x="${inset}" y="${inset}" width="${width - inset * 2}" height="${height - inset * 2}" rx="${15 - inset}" fill="none" stroke="${edge}" stroke-width="${w}" stroke-opacity="${alpha}"/>`).join(""));
   const comet = animate.comet
-    ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="url(#lit-comet)" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="70 ${perimeter - 70}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" ${loop(TIMINGS.comet * 2, 0.5)}/></rect>`
-      + `<defs><linearGradient id="lit-comet" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${C.orange}"/><stop offset="0.6" stop-color="${C.pink}"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>`
+    ? `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="14" fill="none" stroke="#fff0d8" stroke-width="2.5" stroke-linecap="round" pathLength="${perimeter}" stroke-dasharray="46 ${perimeter - 46}"><animate attributeName="stroke-dashoffset" values="0;-${perimeter}" ${loop(TIMINGS.comet * 2, 0.5)}/></rect>`
     : "";
   const body = [
     topRow(model, accent, animate, rewind),
@@ -629,7 +663,13 @@ const composeCard = (model, motion, accent) => {
     middleRow(model, accent, animate, shift, rewind),
     bottomRow(model, accent, shift),
   ].join("");
+  // The scene is composed after the rows, whose words it keeps clear of; a card that only breathes or
+  // rests holds it still.
+  const look = rewind ? "rewind" : model.look === "club" || model.look === "turn" ? model.look : "sunset";
+  const dim = model.idle && look === "sunset" && !model.completion;
+  const scene = sunsetSvg({ taken, width, height, look, dim, move: animate.sweep, loop });
+  const shore = scene && !model.warnings.length ? shoreSvg({ taken, width, height, look, dim }) : "";
   const glint = club && motion === "full" ? clubGlintSvg(width) : "";
-  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${comet}${glint}${body}</svg>`;
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}" font-size="${SVG_CARD.font}">${defs}${frame}${shore}${comet}${glint}${body}${scene}</svg>`;
   return { source, alt: svgCardAlt(model), animated: working || glint !== "" };
 };

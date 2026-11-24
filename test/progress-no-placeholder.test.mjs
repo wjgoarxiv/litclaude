@@ -109,7 +109,9 @@ test("SVG card and its alt text: no ? run for unknown totals, the gauge for know
     const visible = source.replace(/<[^>]+>/gu, " ");
     assert.doesNotMatch(visible, PLACEHOLDER, visible);
     assert.doesNotMatch(alt, PLACEHOLDER, alt);
-    assert.match(visible, /\[▉░\] 1\/2/u);
+    assert.match(visible, /(?<!\S)1\/2(?!\S)/u);
+    assert.match(source, /height="9" rx="4.5"/u, "the gauge is drawn with round ends");
+    assert.match(alt, /\[▉░\] 1\/2/u);
     assert.match(visible, /running 4m/u);
     assert.match(alt, /librarian running 4m/u);
   }

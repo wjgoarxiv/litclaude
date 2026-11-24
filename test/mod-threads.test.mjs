@@ -525,7 +525,8 @@ test("the desktop card draws the same thread rows and grows by their reserve", a
   }
   const rowAt = (needle) => texts.find(({ body }) => body.includes(needle));
   assert.ok(rowAt("lit-plan") && rowAt("1 lane · 1 task in parallel") && rowAt("executor") && rowAt("dev server"), "every thread is drawn");
-  assert.ok(texts.some(({ body }) => body.includes("[▉▉░░░] 2/5")), "the paused parent keeps its gauge");
+  assert.ok(texts.some(({ body }) => body === "2/5"), "the paused parent keeps its count");
+  assert.match(source, /height="9" rx="4.5" fill="#3a3f47"\/><rect [^>]*height="9" rx="4.5"/u, "and a round gauge in place of the bracketed one");
   assert.ok(rowAt("executor").y > rowAt("lit-plan").y && rowAt("dev server").y > rowAt("executor").y);
   const chips = texts.find(({ body }) => body === "skills");
   assert.ok(chips.y > rowAt("dev server").y, "the chips row moves below the threads");

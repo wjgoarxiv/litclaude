@@ -92,7 +92,7 @@ Then open the file and try the three actions yourself. That is how you find out 
 | `lit adhd` (or `lit rewind`), then `go` | A six-line card with the one thing to do now, then that step |
 
 In the Claude desktop and mobile apps (Claude Code 2.1.325 or later), LitClaude also dresses the app in the
-Ignition look: LitFamily colours and a moving backdrop that rests, burns, signals and bursts with the LIT state.
+Ignition look: LitFamily colours and a synthwave sunset backdrop that rests, burns, signals and bursts with the LIT state.
 `npx @litfamily/litclaude@latest config look still` keeps it without motion; `look off` gives the app its own look back.
 
 ## Check, update and remove

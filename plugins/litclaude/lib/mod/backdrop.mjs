@@ -2,7 +2,9 @@
 // (ignition orange, signal lime, ivory, carbon navy) and the backdrop scene drawn behind the
 // conversation. The terminal draws no look; its band and spinner stay as they are.
 //
-// The scene is an instrument panel with the conversation mounted in it. The desktop draws the scene
+// The scene is an instrument panel at a synthwave sunset, with the conversation mounted in it: a star
+// field over a sky that goes from indigo to hot pink, a sliced sun standing low behind the column, a
+// ridge on each side and a grid floor in perspective that runs towards the viewer. The desktop draws the scene
 // across the whole content frame and frosts a centred column over it: the column is the transcript
 // measure (768 px unless the person widened it), fully blurred, with a 48 px blur ramp outside it.
 // So the scene has two zones, measured in CSS pixels from the box's centre: the sharp gutters
@@ -17,8 +19,8 @@
 // run powers the panel up: working (the spark burns the fuse towards the next cell), asking (signal
 // rings from the cell the work waits at, a lime frame) and done (the fuse ignites end to end,
 // bursts open in the gutters, then the verify cell settles lime). Going from idle to a run plays a
-// power-on (the frame ignites outward from the column on a spring); going back plays a slower
-// power-down.
+// power-on (the frame ignites outward from the column on a spring and the sun rises); going back plays
+// a slower power-down, and the sun sinks behind the column again.
 //
 // Motion is physical: the spark runs on a solved spring and settles at its cell, cells kick and
 // follow through, embers rise against drag and sparks fall under gravity, and parts that move
@@ -152,14 +154,18 @@ const springStops = (z, n = 32) => {
   return Array.from({ length: n + 1 }, (_, i) => (i === n ? 1 : springX(z, (i / n) * T)));
 };
 const dragStops = (k, n = 24) => Array.from({ length: n + 1 }, (_, i) => (1 - Math.exp((-k * i) / n)) / (1 - Math.exp(-k)));
+// A line of the floor, a share `p` of the way from the horizon to the viewer: 0 at the horizon, 1 at
+// the foot of the box.
+const FLOOR_DEPTH = 5;
+const floorAt = (p) => (1 / (1 + FLOOR_DEPTH * (1 - p)) - 1 / (1 + FLOOR_DEPTH)) / (1 - 1 / (1 + FLOOR_DEPTH));
 const linear = (values) => `linear(${values.map((v) => +v.toFixed(3)).join(",")})`;
 const curve = (values, bezier) => Object.freeze({ linear: linear(values), bezier, values: Object.freeze(values) });
 
 /**
  * The spring and drag curves, each a `linear()` and the cubic-bezier fitted to it. `travel` carries
  * the spark (accelerates from rest, overshoots 2 %), `ignite` settles a kicked cell (one 8 %
- * overshoot), `enter` brings a part in with no overshoot, `drag` slows what flies out and `rise` an
- * ember climbing through warm air.
+ * overshoot), `enter` brings a part in with no overshoot, `drag` slows what flies out, `rise` an
+ * ember climbing through warm air and `floor` a line of the floor coming nearer in perspective.
  */
 export const EASE = Object.freeze({
   travel: curve(springStops(0.78), "cubic-bezier(.28,.32,.1,1.2)"),
@@ -167,6 +173,7 @@ export const EASE = Object.freeze({
   enter: curve(springStops(1), "cubic-bezier(.2,.2,.15,1.05)"),
   drag: curve(dragStops(4.5), "cubic-bezier(.22,1,.55,.95)"),
   rise: curve(dragStops(2.2), "cubic-bezier(.2,.48,.45,.85)"),
+  floor: curve(Array.from({ length: 25 }, (_, i) => floorAt(i / 24)), "cubic-bezier(.71,.11,.89,.38)"),
 });
 // Curves a bezier draws exactly or well enough: a fall (t²), an exit, a breath, a gather before a
 // release, and the fast first push of a kick.
@@ -212,8 +219,10 @@ const streakFrames = (name, from, span, reach, longest) => {
 
 // Colour tokens. `edge` outlines cells, `sh*` are the hard offset shadows, `mark` the readouts and
 // registration marks, `tag*` the flat state block.
-const TOKENS_DARK = "--bg:#080D14;--grid:#111B2A;--major:#1A2738;--dense:#22324A;--rail:#2A3647;--edge:#3E4D63;--idle:#1C2636;--lit:#FF6337;--hot:#FFB08F;--ok:#D7F75B;--ink:#080D14;--core:#FFF4E6;--halo:#FF6337;--sig:#D7F75B;--em2:#D7F75B;--sh:#000000;--shl:#8A2C08;--sho:#53660F;--mark:#6E7A8C;--tagi:#2A3647;--tagt:#F2EFDF;--frm:#2A3647;--act:#FFB08F;--emr:#C23A1E";
-const TOKENS_LIGHT = "--bg:#EBE7D5;--grid:#DED9C5;--major:#CFC9B2;--dense:#CEC8B0;--rail:#ADA892;--edge:#0B111A;--idle:#DDD8C3;--lit:#FF6337;--hot:#E74800;--ok:#D7F75B;--ink:#080D14;--core:#B83A00;--halo:#FF8F71;--sig:#7E9A12;--em2:#6F8A0A;--sh:#0B111A;--shl:#0B111A;--sho:#0B111A;--mark:#6A6E76;--tagi:#0B111A;--tagt:#F2EFDF;--frm:#ADA892;--act:#99320C;--emr:#A3311A";
+// `sk*` run the sky from the top down to the horizon, `sn*` the sun, `fg` is the floor's neon, `fl*`
+// its ground, `rg` the ridge and `cm` the calm column.
+const TOKENS_DARK = "--bg:#0A0918;--dense:#3A2A66;--rail:#3B2C63;--edge:#5B4A8C;--idle:#2A2146;--lit:#FF6337;--hot:#FFB08F;--ok:#D7F75B;--ink:#080D14;--core:#FFF4E6;--halo:#FF5A4D;--sig:#D7F75B;--em2:#D7F75B;--sh:#000000;--shl:#8A2C08;--sho:#53660F;--mark:#8C82B0;--tagi:#3B2C63;--tagt:#F2EFDF;--frm:#46357A;--act:#FFB08F;--emr:#F0287F;--sk0:#0A0918;--sk1:#1C0F3D;--sk2:#4B1560;--sk3:#A3246F;--sn0:#FFE27A;--sn1:#FF8A3C;--sn2:#FF2D8A;--fg:#C64BFF;--fl0:#2A0D45;--fl1:#0A0918;--rg:#150A2E;--rge:#FF4FB0;--str:#D8CCFF;--vio:#B48CFF;--cya:#5FD7FF;--cm:#1A0B3C";
+const TOKENS_LIGHT = "--bg:#EBE7D5;--dense:#D9C3D6;--rail:#B7A3BC;--edge:#0B111A;--idle:#DDD0D3;--lit:#FF6337;--hot:#E74800;--ok:#D7F75B;--ink:#080D14;--core:#B83A00;--halo:#FF8F71;--sig:#7E9A12;--em2:#6F8A0A;--sh:#0B111A;--shl:#0B111A;--sho:#0B111A;--mark:#6A6076;--tagi:#0B111A;--tagt:#F2EFDF;--frm:#B7A3BC;--act:#99320C;--emr:#C2185B;--sk0:#EFEAE0;--sk1:#F3DED8;--sk2:#F8C6B8;--sk3:#F59AA6;--sn0:#FFD071;--sn1:#FF9560;--sn2:#FF5C93;--fg:#B25CC7;--fl0:#E9BFD0;--fl1:#EBE7D5;--rg:#D9A9C4;--rge:#B14A8F;--str:#A884B5;--vio:#8A5BD0;--cya:#2B8FB8;--cm:#F0E6DC";
 
 // Embers per mood: [right column, left column], how bright they burn, and the lifetimes a near
 // ember draws from (far ones live twice as long). Every lifetime divides the 24 s clock. Idle is
@@ -251,6 +260,23 @@ const SPARK_INK = ["sc", "sl", "sr", "sr"];
 const DRIP_SPAN = [21, 29, 38];
 // The ticker in the left gutter: rows of mostly dots, some marks, a block now and then.
 const TICK = ["·", "·", "·", "·", ":", "|", "+", "▪"];
+// The horizon, as a share of the box's height, and the sun that stands on it: its radius in its own
+// drawing (which shrinks with a low box), its slices as heights in radii, and how far it is sunk at rest.
+const HORIZON = 80;
+const SUN_R = 540;
+const SUN_SLICES = Object.freeze([[1, 0.62], [0.585, 0.44], [0.395, 0.285], [0.235, 0.15], [0.095, 0]]);
+export const SUNK = Object.freeze({ idle: 350, working: 0, asking: 90, done: 0 });
+const SUN_PATH = SUN_SLICES.map(([top, foot]) => {
+  const [w0, w1] = [top, foot].map((d) => Math.round(SUN_R * Math.sqrt(1 - d * d)));
+  const [y0, y1] = [top, foot].map((d) => Math.round(-SUN_R * d));
+  return `M${-w1} ${y1}A${SUN_R} ${SUN_R} 0 0 1 ${-w0} ${y0}H${w0}A${SUN_R} ${SUN_R} 0 0 1 ${w1} ${y1}Z`;
+}).join("");
+// The floor's lines: those running to the vanishing point, and how many roll towards the viewer.
+const FLOOR_LINES = 8;
+const FLOOR_FAN = Array.from({ length: 81 }, (_, i) => i - 40).map((k) => `M${k * 48} 0L${k * 300} 100`).join("");
+// The right side's ridge, from the gutter's inner edge out; the left side mirrors it.
+const RIDGE = "M380 0L440 -22L486 -10L540 -46L584 -26L640 -70L700 -34L748 -58L820 -24L890 -66L960 -30L1040 -52L1120 -18L1220 -44L1400 -12V0Z";
+const STAR_DOTS = [[14, 20, 1.1], [52, 96, 0.8], [88, 40, 1.5], [118, 150, 0.9], [150, 74, 0.8], [182, 24, 1.2], [214, 118, 1], [236, 190, 1.4], [34, 178, 1], [96, 214, 0.8], [170, 204, 1.1], [250, 60, 0.8]];
 // Nothing the finish draws reaches the title strip above the band.
 const TOP = 44;
 // The power change: how long the power-on and the power-down play, in ms.
@@ -291,10 +317,10 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
   const powering = !still && power && power.ageMs < POWER_MS[power.dir] ? power.dir : null;
   css.push(`svg{${TOKENS_DARK};--t:${phase}s;--pa:${powering ? n2(power.ageMs / 1000) : 0}s;}`, `@media (prefers-color-scheme: light){svg{${TOKENS_LIGHT}}}`);
   css.push(
-    ".bg{fill:var(--bg)}.gd{fill:var(--grid)}.mj{fill:var(--major)}.dn{fill:var(--dense)}.rl{stroke:var(--rail)}.fz{stroke:var(--idle)}.rr{fill:var(--rail)}",
+    ".bg{fill:var(--bg)}.dn{fill:var(--dense)}.rl{stroke:var(--rail)}.fz{stroke:var(--idle)}.rr{fill:var(--rail)}",
     ".lt{fill:var(--lit)}.ok{fill:var(--ok)}.ik{fill:var(--ink)}.ol{fill:none;stroke:var(--edge)}.sh{fill:var(--sh)}.shl{fill:var(--shl)}.sho{fill:var(--sho)}",
-    ".bn{stroke:var(--lit)}.wr{stroke:var(--hot)}.sp{stroke:var(--core)}.ss{stroke:var(--lit)}.em{fill:var(--lit)}.eo{fill:var(--em2)}",
-    ".sg{fill:none;stroke:var(--sig)}.sw1{stroke:var(--sig)}.sw2{stroke:var(--lit)}.c0{stop-color:var(--bg)}.h0{stop-color:var(--halo)}.s0{stop-color:var(--sig)}",
+    ".bn{stroke:url(#fu)}.wr{stroke:var(--hot)}.sp{stroke:var(--core)}.ss{stroke:var(--lit)}.em{fill:var(--lit)}.eo{fill:var(--em2)}",
+    ".sg{fill:none;stroke:var(--sig)}.sw1{stroke:var(--sig)}.sw2{stroke:var(--lit)}.c0{stop-color:var(--cm)}.h0{stop-color:var(--halo)}.s0{stop-color:var(--sig)}",
     `.mk{stroke:var(--mark);fill:none}.rd{fill:var(--mark);font:500 10px ${MONO};letter-spacing:.08em}.lb{fill:var(--mark);font:500 9px ${MONO};letter-spacing:.06em}`,
     `.tg{font:700 10px ${MONO};letter-spacing:.08em}.tgi{fill:var(--tagi)}.tgt{fill:var(--tagt)}.tgk{fill:var(--ink)}`,
     // The frame: dim at rest, its run colour (orange, lime while asking or done) when lit.
@@ -302,11 +328,13 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
     `.gl{text-anchor:middle;dominant-baseline:central}.t1{font:500 11px ${MONO}}.t2{font:700 14px ${MONO}}.t3{font:700 19px ${MONO}}`,
     ".sc{fill:var(--core)}.so{fill:var(--sig)}.sl{fill:var(--lit)}.sr{fill:var(--emr)}.eg,.ek{fill:var(--lit)}.mkf{fill:var(--mark)}.e0{stop-color:var(--emr)}.off{opacity:0}",
     `svg{--c0:${running ? "var(--sig)" : "var(--lit)"}}`,
-    ".fd{stroke:var(--frm);fill:none}.fdf{fill:var(--frm)}.fa{stroke:var(--fon);fill:none}.faf{fill:var(--fon)}.ra{fill:var(--act)}",
+    ".fd{stroke:var(--frm);fill:none}.fdf{fill:var(--frm)}.fa{stroke:url(#nf);fill:none}.faf{fill:var(--fon)}.ra{fill:var(--act)}",
+    ".k0s{stop-color:var(--sk0)}.k1s{stop-color:var(--sk1)}.k2s{stop-color:var(--sk2)}.k3s{stop-color:var(--sk3)}.u0{stop-color:var(--sn0)}.u1{stop-color:var(--sn1)}.u2{stop-color:var(--sn2)}.f0{stop-color:var(--fl0)}.f1{stop-color:var(--fl1)}.g0{stop-color:var(--fg)}.fo{stop-color:var(--fon)}.vi{stop-color:var(--vio)}.cy{stop-color:var(--cya)}.li{stop-color:var(--lit)}",
+    ".stf{fill:var(--str)}.rgf{fill:var(--rg);stroke:var(--rge)}.fln{stroke:url(#fv);fill:none}.flh{stroke:var(--fg);fill:none}",
     `svg{--fon:${lime ? "var(--sig)" : "var(--lit)"}}`,
     // The gutters, by the room the box leaves beside the glass.
     `@media (max-width: ${WIDE - 1}px){.wd{display:none}}`,
-    `@media (max-width: ${ROOMY - 1}px){.gt{display:none}.el,.er{display:none}.pl{transform:translateX(${TUCK}px)}.pr{transform:translateX(-${TUCK}px)}}`,
+    `@media (max-width: ${ROOMY - 1}px){.gt{display:none}.el,.er{display:none}.sn{opacity:.3}.pl{transform:translateX(${TUCK}px)}.pr{transform:translateX(-${TUCK}px)}.pl,.pr{opacity:.82}}`,
   );
 
   // Positions from the box's centre: `mid` opens a group there, `at` a cell's place on the fuse.
@@ -315,21 +343,41 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
   const sideOf = (index) => (index === 0 ? "pl" : index === CELLS.length - 1 ? "pr" : "");
   const at = (index, inner) => `${mid(FUSE_Y, sideOf(index))}<g transform="translate(${CELLS[index].dx} 0)">${inner}</g>${end}`;
 
-  // Ground: graph paper (fine and major lines), a warm sky along the top, halftone strips at both
-  // box edges, a calm centre, heat beds at the foot of each gutter, a dithered band behind the fuse.
+  // Ground: the sky and its stars, a ridge on each side, the sun low behind the column, the floor, a
+  // calm column where the conversation sits, halftone strips at both box edges, heat beds at the foot
+  // of each gutter, a dithered band behind the fuse.
   const strip = (side, width) => {
-    const cols = [3, 2, 1].map((dot, i) => `<rect class="${anim("", `dr z ${side === "l" ? "" : "q7"}`)}" fill="url(#h${dot})" x="${side === "l" ? i * 24 : -width + (2 - i) * (width / 3)}" y="-8" width="${width / 3}" height="100%"/>`).join("");
+    const cols = [3, 2, 1].map((dot, i) => `<rect fill="url(#h${dot})" x="${side === "l" ? i * 24 : -width + (2 - i) * (width / 3)}" y="0" width="${width / 3}" height="${HORIZON}%"/>`).join("");
     return side === "l" ? cols : `<svg x="100%" overflow="visible">${cols}</svg>`;
   };
   const bed = running ? 0.55 : 0.18;
+  // Twinkling stars in the gutters, and a shooting star now and then while a run is on.
+  const twinkles = Array.from({ length: 14 }, (_, i) => `<circle class="${anim("stf", `tw tw${i % 3} z q${i % 8}`)}" cx="${(i % 2 ? 1 : -1) * (GUTTER + 10 + Math.round(rand() * 420))}" cy="${n2(16 + rand() * 46)}%" r="${n2(1 + rand() * 1.1)}" opacity="${running ? 0.8 : 0.4}"/>`).join("");
+  const shoot = (side, lag) => `<g class="sho${lag} z" opacity="0"><line class="ssr" x1="0" y1="0" x2="${side * 70}" y2="-24" stroke-width="1.6" stroke-linecap="round" transform="translate(${side * (GUTTER + 240)} 0)"/></g>`;
+  // The sun: sunk behind the column at rest, up on the horizon in a run; its reflection on the floor.
+  const sunk = SUNK[mood];
+  const sunLight = { idle: 0.45, working: 0.95, asking: 0.8, done: 1 }[mood];
+  const glowLight = { idle: 0.3, working: 0.8, asking: 0.65, done: 1 }[mood];
+  const sun = `${mid(`${HORIZON - 60}%`, "sn")}<ellipse class="${anim("", "sgl z q2")}" cy="60%" rx="820" ry="52%" fill="url(#sg)" opacity="${glowLight}"/>`
+    + `<svg x="-560" width="1120" height="60%" viewBox="-560 -560 1120 560" preserveAspectRatio="xMidYMax meet" overflow="hidden"><g class="${powering ? `su${powering}` : ""}" transform="translate(0 ${sunk})" opacity="${sunLight}"><path d="${SUN_PATH}" fill="url(#su)"/></g></svg>${end}`;
+  const rows8 = Array.from({ length: FLOOR_LINES }, (_, i) => {
+    const p = (i + 0.35) / FLOOR_LINES;
+    return `<path class="flh${running && !still ? ` flr z fq${i}` : ""}" d="M-2000 0H2000" stroke-width=".75" transform="translate(0 ${n2(floorAt(p) * 100)})" opacity="${n2(Math.min(1, p * 2.4))}"/>`;
+  }).join("");
+  vars.push(...Array.from({ length: FLOOR_LINES }, (_, i) => `.fq${i}{--d:-${n2((i + 0.35) * 8 / FLOOR_LINES)}s}`));
+  const gleam = [[4, 5, 540], [16, 7, 470], [32, 9, 390], [54, 12, 300], [78, 14, 200]].map(([y, h, w], i) => `<g class="${running ? anim("", `gm gm${i % 3} z q${i}`) : ""}" opacity="${n2((running ? 0.85 : 0.22) - i * 0.04)}"><rect x="${-w}" y="${y}" width="${w * 2}" height="${h}" fill="url(#gl)"/></g>`).join("");
+  const floor = `<rect fill="url(#flg)" class="fls" y="${HORIZON}%" width="100%" height="${100 - HORIZON}%"/>${mid(`${HORIZON}%`)}<svg x="-2000" width="4000" height="${100 - HORIZON}%" viewBox="-2000 0 4000 100" preserveAspectRatio="none"><g opacity="${running ? 0.9 : 0.4}"><path class="fln" d="${FLOOR_FAN}" vector-effect="non-scaling-stroke" stroke-width="1.2"/>${rows8}</g>${gleam}</svg><rect x="-2000" y="-1.5" width="4000" height="3" fill="url(#hz)" opacity="${running ? 1 : 0.5}"/>${end}`;
   body.push(
     '<rect class="bg" width="100%" height="100%"/>',
-    '<rect fill="url(#gp)" width="100%" height="100%"/>',
-    '<rect fill="url(#gp2)" width="100%" height="100%"/>',
-    `<rect class="${anim("", "sy z")}" fill="url(#sky)" width="100%" height="280" opacity="${running ? 0.9 : 0.35}"/>`,
+    `<rect fill="url(#sky)" width="100%" height="${HORIZON}%" opacity="${running ? 1 : 0.62}"/>`,
+    `<rect fill="url(#stp)" width="100%" height="56%" opacity="${running ? 0.6 : 0.35}"/>`,
+    `${mid(0)}${twinkles}${running && !still ? `<svg y="20%" overflow="visible">${shoot(1, 0)}${shoot(-1, 1)}</svg>` : ""}${end}`,
+    sun,
+    `${mid(`${HORIZON}%`)}${[1, -1].map((s) => `<path class="rgf" d="${RIDGE}" transform="scale(${s} 1)" stroke-width="1.4" stroke-opacity="${running ? 0.9 : 0.35}"/>`).join("")}${end}`,
+    floor,
+    `${mid(0)}<rect x="-${GUTTER}" width="${2 * GUTTER}" height="100%" fill="url(#calm)"/>${end}`,
     strip("l", 72),
     strip("r", 72),
-    '<rect fill="url(#calm)" width="100%" height="100%"/>',
     `${mid(0)}<svg y="100%" overflow="visible"><ellipse class="${anim("", "hb2 z")}" cx="${-GUTTER - 140}" rx="240" ry="300" fill="url(#ho)" opacity="${bed}"/><ellipse class="${anim("", "hb3 z q5")}" cx="${GUTTER + 140}" rx="280" ry="340" fill="url(#${lime ? "hl" : "ho"})" opacity="${n2(bed * 1.1)}"/></svg>${end}`,
     // The gentle fire at the foot of each gutter while a run is on: soft tongues of pre-blurred
     // light that sway and breathe, under the hard glyphs.
@@ -598,11 +646,19 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
       `@keyframes rg{0%{transform:scale(1);${tf(EASE.drag)}}80%{transform:scale(5.2)}100%{transform:scale(5.2)}}.rg{animation:rg 3s infinite}`,
       `@keyframes rf{0%{opacity:0;${tf(EASE.enter)}}5%{opacity:.85;${tf(BEZIER.exit)}}80%{opacity:0}100%{opacity:0}}.rf{animation:rf 3s infinite}`,
       `@keyframes hm{0%{opacity:.15;${tf(EASE.enter)}}22%{opacity:.55;${tf(BEZIER.sine)}}100%{opacity:.15}}.hm{animation:hm 6s infinite}`,
+      // The sunset: stars twinkle, a star shoots, the floor's lines roll nearer, the reflection wavers and
+      // the sun's glow breathes; the sun rises at the power-on and sinks at the power-down.
+      `@keyframes tw{0%{opacity:.25}50%{opacity:${quiet ? 0.5 : 1}}100%{opacity:.25}}.tw{animation:tw var(--td) infinite}.tw0{--td:4s}.tw1{--td:6s}.tw2{--td:8s}`,
+      `@keyframes sgl{0%{opacity:${n2(glowLight * 0.72)}}50%{opacity:${glowLight}}100%{opacity:${n2(glowLight * 0.72)}}}.sgl{animation:sgl 8s infinite}`,
+      ...(running ? [
+        `@keyframes sho{0%{transform:translate(0,0);opacity:0}1%{opacity:1}7%{opacity:.8}9%{transform:translate(-260px,90px);opacity:0}100%{transform:translate(-260px,90px);opacity:0}}.sho0{animation:sho 12s infinite}@keyframes shl{0%{transform:translate(0,0);opacity:0}1%{opacity:1}7%{opacity:.8}9%{transform:translate(260px,90px);opacity:0}100%{transform:translate(260px,90px);opacity:0}}.sho1{--d:-5s;animation:shl 12s infinite}.ssr{stroke:var(--str)}`,
+        `@keyframes flr{0%{transform:translateY(0);opacity:0;${tf(EASE.floor)}}20%{opacity:1}100%{transform:translateY(100px);opacity:1}}.flr{animation:flr 8s infinite}`,
+        "@keyframes gm{0%{transform:scaleX(1)}50%{transform:scaleX(.84)}100%{transform:scaleX(1)}}.gm{animation:gm var(--gd) infinite}.gm0{--gd:3s}.gm1{--gd:4s}.gm2{--gd:4.8s}",
+      ] : []),
+      ...(powering ? [`@keyframes su{0%{transform:translateY(${powering === "on" ? SUNK.idle : 0}px);opacity:${powering === "on" ? 0.45 : 0.95};${tf(EASE.enter)}}100%{transform:translateY(${sunk}px);opacity:${sunLight}}}.suon{animation:su 1s both}.suoff{animation:su 1.8s both}`] : []),
       // Slow ambient breaths, each on its own period so none of them line up.
       `@keyframes hb{0%{opacity:${quiet ? 0.12 : 0.4}}50%{opacity:${quiet ? 0.2 : 0.7}}100%{opacity:${quiet ? 0.12 : 0.4}}}.hb2{animation:hb 12s infinite}.hb3{animation:hb 8s infinite}`,
-      `@keyframes sy{0%{opacity:${quiet ? 0.3 : 0.75}}50%{opacity:${quiet ? 0.4 : 0.95}}100%{opacity:${quiet ? 0.3 : 0.75}}}.sy{animation:sy 24s infinite}`,
       `@keyframes hp{0%{opacity:${n2(haloOpacity * 0.7)}}50%{opacity:${haloOpacity}}100%{opacity:${n2(haloOpacity * 0.7)}}}.hp{animation:hp ${mood === "working" ? 4.8 : 6}s infinite}`,
-      "@keyframes dr{0%{transform:translate(0,0)}100%{transform:translate(0,-6px)}}.dr{animation:dr 6s infinite alternate}",
       // The clock: one digit a second, read off the shared clock.
       `@keyframes ck{0%{transform:translate(${inner + 28}px,-36px)}100%{transform:translate(${inner + 28}px,${-36 - CLOCK_S * 14}px)}}.ck{animation:ck ${CLOCK_S}s steps(${CLOCK_S},end) infinite}`,
       // The power change, once: the lit frame ignites outward from the column on a spring (the rule,
@@ -622,7 +678,7 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
       `@keyframes bs{0%{transform:translate(0,0);opacity:0;${tf(EASE.drag)}}4%{opacity:1}55%{opacity:.9;${tf(BEZIER.exit)}}100%{transform:translate(var(--r),0);opacity:0}}.bs{animation:bs var(--bl) both}`,
       `@keyframes gv{0%{transform:translate(0,0);${tf(BEZIER.gravity)}}100%{transform:translate(0,48px)}}.gv{animation:gv 1.6s both}`,
       // Element curves, after the shorthands that would reset them.
-      `.st,.sst{animation-timing-function:linear}.ew,.hb2,.hb3,.sy,.hp,.dr,.fk{${tf(BEZIER.sine)}}`,
+      `.st,.sst{animation-timing-function:linear}.ew,.hb2,.hb3,.hp,.fk,.tw,.sgl,.gm{${tf(BEZIER.sine)}}`,
       ...REACH.map((px, i) => `.r${i}{--r:${px}px}`),
       ...LIFE.map((s, i) => `.bl${i}{--bl:${s}s}`),
       ...JITTER.map((s, i) => `.j${i}{--j:${s}s}`),
@@ -633,7 +689,7 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
       // The shared clock, last so it wins: every looping part starts where the session's clock is;
       // the one-shots start when the scene loads, the power change less the time since it began.
       ".z{animation-delay:calc(var(--d,0s) - var(--t))}",
-      ".pwn,.pwf,.pgw{animation-delay:calc(var(--k,0s) - var(--pa))}",
+      ".pwn,.pwf,.pgw,.suon,.suoff{animation-delay:calc(var(--k,0s) - var(--pa))}",
       ".ig,.gr,.kw,.kf,.ag,.swp,.sst{animation-delay:calc(var(--k,0s) - var(--age,0s))}",
       ".gv{animation-delay:calc(var(--bd) - var(--age,0s))}.bs,.b0,.b1,.b2{animation-delay:calc(var(--bd) + var(--j) - var(--age,0s))}",
       "@media (prefers-reduced-motion: reduce){*{animation:none!important}}",
@@ -642,20 +698,30 @@ export const composeScene = (state, { still = false, clockMs = 0, power = null }
 
   const dots = (id, size, cls) => `<pattern id="${id}" width="8" height="8" patternUnits="userSpaceOnUse"><rect class="${cls}" x="${(8 - size) / 2}" y="${(8 - size) / 2}" width="${size}" height="${size}"/></pattern>`;
   const defs = [
-    '<pattern id="gp" width="16" height="16" patternUnits="userSpaceOnUse"><rect class="gd" width="16" height="1"/><rect class="gd" width="1" height="16"/></pattern>',
-    '<pattern id="gp2" width="128" height="128" patternUnits="userSpaceOnUse"><rect class="mj" width="128" height="1"/><rect class="mj" width="1" height="128"/></pattern>',
     dots("h3", 3, "dn"), dots("h2", 2, "dn"), dots("h1", 1, "dn"),
-    '<pattern id="dt" width="4" height="4" patternUnits="userSpaceOnUse"><rect class="gd" width="2" height="2"/><rect class="gd" x="2" y="2" width="2" height="2"/></pattern>',
+    '<pattern id="dt" width="4" height="4" patternUnits="userSpaceOnUse"><rect class="dn" width="2" height="2" opacity=".35"/><rect class="dn" x="2" y="2" width="2" height="2" opacity=".35"/></pattern>',
     '<pattern id="ru" width="8" height="4" patternUnits="userSpaceOnUse"><rect class="rr" width="1" height="4"/></pattern>',
     '<pattern id="ru2" width="64" height="8" patternUnits="userSpaceOnUse"><rect class="rr" width="2" height="8"/></pattern>',
     // The frame's ticks: a short one every 16 px, a long one every 64.
     '<pattern id="tk" width="6" height="64" patternUnits="userSpaceOnUse"><rect class="fdf" y="0" width="6" height="2"/><rect class="fdf" x="2" y="16" width="4" height="1"/><rect class="fdf" x="2" y="32" width="4" height="1"/><rect class="fdf" x="2" y="48" width="4" height="1"/></pattern>',
-    '<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="h0" stop-opacity=".2"/><stop offset="1" class="h0" stop-opacity="0"/></linearGradient>',
-    '<radialGradient id="calm" cx=".5" cy=".55" r=".36"><stop offset="0" class="c0" stop-opacity="1"/><stop offset=".55" class="c0" stop-opacity=".92"/><stop offset="1" class="c0" stop-opacity="0"/></radialGradient>',
+    // The sunset: the sky, its tiled stars, the sun and its glow, the floor's ground, neon and reflection.
+    '<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="k0s"/><stop offset=".45" class="k1s"/><stop offset=".78" class="k2s"/><stop offset="1" class="k3s"/></linearGradient>',
+    `<pattern id="stp" width="264" height="232" patternUnits="userSpaceOnUse">${STAR_DOTS.map(([x, y, r]) => `<circle class="stf" cx="${x}" cy="${y}" r="${r}"/>`).join("")}</pattern>`,
+    `<linearGradient id="su" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${-SUN_R}" y2="0"><stop offset="0" class="u0"/><stop offset=".5" class="u1"/><stop offset="1" class="u2"/></linearGradient>`,
+    '<radialGradient id="sg"><stop offset="0" class="u1" stop-opacity=".75"/><stop offset=".45" class="u2" stop-opacity=".42"/><stop offset=".75" class="u2" stop-opacity=".12"/><stop offset="1" class="u2" stop-opacity="0"/></radialGradient>',
+    '<linearGradient id="flg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="f0"/><stop offset="1" class="f1"/></linearGradient>',
+    '<linearGradient id="fv" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="0" y2="100"><stop offset="0" class="g0" stop-opacity=".25"/><stop offset="1" class="g0" stop-opacity=".85"/></linearGradient>',
+    '<linearGradient id="gl"><stop offset="0" class="u2" stop-opacity="0"/><stop offset=".3" class="u2" stop-opacity=".8"/><stop offset=".5" class="u0"/><stop offset=".7" class="u2" stop-opacity=".8"/><stop offset="1" class="u2" stop-opacity="0"/></linearGradient>',
+    '<linearGradient id="hz" gradientUnits="userSpaceOnUse" x1="-1400" x2="1400" y1="0" y2="0"><stop offset="0" class="g0" stop-opacity=".3"/><stop offset=".32" class="u2"/><stop offset=".5" class="u0"/><stop offset=".68" class="u2"/><stop offset="1" class="g0" stop-opacity=".3"/></linearGradient>',
+    // The frame's neon, from the mood's colour down through pink and violet, and the fuse's.
+    '<linearGradient id="nf" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="120" y2="96%"><stop offset="0" class="fo"/><stop offset=".34" class="u2"/><stop offset=".68" class="vi"/><stop offset="1" class="cy"/></linearGradient>',
+    `<linearGradient id="fu" gradientUnits="userSpaceOnUse" x1="${-PV - 420}" x2="${-PV + 60}" y1="0" y2="0"><stop offset="0" class="vi"/><stop offset=".5" class="u2"/><stop offset="1" class="li"/></linearGradient>`,
+    // The calm column: the scene goes quiet where the conversation sits.
+    '<linearGradient id="calm"><stop offset="0" class="c0" stop-opacity="0"/><stop offset=".08" class="c0" stop-opacity=".7"/><stop offset=".5" class="c0" stop-opacity=".78"/><stop offset=".92" class="c0" stop-opacity=".7"/><stop offset="1" class="c0" stop-opacity="0"/></linearGradient>',
     '<radialGradient id="ho"><stop offset="0" class="h0" stop-opacity=".5"/><stop offset=".4" class="h0" stop-opacity=".14"/><stop offset="1" class="h0" stop-opacity="0"/></radialGradient>',
     // Pre-blurred light: a far ember and a tongue of fire, soft with no filter to redraw.
     '<radialGradient id="eb"><stop offset="0" class="h0" stop-opacity=".95"/><stop offset=".3" class="h0" stop-opacity=".45"/><stop offset="1" class="h0" stop-opacity="0"/></radialGradient>',
-    '<radialGradient id="fl"><stop offset="0" class="h0" stop-opacity=".42"/><stop offset=".45" class="e0" stop-opacity=".16"/><stop offset="1" class="e0" stop-opacity="0"/></radialGradient>',
+    '<radialGradient id="fl"><stop offset="0" class="u1" stop-opacity=".34"/><stop offset=".45" class="e0" stop-opacity=".16"/><stop offset="1" class="e0" stop-opacity="0"/></radialGradient>',
     '<radialGradient id="hl"><stop offset="0" class="s0" stop-opacity=".5"/><stop offset=".4" class="s0" stop-opacity=".14"/><stop offset="1" class="s0" stop-opacity="0"/></radialGradient>',
     // Below the title strip, in the scene's own space and in a fuse cell's.
     `<clipPath id="cb"><rect y="${TOP}" width="100%" height="100%"/></clipPath>`,

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- The Claude desktop and mobile apps wear the sunset too. The LIT card is drawn with a half-sunk sun, its reflection,
+  a layered sea, stars and a neon border, only where no words are; rows, words and size stay as they were. `subtle`
+  and an idle card hold the sunset still.
+- The Ignition look is a synthwave sunset: a starry sky, a slit sun that rises when a run starts and sinks when it
+  ends, hills, a neon floor and a neon frame. Every state, the fuse, the embers, the finish, light mode and
+  `look still|off` work as before, and the conversation column stays calm.
+
 ## 1.0.64 - 2026-11-25
 
 - The installer asks its questions on cards in a real terminal: the step, a title, one sentence on what the answer

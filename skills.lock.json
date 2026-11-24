@@ -867,6 +867,7 @@
     "plugins/litclaude/lib/mod/state.mjs",
     "plugins/litclaude/lib/mod/sunset.mjs",
     "plugins/litclaude/lib/mod/svg-card.mjs",
+    "plugins/litclaude/lib/mod/svg-sunset.mjs",
     "plugins/litclaude/lib/mod/timeline.mjs",
     "plugins/litclaude/lib/mod/toasts.mjs",
     "plugins/litclaude/lib/mod/view.mjs",

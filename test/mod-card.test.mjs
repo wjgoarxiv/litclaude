@@ -1444,7 +1444,7 @@ test("the border glows brighter and breathes while LIT is active, and stays calm
   const peak = composeBand(working, { ...settledSample(working), ambient: { breath: 1, sweep: null, comet: null, flow: null } }, { columns: 80, glyphs: "basic", accent: CYAN }).border;
   assert.equal(peak, lerpColor(CYAN, "#ffffff", 0.45), "its breathing peak is brighter too");
   const svg = composeSvgCard(svgModel(), { motion: "full", accent: CYAN }).source;
-  assert.match(svg, /rx="14" fill="[^"]+" stroke="#5fd7ff" stroke-width="2.5">/u, "the desktop card's border is heavier while active");
+  assert.match(svg, /rx="14" fill="[^"]+" stroke="url\(#lit-neon\)" stroke-width="2.5">/u, "the desktop card's neon border is heavier while active");
   assert.match(svg, /attributeName="stroke-opacity" values="0.85;1;0.85"/u, "and breathes high");
 });
 
