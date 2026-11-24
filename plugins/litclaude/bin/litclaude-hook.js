@@ -580,8 +580,9 @@ const objectiveTail = (prompt) => {
     "",
   );
   // A request that ends with the word (`fix the redirect lit`) carries its objective before it.
-  if (match && !tail.trim()) return normalizeGoalObjective(raw.slice(0, match.index));
-  return normalizeGoalObjective(tail);
+  const objective = normalizeGoalObjective(match && !tail.trim() ? raw.slice(0, match.index) : tail);
+  // `lit continue` and the other resume words carry on what exists; they name no new objective.
+  return /^(?:continue|resume|계속)[\s.!?]*$/iu.test(objective) ? "" : objective;
 };
 
 // A run route gets one question and the mod sets the goal on the user's yes; litgoal, the hand-held

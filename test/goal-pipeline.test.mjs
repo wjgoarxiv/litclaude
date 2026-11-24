@@ -417,6 +417,22 @@ describe("lit-loop: one yes lets the mod set /goal without a plan", () => {
     }
   });
 
+  it("a resume word in a fresh session carries on and asks no goal question", () => {
+    for (const [i, prompt] of ["lit continue", "litwork resume", "lit 계속", "lit-loop continue", "continue lit", "lit continue."].entries()) {
+      const cwd = loopProject(`loop-resume-${i}`);
+      const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+        cwd,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: join(temp, "home"), LITCLAUDE_HUD_STATE_ROOT: join(temp, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", NO_COLOR: "1" },
+        input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd, session_id: `s-resume-${i}`, prompt_id: `p-resume-${i}` }),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const out = JSON.parse(result.stdout);
+      assert.doesNotMatch(out.systemMessage ?? "", /this is done:/u, prompt);
+      assert.deepEqual(goalFiles(cwd), [], prompt);
+    }
+  });
+
   it("a leading lit-loop, litwork or lit-hijack asks the goal question with the task after it", () => {
     for (const [i, [prompt, objective]] of [
       ["lit-loop fix the login button", "fix the login button"],
