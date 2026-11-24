@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- The installer asks its questions on cards in a real terminal: the step, a title, one sentence on what the answer
+  does, the choices and the keys. Lists take arrows, `j`/`k`, numbers and Enter, with the status-line preview on every
+  colour row; yes or no is two buttons with the default lit and named. An answered card folds to one line, the five
+  install steps tick on one card, and the last card says what was installed, the settings and what to do next.
+- The questions, their order, defaults and stored results are the same, and Ctrl+C still stops with exit code 1. The
+  Enter people press after `y` or `n`, and keys typed while files are copied, no longer answer the next question.
+- Pipes, `CI`, `--yes`, `TERM=dumb`, small windows and the `LITCLAUDE_*_PROMPT` hooks print exactly what they did.
+  `NO_COLOR` draws the cards without colour, and a terminal without UTF-8 gets ASCII borders.
+- The READMEs and the guide name all five questions, and the guide shows the new screens.
+
 ## 1.0.63 - 2026-11-25
 
 - The LIT card wears a sunset in the terminal: a half-sunk sun whose light ripples, a sea that runs outward from it,

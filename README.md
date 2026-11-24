@@ -331,8 +331,9 @@ notice also lists what that version left on disk:
 ## Install
 
 The [Quick start](#quick-start) line is the whole install. The first time, npx asks whether to install the
-package; answer `y`. The installer registers the plugin, adds the LitClaude status line, and asks you two
-things: the status-line colour and an optional output style.
+package; answer `y`. The installer registers the plugin, adds the LitClaude status line, and asks up to
+five short questions, one card at a time: the status-line colour, an optional output style, the icon font,
+the Co-Authored-By line and the LitFamily block in `CLAUDE.md`. Enter takes the marked default.
 
 A new install starts in the `safe` permission mode, which adds no permission rules, and leaves the rest of
 your Claude settings as they are. Quit Claude Code and start it again afterwards so the plugin loads. Two

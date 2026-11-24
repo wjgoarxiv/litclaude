@@ -12,9 +12,10 @@ const screens = {
   "activation.webp": "65b9621b97ea3bbca401f235e67a654f91e2dd53f7424aa0fa841d4e4d8773a9",
   "doctor-dark.webp": "def7d693c41746accacd706cf6ec738da7ffc49dec4afd4cf201e3e83fc82eab",
   "doctor-light.webp": "074d23929df9cc8bbf40d0681946fc85dfe63a6dfc299750ed9fac3427b2eb1f",
-  "install-done-dark.webp": "335827dbf9e5d1c1dfca2d04c10f2502cbcf285b7129328d09324c1ebe15c490",
-  "install-done-light.webp": "ae973237124febfdba96e48cf0865d0b2a09a5b56b6b672c3c72d7901bbdf82a",
-  "install-plan.webp": "6917e8d2d27c5d1efb4231a77e387d03b1ffb9854da88cf13f5f0a5e050bb924",
+  "install-colour.webp": "68af8827e3cab5dbd11eef7268592d2bf1363076a9b3a13cbaee4888555ba85d",
+  "install-done-dark.webp": "285e8a933f6c09c5f7355db75ab054e7bb0a6206370daeafc312256d68577f8f",
+  "install-done-light.webp": "83ec51e31efbc2a8057afd914033cd3e932290701b625bcd3ca82c1fed981e20",
+  "install-yes-no.webp": "a1329c43328346152a7c0dcecc02f7e47ef2d5c008f5b7e6f6c196951ba161cb",
   "session-start-dark.webp": "90a2a7fc14b008148a5bb5560710b05ff54bab318ee6ffadce928d1bb1957756",
   "session-start-light.webp": "7b93d6721f9fbbf155b218872ca9506e901a08941d50aed5ad5e09394ed40bf8",
 };
@@ -22,14 +23,15 @@ const MAX_SCREEN_BYTES = 71_680;
 
 // What each picture must quote in its alt text, in the language of the page.
 const quotes = {
-  "install-plan": ["INSTALL PLAN", "05 · Verify confirm every installed surface", "Model selection: host-owned · unrelated Claude settings preserved"],
-  "install-done": ["INSTALL RECEIPT", "Status Ready for Claude Code", "HUD: LitClaude statusLine installed (cyan)"],
+  "install-colour": ["LIT 1/5", "Status-line colour", "press Enter to keep cyan", "Ctrl+C stop"],
+  "install-yes-no": ["LIT 3/5", "Icon font [y/N]", "No (default)", "Enter = No"],
+  "install-done": ["LitClaude X.Y.Z is installed", "Install steps 5 of 5 checked", "LitClaude status line, cyan", "launch with: claude"],
   "session-start": ["litclaude vX.Y.Z"],
   activation: ["LIT IGNITED · lit-loop", "O5.5 │ ctx [▊░░] 23%/200k", "└─ lit"],
   doctor: ["PERMISSION_MODE: safe", "HUD_STATUSLINE_PASS", "DOCTOR_PASS"],
 };
 const themedNames = ["install-done", "session-start", "doctor"];
-const singleNames = ["install-plan", "activation"];
+const singleNames = ["install-colour", "install-yes-no", "activation"];
 
 test("screen captures are the approved small lossless WebP files", () => {
   assert.deepEqual(readdirSync(screensRoot).sort(), Object.keys(screens).sort());
@@ -64,7 +66,7 @@ test("both guides show every capture with alt text that quotes what it shows", (
     const shown = new Set([...section.matchAll(/\.\/assets\/screens\/([\w.-]+\.webp)/gu)].map((m) => m[1]));
     assert.deepEqual([...shown].sort(), Object.keys(screens).sort(), `${file} must use exactly the shipped captures`);
     const pictures = [...section.matchAll(/<p align="center">(<picture>[\s\S]*?<\/picture>|<img [^>]*>)<\/p>/gu)].map((m) => m[1]);
-    assert.equal(pictures.length, themedNames.length + singleNames.length, `${file} shows five pictures`);
+    assert.equal(pictures.length, themedNames.length + singleNames.length, `${file} shows every picture once`);
     for (const html of pictures) {
       const alt = /alt="([^"]+)"/u.exec(html)?.[1] ?? "";
       const name = /assets\/screens\/([\w-]+?)(?:-dark|-light)?\.webp/u.exec(html)?.[1];

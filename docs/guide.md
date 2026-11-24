@@ -45,30 +45,37 @@ folder. Only the path of that home folder is shortened to `~`. The window frame 
 the text, and your own terminal will use its own fonts and colors. The version number inside a
 picture belongs to the release it was captured from.
 
-The install opens with its plan: five stages, from copying the plugin to checking every surface
-it installed. The last line repeats that Claude Code keeps choosing the model and that your other
-Claude settings stay as they are. This picture shows a dark terminal.
+At a terminal the install opens with the synthwave LIT mark, then asks its questions one card at a
+time. A card has the step, a short title, one sentence on what the answer does, the choices and the
+keys. Lists take the arrow keys (or `j` and `k`), a number to jump and Enter. The status-line colour
+shows a preview on every row, and the card's border takes the colour you are on. This picture and
+the next show a dark terminal.
 
-<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="Terminal window titled zsh. The LitClaude block-letter mark in orange, cream and green, with claude vX.Y.Z and the names hermes, codex, opencode, grok, muse and gravity beside it, then the line Claude Code-native workflow distribution. Below it, INSTALL PLAN with five stages: 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. The last line reads Model selection: host-owned · unrelated Claude settings preserved." /></p>
+<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="Terminal window titled zsh. The synthwave LIT mark, chrome letters before a sunset over a pink grid, then LIT · claude code, litclaude vX.Y.Z and the line Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. Below it a card with a border that fades from pink through violet to cyan. An orange to pink label reads LIT 1/5 and the title Status-line colour. The sentence reads: Sets the accent colour of the status line; press Enter to keep cyan. Ten rows follow, 1 cyan to 9 slate and 0 gray, each with a swatch and a status-line preview; cyan is highlighted and marked default. The last line reads ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop." /></p>
+
+*Captured from the installer.*
+
+A yes or no question has two buttons. The default is lit, says `(default)` and is the capital letter
+in `[y/N]`. `y` or `n` answers at once, the left and right arrows or Tab switch, and Enter takes the
+lit button. An answered card folds to one line. Esc answers nothing, and Ctrl+C stops the install;
+before the files are copied, that leaves nothing installed.
+
+<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="Terminal window titled zsh. Two folded answers with check marks: Status-line colour cyan and Output style None / keep current. Below them a card labelled LIT 3/5 with the title Icon font [y/N]. The sentence reads: Downloads the symbols-only Nerd Font (MIT) into your user font folder so the status band can draw round pills and icons; No keeps plain shapes. Two buttons stand side by side: Yes in a thin outline, and No (default) filled from pink to violet. The last line reads y / n answer, ← → switch, Enter = No, Ctrl+C stop." /></p>
 
 *Captured from the installer.*
 
-These pictures were captured before the mark changed. Now `install`, `doctor` and `--help`
-open with the synthwave LIT mark, sized to the terminal's width, where the block letters stand above.
-Without colour (`NO_COLOR` or a CI log) the scene is drawn in plain glyphs. A terminal without UTF-8,
-`TERM=dumb`, a very narrow window or piped output gets one plain line, `LIT · claude code`, and the
-version.
+The five install steps tick off on a card of their own. The last card says what was installed, the
+settings it runs with and what to do next, and shows any warning in full. The lines for the LitFamily
+extensions and `INSTALL_PASS` follow it.
 
-The five stages each print a short block that ends in a check mark, and then the installer
-prints a receipt. It names the version, the plugin, the folder the files went to, the HUD
-accent, the permission mode (safe adds no permission rules) and the command that starts Claude
-Code. The last lines show the display options, confirm that the Claude desktop app's Code tab
-reads the same settings, give the commit attribution setting and the agent file LitClaude wrote,
-and repeat the launch command.
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. INSTALL RECEIPT: Status Ready for Claude Code; Version X.Y.Z; Model route host-owned (Claude Code picks models); Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; HUD cyan accent; Permissions safe; global settings allow/deny; ownership-safe removal; Launch claude; Installation complete. Then the lines Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, the Marketplace and Plugin path locations under ~, HUD: LitClaude statusLine installed (cyan), the global settings permissions line, MOD_OPTIONS: motion full · glyphs auto · band always · notify off · club on, DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there, ATTRIBUTION: keep, AGENT_FILE: created ~/.claude/CLAUDE.md, and Launch with: claude." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. Six folded answers with check marks: Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add. Below them a card titled LitClaude X.Y.Z is installed. Installed: Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; Marketplace ~/.litclaude/marketplaces/litclaude-ai; Status line LitClaude status line, cyan; Co-Authored-By keep (change: litclaude-ai config attribution &lt;keep|off&gt;); CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe and what that mode does; Card options motion full · glyphs auto · band always · notify off · club on · look on; Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open, then launch with: claude; Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
 
 *Captured from the installer.*
+
+The mark and the cards follow the window's size. `NO_COLOR` draws them without colour, and a terminal
+without UTF-8 gets ASCII borders. Piped output, `CI`, `--yes`, `TERM=dumb` and a window under 40 columns
+or 12 rows get the plain install instead: typed prompts where it may ask, an install plan with five
+stages, a receipt, and lines such as `INSTALL_PASS:` that scripts can read.
 
 Every time a Claude Code session starts, LitClaude prints its mark and version. When you see it,
 the plugin has loaded in that session.
@@ -661,8 +668,10 @@ litclaude install
 
 ### Install-time questions
 
-In an interactive terminal the installer asks two things: the HUD brand color and the
-LitClaude output style. For the style you can choose `None / keep current`, ASD-STE100 or
+In an interactive terminal the installer asks up to five things, each on its own card: the
+status-line colour, the LitClaude output style, the icon font (default No), whether Claude Code's
+Co-Authored-By line stays (default Yes) and the LitFamily block in the global `CLAUDE.md` (default
+Yes). A question you settled before is not asked again. For the style you can choose `None / keep current`, ASD-STE100 or
 ELI5, each in English and 한국어. LitClaude writes a style to Claude's global
 `outputStyle` only when you pick one, and never over a value you set yourself.
 `uninstall` takes it out again only if it is still the value LitClaude wrote.
@@ -674,9 +683,10 @@ To answer ahead of time, from a script for example, set `LITCLAUDE_OUTPUT_STYLE`
 npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 ```
 
-When the terminal may not handle color, the installer turns off colors, cursor updates
-and styled prompts. That happens when `CI` or `NO_COLOR` is set (even to an empty value),
-with `TERM=dumb` or a non-UTF-8 locale, and when output is redirected. If you still want
+`NO_COLOR` (even empty) keeps the cards and drops the colour, and a non-UTF-8 locale draws them in
+ASCII. With `CI` set (even to an empty value), `--yes`, `TERM=dumb`, redirected input or output, or
+any `LITCLAUDE_*_PROMPT` variable, the installer prints plain lines with no cards, and where the
+terminal may not handle color it uses no colors or cursor updates either. If you still want
 to see progress there, `LITCLAUDE_SPINNER=1` prints it as plain structured lines. Settings
 you pass explicitly, and `--yes`, still apply.
 

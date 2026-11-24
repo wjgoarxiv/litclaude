@@ -689,6 +689,7 @@
     "bin/extensions.mjs",
     "bin/icon-font.mjs",
     "bin/install-ownership.mjs",
+    "bin/install-ui.mjs",
     "bin/litclaude-ai.js",
     "bin/litfamily-banner.mjs",
     "bin/update-notifier-refresh.mjs",

@@ -42,28 +42,37 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 줄였습니다. 창 테두리는 글자 둘레에 그려 넣은 것이라 실제 터미널에서는 글꼴과 색이 다르게
 보일 수 있습니다. 그림 속 버전 번호는 캡처한 릴리스의 번호입니다.
 
-설치는 계획을 먼저 보여 줍니다. 플러그인을 복사하는 일부터 설치된 항목을 모두 확인하는 일까지
-다섯 단계입니다. 마지막 줄은 모델은 계속 Claude Code가 고르고 나머지 Claude 설정은 그대로라는
-뜻입니다. 이 그림은 어두운 터미널입니다.
+터미널에서 설치하면 신스웨이브 LIT 마크가 먼저 나오고, 질문이 카드로 하나씩 이어집니다. 카드에는
+몇 번째 질문인지, 짧은 제목, 답하면 무엇이 달라지는지 알려 주는 한 문장, 고를 항목, 쓸 수 있는 키가
+있습니다. 목록에서는 화살표(또는 `j`, `k`)로 움직이고, 숫자로 바로 건너뛰고, Enter로 고릅니다. 상태 줄
+색상은 줄마다 미리보기가 있고, 카드 테두리도 지금 올라가 있는 색을 따라갑니다. 이 그림과 다음 그림은
+어두운 터미널입니다.
 
-<p align="center"><img src="./assets/screens/install-plan.webp" width="752" alt="zsh라는 제목의 터미널 창. 주황색·크림색·초록색 블록 글자로 그린 LitClaude 마크 옆에 claude vX.Y.Z와 hermes, codex, opencode, grok, muse, gravity라는 이름이 있고, 그 아래에 Claude Code-native workflow distribution. 줄이 있습니다. 이어서 INSTALL PLAN 아래에 다섯 단계가 나옵니다. 01 · Plugin copy the packaged plugin payload, 02 · Market write the local marketplace, 03 · Registry enable plugin, HUD, permissions, 04 · Cache refresh the compatibility pointer, 05 · Verify confirm every installed surface. 마지막 줄은 Model selection: host-owned · unrelated Claude settings preserved입니다." /></p>
+<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="zsh라는 제목의 터미널 창. 분홍 격자 위 노을을 배경으로 크롬 글자로 그린 신스웨이브 LIT 마크가 있고, LIT · claude code, litclaude vX.Y.Z, Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. 줄이 이어집니다. 그 아래 분홍에서 보라를 지나 청록으로 번지는 테두리의 카드에 주황에서 분홍으로 번지는 LIT 1/5 표시와 Status-line colour라는 제목이 있습니다. 문장은 Sets the accent colour of the status line; press Enter to keep cyan.입니다. 1 cyan부터 9 slate, 0 gray까지 열 줄에 색 견본과 상태 줄 미리보기가 있고, cyan이 강조되어 default라고 적혀 있습니다. 마지막 줄은 ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop입니다." /></p>
+
+*설치 프로그램에서 캡처*
+
+예/아니요 질문에는 버튼이 두 개 있습니다. 기본값 버튼에 불이 들어와 있고 `(default)`라고 적혀 있으며,
+`[y/N]`에서 대문자인 쪽이 기본값입니다. `y`나 `n`을 누르면 바로 답이 되고, 좌우 화살표나 Tab으로 옮기고,
+Enter는 불이 들어온 버튼을 고릅니다. 답한 카드는 한 줄로 접힙니다. Esc는 아무 답도 하지 않고, Ctrl+C는
+설치를 멈춥니다. 파일을 복사하기 전이라면 아무것도 설치되지 않습니다.
+
+<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 두 줄, Status-line colour cyan과 Output style None / keep current가 있습니다. 그 아래 LIT 3/5 카드의 제목은 Icon font [y/N]입니다. 문장은 Downloads the symbols-only Nerd Font (MIT) into your user font folder so the status band can draw round pills and icons; No keeps plain shapes.입니다. 얇은 테두리의 Yes 버튼과 분홍에서 보라로 채워진 No (default) 버튼이 나란히 있습니다. 마지막 줄은 y / n answer, ← → switch, Enter = No, Ctrl+C stop입니다." /></p>
 
 *설치 프로그램에서 캡처*
 
-이 그림들은 마크가 바뀌기 전에 캡처했습니다. 지금은 `install`, `doctor`, `--help`가 위의 블록
-글자 자리에 신스웨이브 LIT 마크를 터미널 너비에 맞춰 그립니다. 색을 쓸 수 없으면(`NO_COLOR`, CI 로그)
-같은 장면을 기호로만 그리고, UTF-8을 쓰지 않는 터미널, `TERM=dumb`, 아주 좁은 창, 파이프로 넘긴 출력에는
-`LIT · claude code` 한 줄과 버전만 나옵니다.
+다섯 설치 단계는 따로 카드 하나에서 차례로 체크됩니다. 마지막 카드는 무엇이 설치됐는지, 어떤 설정으로
+도는지, 다음에 무엇을 하면 되는지 알려 주고, 경고가 있으면 줄이지 않고 그대로 보여 줍니다. 그 뒤에
+LitFamily 확장 안내와 `INSTALL_PASS`가 나옵니다.
 
-다섯 단계는 각각 체크 표시로 끝나는 짧은 블록을 출력하고, 그다음에 설치 영수증이 나옵니다. 영수증에는
-버전, 플러그인, 파일이 들어간 폴더, HUD 강조색, 권한 모드(safe는 권한 규칙을 더하지 않습니다),
-Claude Code를 시작하는 명령이 적힙니다. 마지막 줄들은 표시 옵션, Claude 데스크톱 앱의 Code 탭이 같은
-설정을 읽는다는 확인, 커밋 attribution 설정, LitClaude가 만든 에이전트 파일을 차례로 보여 주고,
-시작 명령을 한 번 더 적습니다.
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. INSTALL RECEIPT: Status Ready for Claude Code, Version X.Y.Z, Model route host-owned (Claude Code picks models), Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, HUD cyan accent, Permissions safe; global settings allow/deny; ownership-safe removal, Launch claude, Installation complete. 그 아래에 Model selection: host-owned (Claude Code exposes no native route surface), INSTALL_PASS: LitClaude X.Y.Z installed, Claude plugin: litclaude@litclaude-ai, ~ 아래의 Marketplace와 Plugin path 위치, HUD: LitClaude statusLine installed (cyan), 전역 설정 권한 줄, MOD_OPTIONS: motion full · glyphs auto · band always · notify off · club on, DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there, ATTRIBUTION: keep, AGENT_FILE: created ~/.claude/CLAUDE.md, Launch with: claude 줄이 이어집니다." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 여섯 줄, Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add가 있습니다. 그 아래 카드의 제목은 LitClaude X.Y.Z is installed입니다. Installed: Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, Marketplace ~/.litclaude/marketplaces/litclaude-ai, Status line LitClaude status line, cyan, Co-Authored-By keep, CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe와 그 모드가 하는 일, Card options motion full · glyphs auto · band always · notify off · club on · look on, Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open, then launch with: claude, Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
 
 *설치 프로그램에서 캡처*
+
+마크와 카드는 창 크기에 맞춰집니다. `NO_COLOR`에서는 색 없이, UTF-8이 아닌 터미널에서는 ASCII 테두리로
+그립니다. 파이프로 넘긴 출력, `CI`, `--yes`, `TERM=dumb`, 40칸이나 12줄보다 작은 창에서는 카드 대신
+평범한 설치 화면이 나옵니다. 물어볼 수 있을 때는 글자로 묻고, 다섯 단계의 설치 계획과 영수증,
+스크립트가 읽는 `INSTALL_PASS:` 같은 줄을 출력합니다.
 
 Claude Code 세션이 시작될 때마다 LitClaude가 마크와 버전을 출력합니다. 이 마크가 보이면 그 세션에서
 플러그인이 로드된 것입니다.
@@ -627,14 +636,17 @@ litclaude install
 
 ### HUD
 
-대화형으로 설치하면 HUD 강조색 후보를 터미널에서 미리 볼 수 있습니다. LitClaude HUD는
+대화형 설치는 최대 다섯 가지를 카드로 하나씩 묻습니다. 상태 줄 색상, 출력 스타일, 아이콘 글꼴(기본
+아니요), Claude Code의 Co-Authored-By 줄을 남길지(기본 예), 전역 `CLAUDE.md`의 LitFamily 구역(기본
+예)이고, 전에 정해 둔 것은 다시 묻지 않습니다. 색상 카드에서 HUD 강조색 후보를 미리 볼 수 있습니다. LitClaude HUD는
 `[🔥LIT vX.Y.Z]`(트루컬러 터미널에서는 얼음빛 파랑에서 장밋빛으로 번지는 알약 위의 ` 🔥LIT vX.Y.Z `), 추론 강도가 붙은 모델(`O5.5 [high]`), `ctx [▎░░]` 컨텍스트 막대, `5h [▏░]4% ↻` 사용 한도 리셋
 카운트다운(rate-limit reset countdown)으로 이뤄집니다. 강조색은 설치 전에
 `LITCLAUDE_HUD_ACCENT`로 고를 수 있습니다.
 
-터미널이 색을 제대로 못 보여 줄 수도 있는 환경, 곧 `CI`나 `NO_COLOR`가 설정돼 있거나(빈
-값이어도), `TERM=dumb`이거나, UTF-8이 아닌 locale이거나, 출력을 리디렉션할 때는 설치 화면의
-색과 커서 제어, 질문 꾸밈을 끄고 ANSI 없이 출력합니다. `LITCLAUDE_SPINNER=1`로 자세한
+`NO_COLOR`(빈 값이어도)에서는 카드를 색 없이, UTF-8이 아닌 locale에서는 ASCII로 그립니다. `CI`가
+설정돼 있거나(빈 값이어도), `--yes`, `TERM=dumb`, 입출력 리디렉션, `LITCLAUDE_*_PROMPT` 변수가 있을
+때는 카드 없이 평범한 줄로 출력하고, 터미널이 색을 제대로 못 보여 줄 수 있으면 색과 커서 제어도 쓰지
+않습니다. `LITCLAUDE_SPINNER=1`로 자세한
 진행 표시를 켜도 이 규칙은 그대로이고, `--yes`와 직접 지정한 설정도 그대로 적용됩니다.
 
 프롬프트 위의 LIT 카드(Claude Code 2.1.287 이상)는 세션 내내 화면에 남아 있습니다. LitClaude

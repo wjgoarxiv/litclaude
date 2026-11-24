@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { cp, mkdir, rm } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import {
@@ -73,6 +73,7 @@ import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plug
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
 import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertOwnedPluginTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
+import { createInstallUi, richTerminal, wrap } from "./install-ui.mjs";
 import { colorMode, supportsBlocks } from "./litfamily-banner.mjs";
 import { SIZES, pickSize, synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import {
@@ -249,6 +250,12 @@ const OUTPUT_STYLE_OPTIONS = [
   { id: "eli5", label: "ELI5 (English)" },
   { id: "eli5-ko", label: "ELI5 (한국어)" },
 ];
+const OUTPUT_STYLE_DETAILS = {
+  "asd-ste100": "short, active, controlled English",
+  "asd-ste100-ko": "the same rules in Korean",
+  "eli5": "small words, only what you need",
+  "eli5-ko": "the same, in Korean",
+};
 const OUTPUT_STYLE_NAMES = {
   "asd-ste100": "LitClaude — ASD-STE100",
   "asd-ste100-ko": "LitClaude — ASD-STE100 (한국어)",
@@ -417,9 +424,8 @@ const INSTALL_STAGES = [
 // Human-facing Synthwave mark: the size follows the terminal width; no colour gives the glyph-only scene.
 // A pipe (agents, CI logs) gets the one plain line, so tool output never carries rows of art.
 const terminalColumns = () => process.stdout.columns || Number.parseInt(process.env.COLUMNS ?? "", 10) || 80;
-const renderLitClaudeWordmark = ({ color = shouldColorInstall() } = {}) => {
+const renderLitClaudeWordmark = ({ color = shouldColorInstall(), cols = terminalColumns() } = {}) => {
   if (!supportsBlocks() || !process.stdout.isTTY) return synthwaveRows({ mode: "plain" }).concat(`litclaude v${version}`);
-  const cols = terminalColumns();
   const rows = synthwaveRows({ cols, mode: color ? colorMode() : "mono" });
   const versionLine = `litclaude v${version}`;
   const markWidth = SIZES.find((size) => size.name === pickSize(cols))?.minCols ?? versionLine.length;
@@ -459,7 +465,18 @@ const printCommandBanner = (parsed) => {
   process.stdout.write(asciiFrame(`${renderLitClaudeWordmark({ color }).join("\n")}\n`));
 };
 
+// The cards an interactive install draws (bin/install-ui.mjs), or null: pipes, CI, --yes, TERM=dumb and
+// the *_PROMPT hooks keep the plain prompts and lines. `installNotes` holds what the plain run prints as
+// KEY: lines, for the summary card.
+let installUi = null;
+const installNotes = [];
+const say = (line) => {
+  if (installUi) installNotes.push(line);
+  else process.stdout.write(`${line}\n`);
+};
+
 const createInstallProgress = () => {
+  if (installUi) return createCardProgress();
   const animated = shouldAnimateInstall();
   let frameIndex = 0;
   // Explicit spinner mode keeps structured progress, but cannot enable terminal escapes.
@@ -541,6 +558,52 @@ const createInstallProgress = () => {
   };
 };
 
+const createCardProgress = () => {
+  let card;
+  return {
+    prepare() {
+      card = installUi.progress({
+        tag: "LIT",
+        title: `Installing LitClaude ${version}`,
+        steps: INSTALL_STAGES.map(([, name, text]) => ({ name, text })),
+      });
+    },
+    async run({ number, title, label }, work) {
+      try {
+        return await card.run(number - 1, work);
+      } catch (error) {
+        installUi.panel({
+          tag: "LIT",
+          title: "INSTALL STOPPED",
+          tone: "bad",
+          sections: [{ rows: [
+            { mark: "fail", label: "Stage", value: `${String(number).padStart(2, "0")} / 05 · ${title} (${label} failed)` },
+            { mark: "fail", label: "Reason", value: error instanceof Error ? error.message : String(error) },
+            { mark: "note", label: "Next", value: "Resolve the reason above, then rerun litclaude install" },
+            { mark: "note", value: "Exit without reporting success" },
+          ] }],
+        });
+        throw error;
+      }
+    },
+    receipt() {
+      card.finish("Install steps", "5 of 5 checked");
+    },
+  };
+};
+
+const homeRelative = (path) => (path.startsWith(`${homedir()}${sep}`) ? `~${path.slice(homedir().length)}` : path);
+
+// The opening of a card install: the mark, then where the files go.
+const writeInstallOpening = () => {
+  const where = `Installs into ${homeRelative(claudeHome())} and ${homeRelative(litHome())}. Other Claude settings stay as is.`;
+  // A short window gets a smaller mark, so the first card and the mark are on screen together.
+  const height = process.stdout.rows || 24;
+  const cols = Math.min(terminalColumns(), height >= 48 ? Infinity : height >= 34 ? 75 : 43);
+  process.stdout.write(asciiFrame(`\n${renderLitClaudeWordmark({ cols }).join("\n")}\n`));
+  process.stdout.write(`\n${wrap(where, Math.min(installUi.cols() - 2, 100)).map((line) => ` ${installUi.paint(line, { dim: true })}\n`).join("")}\n`);
+};
+
 const currentExists = (home = claudeHome()) => existsSync(claudePluginRoot(home));
 
 const readInstalledPlugins = (home = claudeHome()) => {
@@ -572,6 +635,19 @@ const writeClaudeSettings = (settings, home = claudeHome()) => {
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
 };
 
+// The same preview at falling widths, for the colour card's rows.
+const hudAccentViews = (theme) => {
+  const { depth, ascii } = installUi;
+  const plain = depth === "plain";
+  const tint = (text) => plain ? text : depth === "16" ? `\x1b[${ansi16CodeForAccent(theme.name)}m${text}\x1b[0m` : `\x1b[38;5;${theme.code}m${text}\x1b[0m`;
+  const brand = ascii ? `[LIT v${version}]` : litBrandPrefix(version, { noColor: plain, depth, appearance: normalizeHudAppearance(process.env.LITCLAUDE_HUD_APPEARANCE) });
+  const bar = `[${tint(ascii ? "#" : "▌")}${ascii ? "--" : "░░"}]`;
+  const line = ascii ? " | " : " │ ";
+  const five = `[${ascii ? "#-" : "▏░"}]`;
+  const full = `${brand} | O4.8${line}ctx ${bar} 18%/1m${line}5h ${five}4%`;
+  return [`${full}  ${theme.mood.replace(" default", "'s own")}`, full, `${brand}${line}ctx ${bar} 18%/1m${line}5h ${five}4%`, `${brand}${line}ctx ${bar} 18%`, `ctx ${bar} 18%/1m`, bar];
+};
+
 const hudAccentPreview = (theme) => {
   const color = shouldColorInstall();
   const depth = color ? hudColorDepth(process.env) : "plain";
@@ -597,13 +673,26 @@ const shouldPromptHudAccent = () => {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
 };
 
-const chooseHudAccent = async (existingAccent = "cyan") => {
+const chooseHudAccent = async (existingAccent = "cyan", { tag, stored = false } = {}) => {
   const preservedAccent = normalizeHudAccent(existingAccent);
   const envAccent = process.env.LITCLAUDE_HUD_ACCENT;
   if (envAccent && process.env.LITCLAUDE_HUD_ACCENT_PROMPT !== "1") {
     return normalizeHudAccent(envAccent);
   }
   if (!shouldPromptHudAccent()) return envAccent ? normalizeHudAccent(envAccent) : preservedAccent;
+
+  if (installUi) {
+    installUi.setAccent(preservedAccent);
+    return installUi.choose({
+      tag,
+      title: "Status-line colour",
+      note: `Sets the accent colour of the status line; press Enter to keep ${preservedAccent}.`,
+      choices: hudAccentThemes.map((theme, index) => ({ id: theme.name, label: theme.name, key: String((index + 1) % 10), color: theme.name, views: hudAccentViews(theme) })),
+      initial: preservedAccent,
+      initialTag: stored ? "current" : "default",
+      onHighlight: installUi.setAccent,
+    });
+  }
 
   process.stdout.write("Choose LitClaude HUD brand color:\n");
   for (const [index, theme] of hudAccentThemes.entries()) {
@@ -639,13 +728,24 @@ const shouldPromptOutputStyle = () => {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
 };
 
-const chooseOutputStyle = async (existingChoice = "off") => {
+const chooseOutputStyle = async (existingChoice = "off", { tag, stored = false } = {}) => {
   const preserved = normalizeOutputStyle(existingChoice);
   const envStyle = process.env.LITCLAUDE_OUTPUT_STYLE;
   if (envStyle && process.env.LITCLAUDE_OUTPUT_STYLE_PROMPT !== "1") {
     return normalizeOutputStyle(envStyle);
   }
   if (!shouldPromptOutputStyle()) return envStyle ? normalizeOutputStyle(envStyle) : preserved;
+
+  if (installUi) {
+    return installUi.choose({
+      tag,
+      title: "Output style",
+      note: "Sets how Claude words its replies; None leaves the style you use now alone.",
+      choices: OUTPUT_STYLE_OPTIONS.map(({ id, label }, index) => ({ id, label, key: String(index), detail: OUTPUT_STYLE_DETAILS[id] })),
+      initial: preserved,
+      initialTag: stored ? "current" : "default",
+    });
+  }
 
   process.stdout.write("Choose LitClaude output style:\n");
   for (const [index, option] of OUTPUT_STYLE_OPTIONS.entries()) {
@@ -678,9 +778,19 @@ const shouldPromptIconFont = () => {
 
 // The icon font is opt-in: the flag, or a Yes to the one question an interactive install asks.
 // --yes keeps the shipped default, which is No.
-const chooseIconFont = async ({ iconFont, assumeYes }) => {
+const chooseIconFont = async ({ iconFont, assumeYes, tag }) => {
   if (iconFont) return true;
   if (assumeYes || !shouldPromptIconFont()) return false;
+  if (installUi) {
+    return installUi.confirm({
+      tag,
+      title: "Icon font",
+      note: `${planIconFontInstall(iconFontPaths()).supported
+        ? "Downloads the symbols-only Nerd Font (MIT) into your user font folder"
+        : "Shows how to install the symbols-only Nerd Font (MIT) by hand"} so the status band can draw round pills and icons; No keeps plain shapes.`,
+      initial: false,
+    });
+  }
   const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
   try {
     return parseYesNo(await rl.question(ICON_FONT_QUESTION));
@@ -694,19 +804,20 @@ const iconFontPaths = () => ({ platform: process.platform, env: process.env, hom
 const runIconFontInstall = async () => {
   const where = iconFontPaths();
   if (!planIconFontInstall(where).supported) {
-    process.stdout.write(`ICON_FONT_SKIPPED: ${windowsIconFontInstructions()}\n`);
+    say(`ICON_FONT_SKIPPED: ${windowsIconFontInstructions()}`);
     return;
   }
   try {
     const archive = await loadIconFontArchive({ env: process.env });
     const result = installIconFont({ ...where, archive });
-    for (const path of result.installed) process.stdout.write(`ICON_FONT_INSTALLED: ${path}\n`);
-    for (const path of result.present) process.stdout.write(`ICON_FONT_PRESENT: ${path}\n`);
-    for (const { path, reason } of result.skipped) process.stdout.write(`ICON_FONT_LEFT_ALONE: ${path} (${reason})\n`);
-    if (result.fontCache) process.stdout.write(`ICON_FONT_CACHE: ${result.fontCache}\n`);
-    process.stdout.write(`ICON_FONT_HINT: ${terminalFontHint(process.env)}\n`);
+    for (const path of result.installed) say(`ICON_FONT_INSTALLED: ${path}`);
+    for (const path of result.present) say(`ICON_FONT_PRESENT: ${path}`);
+    for (const { path, reason } of result.skipped) say(`ICON_FONT_LEFT_ALONE: ${path} (${reason})`);
+    if (result.fontCache) say(`ICON_FONT_CACHE: ${result.fontCache}`);
+    say(`ICON_FONT_HINT: ${terminalFontHint(process.env)}`);
   } catch (error) {
-    process.stderr.write(`ICON_FONT_FAILED: ${error.message}\n`);
+    if (installUi) say(`ICON_FONT_FAILED: ${error.message}`);
+    else process.stderr.write(`ICON_FONT_FAILED: ${error.message}\n`);
   }
 };
 
@@ -888,9 +999,20 @@ const shouldPromptAttribution = () => {
 
 // An install changes attribution only when the user chose `off`, now or before; --yes and a
 // non-interactive install leave Claude Code's default alone.
-const installAttribution = async ({ assumeYes }) => {
+const installAttribution = async ({ assumeYes, tag }) => {
   let mode = storedAttributionMode(litHome());
-  if (mode === undefined && !assumeYes && shouldPromptAttribution()) {
+  if (installUi && mode === undefined) {
+    const keep = await installUi.confirm({
+      tag,
+      title: "Co-Authored-By line",
+      note: "Yes keeps Claude Code's Co-Authored-By line in commits and pull requests; No hides it.",
+      initial: true,
+      foldYes: "keep",
+      foldNo: "off",
+    });
+    mode = keep ? "keep" : "off";
+    writeAttributionMode(litHome(), mode);
+  } else if (mode === undefined && !assumeYes && shouldPromptAttribution()) {
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
     try {
       mode = /^\s*n/iu.test(await rl.question(ATTRIBUTION_QUESTION)) ? "off" : "keep";
@@ -901,7 +1023,7 @@ const installAttribution = async ({ assumeYes }) => {
   }
   const result = readAttributionMode({ litHome: litHome() }) === "off" ? setAttribution("off") : null;
   const note = result === "user-changed" ? "; your own attribution setting in settings.json was left as it is" : "";
-  process.stdout.write(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })}${note} (change: litclaude-ai config attribution <keep|off>)\n`);
+  say(`ATTRIBUTION: ${readAttributionMode({ litHome: litHome() })}${note} (change: litclaude-ai config attribution <keep|off>)`);
 };
 const AGENT_FILE_QUESTION = "Add the short LitFamily block to your global CLAUDE.md? Your own text stays as it is. [Y/n] ";
 
@@ -911,37 +1033,48 @@ const shouldPromptAgentFile = () => {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
 };
 
-const installAgentFile = async ({ assumeYes, agentFile }) => {
+const installAgentFile = async ({ assumeYes, agentFile, tag }) => {
   const path = agentFilePath();
   if (!agentFile || readAgentFileMode({ litHome: litHome() }) === "off") {
-    process.stdout.write(`AGENT_FILE: off (${path} left as it is; turn on: litclaude-ai config agentFile on)\n`);
+    say(`AGENT_FILE: off (${path} left as it is; turn on: litclaude-ai config agentFile on)`);
     return;
   }
   const state = agentFileState({ path, version });
   // A linked, non-file or non-UTF-8 CLAUDE.md is never written, so asking about it would only mislead.
   if (["symlink", "not-file", "not-utf8"].includes(state)) {
-    process.stdout.write(`AGENT_FILE: ${state} ${path}; left as it is\n`);
+    say(`AGENT_FILE: ${state} ${path}; left as it is`);
     return;
   }
   if (state === "absent" && !assumeYes) {
     if (!shouldPromptAgentFile()) {
-      process.stdout.write(`AGENT_FILE: skipped (add the LitFamily block to ${path}: litclaude-ai config agentFile on)\n`);
+      say(`AGENT_FILE: skipped (add the LitFamily block to ${path}: litclaude-ai config agentFile on)`);
       return;
     }
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
     let yes;
-    try {
-      yes = !/^\s*n/iu.test(await rl.question(AGENT_FILE_QUESTION));
-    } finally {
-      rl.close();
+    if (installUi) {
+      yes = await installUi.confirm({
+        tag,
+        title: "LitFamily block",
+        note: `Adds a short LitFamily block to ${homeRelative(path)}; your own text there stays as it is, and No leaves the file alone.`,
+        initial: true,
+        foldYes: "add",
+        foldNo: "off",
+      });
+    } else {
+      const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: shouldColorInstall() });
+      try {
+        yes = !/^\s*n/iu.test(await rl.question(AGENT_FILE_QUESTION));
+      } finally {
+        rl.close();
+      }
     }
     if (!yes) {
       writeAgentFileMode(litHome(), "off");
-      process.stdout.write("AGENT_FILE: off (turn on later: litclaude-ai config agentFile on)\n");
+      say("AGENT_FILE: off (turn on later: litclaude-ai config agentFile on)");
       return;
     }
   }
-  process.stdout.write(`${agentFileLine(writeAgentFile("install"))}\n`);
+  say(`${agentFileLine(writeAgentFile("install"))}`);
 };
 
 // `config` prints the options; `config <option> <value>` sets one. A value the user sets is theirs,
@@ -1051,7 +1184,7 @@ const installHudStatusLine = (pluginPath, home = claudeHome(), accent = "cyan") 
   const existingLitClaude = settings[litClaudeSettingsKey] ?? {};
   const now = new Date().toISOString();
   if (existingLitClaude.statusLineManaged === true && !ownsHudStatusLine(settings, existingLitClaude)) {
-    process.stdout.write("HUD_WARNING: statusLine changed by user; leaving it untouched\n");
+    say("HUD_WARNING: statusLine changed by user; leaving it untouched");
     return;
   }
   const previousStatusLine =
@@ -1089,7 +1222,7 @@ const installOutputStyle = (choice, home = claudeHome()) => {
   if (currentOutputStyle === undefined || currentOutputStyle === previousWrittenName) {
     settings.outputStyle = writtenName;
   } else {
-    process.stdout.write(`Note: outputStyle was changed outside LitClaude (currently "${currentOutputStyle}"). Switch it via /config if you want LitClaude's style.\n`);
+    say(`Note: outputStyle was changed outside LitClaude (currently "${currentOutputStyle}"). Switch it via /config if you want LitClaude's style.`);
   }
 
   settings[litClaudeSettingsKey] = {
@@ -1564,6 +1697,75 @@ const preflightInstallOwnership = ({ preserveModifiedSkill = false } = {}) => {
   return preservation;
 };
 
+const SUMMARY_NOTES = [
+  [/^HUD_WARNING: /u, "Status line", "warn"],
+  [/^Note: (?=outputStyle)/u, "Output style", "warn"],
+  [/^ICON_FONT_(?:FAILED|LEFT_ALONE|SKIPPED): /u, "Icon font", "warn"],
+  [/^ICON_FONT_(?:INSTALLED|PRESENT): /u, "Icon font", "done"],
+  [/^ICON_FONT_(?:CACHE|HINT): /u, "Icon font", "note"],
+  [/^ATTRIBUTION: /u, "Co-Authored-By", "done"],
+  [/^AGENT_FILE: (?=symlink|not-file|not-utf8)/u, "CLAUDE.md", "warn"],
+  [/^AGENT_FILE: /u, "CLAUDE.md", "done"],
+];
+
+// The closing card: what is installed, the settings it runs with, what to do next. Every fact the plain
+// run prints is here, and a warning is never left out or shortened.
+const writeInstallSummary = ({ home, hudAccent, hudManaged, permissionMode, localMarketplace, outputStyleChoice, preservedPath }) => {
+  const notes = installNotes.map((line) => {
+    const [pattern, label, mark] = SUMMARY_NOTES.find(([candidate]) => candidate.test(line)) ?? [/^/u, "Note", "warn"];
+    return { mark: /left as it is|user-changed|your own attribution/u.test(line) && mark === "done" ? "note" : mark, label, value: line.replace(pattern, "").replaceAll(`${homedir()}${sep}`, `~${sep}`) };
+  });
+  const answered = (label) => notes.some((note) => note.label === label);
+  installUi.setAccent(hudAccent);
+  installUi.panel({
+    tag: "LIT",
+    title: `LitClaude ${version} is installed`,
+    sections: [
+      { head: "Installed", rows: [
+        { label: "Plugin", value: pluginKey },
+        { label: "Plugin path", value: homeRelative(intendedPluginPath(home)) },
+        { label: "Marketplace", value: homeRelative(localMarketplace) },
+        hudManaged
+          ? { label: "Status line", value: `LitClaude status line, ${hudAccent}` }
+          : { mark: "note", label: "Status line", value: "your own status-line setting was kept" },
+        ...(outputStyleChoice === "off" || answered("Output style") ? [] : [{ label: "Output style", value: OUTPUT_STYLE_NAMES[outputStyleChoice] }]),
+        ...notes,
+        ...["Co-Authored-By", "CLAUDE.md"].filter((label) => !answered(label)).map((label) => ({ mark: "warn", label, value: "not answered; left as it was" })),
+        ...(preservedPath ? [{ mark: "warn", label: "Kept skill", value: `PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}` }] : []),
+      ] },
+      { head: "Settings", rows: [
+        { mark: "note", label: "Permissions", value: `${permissionMode} — ${permissionProfile(permissionMode).description}` },
+        { mark: "note", label: "Card options", value: `${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)` },
+        { mark: "note", label: "Models", value: "host-owned (Claude Code exposes no native route surface)" },
+      ] },
+      { head: "Next", rows: [
+        { mark: "note", label: "Terminal", value: "quit Claude Code if it is open, then launch with: claude" },
+        { mark: "note", label: "Desktop app", value: "ready — the Code tab reads these same settings; open a new session there" },
+      ] },
+    ],
+  });
+  const leftovers = extensionLeftovers({
+    claudeHome: home,
+    litHome: litHome(),
+    cacheHome: process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
+    currentVersion: version,
+  });
+  const sameName = sameNameSkills({ claudeHome: home, cwd: process.cwd() });
+  // Prose is wrapped to the window; command lines stay whole, without a border, so they can be copied.
+  const width = Math.min(installUi.cols() - 2, 100);
+  const [heading, ...lines] = extensionsNoticeLines({ leftovers, sameName });
+  const blocks = [];
+  for (const line of lines) {
+    const prose = /^ {2}\S/u.test(line);
+    if (prose && blocks.at(-1)?.prose) blocks.at(-1).text += line.slice(1);
+    else blocks.push({ prose, text: line });
+  }
+  process.stdout.write(` ${installUi.heading(heading)}\n`);
+  for (const { prose, text } of blocks) process.stdout.write(`${prose ? wrap(text, width - 2).map((row) => `   ${row}`).join("\n") : ` ${text}`}\n`);
+  process.stdout.write("\n");
+  process.stdout.write(`INSTALL_PASS: LitClaude ${version} installed\n`);
+};
+
 const install = async ({ dryRun, rest }) => {
   const home = claudeHome();
   const litClaudeHome = litHome();
@@ -1577,7 +1779,6 @@ const install = async ({ dryRun, rest }) => {
   const targetPlugin = claudePluginRoot(home);
   const sourcePlugin = sourcePluginPath();
   const targetMarketplace = marketplaceRoot(litClaudeHome);
-  const progress = createInstallProgress();
 
   if (dryRun) {
     process.stdout.write(`${familyBanner({ color: false })}\n`);
@@ -1613,13 +1814,29 @@ const install = async ({ dryRun, rest }) => {
     fail(`Packaged LitClaude plugin payload is missing: ${sourcePlugin}`);
   }
 
+  if (!assumeYes && richTerminal({ stdin: process.stdin, stdout: process.stdout, env: process.env })) {
+    installUi = createInstallUi({ stdin: process.stdin, stdout: process.stdout, env: process.env, animate: shouldAnimateInstall() });
+    installUi.setAccent(requestedHudAccent);
+  }
+  const progress = createInstallProgress();
+  // Which questions this run will ask, so each card can say `LIT 2/5`.
+  const asks = [
+    ["accent", !process.env.LITCLAUDE_HUD_ACCENT],
+    ["style", !process.env.LITCLAUDE_OUTPUT_STYLE],
+    ["font", !iconFont],
+    ["attribution", storedAttributionMode(litClaudeHome) === undefined],
+    ["agentFile", agentFile && readAgentFileMode({ litHome: litClaudeHome }) !== "off" && agentFileState({ path: agentFilePath(home), version }) === "absent"],
+  ].filter(([, asked]) => asked).map(([name]) => name);
+  const tag = (name) => `LIT ${asks.indexOf(name) + 1}/${asks.length}`;
+  if (installUi) writeInstallOpening();
+
   const hudAccent = assumeYes
     ? (process.env.LITCLAUDE_HUD_ACCENT ? normalizeHudAccent(process.env.LITCLAUDE_HUD_ACCENT) : existingHudAccent)
-    : await chooseHudAccent(existingHudAccent);
+    : await chooseHudAccent(existingHudAccent, { tag: tag("accent"), stored: existingLitClaude.hudAccent !== undefined });
   const outputStyleChoice = assumeYes
     ? normalizeOutputStyle(process.env.LITCLAUDE_OUTPUT_STYLE ?? existingOutputStyle)
-    : await chooseOutputStyle(existingOutputStyle);
-  const wantsIconFont = await chooseIconFont({ iconFont, assumeYes });
+    : await chooseOutputStyle(existingOutputStyle, { tag: tag("style"), stored: existingLitClaude.outputStyleChoice !== undefined });
+  const wantsIconFont = await chooseIconFont({ iconFont, assumeYes, tag: tag("font") });
   const preservation = preflightInstallOwnership({ preserveModifiedSkill: true });
   const preservedPath = preserveModifiedLegacySkill(preservation, litClaudeHome);
   const targetCompatibility = versionRoot(litClaudeHome);
@@ -1706,6 +1923,24 @@ const install = async ({ dryRun, rest }) => {
     ["Permissions", `${permissionMode}; global settings allow/deny; ownership-safe removal`],
     ["Launch", "claude"],
   ]);
+  if (installUi) {
+    const details = { home, hudAccent, hudManaged, permissionMode, localMarketplace, outputStyleChoice, preservedPath };
+    try {
+      if (wantsIconFont) {
+        const card = installUi.progress({ tag: "LIT", title: "Icon font", steps: [{ name: "Font", text: "download, check and install" }] });
+        await card.run(0, runIconFontInstall);
+        const ok = !installNotes.some((line) => /^ICON_FONT_(?:FAILED|LEFT_ALONE|SKIPPED)/u.test(line));
+        card.finish("Icon font files", ok ? "installed" : "not installed; the summary says why", ok);
+      }
+      await installAttribution({ assumeYes, tag: tag("attribution") });
+      await installAgentFile({ assumeYes, agentFile, tag: tag("agentFile") });
+    } finally {
+      // The install itself is done by now, so it is reported even when a late question was stopped.
+      writeInstallSummary(details);
+      if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
+    }
+    return;
+  }
   process.stdout.write("Model selection: host-owned (Claude Code exposes no native route surface)\n");
   process.stdout.write(`INSTALL_PASS: LitClaude ${version} installed\n`);
   process.stdout.write(`Claude plugin: ${pluginKey}\n`);

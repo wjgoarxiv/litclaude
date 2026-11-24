@@ -53,7 +53,9 @@ npx @litfamily/litclaude@latest install
 ```
 
 On the first run npx asks whether to install the package; answer `y`. The installer registers
-the plugin, adds the LitClaude status line and asks for its colour and an optional output style.
+the plugin, adds the LitClaude status line and asks up to five short questions on cards (its colour,
+an output style, the icon font, the Co-Authored-By line and the `CLAUDE.md` block); Enter takes the
+marked default.
 A new install uses the `safe` permission mode, which adds no permission rules, and leaves your
 other Claude settings as they are. It also fetches the video skill's rendering engine and
 fonts up front. Start Claude Code again afterwards so the plugin loads.

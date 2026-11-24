@@ -36,6 +36,15 @@ const prompts = [
   ["Add the short LitFamily block to your global CLAUDE.md? Your own text stays as it is. [Y/n] ", "n"],
 ];
 
+// At a real terminal without the *_PROMPT hooks the questions are cards: a key each, then the helper's Enter.
+const cards = [
+  ["Status-line colour", "7"],
+  ["Output style", "3"],
+  ["Icon font [y/N]", "n"],
+  ["Co-Authored-By line [Y/n]", "y"],
+  ["LitFamily block [Y/n]", "n"],
+];
+
 function install({ env = {}, args = ["--yes"], replies = [], blocked = false, stageFailure = false } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), "litclaude-terminal-"));
   const claudeHome = join(scratch, "claude");
@@ -125,9 +134,15 @@ for (const mode of ["truecolor", "256"]) {
     if (mode === "256") assert.doesNotMatch(result.output, /\x1b\[38;2;/u);
     assert.match(result.output, /\x1b\[38;5;81m⠋/u);
     assert.match(result.output, /INSTALL RECEIPT/u);
-    const prompted = install({ env, args: [], replies: prompts });
+    const prompted = install({ env, args: [], replies: cards });
     assert.match(prompted.output, /\x1b\[38;5;220m▌\x1b\[0m░░/u);
-    assert.match(prompted.output, /\x1b\[0m \| O4\.8 │ ctx/u);
+    assert.match(prompted.output, /\x1b\[0m │ ctx/u);
+    assert.doesNotMatch(prompted.output, /Choose LitClaude|ICON_FONT_/u);
+    // The plain prompts still answer to the hooks, on the same terminal.
+    const plain = install({ env: { ...env, LITCLAUDE_HUD_ACCENT_PROMPT: "1" }, args: [], replies: prompts });
+    assert.match(plain.output, /HUD_COLOR_SELECTED: gold/u);
+    assert.match(plain.output, /\x1b\[0m \| O4\.8 │ ctx/u);
+    assert.equal(plain.settings.outputStyle, "LitClaude — ELI5");
     assert.equal(prompted.settings.litclaude.hudAccent, "gold");
     assert.equal(prompted.settings.outputStyle, "LitClaude — ELI5");
   });
