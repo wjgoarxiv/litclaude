@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.61 - 2026-11-24
+
+- Install, doctor and help open with the synthwave LIT mark, and the HUD, card and status line show
+  a gradient LIT pill.
+- A request that ends with the activation word (`fix the login redirect lit`, `… 부탁해 lit`) now asks
+  the goal question, using the words before `lit` as the objective. A trailing `lit-loop`, `litwork`
+  or `lit-hijack` routes the same as the leading word; before, a trailing `lit-loop` activated nothing.
+  A leading `lit-hijack <task>` no longer puts `-hijack` at the start of the goal.
+- A start-work state lock left by a crashed holder (no owner record, a dead contender's takeover claim,
+  or a reused pid) is now reclaimed, and no hold lasts longer than 10 minutes. The PreToolUse guard
+  reads a state snapshot instead of waiting on the lock, so several sessions on a slow drive no longer
+  block every tool call or `lit cancel`. A lock timeout names the lock path and its holder.
+
 ## 1.0.60 - 2026-11-22
 
 - The goal question now comes with an answer guide, so a first-time user knows what to type. Under
