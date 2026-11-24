@@ -91,7 +91,7 @@ export const hudColorDepth = (env = process.env) => {
   return /256color/iu.test(String(env.TERM || "")) ? "256" : "16";
 };
 
-export const litBrandPrefix = (version, { noColor = false, truecolor = false, depth = "", appearance = "dark" } = {}) => {
+export const litBrandPrefix = (version, { noColor = false, truecolor = false, depth = "", appearance = "dark", roundCaps = false } = {}) => {
   const label = `[🔥${NEON_BRAND} v${version}]`;
   if (noColor) return label;
   const resolvedDepth = depth || (truecolor ? "truecolor" : "256");
@@ -110,7 +110,10 @@ export const litBrandPrefix = (version, { noColor = false, truecolor = false, de
   for (let i = 0; i < n; i += 1) {
     const t = n === 1 ? 0 : i / (n - 1);
     const [r, g, b] = PILL_START.map((v, k) => Math.round(v + (PILL_END[k] - v) * t));
-    out += `\x1b[48;2;${r};${g};${b}m${pill[i]}`;
+    // Round caps take the pill's two padding cells, in the same colour.
+    out += roundCaps && (i === 0 || i === n - 1)
+      ? `\x1b[0m\x1b[38;2;${r};${g};${b}m${i === 0 ? "\ue0b6\x1b[1m\x1b[38;2;11;14;20m" : "\ue0b4"}`
+      : `\x1b[48;2;${r};${g};${b}m${pill[i]}`;
   }
   return `${out}\x1b[0m`;
 };

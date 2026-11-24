@@ -37,11 +37,15 @@ export const effectiveMotion = (motion, hostSettings) => (hostSettings?.prefersR
 // The glyph set one surface draws. Private-use Nerd Font glyphs only reach the terminal, which
 // draws with the person's own fonts; `auto` uses them there when the icon font is installed. The
 // desktop app and the other surfaces always get the basic set.
-export const resolveGlyphs = (preference, surface, iconFontPresent) => {
+export const resolveGlyphs = (preference, surface, iconFontPresent, roundCaps = false) => {
   if (surface !== "terminal") return "basic";
-  if (preference === "auto") return iconFontPresent ? "nerd" : "basic";
+  if (preference === "auto") return iconFontPresent ? "nerd" : roundCaps ? "round" : "basic";
   return preference === "nerd" ? "nerd" : "basic";
 };
+
+// Windows Terminal (1.21 and later) and VS Code draw the two round caps themselves, whatever font is
+// set, so `auto` rounds the pills there without the icon font and keeps every other symbol basic.
+export const drawsRoundCaps = (env) => Boolean(env?.WT_SESSION) || env?.TERM_PROGRAM === "vscode";
 
 const BASIC = Object.freeze({
   capLeft: "",
@@ -73,7 +77,10 @@ const NERD = Object.freeze({
   branch: "",
 });
 
-export const glyphSet = (glyphs) => (glyphs === "nerd" ? NERD : BASIC);
+// BASIC with round caps.
+const ROUND = Object.freeze({ ...BASIC, capLeft: "", capRight: "" });
+
+export const glyphSet = (glyphs) => (glyphs === "nerd" ? NERD : glyphs === "round" ? ROUND : BASIC);
 
 // The status line's accents (hud-accent-palette.mjs HUD_ACCENT_THEMES, kept equal by a test) as
 // xterm 256-colour codes. The mod cannot import that file, so the card reads the same names here.

@@ -666,6 +666,9 @@ HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어�
 - 색 깊이는 WSL의 truecolor까지 포함해 자동으로 감지합니다. 감지가 틀리면
   `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`으로 직접 정하세요. 이 값이 자동 감지보다
   우선합니다.
+- 어두운 truecolor 터미널에서는 게이지와 brand 양 끝이 둥글게 나옵니다. 아이콘 글꼴을 설치했거나, 둥근 끝을
+  직접 그리는 Windows Terminal 1.21 이상과 VS Code를 쓸 때입니다. 네모 상자가 보이면
+  `LITCLAUDE_HUD_GLYPHS=basic`으로 지정하세요. 리셋 전에 다 쓸 속도이면 리셋 시간 자리에 `! out 1h28m`이 나옵니다.
 - 색을 아예 끄려면 `NO_COLOR`를 설정하세요. 값이 빈 문자열이어도 HUD의 ANSI를 모두 끕니다.
   `TERM=dumb`에서도 다른 색상 신호나 깊이 설정과 상관없이 색 없이 나옵니다. 예전 설정인
   `LITCLAUDE_HUD_NO_COLOR=1`도 계속 됩니다.

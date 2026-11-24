@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { clearSky } from "./helpers/clear-sky.mjs";
 
 import { register } from "../plugins/litclaude/hooks/lit-mod.mjs";
 import { REVIEW_LANES, buildWorkflow, reviewLaneOf } from "../plugins/litclaude/lib/mod/workflow.mjs";
@@ -109,7 +110,7 @@ const diskHost = async (project) => {
       await flush();
       const drawn = await fire("ui.render", { surface: "terminal", props: { bodyColumns: 110 } }, { component: "AbovePrompt" });
       const lines = drawn.children.map((row) => flatten(row).map(({ text }) => text).join(""));
-      const inside = (line) => line.slice(1, -1).trim().replace(/\s+/gu, " ");
+      const inside = (line) => clearSky(line).slice(1, -1).trim().replace(/\s+/gu, " ");
       // The live step on the detail line's right (`- thinking · 0:00`) is another test's subject.
       return { map: inside(lines[1]), detail: inside(lines[2]).replace(/ [-\\|/] \w+ · \d+:\d\d$/u, ""), top: lines[0] };
     },

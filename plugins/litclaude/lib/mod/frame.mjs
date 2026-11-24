@@ -18,15 +18,15 @@
 // family to place the session in, the row is the PLAN / WORK / REVIEW track instead. The third row
 // is the stage's detail and, on the right, the tool the main loop is running and for how long.
 //
-// Each bracket pair stands for the two end cells of a filled pill: the brand on pink, the current
-// stage and this request's skills on the accent with dark text, skills from earlier requests on
+// Each bracket pair stands for the two end cells of a filled pill: the brand on a sunset from orange
+// to pink, the current stage on violet into the accent, this request's skills on the accent, all with dark text, skills from earlier requests on
 // dark grey. Those end cells are rounded Nerd Font caps in the pill's colour, or one cell of
 // padding in that colour with basic glyphs, so a pill is as wide in either glyph set.
 //
 // In a real Claude Code 2.1.292 terminal, a row whose only change is a non-ASCII glyph (a block,
 // symbol, Hangul or Nerd Font cell) keeps showing the old glyph; a change to ASCII text, or to the
 // colour of an ASCII cell, repaints. So every change is carried by ASCII: a bar cell is a space on
-// its colour and the leading cell fades in by colour, embers are ASCII sparks, labels pop in letter
+// its colour and the leading cell fades in by colour, the sea, stars and embers are ASCII (sunset.mjs), labels pop in letter
 // by letter, a notice slides by its leading spaces, a chip's light moves over its ASCII name, and a
 // glyph swaps only together with the colour of its words. The map's rail cells keep their glyph
 // and move by colour alone (a colour change on `─` or `━` repaints), and the live step's spinner
@@ -35,8 +35,9 @@
 import { gauge, knownFacts } from "../rewind/gauge.mjs";
 import { textWidth, truncateToWidth } from "./layout.mjs";
 import { CLUB_GLINT, CLUB_GOLD, CLUB_PILL, CLUB_STOPS, LOOKS, laneColor, lookOf } from "./looks.mjs";
-import { barCells, emberColor, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
+import { barCells, gradientAt, lerpColor, rainbowAt } from "./motion.mjs";
 import { glyphSet } from "./settings.mjs";
+import { SUN_W, mixed, paintScene } from "./sunset.mjs";
 import { formatDuration } from "./view.mjs";
 
 export const PALETTE = Object.freeze({
@@ -128,6 +129,26 @@ const litText = (text, style, shimmer) => {
 const pill = (body, fill, glyphs) => (glyphs.capLeft
   ? [span(glyphs.capLeft, { fg: fill }), ...body, span(glyphs.capRight, { fg: fill })]
   : [span(" ", { bg: fill }), ...body, span(" ", { bg: fill })]);
+
+// A pill graded along `stops`; `sweep` is the light passing over it, `lift` brightens it.
+const gradedPill = (text, stops, glyphs, sweep = null, lift = 0) => {
+  const chars = [...text];
+  const at = (i) => lerpColor(gradientAt(stops, chars.length < 2 ? 0 : i / (chars.length - 1)), "#ffffff", lift);
+  const visible = chars.filter((ch) => ch.trim()).length;
+  let k = 0;
+  const body = chars.map((ch, i) => {
+    let fill = at(i);
+    if (ch.trim()) {
+      const near = sweep === null || sweep === undefined ? 1 : Math.abs((visible < 2 ? 0 : k / (visible - 1)) - sweep);
+      k += 1;
+      if (near < 0.18) fill = lerpColor(fill, "#ffffff", (1 - near / 0.18) * 0.6);
+    }
+    return span(ch, { fg: PILL.ink, bg: fill, bold: true });
+  });
+  return glyphs.capLeft
+    ? [span(glyphs.capLeft, { fg: at(0) }), ...body, span(glyphs.capRight, { fg: at(chars.length - 1) })]
+    : [span(" ", { bg: at(0) }), ...body, span(" ", { bg: at(chars.length - 1) })];
+};
 
 // The rewind look's pills: each cell a step further round the hue wheel, lightened so the dark ink
 // keeps its contrast, with each cap in the colour of the cell beside it.
@@ -236,6 +257,7 @@ const brandSpans = (sample, glyphs, rainbow = null, look = null) => {
   const reveal = revealText("🔥 LIT", sample.pills[0]);
   if (reveal === null) return [];
   if (rainbow) return rainbowPill(reveal, rainbow, 0, glyphs);
+  if (!look) return gradedPill(reveal, SUNSET, glyphs, sample.completion?.shimmer ?? null, 0.22 * (sample.ambient?.breath ?? 0));
   const fill = look === "turn" ? PALETTE.amber : look === "club" ? CLUB_GOLD : sample.ambient ? lerpColor(PILL.brand, PALETTE.orange, 0.85 * sample.ambient.breath) : PILL.brand;
   return pill(litText(reveal, { fg: PILL.ink, bg: fill, bold: true }, sample.completion?.shimmer ?? null), fill, glyphs);
 };
@@ -290,8 +312,13 @@ const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rain
   return edgeRow("╭─ ", [...brand, ...title(shown)], [], "─╮", width, edge, comet, paint[0]);
 };
 
-const barSpans = (fraction, sample, cells) => barCells(fraction, cells, sample.fillGlow ?? 0)
-  .map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
+// A gauge's end cells become caps and its empty cells one smooth track, in the same number of cells.
+const TRACK = "#2a2340";
+const roundGauge = (cells, glyphs) => {
+  if (!glyphs.capLeft) return cells.map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
+  const paint = cells.map(({ glyph, color }) => (glyph === "█" ? color : TRACK));
+  return paint.map((color, i) => (i === 0 ? span(glyphs.capLeft, { fg: color }) : i === paint.length - 1 ? span(glyphs.capRight, { fg: color }) : span(" ", { bg: color })));
+};
 
 // ●● 2 lanes 1:07: a dot per lane (amber once stalled, dim and still while idle), the count and the longest lane's
 // clock. While LitClaude works a light walks across the dots (full motion) or they breathe (subtle),
@@ -318,7 +345,7 @@ const progressSegment = (model, sample, glyphs, cells) => {
     const label = model.progress.unit === "tasks" ? "tasks" : "goal";
     return segment("progress", 1, [
       span(`${label} `, { fg: PALETTE.dim }),
-      ...barSpans(sample.fill, sample, cells),
+      ...roundGauge(barCells(sample.fill, cells, sample.fillGlow ?? 0), glyphs),
       span(" "),
       span(String(model.progress.done), { fg: lerpColor(PALETTE.white, PALETTE.cyan, Math.max(sample.flash, sample.fillGlow ?? 0)), bold: true }),
       span(`/${model.progress.total}`, { fg: PALETTE.dim }),
@@ -446,7 +473,8 @@ const mapTrack = (model, sample, { glyphs, accent, rail, short = false, window =
       if (kick > 0) fill = lerpColor(fill, "#ffffff", 0.7 * kick);
       else if (kick < 0) fill = lerpColor(fill, PILL.ink, -0.35 * kick);
       const sweep = model.idle ? null : sample.ambient?.sweep ?? null;
-      out.push(...pill(litText(revealed.slice(0, label.length).padEnd(label.length), { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs));
+      const text = revealed.slice(0, label.length).padEnd(label.length);
+      out.push(...(model.look === null && !model.idle && !model.ctxWarning ? gradedPill(text, [lerpColor(fill, PALETTE.violet, 0.75), fill], glyphs, sweep) : pill(litText(text, { fg: PILL.ink, bg: fill, bold: true }, sweep), fill, glyphs)));
     } else {
       const done = mapColor(accent, index / last);
       out.push(span(revealed, { fg: stage.state === "done" ? (model.idle ? lerpColor(done, PALETTE.dim, 0.6) : done) : PALETTE.dim }));
@@ -530,7 +558,7 @@ const detailRow = (model, sample, { inner, glyphs, accent }) => {
   if (flow?.count) {
     const { done, total, unit } = flow.count;
     const glow = sample.ambient && !model.idle ? 0.5 * sample.ambient.breath : sample.fillGlow ?? 0;
-    const bar = barCells(sample.fill, inner >= 70 ? 8 : 5, glow).map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
+    const bar = roundGauge(barCells(sample.fill, inner >= 70 ? 8 : 5, glow), glyphs);
     segments.push(segment("count", 1, [
       span(`${unit} `, { fg: PALETTE.dim }),
       span(String(done), { fg: lerpColor(PALETTE.white, PALETTE.cyan, Math.max(sample.flash, sample.fillGlow ?? 0)), bold: true }),
@@ -605,18 +633,23 @@ const pulseSpans = (sample, rainbow, index) => {
     return span("━", { fg: cell === head ? lerpColor(base, "#ffffff", rainbow ? 0.45 : 0.7) : rainbow ? lerpColor(base, PALETTE.faint, 0.35) : base });
   });
 };
-const gaugeSpans = (text, rainbow, index) => {
-  if (!rainbow) return [span(text, { fg: PALETTE.white })];
+const gaugeSpans = (text, rainbow, index, color = PALETTE.white, glyphs = {}) => {
   const [, cells, count] = /^\[([▉░]+)\](.*)$/u.exec(text);
+  if (!rainbow) {
+    if (!glyphs.capLeft) return [span(text, { fg: PALETTE.white })];
+    const full = cells.replace(/░/gu, "").length;
+    const tint = (i) => (i < full ? lerpColor(color, "#ffffff", 0.25 * (i / cells.length)) : TRACK);
+    return [span(glyphs.capLeft, { fg: tint(0) }), ...[...cells].map((_, i) => span(" ", { bg: tint(i) })), span(glyphs.capRight, { fg: tint(cells.length - 1) }), span(count, { fg: PALETTE.white })];
+  }
   return [
     span("[", { fg: PALETTE.white }),
     ...[...cells].map((cell, i) => span(cell, { fg: cell === "▉" ? rainbow(i / cells.length + index * 0.1) : PALETTE.dim })),
     span(`]${count}`, { fg: PALETTE.white }),
   ];
 };
-const progressSpans = (thread, sample, rainbow, index, color) => {
+const progressSpans = (thread, sample, rainbow, index, color, glyphs) => {
   const drawn = gauge(thread.done, thread.total);
-  if (drawn) return [span(" "), ...gaugeSpans(drawn, rainbow, index), span(` ${thread.state}`, { fg: color })];
+  if (drawn) return [span(" "), ...gaugeSpans(drawn, rainbow, index, color, glyphs), span(` ${thread.state}`, { fg: color })];
   const facts = knownFacts({ steps: thread.steps, elapsedMs: thread.elapsedMs, last: thread.last, state: thread.state });
   const words = facts.startsWith(thread.state)
     ? [span(facts, { fg: color })]
@@ -667,7 +700,7 @@ const threadRows = (model, sample, { inner, glyphs, rainbow }) => {
         span(`${glyph} `, { fg: color }),
         span(name + " ".repeat(Math.max(0, nameWidth + leadWidth - textWidth(line.lead) - textWidth(name))), { fg: line.last ? THREAD_NAME.last : THREAD_NAME.mid, bold: thread.active }),
         ...(stageWidth ? [span(` ${(thread.stage ?? "").slice(0, stageWidth).padEnd(stageWidth)}`, { fg: PALETTE.dim })] : []),
-        ...progressSpans(thread, sample, rainbow, index, color),
+        ...progressSpans(thread, sample, rainbow, index, color, glyphs),
         ...(thread.session ? [span(` · other session ${thread.session}`, { fg: PALETTE.dim })] : []),
       ];
     }
@@ -703,35 +736,8 @@ const chipSpans = (chip, timed, glyphs, accent, sweep = null) => {
   ], fill, glyphs);
 };
 
+const SUNSET = ["#ffa033", "#ff6a55", "#ff3388"];
 const mutedPill = (text, glyphs) => pill([span(text, { fg: PALETTE.dim, bg: PILL.muted })], PILL.muted, glyphs);
-
-const REWIND_SPARKS = Object.freeze([".", "*", "+", "'"]);
-
-// The rewind look's sparks, drifting through the cells the chips leave free (one gap cell kept).
-const sparkled = (row, inner, sample, rainbow) => {
-  const sparks = sample.ambient?.sparks;
-  const spare = inner - rowWidth(row) - 1;
-  if (!rainbow || !sparks || spare < 3) return fitRow(row, inner);
-  const sky = Array.from({ length: spare }, () => span(" "));
-  for (const { x, glyph } of sparks) sky[Math.min(spare - 1, Math.floor(x * spare))] = span(REWIND_SPARKS[glyph], { fg: rainbow(x) });
-  return fitRow([...row, span(" "), ...sky], inner);
-};
-
-// The glyph particles of body row `r`, drifting through the cells the row leaves free (two gap
-// cells kept), while LitClaude works. Each is ASCII and moves by its glyph and colour together.
-const embered = (row, inner, sample, model, r) => {
-  const particles = model.idle ? null : sample.ambient?.particles;
-  const list = particles?.rows[r];
-  const spare = inner - rowWidth(row) - 2;
-  if (!list || spare < 4) return fitRow(row, inner);
-  const sky = Array.from({ length: spare }, () => span(" "));
-  for (const { x, age, glyph } of list) {
-    const cell = Math.min(spare - 1, Math.floor(x * spare));
-    const color = emberColor(age, particles.style.heat);
-    if (color !== PALETTE.faint) sky[cell] = span(particles.style.ramp[glyph], { fg: color, bold: age < 0.3 });
-  }
-  return fitRow([...row, span("  "), ...sky], inner);
-};
 
 // After a break the idle card offers the cross-session brief, in the longest form that fits.
 const AWAY_HINTS = Object.freeze([[" · back? type ", "lit adhd", " to catch up"], [" · back? ", "lit adhd", ""], [" ", "lit adhd", ""]]);
@@ -754,7 +760,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   const invite = inviteChip(model, glyphs);
   if (chips.length === 0) {
     if (!model.idle && model.next && !model.workflow?.next) return fitRow([span("▸ ", { fg: accent }), span(truncateToWidth(model.next, inner - 2), { fg: PALETTE.white })], inner);
-    if (!model.idle) return embered([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner, sample, model, 3);
+    if (!model.idle) return fitRow([span("no LitFamily skill yet in this request", { fg: PALETTE.dim })], inner);
     const hints = [
       [span("no LitFamily skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent }), span(" to start one", { fg: PALETTE.dim })],
       [span("no skill yet · type ", { fg: PALETTE.dim }), span("lit <task>", { fg: accent })],
@@ -782,7 +788,7 @@ const chipsRow = (model, sample, { inner, glyphs, accent, rainbow }) => {
   }
   if (shown < chips.length) row.push(...(row.length ? [span(" ")] : []), ...mutedPill(`+${chips.length - shown}`, glyphs));
   if (model.away) return fitRow([...row, ...awayHint(inner - rowWidth(row), accent)], inner);
-  return withChip(row, invite, inner) ?? (rainbow ? sparkled(row, inner, sample, rainbow) : embered(row, inner, sample, model, 3));
+  return withChip(row, invite, inner) ?? fitRow(row, inner);
 };
 
 const noticeRow = (sample, inner) => {
@@ -821,6 +827,7 @@ const completionRow = (sample, inner) => {
   return fitRow([...row, ...words], inner);
 };
 
+const TRACK_EDGE = "#4a3f6b";
 const levelColor = (percent) => (percent >= 90 ? HUD.red : percent >= 70 ? HUD.yellow : HUD.green);
 
 // ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ───╯, or a warning first when one is up. The branch goes
@@ -839,7 +846,7 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint, r
     // The rewind look turns every cell of the bar, filled or not, so even 0% shows the colour.
     const cells = rainbow
       ? [...Array(5)].map((_, i) => span(i < filled ? "▰" : "▱", { fg: i < filled ? rainbow(i / 5) : lerpColor(rainbow(i / 5), HUD.empty, 0.5) }))
-      : [span("▰".repeat(filled), { fg: accent }), span("▱".repeat(5 - filled), { fg: HUD.empty })];
+      : [...Array.from({ length: filled }, (_, i) => span("▰", { fg: model.ctxWarning ? PALETTE.amber : gradientAt([PALETTE.violet, accent], i / 4) })), span("▱".repeat(5 - filled), { fg: TRACK_EDGE })];
     segments.push(segment("ctxbar", 2, cells, " "));
   }
   rates.forEach((rate, index) => segments.push(segment(`rate-${rate.label}`, 3 + index * 0.5, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · ")));
@@ -863,6 +870,14 @@ const edgeColor = (model, sample, accent, look) => {
   if (model.idle) return lerpColor(PALETTE.faint, accent, 0.2);
   return lerpColor(accent, "#ffffff", 0.15 + 0.3 * (sample.ambient?.breath ?? 0));
 };
+
+// A painted rule comes one span per cell; neighbours of one colour join, so a frame draws fewer elements.
+const joinRules = (row) => row.reduce((out, part) => {
+  const last = out.at(-1);
+  if (last && last.fg === part.fg && /^─+$/u.test(part.text) && /^─+$/u.test(last.text)) out[out.length - 1] = { ...last, text: last.text + part.text };
+  else out.push(part);
+  return out;
+}, []);
 
 // How far the glint's light reaches either side of its centre, in cells.
 const GLINT_REACH = 8;
@@ -920,12 +935,42 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
     ...(model.threads ? threadRows(model, sample, options).map((row) => [row, 2]) : []),
     [middle, 3],
   ];
+  // The sun's place is fixed on the card, and it stays away while any of its cells hold text.
+  const sunAt = Math.round(inner * 0.62);
+  // The invited card rests between glints, so its sea and sun move only while a glint passes, swelling and settling with it.
+  const t = look === "club" ? sample.glintT ?? null : (model.idle && look === null ? null : sample.ambient?.t ?? null);
+  const lift = look === "club" ? Math.sin(Math.PI * (sample.glint ?? 0)) : 1;
+  let sun = false;
+  if (color && !sample.completion && !sample.notice) {
+    const last = body.slice(-3);
+    const scene = paintScene(last.map(([row]) => row), sunAt, t, model.idle && look === null, width >= 90, { look, rainbow, lift, sparks: sample.ambient?.sparks ?? null });
+    sun = scene.sun;
+    scene.rows.forEach((row, i) => { last[i][0] = row; });
+  }
+  const breath = t === null ? 0 : 0.3 * (sample.ambient?.breath ?? 0);
+  const neonOn = look === null && color && model.warnings.length === 0;
+  const neonStops = ["#ff2d95", "#b48cff", accent];
+  const neon = (col, r) => {
+    const i = Math.floor(col / 4) * 4;
+    const g = i / width;
+    let hue = g < 0.5 ? mixed(neonStops[0], neonStops[1], g * 2) : mixed(neonStops[1], neonStops[2], g * 2 - 1);
+    hue = mixed(hue, "#ffffff", breath);
+    // Under the sun the rule is water: rings of sunset light run outward along it.
+    if (r === 4 && sun) {
+      const dx = i - (sunAt + 1.5 + SUN_W / 2);
+      const near = Math.max(0, 1 - Math.abs(dx) / 26);
+      const ring = 0.5 + 0.5 * Math.sin(Math.abs(dx) * 0.55 - (t ?? 0) * 2.6);
+      hue = mixed(hue, near > 0.6 ? "#ffd24a" : "#ff8f3c", Math.min(1, near * (0.45 + 0.85 * ring)));
+    }
+    return model.idle ? mixed(hue, PALETTE.faint, 0.45) : hue;
+  };
   // The club look's ring: its velvet laid clockwise round the whole border, with the glint's light
   // crossing the top edge while a pass runs. Without warnings only; it never touches the body.
   const ring = look === "club" && model.warnings.length === 0 ? clubRing(width, body.length + 2, sample.glint ?? null) : null;
   const paint = [0, 1, 2, 3, 4].map((r) => {
     if (painted) return (col) => rainbow(col / width + r * 0.04);
     if (ring) return r === 0 ? (col) => ring(col, 0) : r === 4 ? (col) => ring(col, body.length + 1) : null;
+    if (neonOn) return (col) => neon(col, r);
     return r === 0 || r === 4 ? lanePaint : null;
   });
   const side = (row, r, y) => {
@@ -936,9 +981,9 @@ export const composeBand = (model, sample, { columns, glyphs: glyphMode = "basic
   };
   const edges = { ...options, paint };
   const rows = [
-    topEdge(model, sample, edges),
+    joinRules(topEdge(model, sample, edges)),
     ...body.map(([row, r], index) => side(row, r, index + 1)),
-    bottomEdge(model, sample, edges),
+    joinRules(bottomEdge(model, sample, edges)),
   ];
   return {
     mode: "card",

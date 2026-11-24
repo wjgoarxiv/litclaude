@@ -201,8 +201,9 @@ test("the progress bar on the detail line is coloured spaces, so every step repa
   const solid = frame.rows[2].slice(frame.rows[2].findIndex(({ text }) => text === "task ")).filter(({ text, bg }) => text === " " && bg);
   assert.ok(solid.length >= 4, "whole cells and the fading head are spaces on their colour");
   assert.equal(solid[0].bg, "#ff2d95");
-  const brand = frame.rows[0].find(({ text }) => text === "🔥 LIT");
-  assert.equal(brand.bg, "#ff2d95", "the brand in the title is the status line prefix's pink, as a pill");
+  const brand = frame.rows[0].filter(({ text, bg }) => bg && /[🔥LIT]/u.test(text));
+  assert.equal(brand[0].bg, "#ffa033", "the brand in the title is a sunset pill, orange at its left");
+  assert.equal(brand.at(-1).bg, "#ff3388", "and pink at its right");
 });
 
 test("Nerd glyphs draw the chip bolt and the branch from the icon font; basic needs none", () => {

@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { composeBand, rowText } from "../plugins/litclaude/lib/mod/frame.mjs";
-import { PARTICLES, TIMINGS, motionProfile, springKick } from "../plugins/litclaude/lib/mod/motion.mjs";
+import { TIMINGS, motionProfile, springKick } from "../plugins/litclaude/lib/mod/motion.mjs";
 import { parseWorkflowStack } from "../plugins/litclaude/lib/mod/state.mjs";
 import { advanceTimeline, createTimeline, sampleTimeline, timelineBusy } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";
 
-// The terminal card's polish: glyph particles in the skills row while LitClaude works, a spring kick
+// The terminal card's polish: a moving sea in the skills row while LitClaude works, a spring kick
 // on the current stage when a workflow steps forward, and a dimmer card while idle.
 
 const T0 = 10_000_000;
@@ -26,20 +26,19 @@ const skyOf = (band) => rowText(band.rows[3]).slice(2, -2).split("lit-loop").at(
 // The current stage's pill fill, read from its first filled cell (its padding, which no light crosses).
 const currentPillBg = (band) => band.rows[1].find(({ bg }) => bg)?.bg;
 
-test("full motion burns ASCII glyph particles in the skills row while LitClaude works", () => {
+test("full motion moves a sea of ASCII waves through the skills row while LitClaude works", () => {
   const full = motionProfile("full");
   const model = loopModel("GREEN");
   const timeline = createTimeline(model, T0, full);
-  const skies = [600, 900, 1200, 1500].map((t) => skyOf(card(model, timeline, T0 + t, full)));
-  for (const sky of skies) {
-    assert.match(sky, /[|/\-\\*+'.]/u, "some particle burns");
-    assert.match(sky, /^[ |/\-\\*+'.]*$/u, "every particle is one of the ASCII ramp glyphs");
+  const seas = [600, 900, 1200, 1500].map((t) => skyOf(card(model, timeline, T0 + t, full)));
+  for (const sea of seas) {
+    assert.match(sea, /[~.-]/u, "some wave shows");
+    assert.match(sea, /^[ ~.-]*$/u, "every wave is plain ASCII, so a glyph change repaints");
   }
-  assert.equal(new Set(skies).size, skies.length, "the particles move between frames");
-  assert.ok(PARTICLES.ramp.every((glyph) => /^[\x20-\x7e]$/u.test(glyph)), "the ramp is plain ASCII, so a glyph change repaints");
+  assert.equal(new Set(seas).size, seas.length, "the sea moves between frames");
 });
 
-test("the map row keeps its text while the particles burn", () => {
+test("the map row keeps its text while the sea moves", () => {
   const full = motionProfile("full");
   const model = loopModel("GREEN");
   const timeline = createTimeline(model, T0, full);
@@ -47,13 +46,13 @@ test("the map row keeps its text while the particles burn", () => {
   assert.equal(new Set(maps).size, 1);
 });
 
-test("no particles while idle, under subtle motion or with motion off", () => {
+test("no sea while idle, under subtle motion or with motion off", () => {
   for (const [mode, isWorking] of [["full", false], ["subtle", true], ["off", true]]) {
     const profile = motionProfile(mode);
     const model = loopModel("GREEN", { isWorking });
     const timeline = createTimeline(model, T0, profile);
     const band = card(model, timeline, T0 + 900, profile);
-    assert.doesNotMatch(skyOf(band), /[|/\\*+'.]/u, `${mode} ${isWorking ? "working" : "idle"}`);
+    assert.doesNotMatch(skyOf(band), /[~.-]/u, `${mode} ${isWorking ? "working" : "idle"}`);
   }
 });
 

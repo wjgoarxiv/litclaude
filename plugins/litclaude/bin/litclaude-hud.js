@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -12,6 +12,9 @@ import {
   normalizeHudAppearance,
 } from "../lib/hud-accent-palette.mjs";
 import { latestUsageTokensCached } from "../lib/cache-measurement.mjs";
+import { drawsRoundCaps, xterm256Hex } from "../lib/mod/settings.mjs";
+import { lerpColor } from "../lib/mod/motion.mjs";
+import { iconFontCandidates } from "../lib/mod/state.mjs";
 import { ignitionStatePath } from "../lib/hud-ignition.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { recordContextUsage, resolveAutoHandoff } from "../lib/auto-handoff.mjs";
@@ -45,6 +48,26 @@ const colors = plainOutput
     };
 
 const accent = (text) => `${colors.accent}${text}${colors.reset}`;
+
+const hasIconFont = () => iconFontCandidates(process.env).some((path) => {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+});
+// Round gauges and badge on a dark truecolor terminal that can draw round caps: the icon font is
+// installed, or the terminal draws them itself. LITCLAUDE_HUD_GLYPHS=basic keeps the square bars.
+const round = colorDepth === "truecolor" && appearance === "dark" && process.env.LITCLAUDE_HUD_GLYPHS !== "basic"
+  && (process.env.LITCLAUDE_HUD_GLYPHS === "nerd" || drawsRoundCaps(process.env) || hasIconFont());
+const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+const fg = (hex) => `\x1b[38;2;${rgb(hex).join(";")}m`;
+const bg = (hex) => `\x1b[48;2;${rgb(hex).join(";")}m`;
+const TRACK = "#2a2340";
+const RAMP = { green: ["#2fd6a0", "#6bf0c8"], yellow: ["#ffcc44", "#ff8833"], red: ["#ff5566", "#ff2d95"] };
+const NEON = ["#ff2d95", "#ff66bb", "#b48cff", "#8fb0ff", "#00e5ff"];
+// The dividers run pink to cyan from left to right.
+const joinSegments = (segments) => segments.reduce((line, segment, i) => `${line} ${round ? `${fg(NEON[(i - 1) % NEON.length])}${sep}${colors.reset}` : accent(sep)} ${segment}`);
 
 const readStdin = async () => {
   let input = "";
@@ -111,6 +134,28 @@ const makeBlockBar = (value, width = 3, color = null) => {
 const makeContextBar = (value, width = 3) => {
   const pct = clamp(Math.round(value));
   return makeBlockBar(pct, width, colors.accent);
+};
+
+// The same cells as `[` + makeBlockBar + `]`, with round caps in the bracket cells.
+const roundBar = (value, width, [from, to]) => {
+  const pct = clamp(Math.round(value));
+  const exact = (pct * width) / 100;
+  const full = Math.floor(exact);
+  const eighth = exact > full ? Math.max(1, Math.min(7, Math.round((exact - full) * 8))) : 0;
+  let out = `${fg(exact > 0 ? from : TRACK)}\ue0b6${bg(TRACK)}`;
+  for (let i = 0; i < width; i += 1) {
+    out += `${fg(lerpColor(from, to, width < 2 ? 0 : i / (width - 1)))}${i < full ? "█" : i === full && eighth ? "▏▎▍▌▋▊▉"[eighth - 1] : " "}`;
+  }
+  return `${out}${colors.reset}${fg(full >= width ? to : TRACK)}\ue0b4${colors.reset}`;
+};
+
+// Milliseconds until a window runs out at its average pace so far; null when it lasts to its reset.
+const runsOutIn = (pct, reset, spanMs) => {
+  const left = parseResetTarget(reset) - Date.now();
+  const elapsed = spanMs - left;
+  if (!Number.isFinite(left) || left <= 0 || elapsed < spanMs * 0.1 || pct <= 0 || pct >= 100) return null;
+  const out = ((100 - pct) / pct) * elapsed;
+  return out < left ? out : null;
 };
 
 const latestUserMessage = (transcriptPath) => {
@@ -249,8 +294,11 @@ const formatReset = (value) => {
 const coloredText = appearance === "dark";
 const text = (value) => (coloredText ? accent(value) : value);
 
-const formatUsageSegment = (label, value, reset) => {
+const HOUR = 3_600_000;
+
+const formatUsageSegment = (label, value, reset, spanMs) => {
   const labelText = text(label);
+  if (value === null && round) return `${labelText} ${roundBar(0, 2, RAMP.green)}${accent("--%")}`;
   if (value === null) {
     return coloredText
       ? `${labelText} ${accent("[")}${colors.accent}░░${colors.reset}${accent("]")}${accent("--%")}`
@@ -258,8 +306,14 @@ const formatUsageSegment = (label, value, reset) => {
   }
   const pct = displayPercent(value);
   const resetText = formatReset(reset);
-  const pctText = coloredText ? `${barColor(pct)}${pct}%${colors.reset}` : `${pct}%`;
-  return `${labelText} ${accent("[")}${makeBlockBar(pct, 2)}${accent("]")}${pctText}${resetText ? ` ${text(resetText)}` : ""}`;
+  // At this pace the window runs out before its reset: the figure warns, and the reset time gives way to when.
+  const out = runsOutIn(pct, reset, spanMs);
+  const level = pct >= 90 ? "red" : pct >= 70 || out !== null ? "yellow" : "green";
+  const tone = round ? fg(RAMP[level][0]) : colors[level];
+  const pctText = coloredText ? `${tone}${pct}%${colors.reset}` : `${pct}%`;
+  const bar = round ? roundBar(pct, 2, RAMP[level]) : `${accent("[")}${makeBlockBar(pct, 2, tone)}${accent("]")}`;
+  const tail = out === null ? text(resetText) : `${coloredText ? tone : ""}! out ${formatReset(Date.now() + out).slice(2)}${coloredText ? colors.reset : ""}`;
+  return `${labelText} ${bar}${pctText}${resetText ? ` ${tail}` : ""}`;
 };
 
 // Automatic handoff: while it is on, leave the percent for the Stop hook and show the setting.
@@ -267,7 +321,7 @@ const formatUsageSegment = (label, value, reset) => {
 const autoHandoffSegment = (status, contextPercent) => {
   try {
     const cwd = typeof status.cwd === "string" && status.cwd ? status.cwd : null;
-    if (!cwd) return "";
+    if (!cwd) return null;
     const stateRoot = resolveProjectStateRoot(cwd);
     const setting = resolveAutoHandoff({ env: process.env, stateRoot });
     if (setting.enabled) {
@@ -277,11 +331,11 @@ const autoHandoffSegment = (status, contextPercent) => {
         percent: contextPercent,
         window: Number(status.context_window?.context_window_size),
       });
-      return text(`handoff@${setting.percent}%`);
+      return { text: text(`handoff@${setting.percent}%`), percent: setting.percent };
     }
-    return setting.requested ? text("handoff ⚠") : "";
+    return setting.requested ? { text: text("handoff ⚠"), percent: null } : null;
   } catch {
-    return "";
+    return null;
   }
 };
 
@@ -298,20 +352,30 @@ const main = async () => {
   // Without a host percent or a transcript usage record the size is unknown, and the line says so.
   const knownContextPct = statusContextPct !== null ? statusContextPct : tokens > 0 ? Math.floor((tokens * 100) / maxContext) : null;
   const usage = parseUsage(status);
-  const usageText = ` ${accent(sep)} ${formatUsageSegment("5h", usage.fiveHour, usage.fiveHourReset)} ${accent(sep)} ${formatUsageSegment("1w", usage.weekly, usage.weeklyReset)}`;
   const git = gitStatus(status.cwd);
   const prefix = litBrandPrefix(version, {
     noColor: plainOutput,
     depth: colorDepth,
     appearance,
+    roundCaps: round,
   });
   const contextPct = knownContextPct === null ? null : displayPercent(knownContextPct);
+  const autoHandoff = autoHandoffSegment(status, knownContextPct);
+  // The context gauge turns yellow within ten points of the automatic handoff and red past it.
+  const limit = autoHandoff?.percent ?? 90;
+  const contextRamp = contextPct >= limit ? RAMP.red : contextPct >= limit - 10 ? RAMP.yellow : ["#b48cff", xterm256Hex(accentCode)];
   const contextText = contextPct === null
     ? `${text("ctx")} ${text(`?/${windowText}`)}`
-    : `${text("ctx")} ${accent("[")}${makeContextBar(contextPct)}${accent("]")} ${text(`${contextPct}%/${windowText}`)}`;
+    : `${text("ctx")} ${round ? roundBar(contextPct, 3, contextRamp) : `${accent("[")}${makeContextBar(contextPct)}${accent("]")}`} ${text(`${contextPct}%/${windowText}`)}`;
   const effort = effortLabel(status);
-  const autoHandoff = autoHandoffSegment(status, knownContextPct);
-  const line = `${prefix} ${accent("|")} ${text(model)}${effort ? ` ${text(effort)}` : ""} ${accent(sep)} ${contextText}${autoHandoff ? ` ${accent(sep)} ${autoHandoff}` : ""}${usageText}${git ? ` ${accent(sep)} ${text("git")} ${text(git)}` : ""}`;
+  const line = joinSegments([
+    `${prefix} ${accent("|")} ${text(model)}${effort ? ` ${text(effort)}` : ""}`,
+    contextText,
+    ...(autoHandoff ? [autoHandoff.text] : []),
+    formatUsageSegment("5h", usage.fiveHour, usage.fiveHourReset, 5 * HOUR),
+    formatUsageSegment("1w", usage.weekly, usage.weeklyReset, 168 * HOUR),
+    ...(git ? [`${text("git")} ${text(git)}`] : []),
+  ]);
   process.stdout.write(`${line}\n`);
 
   const lastMessage = latestUserMessage(status.transcript_path);

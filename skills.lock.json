@@ -864,6 +864,7 @@
     "plugins/litclaude/lib/mod/settings.mjs",
     "plugins/litclaude/lib/mod/skills.mjs",
     "plugins/litclaude/lib/mod/state.mjs",
+    "plugins/litclaude/lib/mod/sunset.mjs",
     "plugins/litclaude/lib/mod/svg-card.mjs",
     "plugins/litclaude/lib/mod/timeline.mjs",
     "plugins/litclaude/lib/mod/toasts.mjs",

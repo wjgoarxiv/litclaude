@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { clearSky } from "./helpers/clear-sky.mjs";
 
 import { HUD_ACCENT_THEMES } from "../plugins/litclaude/lib/hud-accent-palette.mjs";
 import { canonicalSkillIds } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
@@ -43,7 +44,13 @@ const chips = (current, recent = []) => [
   ...recent.map((id, i) => ({ id, at: NOW - 60_000 - i, state: "recent" })),
 ];
 const draw = (model, columns, glyphs = "basic", sample = settledSample(model)) => composeBand(model, sample, { columns, glyphs, accent: CYAN });
-const texts = (frame) => frame.rows.map(rowText);
+const texts = (frame) => frame.rows.map((row) => clearSky(rowText(row)));
+// The spans of the filled pill whose text is `label`, one span per character.
+const pillOf = (row, label) => {
+  const chars = [...label];
+  const at = row.findIndex((_, i) => chars.every((ch, k) => row[i + k]?.text === ch && row[i + k].bg));
+  return at < 0 ? null : row.slice(at, at + chars.length);
+};
 const luminance = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -78,10 +85,13 @@ test("the working card reads like the chosen sketch, every row exactly the card 
   assert.equal(name.bg, CYAN, "a skill of this request is a pill on the HUD accent");
   assert.equal(name.bold, true);
   assert.ok(luminance(name.fg) < 0.2, "with dark text");
-  const pin = frame.rows[1].find(({ text }) => text === "PIN");
-  assert.equal(pin.bg, CYAN, "the current stage is a filled pill");
-  assert.equal(pin.bold, true);
-  assert.ok(luminance(pin.fg) < 0.2);
+  const pin = pillOf(frame.rows[1], "PIN");
+  assert.equal(pin.at(-1).bg, CYAN, "the current stage is a filled pill, violet into the accent");
+  assert.notEqual(pin[0].bg, CYAN);
+  for (const cell of pin) {
+    assert.equal(cell.bold, true);
+    assert.ok(luminance(cell.fg) < 0.2);
+  }
   const label = frame.rows[3].find(({ text }) => text.startsWith("skills"));
   assert.equal(label.bg, undefined, "the skills label is plain dim text");
   const discipline = frame.rows[0].find(({ text }) => text === "lit-loop");
@@ -193,19 +203,20 @@ test("pills: rounded caps in the pill colour with Nerd glyphs, one cell of paddi
   const caps = (row) => row.filter(({ text }) => text === "\ue0b6" || text === "\ue0b4");
   const [top, map, , skills] = nerd.rows;
   for (const row of [top, map, skills]) assert.ok(caps(row).length >= 2, `nerd pills have caps: ${rowText(row)}`);
-  const pin = map.findIndex(({ text }) => text === "PIN");
+  const pin = map.indexOf(pillOf(map, "PIN")[0]);
+  const pinEnd = pin + 2;
   assert.equal(map[pin - 1].text, "\ue0b6");
   assert.equal(map[pin - 1].fg, map[pin].bg, "the left cap takes the pill colour on the terminal background");
   assert.equal(map[pin - 1].bg, undefined);
-  assert.equal(map[pin + 1].text, "\ue0b4");
-  assert.equal(map[pin + 1].fg, CYAN);
+  assert.equal(map[pinEnd + 1].text, "\ue0b4");
+  assert.equal(map[pinEnd + 1].fg, CYAN);
   assert.match(rowText(map), /\ue0b6PIN\ue0b4 ━+ RED · /u);
   for (const row of basic.rows) assert.equal(caps(row).length, 0, "basic needs no icon font");
-  const plain = basic.rows[1].findIndex(({ text }) => text === "PIN");
-  assert.deepEqual([basic.rows[1][plain - 1], basic.rows[1][plain + 1]].map(({ text, bg }) => [text, bg]), [[" ", CYAN], [" ", CYAN]], "basic pads the pill with one cell of its colour");
+  const plain = basic.rows[1].indexOf(pillOf(basic.rows[1], "PIN")[0]);
+  assert.deepEqual([basic.rows[1][plain - 1], basic.rows[1][plain + 3]].map(({ text, bg }) => [text, bg]), [[" ", basic.rows[1][plain].bg], [" ", CYAN]], "basic pads the pill with one cell of its colour");
   assert.match(rowText(basic.rows[1]), /^│ {2}PIN {2}━+ RED · /u);
-  const brand = basic.rows[0].filter(({ bg }) => bg === "#ff2d95");
-  assert.equal(brand.map(({ text }) => text).join(""), " 🔥 LIT ", "the brand is a small pink pill");
+  const brand = basic.rows[0].filter(({ bg }) => bg);
+  assert.equal(brand.map(({ text }) => text).join(""), " 🔥 LIT ", "the brand is a small sunset pill");
   const overflow = basic.rows[3].find(({ text }) => /^\+\d+$/u.test(text));
   assert.ok(overflow && overflow.bg && overflow.bg !== CYAN, "+N is a muted pill");
   const connector = basic.rows[1].find(({ text }) => text.includes("━"));
@@ -558,18 +569,25 @@ test("while LitClaude works the card keeps moving: the brand breathes, a light s
   assert.equal(timelineBusy(timeline, settled, full), false, "the entry transitions have settled");
   assert.equal(ambientActive(timeline, full), true, "but the ambient loop keeps running while work is live");
   const at = (t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: 80, glyphs: "basic", accent: CYAN });
-  const brandFill = (frame) => frame.rows[0].find(({ text }) => text.includes("LIT")).bg;
+  const brandFill = (frame) => pillOf(frame.rows[0], "LIT")[0].bg;
   const fills = new Set([0, 300, 600, 900, 1200].map((dt) => brandFill(at(settled + dt))));
   assert.ok(fills.size >= 3, `the brand pill breathes through several colours, saw ${[...fills]}`);
-  const sweeps = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600].map((dt) => at(settled + dt).rows[1].filter(({ text, bg }) => /^[PIN]$/u.test(text) && bg && bg !== CYAN).length);
-  assert.ok(sweeps.some((n) => n > 0), "a light crosses the current stage's pill at some point of the loop");
+  const sweeps = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600].map((dt) => at(settled + dt).rows[1].filter(({ text, bg }) => /^[PIN]$/u.test(text) && bg).map(({ bg }) => bg).join());
+  assert.ok(new Set(sweeps).size >= 2, "a light crosses the current stage's pill at some point of the loop");
   const chipLight = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600].some((dt) => at(settled + dt).rows[3].some(({ text, bg }) => text.length === 1 && /[a-z-]/u.test(text) && bg && bg !== CYAN));
   assert.ok(chipLight, "and over this request's skill chip");
-  const ruleColours = (frame, row) => frame.rows[row].filter(({ text }) => /^─+$/u.test(text)).map(({ fg }) => fg);
+  // The rules carry the neon gradient; the comet is what one frame changes against the same moment without it.
   const loop = TIMINGS.comet;
-  assert.ok(new Set(ruleColours(at(2 * loop + loop * 0.25), 0)).size >= 2, "a quarter into its loop the comet lights the top rule");
-  assert.equal(new Set(ruleColours(at(2 * loop + loop * 0.25), 4)).size, 1, "and leaves the bottom rule alone");
-  assert.ok(new Set(ruleColours(at(2 * loop + loop * 0.75), 4)).size >= 2, "three quarters in it runs back along the bottom rule");
+  const rule = (t, row, comet) => {
+    const sample = sampleTimeline(timeline, t, full);
+    const frame = composeBand(model, comet ? sample : { ...sample, ambient: { ...sample.ambient, comet: null } }, { columns: 80, glyphs: "basic", accent: CYAN });
+    return JSON.stringify(frame.rows[row]);
+  };
+  const quarter = 2 * loop + loop * 0.25;
+  const threeQuarters = 2 * loop + loop * 0.75;
+  assert.notEqual(rule(quarter, 0, true), rule(quarter, 0, false), "a quarter into its loop the comet lights the top rule");
+  assert.equal(rule(quarter, 4, true), rule(quarter, 4, false), "and leaves the bottom rule alone");
+  assert.notEqual(rule(threeQuarters, 4, true), rule(threeQuarters, 4, false), "three quarters in it runs back along the bottom rule");
   for (const dt of [0, 500, 1000, 1500]) for (const row of at(settled + dt).rows) assert.equal(rowWidth(row), 80, "ambient motion never changes the card's width");
 });
 
@@ -586,8 +604,8 @@ test("ambient motion stops when the card is idle, is breath-only under subtle an
   const subtle = motionProfile("subtle");
   const soft = createTimeline(working, 0, subtle);
   assert.equal(ambientActive(soft, subtle), true);
-  const soft1 = composeBand(working, sampleTimeline(soft, 2100, subtle), { columns: 80, glyphs: "basic", accent: CYAN });
-  assert.equal(new Set(soft1.rows[0].filter(({ text }) => /^─+$/u.test(text)).map(({ fg }) => fg)).size, 1, "subtle runs no comet");
+  const rules = [2100, 2500, 2900].map((t) => composeBand(working, sampleTimeline(soft, t, subtle), { columns: 80, glyphs: "basic", accent: CYAN }).rows[0].filter(({ text }) => /^─+$/u.test(text)));
+  assert.equal(new Set(rules.map((rule) => JSON.stringify(rule))).size, 1, "subtle runs no comet");
   assert.notEqual(frameAt(working, soft, subtle, 2000), frameAt(working, soft, subtle, 2900), "but the brand still breathes");
 
   const off = motionProfile("off");
@@ -941,7 +959,7 @@ test("the workflow map places each LIT family on its stages, with the stage's de
   const done = work.rows[1].filter(({ text }) => /✓$/u.test(text)).map(({ fg }) => fg);
   assert.equal(done[0], "#ff6337", "the first done stage starts the rail's flame orange");
   assert.notEqual(done[0], done[1], "and the colour grades along the rail");
-  assert.equal(work.rows[1].find(({ text }) => text === "work 3/7").bg, CYAN, "the current stage is a pill on the accent");
+  assert.equal(pillOf(work.rows[1], "work 3/7").at(-1).bg, CYAN, "the current stage is a pill running into the accent");
   assert.ok(work.rows[1].filter(({ text }) => text === "━").length >= 4, "rails behind the current stage are cells graded one by one");
   assert.equal(work.rows[1].find(({ text }) => text === "review ·").fg, "#6e7681", "stages ahead are dim");
 });
@@ -983,17 +1001,17 @@ test("the map and the count bar move by colour alone: the glyphs stay while the 
   const model = flowModel(atWork(), { step: { name: "Bash", at: NOW - 12_000 } });
   const timeline = createTimeline(model, 0, full);
   const frames = [2000, 2200, 2400, 2600, 2800].map((t) => composeBand(model, sampleTimeline(timeline, t, full), { columns: MAP_COLUMNS, glyphs: "basic", accent: CYAN }));
-  assert.equal(new Set(frames.map((frame) => rowText(frame.rows[1]))).size, 1, "the map's text never changes while it moves");
+  assert.equal(new Set(frames.map((frame) => texts(frame)[1])).size, 1, "the map's words never change while it moves");
   const railColours = (frame) => frame.rows[1].filter(({ text }) => text === "━").map(({ fg }) => fg).join(",");
   assert.ok(new Set(frames.map(railColours)).size >= 2, "the bright head travels the rail leaving the current stage");
   const bar = (frame) => frame.rows[2].filter(({ text, bg }) => text === " " && bg).map(({ bg }) => bg).join(",");
   assert.ok(new Set(frames.map(bar)).size >= 2, "the count bar's head shimmers");
-  const masked = (frame) => rowText(frame.rows[2]).replace(/[-\\|/] Bash/u, "* Bash");
+  const masked = (frame) => texts({ rows: [frame.rows[2].map((part) => ({ ...part, text: part.text.replace(/^[-\\|/] $/u, "@ ") }))] })[0];
   assert.equal(new Set(frames.map(masked)).size, 1, "on the detail line only the ASCII spinner turns");
   assert.ok(new Set(frames.map((frame) => /([-\\|/]) Bash/u.exec(rowText(frame.rows[2]))[1])).size >= 2);
   for (const frame of frames) {
     const glyphs = frame.rows[1].flatMap(({ text }) => [...text].filter((ch) => /[^\x20-\x7e]/u.test(ch)));
-    assert.deepEqual([...new Set(glyphs)].filter((ch) => !"│━─✓·".includes(ch)), [], "the map's only glyphs are rails, borders, checks and dots");
+    assert.deepEqual([...new Set(glyphs)].filter((ch) => !"│━─✓·▁▂▃▄▅▆▇█".includes(ch)), [], "the map's only glyphs are rails, borders, checks, dots and the sun, which stays in place");
   }
   const idleCard = flowModel(atWork(), { isWorking: false });
   assert.equal(idleCard.idle, false, "an active start-work keeps the card at work between turns");

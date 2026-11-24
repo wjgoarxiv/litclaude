@@ -721,6 +721,10 @@ or light, and how many colors the terminal can show.
   terminal's default foreground, and only the bar shapes and separators carry the accent.
 - The color depth is detected for you, including truecolor under WSL. If the guess is
   wrong, set `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`; it wins over detection.
+- On a dark truecolor terminal the gauges and the brand get round ends when the icon font is installed, or
+  in Windows Terminal 1.21 or later and VS Code, which draw them without a font. If you see boxes instead, set
+  `LITCLAUDE_HUD_GLYPHS=basic`. A window that will run out before its reset shows `! out 1h28m` in place
+  of the reset time.
 - To switch color off, set `NO_COLOR`: it removes every HUD escape even when its value is
   empty. `TERM=dumb` also keeps the HUD plain, whatever another signal or depth override
   says. The older `LITCLAUDE_HUD_NO_COLOR=1` still works.

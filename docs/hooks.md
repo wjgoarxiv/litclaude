@@ -514,16 +514,20 @@ Motion: entrances pop in 60 ms apart with a slight overshoot (160 ms each), fill
 changes ease in and out (300 ms and 140 ms), notices slide in over 220 ms and leave over 150 ms,
 a chip's arrival light runs 400 ms (a plain fade under `subtle`, nothing under `off`), and the
 finish lasts at most 1.2 s. While LitClaude is at work the card keeps moving so you can tell it
-is active at a glance: the LIT pill breathes from pink to flame orange every 2.4 s, a light sweeps
+is active at a glance: the LIT pill, a sunset from orange to pink, breathes brighter every 2.4 s, a light sweeps
 across the current stage and this request's skill chips every 1.8 s, a bright head runs the rail
 leaving the current stage every 1.4 s, the count bar's head shimmers, and a comet runs along the
 top rule and back along the bottom one every 2.6 s. Under `subtle` only the breathing stays; under `off` nothing moves. An
-idle card holds still. The band's `Client` element animates on Claude Code's frame clock, every
+idle card holds still. On a card at least 90 columns wide a half-sunk sun stands in the last three body rows, with
+stars around it and a sea of `~ - .` along the chips row (`lib/mod/sunset.mjs`). The sun's light ripples, the sea
+runs outward from it, the stars twinkle and a shooting star passes every nine seconds. The scene only uses cells
+that hold no text, and the sun leaves while a notice, `COMPLETE` or a long line needs its place. The invited card's
+scene moves with its glint. `NO_COLOR` draws none of it. The band's `Client` element animates on Claude Code's frame clock, every
 33 ms while a transition plays and every 66 ms during work, once a second while only a clock (the
 step's or the lanes') moves, including under `off`, and stops its timer once the card is idle and
 settled. In Claude
 Code 2.1.292 a terminal row whose only change is a non-ASCII glyph is not repainted, so every
-moving part changes ASCII text or colour: bar cells are coloured spaces, embers are ASCII sparks,
+moving part changes ASCII text or colour: bar cells are coloured spaces, the sea, the stars and the embers are ASCII, the sun moves by colour alone,
 a chip's light moves over its ASCII name, the map's `━` and `─` cells move by colour alone, the
 step's spinner (`- \ | /`) and clock are ASCII, and a glyph swaps only together with its words.
 
@@ -557,7 +561,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | Option | Values | Default |
 | --- | --- | --- |
 | `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work), `off` (final frames only) | `full` |
-| `glyphs` | `auto` (Nerd glyphs when the icon font is installed), `nerd`, or `basic` | `auto` |
+| `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills in Windows Terminal 1.21 or later and VS Code, which draw the round caps themselves), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
 | `club` | `on` (the idle card wears the club look once `lit invite` recorded an inviter), `off` (the plain ready card, byte for byte) | `on` |

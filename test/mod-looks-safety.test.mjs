@@ -4,6 +4,7 @@
 // under NO_COLOR. Each look in the registry is drawn the way view.mjs selects it.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { clearSky } from "./helpers/clear-sky.mjs";
 
 import { composeBand } from "../plugins/litclaude/lib/mod/frame.mjs";
 import { charWidth } from "../plugins/litclaude/lib/mod/layout.mjs";
@@ -121,6 +122,7 @@ test("NO_COLOR: every look draws its labels with no colour on any cell", () => {
     const colored = draw(model, "off", 0);
     assert.equal(plain.border, null);
     for (const part of plain.rows.flat()) assert.ok(!("fg" in part) && !("bg" in part), `${look}: ${JSON.stringify(part)}`);
-    assert.deepEqual(plain.rows.map((row) => row.map(({ text }) => text).join("")), colored.rows.map((row) => row.map(({ text }) => text).join("")), look);
+    const words = (frame) => frame.rows.map((row) => clearSky(row.map(({ text }) => text).join("")));
+    assert.deepEqual(words(plain), words(colored), look);
   }
 });

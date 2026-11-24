@@ -3,6 +3,7 @@
 // time, the last tool) beside an indeterminate pulse, in the terminal card, the SVG card and the brief.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { clearSky } from "./helpers/clear-sky.mjs";
 
 import { composeBand, rowText } from "../plugins/litclaude/lib/mod/frame.mjs";
 import { motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
@@ -82,7 +83,7 @@ test("the unknown-total pulse moves by colour on fixed glyphs while the card ani
   const rows = [1000, 1300, 1600, 1900].map((t) => composeBand(model, sampleTimeline(timeline, t, profile), { columns: 100, glyphs: "basic", accent: "#5fd7ff" }).rows[4]);
   const pulse = (row) => row.filter(({ text }) => text === "━").map(({ fg }) => fg).join(",");
   assert.ok(rows.every((row) => row.some(({ text }) => text === "━")), "the lane row carries a pulse track");
-  assert.equal(new Set(rows.map((row) => rowText(row))).size, 1, "its glyphs stay put");
+  assert.equal(new Set(rows.map((row) => clearSky(rowText(row)))).size, 1, "its glyphs stay put");
   assert.ok(new Set(rows.map(pulse)).size >= 2, "its light moves by colour");
 });
 

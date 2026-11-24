@@ -25,7 +25,7 @@ import { BURST_MS, POWER_MS, SCENE, composeScene, lookArgs, lookColors, sceneKey
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
-import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
+import { accentFromSettings, drawsRoundCaps, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
@@ -129,6 +129,7 @@ const createLive = (options) => ({
   waiting: null,
   answeredBoundary: null,
   noColor: false,
+  roundCaps: false,
   // The loaded and installed LitClaude versions (restart chip), and when the installed one was read.
   versions: null,
   versionPaths: null,
@@ -507,6 +508,7 @@ export const register = (on, options) => {
     live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
     // NO_COLOR (no-color.org): set and not empty, the card draws no colour and does not move.
     live.noColor = Boolean(await $.env.get("NO_COLOR"));
+    live.roundCaps = drawsRoundCaps({ WT_SESSION: await $.env.get("WT_SESSION"), TERM_PROGRAM: await $.env.get("TERM_PROGRAM") });
     live.reducedMotion = hostSettings?.prefersReducedMotion === true;
     live.motion = effectiveMotion(live.motion, hostSettings);
     live.lookSet = await setLook($, live);
@@ -670,7 +672,7 @@ export const register = (on, options) => {
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const settings = normalizeModSettings(options);
     const motion = live.noColor ? "off" : effectiveMotion(settings.motion, { prefersReducedMotion: live.reducedMotion });
-    const glyphs = live.noColor ? "basic" : resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present);
+    const glyphs = live.noColor ? "basic" : resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present, live.roundCaps);
     const color = !live.noColor;
     const model = live.model;
     if (!model || settings.band === "off" || e.props.hasSurvey || (!model.visible && !live.exiting)) return next(e);
@@ -729,7 +731,7 @@ export const register = (on, options) => {
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
     const settings = normalizeModSettings(options);
-    const glyphs = resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present);
+    const glyphs = resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present, live.roundCaps);
     const elements = $.ui.resolve(e);
     const columns = Math.max(20, e.props.bodyColumns ?? 60);
     const now = await $.clock.now();

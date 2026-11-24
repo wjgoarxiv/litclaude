@@ -13,6 +13,8 @@ const stripAnsi = (value) => value.replace(/\x1b\[[0-9;]*m/gu, "");
 const colorEnv = { ...process.env };
 for (const key of ["NO_COLOR", "CI", "COLORTERM", "WT_SESSION", "TERM_PROGRAM", "WSL_DISTRO_NAME", "WSL_INTEROP", "LITCLAUDE_HUD_APPEARANCE", "LITCLAUDE_HUD_COLOR_DEPTH"]) delete colorEnv[key];
 colorEnv.TERM = "xterm-256color";
+// The icon font on the test machine must not change what these tests draw.
+colorEnv.LITCLAUDE_HUD_GLYPHS = "basic";
 colorEnv.LITCLAUDE_HUD_STATE_ROOT = mkdtempSync(join(tmpdir(), "litclaude-hud-state-"));
 
 test("LitClaude HUD renders a branded pretty status line from Claude status input", () => {
@@ -867,4 +869,34 @@ test("LitClaude HUD keeps the last typed prompt when a background task notificat
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+const hudLine = (env, status = {}) => spawnSync(process.execPath, [hudPath], {
+  cwd: tmpdir(),
+  encoding: "utf8",
+  input: `${JSON.stringify({ model: { display_name: "Opus 5.5" }, context_window: { context_window_size: 1000000, used_percentage: 42 }, ...status })}\n`,
+  env: { ...colorEnv, LITCLAUDE_VERSION: "9.9.9", LITCLAUDE_HUD_APPEARANCE: "dark", LITCLAUDE_HUD_TEST_USAGE: "5h=63,1w=31", ...env },
+}).stdout.split("\n")[0];
+
+test("a dark truecolor terminal that can draw round caps gets rounded gauges and badge in the same cells", () => {
+  const square = stripAnsi(hudLine({ COLORTERM: "truecolor" }));
+  const rounded = stripAnsi(hudLine({ COLORTERM: "truecolor", LITCLAUDE_HUD_GLYPHS: "nerd" }));
+  assert.match(square, /5h \[[▏▎▍▌▋▊▉█░]{2}\]63%/u);
+  assert.match(rounded, /^\ue0b6🔥LIT v9\.9\.9\ue0b4 \|/u);
+  assert.match(rounded, /ctx \ue0b6[▏▎▍▌▋▊▉█ ]{3}\ue0b4 42%\/1m/u);
+  assert.match(rounded, /5h \ue0b6[▏▎▍▌▋▊▉█ ]{2}\ue0b463%/u);
+  assert.equal([...rounded].length, [...square].length, "no cell is added");
+  assert.match(stripAnsi(hudLine({ WT_SESSION: "x", LITCLAUDE_HUD_GLYPHS: "", HOME: tmpdir(), XDG_DATA_HOME: tmpdir() })), /\ue0b6/u, "Windows Terminal draws the caps itself");
+  for (const env of [{ COLORTERM: "truecolor", LITCLAUDE_HUD_GLYPHS: "nerd", LITCLAUDE_HUD_APPEARANCE: "light" }, { LITCLAUDE_HUD_GLYPHS: "nerd" }, { COLORTERM: "truecolor", LITCLAUDE_HUD_GLYPHS: "nerd", NO_COLOR: "1" }]) {
+    assert.doesNotMatch(hudLine(env), /[\ue0b4\ue0b6]/u, JSON.stringify(env));
+  }
+});
+
+test("a window that runs out before its reset at this pace says when, in place of the reset", () => {
+  const reset = (hours) => Math.floor(Date.now() / 1000) + hours * 3600 + 30;
+  const limits = (pct, hours) => ({ rate_limits: { five_hour: { used_percentage: pct, resets_at: reset(hours) }, seven_day: { used_percentage: 10, resets_at: reset(84) } } });
+  const env = { LITCLAUDE_HUD_TEST_USAGE: "" };
+  assert.match(stripAnsi(hudLine(env, limits(80, 3))), /80% ! out 3?\d+m/u, "two hours in, 80% gone");
+  assert.match(stripAnsi(hudLine(env, limits(30, 3))), /30% ↻ 3h0m/u, "30% in two hours lasts");
+  assert.match(stripAnsi(hudLine(env, limits(9, 4.8))), /9% ↻ /u, "too early to tell");
 });

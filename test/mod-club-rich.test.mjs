@@ -4,6 +4,7 @@
 // a quiet `invited by @<id>` chip on the idle card.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { clearSky } from "./helpers/clear-sky.mjs";
 
 import { composeBand, rowText } from "../plugins/litclaude/lib/mod/frame.mjs";
 import { CLUB_GOLD } from "../plugins/litclaude/lib/mod/looks.mjs";
@@ -36,7 +37,7 @@ test("the ring runs gold → rose → violet around all four borders", () => {
 
 // The first pass starts at TIMINGS.clubGlintRest and lasts TIMINGS.clubGlint; the next starts one
 // TIMINGS.clubGlintPeriod later. Frames are compared once the card's entrance (under 400 ms) is over.
-test("full motion glints along the top border only, at most once every three seconds", () => {
+test("full motion glints along the top border, the sea and sun swell with it, and nothing else moves, at most once every three seconds", () => {
   const m = club();
   const still = draw(m, "off");
   // The light hides behind the title's pills for a moment, so a pass is a run of lit frames with
@@ -45,7 +46,8 @@ test("full motion glints along the top border only, at most once every three sec
   let last = -Infinity;
   for (let t = 500; t <= 10_000; t += 33) {
     const frame = draw(m, "full", t);
-    assert.deepEqual(frame.rows.slice(1), still.rows.slice(1), `only the top row moves (${t} ms)`);
+    assert.deepEqual(frame.rows.map((row) => clearSky(row.map(({ text }) => text).join(""))), still.rows.map((row) => clearSky(row.map(({ text }) => text).join(""))), `the words never move (${t} ms)`);
+    assert.deepEqual(frame.rows[4], still.rows[4], `nor the bottom row (${t} ms)`);
     if (JSON.stringify(frame.rows[0]) === JSON.stringify(still.rows[0])) continue;
     if (t - last > 1000) starts.push(t);
     last = t;
