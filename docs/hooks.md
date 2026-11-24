@@ -372,8 +372,8 @@ status line read as one family:
 ```
 
 The brackets stand for the ends of filled pills: rounded caps from the icon font with `nerd`
-glyphs, one cell of the pill's colour with `basic`. The brand is a pink pill, the current stage
-and the skills of this request are pills on the accent with dark text, and skills from earlier
+glyphs, one cell of the pill's colour with `basic`. The brand is a pill from orange to pink, the
+current stage runs from violet to the accent, the skills of this request are pills on the accent with dark text, and skills from earlier
 requests are muted grey pills.
 
 - The top edge names the discipline the prompt hook ignited (the last one, dimmed, while the
@@ -560,7 +560,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 
 | Option | Values | Default |
 | --- | --- | --- |
-| `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work), `off` (final frames only) | `full` |
+| `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work and the sunset holds still), `off` (final frames only) | `full` |
 | `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills in Windows Terminal 1.21 or later and VS Code, which draw the round caps themselves), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
@@ -596,7 +596,7 @@ between passes the card draws no frames. With `subtle` or `off` motion the ring 
 never makes a band show that `band: auto` would hide. No look flips more than a quarter of the card's brightness more than three
 times a second; with `motion` off or reduced motion each look is one still frame, and with
 `NO_COLOR` set the card keeps its labels and draws no colour (basic glyphs, no motion). The desktop
-drawing shows the labels of these looks, not the lane segments or the embers.
+drawing shows the labels of these looks, not the lane segments, the embers or the sunset scene.
 
 The icons on `nerd` (the rounded pill caps U+E0B6 and U+E0B4, the chip bolt and the branch mark)
 come from a Nerd Font. `litclaude-ai install

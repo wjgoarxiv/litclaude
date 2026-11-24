@@ -395,22 +395,24 @@ Claude 설정을 건드리게 두기 전에, 설치 프로그램이 어디에 �
 
 아직 아무것도 돌지 않을 때는 카드가 쉬면서 시작하는 방법을 알려 줍니다.
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 첫 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 그 아래 세부 줄은 비어 있고, skills 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있으며, 아래쪽 테두리에는 5h 17%, 1w 52%와 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="비어 있는 Claude Code 프롬프트 위의 LIT 카드. 위쪽 테두리에 LIT · ready, 오른쪽에 idle이 있고, 첫 줄의 PLAN, WORK, REVIEW는 모두 빈 원입니다. 오른쪽 빈자리에는 반쯤 잠긴 해와 별, 잔잔한 바다가 흐리게 그려져 있고, skills 줄에는 no LitFamily skill yet · type lit &lt;task&gt; to start one이라고 적혀 있으며, 아래쪽 테두리에는 5h 17%, 1w 52%와 브랜치 main이 보입니다." /></p>
 
 `lit`을 붙여 요청하면 카드가 작업 흐름의 이름을 띄우고, 지금 단계와 요청을 맡은 스킬의 칩을 밝힙니다. 계획이 저장되거나 작업 칸에 체크가 들어가거나 리뷰어가 결과를 내면 LitClaude의
 훅이 지도를 알아서 넘기므로, Claude가 단계마다 따로 알리지 않아도 카드가 따라갑니다.
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="start-work가 한창 진행 중인 LIT 카드. 위쪽 테두리에 LIT · start-work, 오른쪽에 WORK ●가 있습니다. 지도에서는 interview와 plan이 주황과 분홍 체크로 끝나 있고, work 1/2가 채워진 하늘색 알약이며, review와 done은 아직 흐립니다. 세부 줄에는 task 1/2와 절반 찬 분홍 막대, next ▸ Task 2: GREEN, implement shout and verify가 있고 오른쪽에 thinking · 0:02가 보입니다. skills 줄에는 start-work가 있고, 아래쪽 테두리에는 ctx 9%, 5h 20%, 1w 53%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="start-work가 한창 진행 중인 LIT 카드. 위쪽 테두리에 LIT · start-work, 오른쪽에 WORK ●가 있습니다. 지도에서는 interview와 plan이 주황과 분홍 체크로 끝나 있고, work 1/2가 채워진 하늘색 알약이며, review와 done은 아직 흐립니다. 세부 줄에는 task 1/2와 절반 찬 둥근 분홍 막대, next ▸ implement shout가 있고 오른쪽에 thinking · 0:05가 보입니다. 별 사이로 금빛, 주황, 진분홍 해가 물결 위에 떠 있고, 테두리는 분홍에서 보라를 지나 하늘색으로 번집니다. skills 줄에는 start-work가 있고, 아래쪽 테두리에는 ctx 9%, 5h 20%, 1w 53%, 브랜치 main이 보입니다." /></p>
 
 Claude가 일하는 동안 카드는 계속 움직이므로, LitClaude가 아직 일하는 중인지 한눈에 알 수 있습니다. 여러 일이 함께 돌면 하나하나에 줄이 생기고, `lit continue`를
 입력하면 끼어들기 전에 돌던 루프가 멈췄던 진행 수에서 다시 이어집니다.
 
-<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="스레드 줄이 붙은 LIT 카드. 위쪽 테두리에 LIT · lit-loop || > start-work, 오른쪽에 GREEN ||가 있습니다. 지도에서는 PIN과 RED가 체크로 끝나 있고 GREEN 2/5가 일시정지 상태이며, 세부 줄에는 start-work · back: lit continue가 있고 오른쪽에 ●●● 3 lanes와 Bash · 0:04가 보입니다. 그 아래 lit-loop GREEN [▉▉░░░] 2/5 paused 줄이 있고, 그 밑에 └─ ● start-work work [▉▉▉░░░] 3/6 running이 매달려 있습니다. 갈래 줄 ┬ 3 lanes · 1 task in parallel에서 executor [▉▉░░] 2/4 running, librarian-researcher [▉░] 1/2 running, lit-verifier running이 뻗어 나오고 오른쪽에 +1 more가 있습니다. lit-verifier는 전체 개수를 아직 몰라서 칸 대신 짧은 펄스 줄이 흐릅니다. skills 줄에는 start-work, lit-loop, lit-plan이 있고, 아래쪽 테두리에는 ctx 24%, 5h 22%, 1w 54%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="스레드 줄이 붙은 LIT 카드. 위쪽 테두리에 LIT · lit-loop || > start-work, 오른쪽에 GREEN ||가 있습니다. 지도에서는 PIN과 RED가 체크로 끝나 있고 GREEN 2/5가 일시정지 상태이며, 세부 줄에는 start-work · back: lit continue가 있고 오른쪽에 ●●● 3 lanes와 Bash · 0:04가 보입니다. 그 아래 lit-loop GREEN 2/5 paused 줄이 둥근 회색 게이지와 함께 있고, 그 밑에 └─ ● start-work work 3/6 running이 둥근 초록 게이지와 함께 매달려 있습니다. 갈래 줄 ┬ 3 lanes · 1 task in parallel에서 executor 2/4 running, librarian-researcher 1/2 running, lit-verifier running이 뻗어 나오고 오른쪽에 +1 more가 있습니다. lit-verifier는 전체 개수를 아직 몰라서 칸 대신 짧은 펄스 줄이 흐릅니다. 해와 바다는 마지막 세 줄로 내려와 있습니다. skills 줄에는 start-work, lit-loop, lit-plan이 있고, 아래쪽 테두리에는 ctx 24%, 5h 22%, 1w 54%, 브랜치 main이 보입니다." /></p>
 
 <details>
 <summary>카드가 움직이는 방식과 스레드 줄</summary>
 
-- **움직임.** LIT 알약이 분홍에서 주황으로 천천히 숨 쉬듯 빛나고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 밝은 점 하나가 지도 위에서 다음 단계 쪽으로 흘러가고, 불꽃 하나가
+- **노을.** 카드 너비가 90칸 이상이면 마지막 세 줄에 반쯤 잠긴 해가 뜹니다. 햇빛이 일렁이고, 물결이 해에서 바깥으로 퍼지고, 별이 반짝이며, 가끔 별똥별이 지나갑니다. 글자가 없는 자리에만
+  그리고, 알림이나 긴 줄이 자리를 쓰면 비켜 줍니다. 여러 일이 돌아 줄이 늘면 해도 아래로 내려가고, 줄이 줄면 다시 올라옵니다.
+- **움직임.** 주황에서 분홍으로 이어지는 LIT 알약이 천천히 밝아졌다 돌아오고, 지금 단계와 스킬 칩 위로 빛이 한 번씩 지나가고, 밝은 점 하나가 지도 위에서 다음 단계 쪽으로 흘러가고, 불꽃 하나가
   위쪽 테두리를 따라 갔다가 아래쪽 테두리로 돌아옵니다.
 - **위 그림의 상황.** lit-loop가 반쯤 왔을 때 `/litclaude:start-work`를 입력하고, Claude가 서브에이전트 셋을 동시에 보내고, 뒤에서는 개발 서버가 계속 돈다고
   해 봅시다. 그러면 카드가 지도 아래에 그 하나하나에 줄을 내어 주고, 서로 어떻게 엮여 있는지에 맞춰 들여 씁니다.
@@ -424,10 +426,10 @@ Claude가 일하는 동안 카드는 계속 움직이므로, LitClaude가 아직
 턴이 끝나면 카드는 다시 idle로 돌아가고 움직임도 멈춥니다. 지도는 작업이 도달한 단계를 그대로 보여 주고, 칩은 회색이 되어 최근 스킬로 남기 때문에 마지막에 무엇이 돌았는지 계속 알 수
 있습니다.
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="리뷰가 끝난 뒤의 LIT 카드. 위쪽 테두리의 LIT · review-work는 흐린 색이고 오른쪽에는 idle이 있습니다. 지도의 interview부터 work, review, done까지 모든 단계에 체크가 붙어 있고, 세부 줄에는 complete가 있습니다. skills 줄에는 review-work가 회색 칩으로 남아 있고, 아래쪽 테두리에는 ctx 16%, 5h 21%, 1w 53%, 브랜치 main이 보입니다." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="리뷰가 끝난 뒤의 LIT 카드. 위쪽 테두리의 LIT · review-work는 흐린 색이고 오른쪽에는 idle이 있습니다. 지도의 interview부터 work, review, done까지 모든 단계에 체크가 붙어 있고, 오른쪽에는 해가 흐리게 쉬고 있으며, 세부 줄에는 complete가 있습니다. skills 줄에는 review-work가 회색 칩으로 남아 있고, 아래쪽 테두리에는 ctx 16%, 5h 21%, 1w 53%, 브랜치 main이 보입니다." /></p>
 
 카드는 Claude Code 2.1.287 이상의 터미널과 Claude 데스크톱 앱의 Code 탭에서 나옵니다. 앱도 같은 설정 파일을 읽기 때문에 설치 프로그램이 둘 다 준비해 두니, 설치한 뒤
-앱에서 새 세션을 열면 됩니다. 앱은 카드의 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 같은 줄과 움직임을 담은 그림 한 장으로 보여 줍니다.
+앱에서 새 세션을 열면 됩니다. 앱은 카드의 글자를 고정폭이 아닌 글꼴로 그리기 때문에, 같은 줄과 움직임을 담은 그림 한 장으로 보여 줍니다. 노을은 터미널에서만 그립니다.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/look/look-dark.webp" /><img src="./docs/assets/look/look-light.webp" width="960" alt="Ignition 룩을 입은 Claude 데스크톱 앱이 한 번의 작업을 반복해서 보여 줍니다. 대화 기둥 양옆 여백에 탄소색 격자가 깔려 있습니다. 쉴 때는 STATE: STANDBY가 흐린 선으로 보입니다. 작업이 시작되면 사선이 한 번 훑고 지나가며 켜집니다. 위쪽 레일을 따라 주황 도화선이 타고, 기둥을 감싼 틀에 불이 들어오고, 주황 기호 파티클(| / * - + ·)이 여백을 타고 올라가며, 아래 모서리에는 은은한 불씨가 번집니다. Claude가 답을 기다리는 동안 틀은 라임색으로 바뀌고 STATE: ASKING이 뜹니다. 작업이 끝나면 모서리에서 라임색 기호가 터지고 체크 표시가 켜지며 STATE: DONE이 뜬 뒤, 다시 대기 상태로 꺼집니다. 대화와 LIT 카드는 내내 흐린 유리 기둥 위에서 차분하게 읽힙니다." /></picture></p>
 
@@ -643,6 +645,8 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 `install`, `doctor`, `--help`는 신스웨이브 LIT 마크로 시작합니다. 마크 크기는 터미널 너비에 맞춰집니다. 색을 쓸 수 없는 곳(`NO_COLOR`, CI 로그)에서는
 같은 장면을 기호로만 그립니다. UTF-8을 쓰지 않는 터미널, `TERM=dumb`, 아주 좁은 창, 다른 프로그램으로 넘기는 출력에는 `LIT · claude code` 한 줄과 버전만
 나옵니다. 트루컬러 터미널에서는 상태 줄도 같은 색을 씁니다. `🔥LIT v<버전>` 배지가 얼음빛 파랑에서 장밋빛으로 번지는 알약 모양 위에 놓입니다.
+어두운 배경에서는 게이지 양 끝도 둥글게 나옵니다. 아이콘 글꼴을 설치했거나, 터미널이 둥근 끝을 직접 그릴 때(Windows Terminal 1.21 이상, VS Code)입니다. 네모 상자가
+보이면 상태 줄은 `LITCLAUDE_HUD_GLYPHS=basic`으로, 카드는 `glyphs basic`으로 바꾸세요. `NO_COLOR`에서는 글자만 남고 노을은 그리지 않습니다.
 
 문제가 없으면 `doctor`는 `DOCTOR_PASS`로 끝납니다. `update`를 직접 입력할 일은 많지 않습니다. 새 Claude Code 세션은 하루 한 번까지 백그라운드에서 npm의 새
 버전을 확인하고, 이후 세션이 작업을 시작하기 전에 설치합니다. `uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄, 권한, 로컬 상태 항목만 지우고, 직접 수정한 설치라면

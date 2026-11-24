@@ -441,26 +441,30 @@ scrolling back through the conversation. Read it from top to bottom:
 
 Before anything runs, the card rests and tells you how to begin:
 
-<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the first row shows PLAN, WORK and REVIEW as empty rings, the detail row is empty, the skills row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 17%, 1w 52% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/idle.webp" width="960" alt="The LIT card above an empty Claude Code prompt. The top edge reads LIT · ready with idle on the right, the first row shows PLAN, WORK and REVIEW as empty rings, a dimmed half-sunk sun with stars and a calm sea stands in the free space to the right, the skills row reads no LitFamily skill yet · type lit &lt;task&gt; to start one, and the bottom edge shows 5h 17%, 1w 52% and the branch main." /></p>
 
 Give it a request with `lit`, and the card names the workflow, lights the stage it is in and a chip for the
 skill that took the request. LitClaude's own hooks move the map on as the work happens, when the plan is
 saved, a task is ticked or a reviewer reports, so it keeps up without Claude having to report each step:
 
-<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="The LIT card in the middle of a start-work run. The top edge reads LIT · start-work with WORK ● on the right, the map shows interview and plan checked in orange and pink, work 1/2 as a filled cyan pill and review and done still dim, the detail row reads task 1/2 with a half-filled pink bar and next ▸ Task 2: GREEN, implement shout and verify, with thinking · 0:02 on its right, the skills row holds start-work, and the bottom edge shows ctx 9%, 5h 20%, 1w 53% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/working.webp" width="960" alt="The LIT card in the middle of a start-work run. The top edge reads LIT · start-work with WORK ● on the right, the map shows interview and plan checked in orange and pink, work 1/2 as a filled cyan pill and review and done still dim, the detail row reads task 1/2 with a rounded, half-filled pink bar and next ▸ implement shout, with thinking · 0:05 on its right, a sunset sun in gold, orange and hot pink glows among stars over a sea of waves, the border runs from pink through violet to cyan, the skills row holds start-work, and the bottom edge shows ctx 9%, 5h 20%, 1w 53% and the branch main." /></p>
 
 While Claude is busy, the card keeps moving, so a glance is enough to tell that LitClaude is still at work.
 When several things run at once, each gets a row of its own, and `lit continue` brings an interrupted loop
 back at the count where it stopped:
 
-<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="The LIT card with thread rows. The top edge reads LIT · lit-loop || > start-work with GREEN || on the right, the map shows PIN and RED checked and GREEN 2/5 paused, the detail row reads start-work · back: lit continue with ●●● 3 lanes and Bash · 0:04 on the right. Below it the row lit-loop GREEN [▉▉░░░] 2/5 paused, and under it └─ ● start-work work [▉▉▉░░░] 3/6 running. A fork line ┬ 3 lanes · 1 task in parallel leads to executor [▉▉░░] 2/4 running, librarian-researcher [▉░] 1/2 running and lit-verifier running behind a short pulse line because its total is not known yet, with +1 more on the right. The skills row holds start-work, lit-loop and lit-plan, and the bottom edge shows ctx 24%, 5h 22%, 1w 54% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/threads.webp" width="960" alt="The LIT card with thread rows. The top edge reads LIT · lit-loop || > start-work with GREEN || on the right, the map shows PIN and RED checked and GREEN 2/5 paused, the detail row reads start-work · back: lit continue with ●●● 3 lanes and Bash · 0:04 on the right. Below it the row lit-loop GREEN with a rounded grey gauge, 2/5 paused, and under it └─ ● start-work work with a rounded green gauge, 3/6 running. A fork line ┬ 3 lanes · 1 task in parallel leads to executor 2/4 running, librarian-researcher 1/2 running and lit-verifier running behind a short pulse line because its total is not known yet, with +1 more on the right. The sun and its sea have moved down to the last three rows. The skills row holds start-work, lit-loop and lit-plan, and the bottom edge shows ctx 24%, 5h 22%, 1w 54% and the branch main." /></p>
 
 <details>
 <summary>How the card moves, and how thread rows work</summary>
 
-- **Motion.** The LIT pill slowly glows from pink to orange and back, a light passes over the stage it is in
-  and over the skill chip, a bright point travels along the map toward the next stage, and a spark runs along
-  the top edge and back along the bottom.
+- **The sunset.** On a card at least 90 columns wide, a half-sunk sun stands in the last three rows. Its light
+  ripples, waves run outward from it, the stars twinkle and a shooting star passes now and then. It is drawn
+  only where no words are, and it steps aside when a message or a long line needs the room. Rows that appear
+  for parallel work, and go away after it, push the sun down and bring it back up.
+- **Motion.** The LIT pill, orange to pink, slowly glows brighter and back, a light passes over the stage it is
+  in and over the skill chip, a bright point travels along the map toward the next stage, and a spark runs
+  along the top edge and back along the bottom. With `NO_COLOR` the card keeps its words and draws no scene.
 - **The example above.** A lit-loop is halfway through when you type `/litclaude:start-work`, Claude sends
   three subagents out in parallel, and a dev server keeps running in the background. The card gives each of
   them a row under the map, nested the way they belong together.
@@ -476,12 +480,12 @@ back at the count where it stopped:
 When the turn ends, the card goes back to idle and stops moving. The map keeps where the work got to, and the
 chip turns grey and stays as a recent skill, so you can still see what ran last:
 
-<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="The LIT card after the review. The top edge reads LIT · review-work in a dim colour with idle on the right, every stage of the map from interview through work and review to done carries a check, the detail row reads complete, the skills row keeps review-work as a grey chip, and the bottom edge shows ctx 16%, 5h 21%, 1w 53% and the branch main." /></p>
+<p align="center"><img src="./docs/assets/card/after.webp" width="960" alt="The LIT card after the review. The top edge reads LIT · review-work in a dim colour with idle on the right, every stage of the map from interview through work and review to done carries a check, the dimmed sun rests on the right, the detail row reads complete, the skills row keeps review-work as a grey chip, and the bottom edge shows ctx 16%, 5h 21%, 1w 53% and the branch main." /></p>
 
 The card needs Claude Code 2.1.287 or later, in the terminal or in the Code tab of the Claude desktop app. The
 installer sets up both, since the app reads the same settings; open a new session in the app after installing.
 The app draws the card as a picture with the same rows and motion, because it sets mod text in a proportional
-font.
+font. The sunset scene is drawn in the terminal only.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./docs/assets/look/look-dark.webp" /><img src="./docs/assets/look/look-light.webp" width="960" alt="The Claude desktop app in the Ignition look, looping through one run. Behind the chat, a carbon grid fills the gutters on both sides of the conversation column. At rest the panel reads STATE: STANDBY in dim lines. When the run starts a slash wipes across and it powers on: an orange fuse burns along the top rail, a frame lights up round the column, orange glyph particles (| / * - + ·) drift up through the gutters and a soft ember glows at the bottom corners. While Claude waits for an answer the frame turns lime and reads STATE: ASKING; when the work completes, lime glyphs burst from the corner, a check mark lights and the panel reads STATE: DONE, then powers down to standby. The conversation and the LIT card stay calm and readable on the blurred glass column throughout." /></picture></p>
 
@@ -746,7 +750,9 @@ npx @litfamily/litclaude@latest uninstall   # remove what LitClaude installed
 colour (`NO_COLOR` or a CI log) the same scene is drawn in plain glyphs. A terminal without UTF-8, `TERM=dumb`,
 a very narrow window or output piped into another program gets one plain line instead, `LIT · claude code`,
 followed by the version. In a truecolor terminal the status line shows the same colours: its `🔥LIT v<version>`
-badge sits on a pill that fades from ice blue to rose.
+badge sits on a pill that fades from ice blue to rose, and on a dark background the gauges have round ends when
+the icon font is installed or the terminal draws them itself (Windows Terminal 1.21 or later, VS Code). If you
+see boxes instead, set `LITCLAUDE_HUD_GLYPHS=basic` for the status line and `glyphs basic` for the card.
 
 A healthy `doctor` run ends in `DOCTOR_PASS`. You rarely need `update` by hand: once a day at most, a new
 Claude Code session checks npm for a newer version in the background, and a later session installs it before

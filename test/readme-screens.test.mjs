@@ -107,13 +107,12 @@ test("the README demo film is an animated WebP that stays out of the package and
   for (const card of ["README_npm.md", "README_npm_ko-KR.md"]) assert.doesNotMatch(read(card), /demo\.(?:gif|webp)/u, `${card} does not embed the demo film`);
 });
 
-// The LIT card in its three states, cropped from one recorded Claude Code session, plus the thread rows
-// drawn by the card's own renderer; both READMEs show them.
+// The LIT card in its four states, drawn by the card's own renderer; both READMEs show them.
 const cardShots = {
-  "idle.webp": "b51f0a0202fa944ecdab6699125e309823e02e73f65c9406c0fa29bbd1ccdfa4",
-  "working.webp": "018f411330e022a13e5ac80fa824765423a9ec9e76afbf2366db1fe0e70c0f54",
-  "threads.webp": "0d4ab9884bba469b44edd611531f8555d2c27c6f84209ea8035d1f3614c828ad",
-  "after.webp": "20781c9423d37112edb87d3b40f7ab46f1b1d293e7da74794ef0a1f71bdd3bf8",
+  "idle.webp": "af1b7d8379e6feba6d807f8972cff791c51e51f6b49c7527e83bb4cfa39a5856",
+  "working.webp": "10ca5f46a371137ca2077551e98f25b4f285f5002502af9571f54e21ffa48afb",
+  "threads.webp": "dc7421ec61b437ad3908e4f472af622c334758647409bbc7c9d1ac7ed0a2eac4",
+  "after.webp": "b8d57e98572bff3b4445012daced1b4f8a61c54e56309f698c5601ed816c2495",
 };
 const cardQuotes = {
   idle: ["LIT · ready", "type lit &lt;task&gt; to start one", "1w"],
