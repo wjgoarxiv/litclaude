@@ -1,7 +1,7 @@
 """Drive an installer at a real terminal, key by key.
 
 stdin: {"size": [cols, rows], "steps": [[wait-for text, keys, seconds to wait after], ...]}. Text is matched
-in what arrived since the last step. Prints the bytes, the exit status, whether the terminal was back in
+in what arrived after the last step's text. Prints the bytes, the exit status, whether the terminal was back in
 cooked mode with echo, and whether every step ran.
 """
 import errno
@@ -42,9 +42,11 @@ try:
                 break
         elif child.poll() is not None:
             break
-        if step < len(plan["steps"]) and plan["steps"][step][0].encode() in output[mark:]:
-            _, keys, pause = plan["steps"][step]
-            mark = len(output)
+        at = output.find(plan["steps"][step][0].encode(), mark) if step < len(plan["steps"]) else -1
+        if at >= 0:
+            text, keys, pause = plan["steps"][step]
+            # The next card can arrive in the same read, so the search goes on right after this match.
+            mark = at + len(text.encode())
             step += 1
             os.write(master, keys.encode())
             time.sleep(pause)
