@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The README cover is a new loop: a terminal in the sunset look with the LIT card, a pixel LITFAMILY wordmark and a striped half-sunk sun, in place of the seven robot panels. The still for reduced motion is its first frame; both files are smaller.
 - The README demo is a new silent loop of one request (the hook, the sunset LIT card with its map, three lanes, the failing then passing test, COMPLETE), with a Korean copy for the Korean page; the Claude Code chat around the card is redrawn.
 - The Claude desktop and mobile apps wear the sunset too. The LIT card is drawn with a half-sunk sun, its reflection,
   a layered sea, stars and a neon border, only where no words are; rows, words and size stay as they were. `subtle`

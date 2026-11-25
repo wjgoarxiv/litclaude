@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily motion cover: a terminal in a sunset look. LitClaude's LIT card sits at the top with its stage map, task line and lanes, a pixel LITFAMILY wordmark and a striped half-sunk sun fill the middle, the row of seven product names lights LITCLAUDE, and a Claude Code prompt types a request at the bottom." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
@@ -879,8 +879,8 @@ or sells it under another name, please [open an issue](https://github.com/wjgoar
 
 ## LITFAMILY
 
-The seven armored robots on the cover stand for the seven LitFamily products; each runs on its own in its own
-host, so install just the one you use. The cover is brand motion, and the
+The cover shows LitClaude's LIT card in the sunset look under the LITFAMILY wordmark. The seven LitFamily products each
+run on their own in their own host, so install just the one you use. The cover is brand motion, and the
 [Ignition film](./docs/assets/readme/ignition-film.mp4) is a short brand film in the same spirit. The demo
 near the top of this page follows one request from start to finish: the card, the hook text and the status line are
 LitClaude's own output, and the Claude Code chat around them is redrawn.

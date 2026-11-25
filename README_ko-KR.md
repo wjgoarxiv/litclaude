@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상" /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/cover-motion-still.webp" /><img src="./docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 노을빛 터미널 화면입니다. 위쪽에는 LitClaude의 LIT 카드가 단계 지도, 작업 줄, 레인과 함께 있고, 가운데는 픽셀 글자 LITFAMILY와 줄무늬 해가 채우며, 일곱 제품 이름 줄에서 LITCLAUDE가 켜지고, 아래에서는 Claude Code 프롬프트에 요청이 입력됩니다." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
@@ -757,7 +757,7 @@ LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,
 
 ## LITFAMILY
 
-표지의 아머드 로봇 일곱 대는 LitFamily 제품 일곱 개를 뜻하고, 각 제품은 자기 호스트에서 따로 동작하니 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이고,
+표지는 LITFAMILY 글자 아래에 노을빛으로 그린 LitClaude의 LIT 카드를 보여 줍니다. LitFamily 제품 일곱 개는 각자 자기 호스트에서 따로 동작하니 쓰는 것 하나만 설치하면 됩니다. 표지는 브랜드 모션이고,
 [Ignition 영상](./docs/assets/readme/ignition-film.mp4)도 같은 분위기의 짧은 브랜드 영상입니다. 이 페이지 위쪽의 데모는 요청 하나가 끝나기까지의
 한 판으로, 카드, 훅이 찍는 글, 상태줄은 LitClaude가 직접 만든 출력이고 주변의 Claude Code 채팅 화면은 다시 그린 것입니다.
 

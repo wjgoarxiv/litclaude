@@ -253,7 +253,7 @@ test("README documents local Claude plugin usage and safety boundaries", async (
   const landing = await text("README.md");
   const readme = await userDocs("en");
 
-  assertCoverPresentation(landing, "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.");
+  assertCoverPresentation(landing, "LitFamily motion cover: a terminal in a sunset look. LitClaude's LIT card sits at the top with its stage map, task line and lanes, a pixel LITFAMILY wordmark and a striped half-sunk sun fill the middle, the row of seven product names lights LITCLAUDE, and a Claude Code prompt types a request at the bottom.");
   assert.match(landing, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(landing, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm version"/u);
   for (const page of ["docs/guide.md", "docs/skills.md", "docs/development.md"]) {
@@ -434,7 +434,7 @@ test("Korean README mirrors install, usage, and release-boundary guidance", asyn
   const candidateVersion = JSON.parse(await text("package.json")).version;
   const candidatePattern = escapeRegExp(candidateVersion);
 
-  assertCoverPresentation(landingKo, "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상");
+  assertCoverPresentation(landingKo, "LitFamily 모션 커버: 노을빛 터미널 화면입니다. 위쪽에는 LitClaude의 LIT 카드가 단계 지도, 작업 줄, 레인과 함께 있고, 가운데는 픽셀 글자 LITFAMILY와 줄무늬 해가 채우며, 일곱 제품 이름 줄에서 LITCLAUDE가 켜지고, 아래에서는 Claude Code 프롬프트에 요청이 입력됩니다.");
   assert.match(landingKo, /<h1 align="center">LitClaude<\/h1>/u);
   assert.match(landingKo, /src="https:\/\/img\.shields\.io\/npm\/v\/@litfamily\/litclaude[^"]*" alt="npm 버전"/u);
   for (const page of ["docs/guide_ko-KR.md", "docs/skills_ko-KR.md", "docs/development_ko-KR.md"]) {
@@ -927,8 +927,8 @@ test("README cover matches the accepted Ignition vector master and raster fallba
   assert.equal(cover.subarray(0, 4).toString(), "RIFF");
   assert.equal(cover.subarray(8, 12).toString(), "WEBP");
   assert.ok(cover.length > 0, "cover.webp must contain the accepted raster bytes");
-  const englishAlt = "LitFamily motion cover: seven armored robots power on one by one, the LitClaude robot wakes with glowing eyes and a lit frame, then LITFAMILY and KEEP THE WORK LIT. light up.";
-  const koreanAlt = "LitFamily 모션 커버: 일곱 로봇 패널이 차례로 켜지고, LitClaude 로봇의 눈과 테두리가 빛난 뒤 LITFAMILY와 KEEP THE WORK LIT. 문구가 밝아지는 영상";
+  const englishAlt = "LitFamily motion cover: a terminal in a sunset look. LitClaude's LIT card sits at the top with its stage map, task line and lanes, a pixel LITFAMILY wordmark and a striped half-sunk sun fill the middle, the row of seven product names lights LITCLAUDE, and a Claude Code prompt types a request at the bottom.";
+  const koreanAlt = "LitFamily 모션 커버: 노을빛 터미널 화면입니다. 위쪽에는 LitClaude의 LIT 카드가 단계 지도, 작업 줄, 레인과 함께 있고, 가운데는 픽셀 글자 LITFAMILY와 줄무늬 해가 채우며, 일곱 제품 이름 줄에서 LITCLAUDE가 켜지고, 아래에서는 Claude Code 프롬프트에 요청이 입력됩니다.";
   for (const [name, alt, base] of [
     ["README.md", englishAlt, githubAssetBase],
     ["README_ko-KR.md", koreanAlt, githubAssetBase],
