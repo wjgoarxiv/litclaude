@@ -371,8 +371,8 @@ status line read as one family:
 ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ─────────────────────╯
 ```
 
-The brackets stand for the ends of filled pills: rounded caps from the icon font with `nerd`
-glyphs, one cell of the pill's colour with `basic`. The brand is a pill from orange to pink, the
+The brackets stand for the ends of filled pills: rounded caps where the terminal can draw
+them, with the context gauge rounded in the same five cells, and one cell of the pill's colour with `basic`. The brand is a pill from orange to pink, the
 current stage runs from violet to the accent, the skills of this request are pills on the accent with dark text, and skills from earlier
 requests are muted grey pills.
 
@@ -567,7 +567,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | Option | Values | Default |
 | --- | --- | --- |
 | `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work and the sunset holds still), `off` (final frames only) | `full` |
-| `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills in Windows Terminal 1.21 or later and VS Code, which draw the round caps themselves), `nerd`, or `basic` | `auto` |
+| `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills where the terminal draws the caps: Windows Terminal 1.21 or later, VS Code, WezTerm, Ghostty, kitty, or any other terminal outside SSH with a Nerd Font installed), `nerd`, or `basic` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
 | `club` | `on` (the idle card wears the club look once `lit invite` recorded an inviter), `off` (the plain ready card, byte for byte) | `on` |
@@ -619,8 +619,15 @@ records the two files, `uninstall` removes only those (and only while unchanged)
 prints `ICON_FONT:`. With `glyphs` on `auto`, the band checks those font folders by stat at session
 start and says what it decided on the `/lit-evidence` gates tab.
 
+Round caps follow one rule (`lib/mod/round.mjs`) on the status line, the card and the installer.
+`LITCLAUDE_HUD_GLYPHS` (`nerd`, `round` or `basic`) wins, then the `glyphs` option, then a terminal that
+draws the caps itself; over SSH the answer is no, and otherwise a Nerd Font's file name in a font folder
+decides. The look through the folders opens no font and stops at 4,000 names, 200 folders or three levels.
+The card asks once a session; the status line keeps its answer in the per-user temp folder for a day, or
+until a font folder changes.
+
 The mod is read-only. It reads LitClaude's own state, the Git `HEAD` of the working directory and
-the merged settings (for the status line's accent) and nothing else: the ignition record in the
+the merged settings (for the status line's accent), the names in the font folders, and nothing else: the ignition record in the
 per-user temp folder, `.litclaude/boulder.json` (found the way the hooks find it, across a
 linked worktree), and under the outermost Git root's `.litclaude/` the litgoal goal, autoloop
 counter and ledger, the lit-plan and interface-probe turn records, the auto-handoff

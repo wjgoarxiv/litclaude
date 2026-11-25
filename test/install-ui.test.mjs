@@ -153,7 +153,7 @@ test("an answered card folds to one line and leaves nothing behind", async () =>
   t.stdout.write("before\r\n");
   await answer(t, "choose", LIST, ["7", "\r"]);
   await answer(t, "confirm", ASK, ["n"]);
-  assert.equal(t.stdout.text.trimEnd(), "before\n ✓ Status-line colour     gold\n ✓ Icon font              no");
+  assert.equal(t.stdout.text.trimEnd(), "before\n\n ✓ Status-line colour   gold\n ✓ Icon font            no");
 });
 
 test("the Enter after a letter answer, and keys typed before a card is up, reach no card", async () => {
@@ -229,15 +229,15 @@ const PANEL = { tag: "LIT", title: "LitClaude 9.9.9 is installed", sections: [
   { head: "Installed", rows: [{ label: "Plugin path", value: `/${"very-long-folder/".repeat(12)}end` }, { mark: "warn", label: "Icon font", value: "a different file is already there — left alone" }] },
   { head: "Next", rows: [{ mark: "note", value: "launch with: claude · 한국어" }] },
 ] };
-const ENVS = { truecolor: UTF8, 256: { TERM: "xterm-256color", LC_ALL: "en_US.UTF-8" }, 16: { TERM: "xterm", LC_ALL: "en_US.UTF-8" }, plain: { ...UTF8, NO_COLOR: "1" }, ascii: { ...UTF8, LC_ALL: "C" }, plainAscii: { NO_COLOR: "1", TERM: "xterm", LC_ALL: "C" } };
+const ENVS = { round: UTF8, truecolor: UTF8, 256: { TERM: "xterm-256color", LC_ALL: "en_US.UTF-8" }, 16: { TERM: "xterm", LC_ALL: "en_US.UTF-8" }, plain: { ...UTF8, NO_COLOR: "1" }, ascii: { ...UTF8, LC_ALL: "C" }, plainAscii: { NO_COLOR: "1", TERM: "xterm", LC_ALL: "C" } };
 
 test("every card fits every window at every colour depth", async () => {
   for (const [name, env] of Object.entries(ENVS)) {
-    for (const cols of [40, 60, 80, 120]) {
+    for (const cols of [40, 60, 80, 100, 120]) {
       for (const rows of [12, 16, 24, 60]) {
         const where = `${name} ${cols}x${rows}`;
         for (const [kind, spec, keys] of [["choose", LIST, [DOWN, UP, "6"]], ["confirm", ASK, [RIGHT, LEFT]], ["confirm", { ...ASK, title: "Co-Authored-By line", initial: true }, [RIGHT]]]) {
-          const t = make({ cols, rows, env });
+          const t = make({ cols, rows, env, round: name === "round" });
           const result = t.ui[kind](spec);
           await opened(t, spec.title);
           for (const key of keys) { t.stdin.write(key); await tick(1); }
@@ -245,6 +245,7 @@ test("every card fits every window at every colour depth", async () => {
           assert.ok(shown.length <= rows - 1, `${where} ${spec.title}: ${shown.length} rows`);
           for (const line of shown) assert.ok(textWidth(line) < cols, `${where} ${spec.title}: ${line}`);
           assert.ok(t.stdout.text.includes(spec.title), `${where}: the title is on screen`);
+          frameHolds(shown, where);
           const said = t.stdout.text.replace(/[│|]/gu, " ").replace(/\s+/gu, " ");
           assert.ok(said.includes(spec.note), `${where}: the whole sentence is on screen`);
           assert.match(said, /Ctrl\+C stop/u, where);
@@ -253,7 +254,7 @@ test("every card fits every window at every colour depth", async () => {
           await result;
           checkColours(name, t.stdout.raw, where);
         }
-        const t = make({ cols, rows, env });
+        const t = make({ cols, rows, env, round: name === "round" });
         const card = t.ui.progress({ tag: "LIT", title: "Installing", steps: STEPS });
         await card.run(0, async () => {});
         assert.ok(t.stdout.lines.length - 1 <= rows - 1, `${where} progress`);
@@ -267,12 +268,94 @@ test("every card fits every window at every colour depth", async () => {
   }
 });
 
+// Every row between a card's corners starts and ends on its border, in the same two columns.
+const frameHolds = (lines, where) => {
+  const top = lines.findIndex((line) => /^ [╭+][─-]/u.test(line));
+  const last = lines.findLastIndex((line) => /^ [╰+][─-]+[╯+]$/u.test(line));
+  assert.ok(top >= 0 && last > top, `${where}: a whole card`);
+  const width = textWidth(lines[top]);
+  for (const line of lines.slice(top, last + 1)) {
+    assert.equal(textWidth(line), width, `${where}: ${line}`);
+    assert.match(line, /^ [╭│╰+|].*[╮│╯+|]$/u, where);
+  }
+};
+
+// Round caps come in pairs, and no texture stands in for a gauge; every other form has no cap at all.
+const checkForm = (name, raw, where) => {
+  if (name !== "round") { assert.doesNotMatch(raw, /[\ue0b4\ue0b6]/u, `${where}: no caps`); return; }
+  assert.equal(raw.split("\ue0b6").length, raw.split("\ue0b4").length, `${where}: every fill has both caps`);
+  assert.match(raw, /\ue0b6/u, where);
+  assert.doesNotMatch(raw, /[░▒▓▯▄▀]|██|\[[▏▎▍▌▋▊▉█]/u, `${where}: no square fill or gauge`);
+};
+
 const checkColours = (name, raw, where) => {
+  checkForm(name, raw, where);
   if (name.startsWith("plain")) assert.doesNotMatch(raw, /\x1b\[[0-9;]*m/u, `${where}: no colour`);
   if (name === "256") assert.doesNotMatch(raw, /[34]8;2;/u, where);
   if (name === "16") assert.doesNotMatch(raw, /[34]8;[25];/u, where);
   if (/ascii/iu.test(name)) assert.doesNotMatch(raw, /[^\x00-\x7f]/u, `${where}: ASCII only`);
 };
+
+const CAPS = { "\ue0b6": " ", "\ue0b4": " " };
+const flat = (text) => text.replace(/[\ue0b4\ue0b6]/gu, (cap) => CAPS[cap]).replaceAll("██", "  ");
+test("round and square say the same words in the same cells", async () => {
+  for (const [kind, spec] of [["choose", LIST], ["confirm", ASK]]) {
+    for (const cols of [40, 60, 80, 100, 120]) {
+      const [round, square] = await Promise.all([true, false].map(async (form) => {
+        const t = make({ cols, round: form });
+        const result = t.ui[kind](spec);
+        await opened(t, spec.title);
+        t.stdin.write(DOWN);
+        await tick(20);
+        const shown = flat(t.stdout.text);
+        t.stdin.write("\r");
+        await result;
+        t.ui.panel(PANEL);
+        return [shown, flat(t.stdout.text)];
+      }));
+      assert.deepEqual(round, square, `${spec.title} ${cols}`);
+    }
+  }
+});
+
+test("the pill, the highlighted row, the lit button and the swatches end in caps of their own colour", async () => {
+  const t = make({ round: true });
+  const list = t.ui.choose(LIST);
+  await opened(t, "Status-line colour");
+  assert.match(t.stdout.text, /╭─ \ue0b6LIT 1\/5\ue0b4 · Status-line colour ─+╮/u);
+  assert.match(t.stdout.text, /│ \ue0b6❯ 1 \ue0b6\ue0b4 cyan .*default *\ue0b4 │/u);
+  assert.ok(t.stdout.raw.includes("\x1b[38;2;255;143;60m\ue0b6"), "orange opens the pill");
+  assert.ok(t.stdout.raw.includes("\x1b[38;2;255;45;149m\ue0b4"), "pink closes it");
+  assert.ok(t.stdout.raw.includes("\x1b[38;2;52;32;92m\ue0b6"), "the bar's own colour opens the bar");
+  t.stdin.write("\r");
+  await list;
+  const ask = t.ui.confirm(ASK);
+  await opened(t, "Icon font");
+  assert.match(t.stdout.text, /│ ╭─+╮ {2}╭─+╮ +│\n │ │ +Yes +│ {2}│ \ue0b6❯ No \(default\) *\ue0b4 │ +│\n │ ╰─+╯ {2}╰─+╯ +│/u);
+  t.stdin.write("\r");
+  await ask;
+});
+
+test("one blank row between blocks, and every value in one column", async () => {
+  for (const round of [true, false]) {
+    const t = make({ cols: 100, round });
+    t.stdout.write("intro\r\n");
+    await answer(t, "choose", LIST, ["7", "\r"]);
+    const card = t.ui.progress({ tag: "LIT", title: "Installing", steps: STEPS });
+    assert.equal(t.stdout.lines.find((line) => line.includes("copy the packaged")).indexOf("copy"), 24);
+    card.finish("Install steps", "3 of 3 checked");
+    const open = t.ui.confirm(ASK);
+    await opened(t, "Icon font");
+    assert.doesNotMatch(t.stdout.text, /\n\n\n/u, "never two");
+    assert.match(t.stdout.text, /^intro\n\n ✓ .*\n ✓ .*\n\n ╭/u);
+    t.stdin.write("n");
+    await open;
+    t.ui.panel(PANEL);
+    assert.match(t.stdout.text, /no\n\n ╭/u);
+    assert.doesNotMatch(t.stdout.text.trimEnd(), /\n\n\n/u);
+    for (const value of ["gold", "3 of 3", "a different file"]) assert.equal(t.stdout.lines.find((line) => line.includes(value)).indexOf(value), 24, value);
+  }
+});
 
 test("a summary never shortens a value, and a warning keeps its mark", () => {
   for (const cols of [40, 80, 120]) {

@@ -48,7 +48,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 색상은 줄마다 미리보기가 있고, 카드 테두리도 지금 올라가 있는 색을 따라갑니다. 이 그림과 다음 그림은
 어두운 터미널입니다.
 
-<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="zsh라는 제목의 터미널 창. 분홍 격자 위 노을을 배경으로 크롬 글자로 그린 신스웨이브 LIT 마크가 있고, LIT · claude code, litclaude vX.Y.Z, Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. 줄이 이어집니다. 그 아래 분홍에서 보라를 지나 청록으로 번지는 테두리의 카드에 주황에서 분홍으로 번지는 LIT 1/5 표시와 Status-line colour라는 제목이 있습니다. 문장은 Sets the accent colour of the status line; press Enter to keep cyan.입니다. 1 cyan부터 9 slate, 0 gray까지 열 줄에 색 견본과 상태 줄 미리보기가 있고, cyan이 강조되어 default라고 적혀 있습니다. 마지막 줄은 ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop입니다." /></p>
+<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="zsh라는 제목의 터미널 창. 분홍 격자 위 노을을 배경으로 크롬 글자로 그린 신스웨이브 LIT 마크가 있고, LIT · claude code, litclaude vX.Y.Z, Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. 줄이 이어집니다. 그 아래 분홍에서 보라를 지나 청록으로 번지는 테두리의 카드에 주황에서 분홍으로 번지는 둥근 LIT 1/5 표시와 Status-line colour라는 제목이 있습니다. 문장은 Sets the accent colour of the status line; press Enter to keep cyan.입니다. 1 cyan부터 9 slate, 0 gray까지 열 줄에 둥근 색 견본과 둥근 게이지가 든 상태 줄 미리보기가 있고, cyan이 강조되어 default라고 적혀 있습니다. 마지막 줄은 ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop입니다." /></p>
 
 *설치 프로그램에서 캡처*
 
@@ -57,7 +57,7 @@ npm exec --yes --package @litfamily/litclaude@latest -- litclaude install --yes
 Enter는 불이 들어온 버튼을 고릅니다. 답한 카드는 한 줄로 접힙니다. Esc는 아무 답도 하지 않고, Ctrl+C는
 설치를 멈춥니다. 파일을 복사하기 전이라면 아무것도 설치되지 않습니다.
 
-<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 두 줄, Status-line colour cyan과 Output style None / keep current가 있습니다. 그 아래 LIT 3/5 카드의 제목은 Icon font [y/N]입니다. 문장은 Downloads the symbols-only Nerd Font (MIT) into your user font folder so the status band can draw round pills and icons; No keeps plain shapes.입니다. 얇은 테두리의 Yes 버튼과 분홍에서 보라로 채워진 No (default) 버튼이 나란히 있습니다. 마지막 줄은 y / n answer, ← → switch, Enter = No, Ctrl+C stop입니다." /></p>
+<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 두 줄, Status-line colour cyan과 Output style None / keep current가 있습니다. 그 아래 LIT 3/5 카드의 제목은 Icon font [y/N]입니다. 문장은 Downloads the symbols-only Nerd Font (MIT) into your user font folder for the status band's icons and round pills; No leaves your fonts as they are.입니다. 얇은 테두리의 Yes 버튼과 분홍에서 보라로 둥글게 채워진 No (default) 버튼이 나란히 있습니다. 마지막 줄은 y / n answer, ← → switch, Enter = No, Ctrl+C stop입니다." /></p>
 
 *설치 프로그램에서 캡처*
 
@@ -65,7 +65,7 @@ Enter는 불이 들어온 버튼을 고릅니다. 답한 카드는 한 줄로 �
 도는지, 다음에 무엇을 하면 되는지 알려 주고, 경고가 있으면 줄이지 않고 그대로 보여 줍니다. 그 뒤에
 LitFamily 확장 안내와 `INSTALL_PASS`가 나옵니다.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 여섯 줄, Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add가 있습니다. 그 아래 카드의 제목은 LitClaude X.Y.Z is installed입니다. Installed: Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, Marketplace ~/.litclaude/marketplaces/litclaude-ai, Status line LitClaude status line, cyan, Co-Authored-By keep, CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe와 그 모드가 하는 일, Card options motion full · glyphs auto · band always · notify off · club on · look on, Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open, then launch with: claude, Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="zsh라는 제목의 터미널 창. 체크 표시가 붙은 접힌 답 여섯 줄, Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add가 있습니다. 그 아래 카드의 제목은 LitClaude X.Y.Z is installed입니다. Installed: Plugin litclaude@litclaude-ai, Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z, Marketplace ~/.litclaude/marketplaces/litclaude-ai, Status line LitClaude status line, cyan, Co-Authored-By keep, CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe와 그 모드가 하는 일, Card options motion full · glyphs auto · band always · notify off · club on · look on, Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open; launch with: claude, Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
 
 *설치 프로그램에서 캡처*
 
@@ -678,9 +678,11 @@ HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어�
 - 색 깊이는 WSL의 truecolor까지 포함해 자동으로 감지합니다. 감지가 틀리면
   `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`으로 직접 정하세요. 이 값이 자동 감지보다
   우선합니다.
-- 어두운 truecolor 터미널에서는 게이지와 brand 양 끝이 둥글게 나옵니다. 아이콘 글꼴을 설치했거나, 둥근 끝을
-  직접 그리는 Windows Terminal 1.21 이상과 VS Code를 쓸 때입니다. 네모 상자가 보이면
-  `LITCLAUDE_HUD_GLYPHS=basic`으로 지정하세요. 리셋 전에 다 쓸 속도이면 리셋 시간 자리에 `! out 1h28m`이 나옵니다.
+- 어두운 truecolor 터미널에서는 게이지와 brand 양 끝이 둥글게 나옵니다. 터미널이 둥근 끝을
+  그릴 수 있을 때입니다. 상태 줄, LIT 카드, 설치 프로그램이 같은 기준을 씁니다. `LITCLAUDE_HUD_GLYPHS`(`nerd`,
+  `round`, `basic`)나 카드의 `glyphs` 옵션이 먼저입니다. 정하지 않았다면 Windows Terminal 1.21 이상, VS Code,
+  WezTerm, Ghostty, kitty는 둥글고, SSH로 접속했다면 각지고, 다른 터미널은 Nerd Font 파일 이름이 글꼴 폴더에
+  있을 때 둥급니다. 네모 상자가 보이면 `LITCLAUDE_HUD_GLYPHS=basic`으로 지정하세요. 리셋 전에 다 쓸 속도이면 리셋 시간 자리에 `! out 1h28m`이 나옵니다.
 - 색을 아예 끄려면 `NO_COLOR`를 설정하세요. 값이 빈 문자열이어도 HUD의 ANSI를 모두 끕니다.
   `TERM=dumb`에서도 다른 색상 신호나 깊이 설정과 상관없이 색 없이 나옵니다. 예전 설정인
   `LITCLAUDE_HUD_NO_COLOR=1`도 계속 됩니다.

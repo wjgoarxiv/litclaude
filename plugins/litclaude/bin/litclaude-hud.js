@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -12,9 +12,9 @@ import {
   normalizeHudAppearance,
 } from "../lib/hud-accent-palette.mjs";
 import { latestUsageTokensCached } from "../lib/cache-measurement.mjs";
-import { drawsRoundCaps, xterm256Hex } from "../lib/mod/settings.mjs";
+import { xterm256Hex } from "../lib/mod/settings.mjs";
 import { lerpColor } from "../lib/mod/motion.mjs";
-import { iconFontCandidates } from "../lib/mod/state.mjs";
+import { roundCapsHere } from "../lib/round-caps.mjs";
 import { ignitionStatePath } from "../lib/hud-ignition.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
 import { recordContextUsage, resolveAutoHandoff } from "../lib/auto-handoff.mjs";
@@ -49,17 +49,9 @@ const colors = plainOutput
 
 const accent = (text) => `${colors.accent}${text}${colors.reset}`;
 
-const hasIconFont = () => iconFontCandidates(process.env).some((path) => {
-  try {
-    return statSync(path).isFile();
-  } catch {
-    return false;
-  }
-});
-// Round gauges and badge on a dark truecolor terminal that can draw round caps: the icon font is
-// installed, or the terminal draws them itself. LITCLAUDE_HUD_GLYPHS=basic keeps the square bars.
-const round = colorDepth === "truecolor" && appearance === "dark" && process.env.LITCLAUDE_HUD_GLYPHS !== "basic"
-  && (process.env.LITCLAUDE_HUD_GLYPHS === "nerd" || drawsRoundCaps(process.env) || hasIconFont());
+// Round gauges and badge on a dark truecolor terminal that can draw round caps (lib/mod/round.mjs).
+// LITCLAUDE_HUD_GLYPHS=basic keeps the square bars.
+const round = colorDepth === "truecolor" && appearance === "dark" && await roundCapsHere({ cached: true });
 const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
 const fg = (hex) => `\x1b[38;2;${rgb(hex).join(";")}m`;
 const bg = (hex) => `\x1b[48;2;${rgb(hex).join(";")}m`;

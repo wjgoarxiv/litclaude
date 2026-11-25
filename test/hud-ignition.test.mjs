@@ -18,6 +18,7 @@ const colorEnv = (overrides = {}) => {
   for (const key of ["NO_COLOR", "CI", "LITCLAUDE_HUD_APPEARANCE", "LITCLAUDE_HUD_NO_COLOR", "LITCLAUDE_HUD_COLOR_DEPTH"]) delete env[key];
   env.TERM = "xterm-256color";
   env.COLORTERM = "truecolor";
+  env.LITCLAUDE_HUD_GLYPHS = "basic";
   return { ...env, ...overrides };
 };
 

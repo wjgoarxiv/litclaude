@@ -756,8 +756,9 @@ colour (`NO_COLOR` or a CI log) the same scene is drawn in plain glyphs. A termi
 a very narrow window or output piped into another program gets one plain line instead, `LIT · claude code`,
 followed by the version. In a truecolor terminal the status line shows the same colours: its `🔥LIT v<version>`
 badge sits on a pill that fades from ice blue to rose, and on a dark background the gauges have round ends when
-the icon font is installed or the terminal draws them itself (Windows Terminal 1.21 or later, VS Code). If you
-see boxes instead, set `LITCLAUDE_HUD_GLYPHS=basic` for the status line and `glyphs basic` for the card.
+a Nerd Font is installed or the terminal draws them itself (Windows Terminal 1.21 or later, VS Code, WezTerm,
+Ghostty, kitty). The card and the installer follow the same rule. If you see boxes instead, set
+`LITCLAUDE_HUD_GLYPHS=basic`, or `glyphs basic` with `config`; either one covers all three.
 
 A healthy `doctor` run ends in `DOCTOR_PASS`. You rarely need `update` by hand: once a day at most, a new
 Claude Code session checks npm for a newer version in the background, and a later session installs it before

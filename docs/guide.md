@@ -51,7 +51,7 @@ keys. Lists take the arrow keys (or `j` and `k`), a number to jump and Enter. Th
 shows a preview on every row, and the card's border takes the colour you are on. This picture and
 the next show a dark terminal.
 
-<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="Terminal window titled zsh. The synthwave LIT mark, chrome letters before a sunset over a pink grid, then LIT · claude code, litclaude vX.Y.Z and the line Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. Below it a card with a border that fades from pink through violet to cyan. An orange to pink label reads LIT 1/5 and the title Status-line colour. The sentence reads: Sets the accent colour of the status line; press Enter to keep cyan. Ten rows follow, 1 cyan to 9 slate and 0 gray, each with a swatch and a status-line preview; cyan is highlighted and marked default. The last line reads ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop." /></p>
+<p align="center"><img src="./assets/screens/install-colour.webp" width="824" alt="Terminal window titled zsh. The synthwave LIT mark, chrome letters before a sunset over a pink grid, then LIT · claude code, litclaude vX.Y.Z and the line Installs into ~/.claude and ~/.litclaude. Other Claude settings stay as is. Below it a card with a border that fades from pink through violet to cyan. A round orange to pink label reads LIT 1/5 and the title Status-line colour. The sentence reads: Sets the accent colour of the status line; press Enter to keep cyan. Ten rows follow, 1 cyan to 9 slate and 0 gray, each with a round swatch and a status-line preview with round gauges; cyan is highlighted and marked default. The last line reads ↑ ↓ move, 1-9, 0 jump, Enter choose, Ctrl+C stop." /></p>
 
 *Captured from the installer.*
 
@@ -60,7 +60,7 @@ in `[y/N]`. `y` or `n` answers at once, the left and right arrows or Tab switch,
 lit button. An answered card folds to one line. Esc answers nothing, and Ctrl+C stops the install;
 before the files are copied, that leaves nothing installed.
 
-<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="Terminal window titled zsh. Two folded answers with check marks: Status-line colour cyan and Output style None / keep current. Below them a card labelled LIT 3/5 with the title Icon font [y/N]. The sentence reads: Downloads the symbols-only Nerd Font (MIT) into your user font folder so the status band can draw round pills and icons; No keeps plain shapes. Two buttons stand side by side: Yes in a thin outline, and No (default) filled from pink to violet. The last line reads y / n answer, ← → switch, Enter = No, Ctrl+C stop." /></p>
+<p align="center"><img src="./assets/screens/install-yes-no.webp" width="824" alt="Terminal window titled zsh. Two folded answers with check marks: Status-line colour cyan and Output style None / keep current. Below them a card labelled LIT 3/5 with the title Icon font [y/N]. The sentence reads: Downloads the symbols-only Nerd Font (MIT) into your user font folder for the status band's icons and round pills; No leaves your fonts as they are. Two buttons stand side by side: Yes in a thin outline, and No (default) lit by a round fill from pink to violet. The last line reads y / n answer, ← → switch, Enter = No, Ctrl+C stop." /></p>
 
 *Captured from the installer.*
 
@@ -68,7 +68,7 @@ The five install steps tick off on a card of their own. The last card says what 
 settings it runs with and what to do next, and shows any warning in full. The lines for the LitFamily
 extensions and `INSTALL_PASS` follow it.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. Six folded answers with check marks: Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add. Below them a card titled LitClaude X.Y.Z is installed. Installed: Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; Marketplace ~/.litclaude/marketplaces/litclaude-ai; Status line LitClaude status line, cyan; Co-Authored-By keep (change: litclaude-ai config attribution &lt;keep|off&gt;); CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe and what that mode does; Card options motion full · glyphs auto · band always · notify off · club on · look on; Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open, then launch with: claude; Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="./assets/screens/install-done-dark.webp" /><img src="./assets/screens/install-done-light.webp" width="824" alt="Terminal window titled zsh. Six folded answers with check marks: Status-line colour cyan, Output style None / keep current, Icon font no, Install steps 5 of 5 checked, Co-Authored-By line keep, LitFamily block add. Below them a card titled LitClaude X.Y.Z is installed. Installed: Plugin litclaude@litclaude-ai; Plugin path ~/.claude/plugins/cache/litclaude-ai/litclaude/X.Y.Z; Marketplace ~/.litclaude/marketplaces/litclaude-ai; Status line LitClaude status line, cyan; Co-Authored-By keep (change: litclaude-ai config attribution &lt;keep|off&gt;); CLAUDE.md created ~/.claude/CLAUDE.md. Settings: Permissions safe and what that mode does; Card options motion full · glyphs auto · band always · notify off · club on · look on; Models host-owned (Claude Code exposes no native route surface). Next: Terminal quit Claude Code if it is open; launch with: claude; Desktop app ready — the Code tab reads these same settings; open a new session there." /></picture></p>
 
 *Captured from the installer.*
 
@@ -731,9 +731,11 @@ or light, and how many colors the terminal can show.
   terminal's default foreground, and only the bar shapes and separators carry the accent.
 - The color depth is detected for you, including truecolor under WSL. If the guess is
   wrong, set `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`; it wins over detection.
-- On a dark truecolor terminal the gauges and the brand get round ends when the icon font is installed, or
-  in Windows Terminal 1.21 or later and VS Code, which draw them without a font. If you see boxes instead, set
-  `LITCLAUDE_HUD_GLYPHS=basic`. A window that will run out before its reset shows `! out 1h28m` in place
+- On a dark truecolor terminal the gauges and the brand get round ends when the terminal can draw them. The
+  status line, the LIT card and the installer ask the same question: `LITCLAUDE_HUD_GLYPHS` (`nerd`, `round` or
+  `basic`) or the card's `glyphs` option decides first. Otherwise Windows Terminal 1.21 or later, VS Code,
+  WezTerm, Ghostty and kitty are round, an SSH session is square, and any other terminal is round when a Nerd
+  Font is installed, found by its file name. If you see boxes, set `LITCLAUDE_HUD_GLYPHS=basic`. A window that will run out before its reset shows `! out 1h28m` in place
   of the reset time.
 - To switch color off, set `NO_COLOR`: it removes every HUD escape even when its value is
   empty. `TERM=dumb` also keeps the HUD plain, whatever another signal or depth override

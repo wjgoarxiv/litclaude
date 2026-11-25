@@ -35,17 +35,14 @@ export const normalizeModSettings = (options) => ({
 export const effectiveMotion = (motion, hostSettings) => (hostSettings?.prefersReducedMotion === true ? "off" : motion);
 
 // The glyph set one surface draws. Private-use Nerd Font glyphs only reach the terminal, which
-// draws with the person's own fonts; `auto` uses them there when the icon font is installed. The
-// desktop app and the other surfaces always get the basic set.
+// draws with the person's own fonts; `auto` uses them there when the icon font is installed, and only
+// the round caps where round.mjs says the terminal draws those. The desktop app and the other surfaces
+// always get the basic set.
 export const resolveGlyphs = (preference, surface, iconFontPresent, roundCaps = false) => {
   if (surface !== "terminal") return "basic";
   if (preference === "auto") return iconFontPresent ? "nerd" : roundCaps ? "round" : "basic";
   return preference === "nerd" ? "nerd" : "basic";
 };
-
-// Windows Terminal (1.21 and later) and VS Code draw the two round caps themselves, whatever font is
-// set, so `auto` rounds the pills there without the icon font and keeps every other symbol basic.
-export const drawsRoundCaps = (env) => Boolean(env?.WT_SESSION) || env?.TERM_PROGRAM === "vscode";
 
 const BASIC = Object.freeze({
   capLeft: "",

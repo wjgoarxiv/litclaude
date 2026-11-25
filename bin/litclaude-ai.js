@@ -75,6 +75,9 @@ import { runUpdateNotifier } from "./update-notifier.mjs";
 import { assertInstallPath, assertOwnedTree, assertOwnedPluginTree, assertCurrentPointer, assertOwnedRegistrations, migrateLegacyVendorPaths, planModifiedLegacySkill, preserveModifiedLegacySkill, registeredPluginInstallation, writeOwnershipReceipt, removeEmptyDirectory, clearOwnedTree } from "./install-ownership.mjs";
 import { createInstallUi, richTerminal, wrap } from "./install-ui.mjs";
 import { colorMode, supportsBlocks } from "./litfamily-banner.mjs";
+import { textWidth } from "../plugins/litclaude/lib/mod/layout.mjs";
+import { xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
+import { roundCapsHere } from "../plugins/litclaude/lib/round-caps.mjs";
 import { SIZES, pickSize, synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import {
   ICON_FONT,
@@ -592,6 +595,10 @@ const createCardProgress = () => {
   };
 };
 
+// The same answer the status line gets (lib/mod/round.mjs).
+const installerRoundCaps = async () => normalizeHudAppearance(process.env.LITCLAUDE_HUD_APPEARANCE) === "dark"
+  && roundCapsHere({ settings: readClaudeSettings() });
+
 const homeRelative = (path) => (path.startsWith(`${homedir()}${sep}`) ? `~${path.slice(homedir().length)}` : path);
 
 // The opening of a card install: the mark, then where the files go.
@@ -600,8 +607,12 @@ const writeInstallOpening = () => {
   // A short window gets a smaller mark, so the first card and the mark are on screen together.
   const height = process.stdout.rows || 24;
   const cols = Math.min(terminalColumns(), height >= 48 ? Infinity : height >= 34 ? 75 : 43);
-  process.stdout.write(asciiFrame(`\n${renderLitClaudeWordmark({ cols }).join("\n")}\n`));
-  process.stdout.write(`\n${wrap(where, Math.min(installUi.cols() - 2, 100)).map((line) => ` ${installUi.paint(line, { dim: true })}\n`).join("")}\n`);
+  const mark = renderLitClaudeWordmark({ cols });
+  // The mark stands over the middle of the cards.
+  const width = Math.max(...mark.map((row) => textWidth(row.replace(/\x1b\[[0-9;]*m/gu, ""))));
+  const indent = " ".repeat(Math.max(0, 1 + Math.floor((installUi.cardWidth() - width) / 2)));
+  process.stdout.write(asciiFrame(`\n${mark.map((row) => indent + row).join("\n")}\n`));
+  process.stdout.write(`\n${wrap(where, installUi.cardWidth()).map((line) => ` ${installUi.paint(line, { dim: true })}\n`).join("")}`);
 };
 
 const currentExists = (home = claudeHome()) => existsSync(claudePluginRoot(home));
@@ -635,10 +646,31 @@ const writeClaudeSettings = (settings, home = claudeHome()) => {
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
 };
 
+const PREVIEW_TRACK = "#2a2340";
+const hexSgr = (hex, kind = 38) => `\x1b[${kind};2;${[1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(";")}m`;
+// The status line's round gauge and colours, as bin/litclaude-hud.js draws them.
+const previewGauge = (percent, width, [from, to]) => {
+  const eighths = Math.max(percent > 0 ? 1 : 0, Math.round((percent * width * 8) / 100));
+  const mix = (t) => `#${[1, 3, 5].map((i) => [from, to].map((hex) => Number.parseInt(hex.slice(i, i + 2), 16))).map(([a, b]) => Math.round(a + (b - a) * t).toString(16).padStart(2, "0")).join("")}`;
+  const cellsDrawn = Array.from({ length: width }, (_, i) => `${hexSgr(mix(i / (width - 1)))}${" ▏▎▍▌▋▊▉█"[Math.max(0, Math.min(8, eighths - i * 8))]}`);
+  return `${hexSgr(percent > 0 ? from : PREVIEW_TRACK)}\ue0b6${hexSgr(PREVIEW_TRACK, 48)}${cellsDrawn.join("")}\x1b[0m${hexSgr(eighths >= width * 8 ? to : PREVIEW_TRACK)}\ue0b4\x1b[0m`;
+};
+const roundAccentViews = (theme) => {
+  const tint = (text) => `\x1b[38;5;${theme.code}m${text}\x1b[0m`;
+  const line = (hex) => ` ${hexSgr(hex)}│\x1b[0m `;
+  const brand = litBrandPrefix(version, { depth: "truecolor", roundCaps: true });
+  const gauge = previewGauge(18, 3, ["#b48cff", xterm256Hex(theme.code)]);
+  const context = `${tint("ctx")} ${gauge} ${tint("18%/1m")}`;
+  const five = `${tint("5h")} ${previewGauge(4, 2, ["#2fd6a0", "#6bf0c8"])}${hexSgr("#2fd6a0")}4%\x1b[0m`;
+  const full = `${brand} ${tint("|")} ${tint("O4.8")}${line("#ff2d95")}${context}${line("#ff66bb")}${five}`;
+  return [`${full}  ${theme.mood.replace(" default", "'s own")}`, full, `${brand}${line("#ff2d95")}${context}${line("#ff66bb")}${five}`, `${brand}${line("#ff2d95")}${tint("ctx")} ${gauge} ${tint("18%")}`, context, gauge];
+};
+
 // The same preview at falling widths, for the colour card's rows.
 const hudAccentViews = (theme) => {
-  const { depth, ascii } = installUi;
+  const { depth, ascii, round } = installUi;
   const plain = depth === "plain";
+  if (round) return roundAccentViews(theme);
   const tint = (text) => plain ? text : depth === "16" ? `\x1b[${ansi16CodeForAccent(theme.name)}m${text}\x1b[0m` : `\x1b[38;5;${theme.code}m${text}\x1b[0m`;
   const brand = ascii ? `[LIT v${version}]` : litBrandPrefix(version, { noColor: plain, depth, appearance: normalizeHudAppearance(process.env.LITCLAUDE_HUD_APPEARANCE) });
   const bar = `[${tint(ascii ? "#" : "▌")}${ascii ? "--" : "░░"}]`;
@@ -787,7 +819,7 @@ const chooseIconFont = async ({ iconFont, assumeYes, tag }) => {
       title: "Icon font",
       note: `${planIconFontInstall(iconFontPaths()).supported
         ? "Downloads the symbols-only Nerd Font (MIT) into your user font folder"
-        : "Shows how to install the symbols-only Nerd Font (MIT) by hand"} so the status band can draw round pills and icons; No keeps plain shapes.`,
+        : "Shows how to install the symbols-only Nerd Font (MIT) by hand"} for the status band's icons and round pills; No leaves your fonts as they are.`,
       initial: false,
     });
   }
@@ -1739,7 +1771,7 @@ const writeInstallSummary = ({ home, hudAccent, hudManaged, permissionMode, loca
         { mark: "note", label: "Models", value: "host-owned (Claude Code exposes no native route surface)" },
       ] },
       { head: "Next", rows: [
-        { mark: "note", label: "Terminal", value: "quit Claude Code if it is open, then launch with: claude" },
+        { mark: "note", label: "Terminal", value: "quit Claude Code if it is open; launch with: claude" },
         { mark: "note", label: "Desktop app", value: "ready — the Code tab reads these same settings; open a new session there" },
       ] },
     ],
@@ -1815,7 +1847,7 @@ const install = async ({ dryRun, rest }) => {
   }
 
   if (!assumeYes && richTerminal({ stdin: process.stdin, stdout: process.stdout, env: process.env })) {
-    installUi = createInstallUi({ stdin: process.stdin, stdout: process.stdout, env: process.env, animate: shouldAnimateInstall() });
+    installUi = createInstallUi({ stdin: process.stdin, stdout: process.stdout, env: process.env, round: await installerRoundCaps(), animate: shouldAnimateInstall() });
     installUi.setAccent(requestedHudAccent);
   }
   const progress = createInstallProgress();

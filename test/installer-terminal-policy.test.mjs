@@ -55,7 +55,7 @@ function install({ env = {}, args = ["--yes"], replies = [], blocked = false, st
   Object.assign(childEnv, {
     LC_ALL: "C.UTF-8", TERM: "xterm-256color", COLORTERM: "truecolor",
     LITCLAUDE_HOME: join(scratch, "lit"), CLAUDE_CONFIG_DIR: claudeHome,
-    LITCLAUDE_NO_AUTO_UPDATE: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", NO_UPDATE_NOTIFIER: "1",
+    LITCLAUDE_NO_AUTO_UPDATE: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", NO_UPDATE_NOTIFIER: "1", LITCLAUDE_HUD_GLYPHS: "basic",
   }, env);
   if (blocked) writeFileSync(claudeHome, "not a directory\n");
   try {

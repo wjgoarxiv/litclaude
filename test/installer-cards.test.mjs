@@ -27,7 +27,7 @@ const session = (steps, { env = {}, size = [80, 40], prepare = () => {}, source 
     Object.assign(childEnv, {
       HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: join(home, ".claude"), LITCLAUDE_HOME: join(home, ".litclaude"),
       LC_ALL: "C.UTF-8", TERM: "xterm-256color", COLORTERM: "truecolor",
-      LITCLAUDE_NO_AUTO_UPDATE: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", NO_UPDATE_NOTIFIER: "1",
+      LITCLAUDE_NO_AUTO_UPDATE: "1", LITCLAUDE_NO_UPDATE_CHECK: "1", NO_UPDATE_NOTIFIER: "1", LITCLAUDE_HUD_GLYPHS: "basic",
     }, env);
     prepare(home);
     const result = spawnSync("python3", [join(root, "test/helpers/installer-keys.py"), process.execPath, join(source(home), "bin/litclaude-ai.js"), "install"], {
@@ -43,6 +43,7 @@ const session = (steps, { env = {}, size = [80, 40], prepare = () => {}, source 
     const read = (path) => (existsSync(join(home, path)) ? readFileSync(join(home, path), "utf8") : null);
     return {
       exit: run.exit,
+      raw: run.output,
       text: strip(run.output).replaceAll("\r", ""),
       settings: JSON.parse(read(".claude/settings.json") ?? "null"),
       config: JSON.parse(read(".litclaude/config.json") ?? "{}"),
@@ -163,9 +164,71 @@ test("NO_COLOR draws the cards without colour, and a C locale draws them in ASCI
   const steps = [[COLOUR, "\r"], [STYLE, "\r"], [FONT, "n"], [CREDIT, "y"], [BLOCK, "n"]];
   const plain = session(steps, { env: { NO_COLOR: "1" } });
   assert.equal(plain.exit, 0, plain.text);
-  assert.match(plain.text, /╭─\[LIT 1\/5\] Status-line colour/u);
+  assert.match(plain.text, /╭─ \[LIT 1\/5\] · Status-line colour/u);
   const ascii = session(steps, { env: { LC_ALL: "C" } });
   assert.equal(ascii.exit, 0, ascii.text);
-  assert.match(ascii.text, /\+- LIT 1\/5 +Status-line colour -+\+/u);
+  assert.match(ascii.text, /\+- {2}LIT 1\/5 {2}- Status-line colour -+\+/u);
   assert.deepEqual([...new Set(ascii.text.match(/[^\x09\x0a\x0d\x20-\x7e]/gu) ?? [])], []);
+});
+
+const DEFAULTS = [[COLOUR, "\r"], [STYLE, "\r"], [FONT, "\r"], [CREDIT, "\r"], [BLOCK, "\r"]];
+test("every card is round or every card is square, by the one rule", { skip }, () => {
+  for (const [env, round] of [
+    [{ LITCLAUDE_HUD_GLYPHS: "nerd" }, true],
+    [{ LITCLAUDE_HUD_GLYPHS: "", TERM_PROGRAM: "ghostty", SSH_CONNECTION: "x" }, true],
+    [{ LITCLAUDE_HUD_GLYPHS: "", TERM_PROGRAM: "Apple_Terminal", TERM: "xterm-256color", WT_SESSION: "", KITTY_WINDOW_ID: "", SSH_CONNECTION: "x" }, false],
+    [{ LITCLAUDE_HUD_GLYPHS: "basic", TERM_PROGRAM: "ghostty" }, false],
+    [{ LITCLAUDE_HUD_GLYPHS: "nerd", LITCLAUDE_HUD_APPEARANCE: "light" }, false],
+    [{ LITCLAUDE_HUD_GLYPHS: "nerd", COLORTERM: "", TERM_PROGRAM: "", WT_SESSION: "", WSL_DISTRO_NAME: "", WSL_INTEROP: "" }, false],
+  ]) {
+    const run = session(DEFAULTS, { env, size: [100, 50] });
+    const where = JSON.stringify(env);
+    assert.equal(run.exit, 0, run.text);
+    if (round) {
+      for (const pill of ["LIT 1/5", "LIT 2/5", "LIT 3/5", "LIT", "LIT 4/5", "LIT 5/5", `🔥LIT v${version}`]) assert.ok(run.text.includes(`\ue0b6${pill}\ue0b4`), `${where} ${pill}`);
+      assert.match(run.text, /\ue0b6❯ No \(default\) *\ue0b4/u, where);
+      assert.match(run.text, /ctx \ue0b6▌ {2}\ue0b4 18%\/1m │ 5h \ue0b6▏ \ue0b44%/u, `${where}: round preview gauges`);
+      assert.doesNotMatch(run.text.slice(run.text.indexOf("Installs into")), /[░▒▓▯▄▀]|██|\[[▏▎▍▌▋▊▉█]/u, `${where}: nothing square`);
+    } else assert.doesNotMatch(run.text, /[\ue0b4\ue0b6]/u, `${where}: no caps`);
+  }
+});
+
+test("the stored glyph option decides when the variable does not", { skip }, () => {
+  const run = session([[COLOUR, "\x03"]], {
+    env: { LITCLAUDE_HUD_GLYPHS: "", TERM_PROGRAM: "ghostty" },
+    prepare: (home) => {
+      mkdirSync(join(home, ".claude"));
+      writeFileSync(join(home, ".claude/settings.json"), JSON.stringify({ pluginConfigs: { "litclaude@litclaude-ai": { options: { glyphs: "basic" } } } }));
+    },
+  });
+  assert.doesNotMatch(run.text, /[\ue0b4\ue0b6]/u);
+});
+
+test("a colour row previews the status line the person gets", { skip }, () => {
+  const run = session([[COLOUR, "3"], ["teal", "\x03"]], { env: { LITCLAUDE_HUD_GLYPHS: "nerd" }, size: [110, 50] });
+  const hud = spawnSync(process.execPath, [join(root, "plugins/litclaude/bin/litclaude-hud.js")], {
+    cwd: tmpdir(), encoding: "utf8",
+    input: JSON.stringify({ model: { display_name: "Opus 4.8" }, context_window: { context_window_size: 1000000, used_percentage: 18 }, rate_limits: { five_hour: { used_percentage: 4 } } }),
+    env: { PATH: process.env.PATH, HOME: tmpdir(), CLAUDE_CONFIG_DIR: tmpdir(), COLORTERM: "truecolor", TERM: "xterm-256color", LITCLAUDE_HUD_GLYPHS: "nerd", LITCLAUDE_HUD_ACCENT: "teal" },
+  }).stdout.split("\n")[0];
+  // Cell by cell: the character with the colours it is drawn in, whatever order the escapes come in.
+  const painted = (text) => {
+    const out = [];
+    let [fg, bg, bold] = ["", "", false];
+    for (const [, codes, ch] of text.matchAll(/\x1b\[([0-9;]*)m|([\s\S])/gu)) {
+      if (ch !== undefined) { out.push(`${ch}${ch === " " ? "" : fg}|${bg}|${bold && ch !== " "}`); continue; }
+      if (codes === "0") [fg, bg, bold] = ["", "", false];
+      else if (codes === "1") bold = true;
+      else if (codes.startsWith("38")) fg = codes;
+      else if (codes.startsWith("48")) bg = codes;
+    }
+    return out;
+  };
+  const start = run.raw.indexOf("\ue0b6", run.raw.indexOf("teal"));
+  const row = painted(run.raw.slice(run.raw.lastIndexOf("\x1b[0m", start), run.raw.indexOf("\r\n", start)));
+  const line = painted(hud);
+  const length = line.findIndex((cell, i) => cell.startsWith("%") && line[i - 1]?.startsWith("4")) + 1;
+  assert.ok(length > 40, hud);
+  const from = row.findIndex((cell) => cell === line[0]);
+  assert.deepEqual(row.slice(from, from + length), line.slice(0, length));
 });

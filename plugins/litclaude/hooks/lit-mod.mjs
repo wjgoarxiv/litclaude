@@ -25,7 +25,8 @@ import { BURST_MS, POWER_MS, SCENE, composeScene, lookArgs, lookColors, sceneKey
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
-import { accentFromSettings, drawsRoundCaps, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
+import { findNerdFont, fontFolders, glyphSetting, roundCaps } from "../lib/mod/round.mjs";
+import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
 import { TOAST_GAP_MS, gateToast, statusChanges, statusOf } from "../lib/mod/toasts.mjs";
@@ -130,6 +131,7 @@ const createLive = (options) => ({
   answeredBoundary: null,
   noColor: false,
   roundCaps: false,
+  glyphEnv: "auto",
   // The loaded and installed LitClaude versions (restart chip), and when the installed one was read.
   versions: null,
   versionPaths: null,
@@ -148,6 +150,32 @@ async function readVersions($, live, now) {
   if (!live.versionPaths || now - live.versionsAt < VERSION_RECHECK_MS) return;
   live.versionsAt = now;
   live.versions = await readPluginVersions(stateIo($), live.versionPaths).catch(() => null);
+}
+
+// Whether this terminal draws round caps (lib/mod/round.mjs), asked once a session.
+async function readRoundCaps($, live) {
+  const env = {
+    LITCLAUDE_HUD_GLYPHS: await $.env.get("LITCLAUDE_HUD_GLYPHS"),
+    WT_SESSION: await $.env.get("WT_SESSION"),
+    KITTY_WINDOW_ID: await $.env.get("KITTY_WINDOW_ID"),
+    TERM: await $.env.get("TERM"),
+    TERM_PROGRAM: await $.env.get("TERM_PROGRAM"),
+    SSH_CONNECTION: await $.env.get("SSH_CONNECTION"),
+    HOME: await $.env.get("HOME"),
+    XDG_DATA_HOME: await $.env.get("XDG_DATA_HOME"),
+    LOCALAPPDATA: await $.env.get("LOCALAPPDATA"),
+    WINDIR: await $.env.get("WINDIR"),
+  };
+  live.glyphEnv = glyphSetting(env);
+  // The fonts of the machine Claude Code runs on are not the ones on screen over SSH.
+  if (env.SSH_CONNECTION) live.iconFont = { present: false, path: null, note: "icon font not used: over SSH the fonts here are not the ones on screen" };
+  live.roundCaps = await roundCaps({ env, hasFont: () => findNerdFont((path) => $.fs.list(path), fontFolders(env)) }).catch(() => false);
+}
+
+// The status line's glyph variable wins over the card's option, so both surfaces take one form.
+function glyphsFor(live, settings, surface) {
+  const option = live.glyphEnv === "basic" ? "basic" : live.glyphEnv !== "auto" && settings.glyphs === "basic" ? "auto" : settings.glyphs;
+  return resolveGlyphs(option, surface, live.iconFont.present, live.roundCaps);
 }
 
 const stateIo = ($) => ({
@@ -508,7 +536,7 @@ export const register = (on, options) => {
     live.accent = accentFromSettings(hostSettings, await $.env.get("LITCLAUDE_HUD_ACCENT"));
     // NO_COLOR (no-color.org): set and not empty, the card draws no colour and does not move.
     live.noColor = Boolean(await $.env.get("NO_COLOR"));
-    live.roundCaps = drawsRoundCaps({ WT_SESSION: await $.env.get("WT_SESSION"), TERM_PROGRAM: await $.env.get("TERM_PROGRAM") });
+    await readRoundCaps($, live);
     live.reducedMotion = hostSettings?.prefersReducedMotion === true;
     live.motion = effectiveMotion(live.motion, hostSettings);
     live.lookSet = await setLook($, live);
@@ -672,7 +700,7 @@ export const register = (on, options) => {
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const settings = normalizeModSettings(options);
     const motion = live.noColor ? "off" : effectiveMotion(settings.motion, { prefersReducedMotion: live.reducedMotion });
-    const glyphs = live.noColor ? "basic" : resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present, live.roundCaps);
+    const glyphs = live.noColor ? "basic" : glyphsFor(live, settings, e.surface);
     const color = !live.noColor;
     const model = live.model;
     if (!model || settings.band === "off" || e.props.hasSurvey || (!model.visible && !live.exiting)) return next(e);
@@ -731,7 +759,7 @@ export const register = (on, options) => {
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
     const settings = normalizeModSettings(options);
-    const glyphs = resolveGlyphs(settings.glyphs, e.surface, live.iconFont.present, live.roundCaps);
+    const glyphs = glyphsFor(live, settings, e.surface);
     const elements = $.ui.resolve(e);
     const columns = Math.max(20, e.props.bodyColumns ?? 60);
     const now = await $.clock.now();

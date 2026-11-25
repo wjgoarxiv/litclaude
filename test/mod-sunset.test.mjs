@@ -4,7 +4,8 @@ import test from "node:test";
 
 import { composeBand, rowText, rowWidth } from "../plugins/litclaude/lib/mod/frame.mjs";
 import { TIMINGS, motionProfile } from "../plugins/litclaude/lib/mod/motion.mjs";
-import { drawsRoundCaps, glyphSet, resolveGlyphs } from "../plugins/litclaude/lib/mod/settings.mjs";
+import { glyphSet, resolveGlyphs } from "../plugins/litclaude/lib/mod/settings.mjs";
+import { drawsRoundCaps } from "../plugins/litclaude/lib/mod/round.mjs";
 import { parseWorkflowStack } from "../plugins/litclaude/lib/mod/state.mjs";
 import { createTimeline, sampleTimeline } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { buildBandModel } from "../plugins/litclaude/lib/mod/view.mjs";

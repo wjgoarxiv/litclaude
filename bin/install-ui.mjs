@@ -13,6 +13,10 @@ const MAX_WIDTH = 100;
 // `y` and then Enter is a habit: the letter already answered, so an Enter this soon after it belongs to it.
 const LETTER_ENTER_MS = 400;
 const SETTLE_MS = 30;
+const CAP_LEFT = "\ue0b6";
+const CAP_RIGHT = "\ue0b4";
+// A folded answer, a step and a closing-card row all put their value in this column of the window.
+const VALUE_COL = 24;
 
 const asciiLocale = (env) => {
   const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
@@ -93,10 +97,12 @@ const ASCII = {
 const ASCII_TEXT = { "—": "-", "·": "-", "…": "...", "→": "->", "한국어": "Korean" };
 
 // ---- the cards ---------------------------------------------------------------------------------
-export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs = SETTLE_MS, now = Date.now, proc = process }) => {
+export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false, animate = true, settleMs = SETTLE_MS, now = Date.now, proc = process }) => {
   const depth = hudColorDepth(env);
   const ascii = asciiLocale(env);
   const glyph = ascii ? ASCII : UNICODE;
+  // One form for the whole run: round needs truecolor, like the status line's own round gauges.
+  const round = wantsRound && depth === "truecolor" && !ascii;
   let accent = "cyan";
   let letterAnsweredAt = -Infinity;
 
@@ -122,16 +128,21 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
   const heading = (text) => paint(plainText(text), { bold: true });
   const quiet = (text) => paint(plainText(text), { dim: true });
 
-  const pill = (text) => (depth === "plain" ? `[${text}]` : ramp(` ${text} `, [ORANGE, PINK], (bg) => ({ fg: INK, bg, bold: true })));
+  // A filled chip: one padding cell at each end, which the round form gives to its caps.
+  const chip = (text, stops) => {
+    const fill = (part, from) => ramp(part, stops, (bg) => ({ fg: INK, bg, bold: true }), from, cells(text) + 2);
+    return round ? paint(CAP_LEFT, { fg: stops[0] }) + fill(text, 1) + paint(CAP_RIGHT, { fg: stops.at(-1) }) : fill(` ${text} `, 0);
+  };
+  const pill = (text) => (depth === "plain" ? `[${text}]` : chip(text, [ORANGE, PINK]));
   const frame = ({ tag = "LIT", title, body, tone }) => {
     const width = cardWidth();
     const inner = width - 4;
     const stops = tone === "bad" ? [RED, RED] : [PINK, VIOLET, accentToken(accent)];
     const line = (text, from) => ramp(text, stops, (fg) => ({ fg }), from, width);
     const badge = pill(tag);
-    const inEdge = cells(badge) + cells(plainText(title)) + 8 <= width;
-    const used = 2 + cells(badge) + (inEdge ? cells(plainText(title)) + 2 : 0);
-    const top = line(glyph.tl + glyph.h, 0) + badge + (inEdge ? ` ${heading(title)} ` : "") + line(glyph.h.repeat(width - used - 1) + glyph.tr, used);
+    const inEdge = cells(badge) + cells(plainText(title)) + 9 <= width;
+    const used = 4 + cells(badge) + (inEdge ? cells(plainText(title)) + 3 : 0);
+    const top = `${line(glyph.tl + glyph.h, 0)} ${badge}${inEdge ? ` ${quiet(glyph.dot)} ${heading(title)}` : ""} ` + line(glyph.h.repeat(width - used - 1) + glyph.tr, used);
     const rows = [...(inEdge ? [] : wrap(plainText(title), inner).map((text) => paint(text, { bold: true }))), ...body];
     return [
       top,
@@ -159,8 +170,10 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
     drawn = [];
     draw(rows);
   };
+  let folded = false;
   const replaceWith = (row) => {
-    stdout.write(`${lift(drawn.length)}\r\x1b[J${row}\r\n`);
+    stdout.write(`${lift(drawn.length)}\r\x1b[J${folded ? "" : "\r\n"}${row}\r\n`);
+    folded = true;
     drawn = [];
   };
 
@@ -260,7 +273,7 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
 
   const foldRow = (mark, color, title, value) => {
     const room = size().cols;
-    const label = cells(title) + cells(value) + 8 + cells(mark) > room ? `${plainText(title)} ` : pad(plainText(title), Math.min(28, Math.max(22, cells(title) + 2)));
+    const label = cells(title) + cells(value) + 8 + cells(mark) > room ? `${plainText(title)} ` : pad(plainText(title), Math.min(28, Math.max(VALUE_COL - 4, cells(title))));
     return ` ${paint(mark, { fg: color, bold: true })} ${label} ${value}`;
   };
   const answered = (title, value) => foldRow(glyph.done, GREEN, title, paint(plainText(value), { bold: true }));
@@ -291,12 +304,12 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
     let at = first;
     const render = () => {
       const inner = cardWidth() - 4;
-      const swatch = ({ color }) => (color && depth !== "plain" ? `${paint(ascii ? "##" : "██", { fg: accentToken(color) })} ` : "");
+      const swatch = ({ color }) => (color && depth !== "plain" ? `${paint(ascii ? "##" : round ? CAP_LEFT + CAP_RIGHT : "██", { fg: accentToken(color) })} ` : "");
       const labels = choices.map((choice) => swatch(choice) + plainText(choice.label));
       const labelWidth = Math.max(...labels.map(cells));
-      const tagText = [depth === "plain" ? `(${initialTag})` : initialTag, "*"].find((t, i) => i === 1 || 6 + labelWidth + cells(t) <= inner);
+      const tagText = [depth === "plain" ? `(${initialTag})` : initialTag, "*"].find((t, i) => i === 1 || 8 + labelWidth + cells(t) <= inner);
       const tagWidth = cells(tagText) + 2;
-      const room = inner - 4 - labelWidth - 2 - tagWidth;
+      const room = inner - 6 - labelWidth - 2 - tagWidth;
       const views = choices[0].views ?? [];
       const shown = views.findIndex((_, i) => choices.every((choice) => cells(choice.views[i]) <= room));
       const details = !views.length && choices.every(({ detail = "" }) => cells(plainText(detail)) <= room);
@@ -306,9 +319,11 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
         const extra = shown >= 0 ? pad(choice.views[shown], viewWidth) : details ? (on ? plainText(choice.detail ?? "") : quiet(choice.detail ?? "")) : "";
         const mark = i === first ? paint(tagText, on ? { bold: true } : { fg: PINK, bold: true }) : "";
         const row = `${on ? glyph.pointer : " "} ${choice.key} ${pad(labels[i], labelWidth)}${extra ? `  ${extra}` : ""}${mark ? `  ${mark}` : ""}`;
-        if (!on || depth === "plain") return row;
+        if (!on || depth === "plain") return ` ${row}`;
         const bar = `\x1b[${sgr(IVORY, false, depth)};${sgr(BAR, true, depth)}m`;
-        return `${bar}${pad(row, inner).replace(/\x1b\[(?:0|39)m/gu, (reset) => reset + bar)}\x1b[0m`;
+        const filled = (text) => `${bar}${text.replace(/\x1b\[(?:0|39)m/gu, (reset) => reset + bar)}\x1b[0m`;
+        const body = pad(row, inner - 2);
+        return round ? paint(CAP_LEFT, { fg: BAR }) + filled(body) + paint(CAP_RIGHT, { fg: BAR }) : filled(` ${body} `);
       });
       const noteRows = wrap(plainText(note), inner);
       const last = choices.at(-1).key;
@@ -356,15 +371,17 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
         const width = Math.max(...["Yes", "No"].map((w) => w.length)) + (inner >= 44 ? 10 : 8) + 2;
         const text = pad(label, width);
         const set = on ? glyph.on : glyph.off;
-        if (small) return [on && depth !== "plain" ? ramp(` ${text} `, [PINK, VIOLET], (bg) => ({ fg: INK, bg, bold: true })) : on ? `[${text}]` : ` ${paint(text, { dim: true })} `];
-        if (on && depth !== "plain" && !ascii) {
-          const full = `  ${text}  `;
-          const edge = (ch) => ramp(ch.repeat(cells(full)), [PINK, VIOLET], (fg) => ({ fg }));
-          return [edge("▄"), ramp(full, [PINK, VIOLET], (bg) => ({ fg: INK, bg, bold: true })), edge("▀")];
+        const filled = on && depth !== "plain";
+        if (small) return [filled ? chip(text, [PINK, VIOLET]) : on ? `[${text}]` : ` ${paint(text, { dim: true })} `];
+        if (filled && !ascii) {
+          // A neon outline with the filled chip inside it.
+          const edge = (part, from = 0) => ramp(part, [PINK, VIOLET], (fg) => ({ fg }), from, width + 6);
+          const rule = glyph.h.repeat(width + 4);
+          return [edge(glyph.tl + rule + glyph.tr), `${edge(glyph.v)} ${chip(text, [PINK, VIOLET])} ${edge(glyph.v, width + 5)}`, edge(glyph.bl + rule + glyph.br)];
         }
         const style = on ? (t) => paint(t, { fg: PINK, bold: true }) : quiet;
-        const box = [set[0] + set[1].repeat(width + 2) + set[2], null, set[4] + set[1].repeat(width + 2) + set[5]];
-        return [style(box[0]), style(set[3]) + ` ${on ? paint(text, { bold: true }) : text} ` + style(set[3]), style(box[2])];
+        const rule = set[1].repeat(width + 4);
+        return [style(set[0] + rule + set[2]), `${style(set[3])}  ${on ? paint(text, { bold: true }) : text}  ${style(set[3])}`, style(set[4] + rule + set[5])];
       });
       return each[0].map((left, i) => `${left}  ${each[1][i]}`).filter((row) => cells(row) <= inner || small);
     };
@@ -415,14 +432,16 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
     const letGo = hold();
     const render = () => {
       const inner = cardWidth() - 4;
-      const nameWidth = Math.max(...steps.map(({ name }) => name.length));
+      const longest = Math.max(...steps.map(({ name }) => name.length));
+      const column = VALUE_COL - 7;
+      const nameWidth = steps.every(({ text }) => column + cells(text) + cells(glyph.done) + 3 <= inner) ? Math.max(column, longest) : longest;
       const body = steps.map(({ name, text }, i) => {
         const mark = { wait: quiet(glyph.dot), run: paint(glyph.spin[spin % glyph.spin.length], { fg: accentToken(accent), bold: true }), done: paint(glyph.done, { fg: GREEN, bold: true }), fail: paint(glyph.fail, { fg: RED, bold: true }) }[state[i]];
         const label = pad(name, nameWidth);
         const row = `${pad(mark, cells(glyph.done))} ${state[i] === "run" ? paint(label, { bold: true }) : state[i] === "wait" ? quiet(label) : label}`;
         return cells(row) + 2 + cells(text) <= inner ? `${row}  ${quiet(text)}` : row;
       });
-      return ["", ...frame({ tag, title, body, tone: state.includes("fail") ? "bad" : undefined })];
+      return ["", ...frame({ tag, title, body: ["", ...body], tone: state.includes("fail") ? "bad" : undefined })];
     };
     const onResize = () => redraw(render());
     stdout.on("resize", onResize);
@@ -454,7 +473,7 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
   const panel = ({ tag, title, sections, tone }) => {
     const inner = cardWidth() - 4;
     const marks = { done: [glyph.done, GREEN], warn: [glyph.warn, AMBER], fail: [glyph.fail, RED], note: [glyph.dot, VIOLET] };
-    const labelWidth = Math.max(0, ...sections.flatMap(({ rows }) => rows.map(({ label = "" }) => cells(label)))) + 2;
+    const labelWidth = Math.max(VALUE_COL - 5, ...sections.flatMap(({ rows }) => rows.map(({ label = "" }) => cells(label) + 2)));
     const stacked = inner < 56;
     const markWidth = cells(glyph.done) + 1;
     const body = sections.flatMap(({ head, rows }) => [
@@ -478,8 +497,9 @@ export const createInstallUi = ({ stdin, stdout, env, animate = true, settleMs =
   };
 
   return {
-    depth, ascii, choose, confirm, progress, panel, paint, plainText, heading,
+    depth, ascii, round, choose, confirm, progress, panel, paint, plainText, heading,
     setAccent: (name) => { accent = name; },
     cols: () => size().cols,
+    cardWidth,
   };
 };

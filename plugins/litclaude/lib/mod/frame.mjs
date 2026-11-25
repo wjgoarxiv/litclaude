@@ -316,9 +316,9 @@ const topEdge = (model, sample, { width, glyphs, accent, edge, look, paint, rain
 const TRACK = "#2a2340";
 const roundGauge = (cells, glyphs) => {
   if (!glyphs.capLeft) return cells.map(({ glyph, color }) => (glyph === "█" ? span(" ", { bg: color }) : span(glyph, { fg: color })));
-  const paint = cells.map(({ glyph, color }) => (glyph === "█" ? color : TRACK));
-  return paint.map((color, i) => (i === 0 ? span(glyphs.capLeft, { fg: color }) : i === paint.length - 1 ? span(glyphs.capRight, { fg: color }) : span(" ", { bg: color })));
+  return roundCells(cells.map(({ glyph, color }) => (glyph === "█" ? color : TRACK)), glyphs);
 };
+const roundCells = (paint, glyphs) => paint.map((color, i) => (i === 0 ? span(glyphs.capLeft, { fg: color }) : i === paint.length - 1 ? span(glyphs.capRight, { fg: color }) : span(" ", { bg: color })));
 
 // ●● 2 lanes 1:07: a dot per lane (amber once stalled, dim and still while idle), the count and the longest lane's
 // clock. While LitClaude works a light walks across the dots (full motion) or they breathe (subtle),
@@ -844,9 +844,12 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint, r
     segments.push(segment("ctx", 1, [span("ctx ", { fg: PALETTE.dim }), span(`${context}%`, { fg: rainbow ? rainbow(0.8) : accent, bold: Boolean(rainbow) })], " · "));
     const filled = Math.max(0, Math.min(5, Math.round(context / 20)));
     // The rewind look turns every cell of the bar, filled or not, so even 0% shows the colour.
-    const cells = rainbow
+    const fill = (i) => (rainbow ? rainbow(i / 5) : model.ctxWarning ? PALETTE.amber : gradientAt([PALETTE.violet, accent], i / 4));
+    const cells = glyphs.capLeft
+      ? roundCells(Array.from({ length: 5 }, (_, i) => (i < filled ? fill(i) : rainbow ? lerpColor(rainbow(i / 5), HUD.empty, 0.5) : TRACK)), glyphs)
+      : rainbow
       ? [...Array(5)].map((_, i) => span(i < filled ? "▰" : "▱", { fg: i < filled ? rainbow(i / 5) : lerpColor(rainbow(i / 5), HUD.empty, 0.5) }))
-      : [...Array.from({ length: filled }, (_, i) => span("▰", { fg: model.ctxWarning ? PALETTE.amber : gradientAt([PALETTE.violet, accent], i / 4) })), span("▱".repeat(5 - filled), { fg: TRACK_EDGE })];
+      : [...Array.from({ length: filled }, (_, i) => span("▰", { fg: fill(i) })), span("▱".repeat(5 - filled), { fg: TRACK_EDGE })];
     segments.push(segment("ctxbar", 2, cells, " "));
   }
   rates.forEach((rate, index) => segments.push(segment(`rate-${rate.label}`, 3 + index * 0.5, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · ")));

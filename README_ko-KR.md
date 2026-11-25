@@ -650,8 +650,8 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 `install`, `doctor`, `--help`는 신스웨이브 LIT 마크로 시작합니다. 마크 크기는 터미널 너비에 맞춰집니다. 색을 쓸 수 없는 곳(`NO_COLOR`, CI 로그)에서는
 같은 장면을 기호로만 그립니다. UTF-8을 쓰지 않는 터미널, `TERM=dumb`, 아주 좁은 창, 다른 프로그램으로 넘기는 출력에는 `LIT · claude code` 한 줄과 버전만
 나옵니다. 트루컬러 터미널에서는 상태 줄도 같은 색을 씁니다. `🔥LIT v<버전>` 배지가 얼음빛 파랑에서 장밋빛으로 번지는 알약 모양 위에 놓입니다.
-어두운 배경에서는 게이지 양 끝도 둥글게 나옵니다. 아이콘 글꼴을 설치했거나, 터미널이 둥근 끝을 직접 그릴 때(Windows Terminal 1.21 이상, VS Code)입니다. 네모 상자가
-보이면 상태 줄은 `LITCLAUDE_HUD_GLYPHS=basic`으로, 카드는 `glyphs basic`으로 바꾸세요. `NO_COLOR`에서는 글자만 남고 노을은 그리지 않습니다.
+어두운 배경에서는 게이지 양 끝도 둥글게 나옵니다. Nerd Font를 설치했거나, 터미널이 둥근 끝을 직접 그릴 때(Windows Terminal 1.21 이상, VS Code, WezTerm, Ghostty, kitty)입니다. 카드와 설치
+프로그램도 같은 기준을 따릅니다. 네모 상자가 보이면 `LITCLAUDE_HUD_GLYPHS=basic`이나 `config glyphs basic`으로 바꾸세요. 하나만 바꿔도 셋 다 바뀝니다. `NO_COLOR`에서는 글자만 남고 노을은 그리지 않습니다.
 
 문제가 없으면 `doctor`는 `DOCTOR_PASS`로 끝납니다. `update`를 직접 입력할 일은 많지 않습니다. 새 Claude Code 세션은 하루 한 번까지 백그라운드에서 npm의 새
 버전을 확인하고, 이후 세션이 작업을 시작하기 전에 설치합니다. `uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄, 권한, 로컬 상태 항목만 지우고, 직접 수정한 설치라면

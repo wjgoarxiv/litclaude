@@ -348,7 +348,7 @@ test("the git branch comes from HEAD, across a linked worktree, read-only", asyn
 
 // A stand-in for Claude Code's mods host: enough of `on` and `$` to drive the hooks module the way a
 // session does, and an element table that records the drawn text.
-const harness = async (options = {}, agents = [], files = new Map(), { client = false } = {}) => {
+const harness = async (options = {}, agents = [], files = new Map(), { client = false, env = {}, list = undefined } = {}) => {
   const hooks = [];
   const on = (event, matcher, hook) => {
     const entry = typeof matcher === "function" ? { event, matcher: {}, hook: matcher } : { event, matcher, hook };
@@ -372,11 +372,12 @@ const harness = async (options = {}, agents = [], files = new Map(), { client = 
         if (!files.has(path)) throw new Error("ENOENT");
         return files.get(path);
       },
+      ...(list ? { list } : {}),
     },
     session: { cwd: async () => "/nowhere/project", id: async () => "card-session", usage: async () => usage, surfaces: async () => [...roster] },
     agent: { list: async () => agents },
     clock: { now: async () => now, after: (ms, fn) => { delays.push(ms); timers.push(fn); }, every: (ms, fn) => { polls.push(fn); return () => undefined; } },
-    env: { get: async () => undefined },
+    env: { get: async (name) => env[name] },
     settings: { read: async () => ({ statusLine: { type: "command", command: "LITCLAUDE_HUD_ACCENT=rose node hud.js" } }) },
     command: { register: async () => undefined },
     ui: {
@@ -1527,4 +1528,51 @@ test("no thread row on either card ever draws a question mark for an unknown tot
       assert.doesNotMatch(svg.source.replace(/<\?xml[^>]*\?>/u, ""), />[^<]*\?[^<]*</u, discipline);
     }
   }
+});
+
+test("the card takes the one rule for round caps through the host", async () => {
+  const folders = { "/h/Library/Fonts": [{ name: "more", kind: "dir", isLink: false }], "/h/Library/Fonts/more": [{ name: "HackNerdFont-Regular.ttf", kind: "file", isLink: false }] };
+  const fonts = async (path) => { if (!folders[path]) throw new Error("ENOENT"); return folders[path]; };
+  const symbols = new Map([["/h/Library/Fonts/SymbolsNerdFontMono-Regular.ttf", "font"]]);
+  const drawn = async (options, env, { list = async () => [], files = new Map() } = {}) => {
+    const host = await harness({ motion: "off", ...options }, [], files, { env, list });
+    await host.fire("session.start", {});
+    await host.flush();
+    const text = (await host.band()).lines.join("\n");
+    return /\ue0b6/u.test(text) ? (text.includes("git ") ? "round" : "caps") : "square";
+  };
+  assert.equal(await drawn({}, {}), "square");
+  for (const env of [{ WT_SESSION: "x" }, { TERM_PROGRAM: "ghostty" }, { TERM_PROGRAM: "WezTerm" }, { TERM_PROGRAM: "vscode" }, { TERM: "xterm-kitty" }, { KITTY_WINDOW_ID: "1" }, { LITCLAUDE_HUD_GLYPHS: "nerd" }, { SSH_CONNECTION: "x", TERM_PROGRAM: "ghostty" }]) assert.notEqual(await drawn({}, env), "square", JSON.stringify(env));
+  assert.notEqual(await drawn({}, { HOME: "/h" }, { list: fonts }), "square", "any Nerd Font rounds the pills");
+  assert.equal(await drawn({}, { HOME: "/h", SSH_CONNECTION: "x" }, { list: fonts, files: symbols }), "square", "over SSH the fonts here do not count");
+  assert.notEqual(await drawn({}, { HOME: "/h" }, { files: symbols }), "square");
+  assert.equal(await drawn({ glyphs: "basic" }, { TERM_PROGRAM: "ghostty" }), "square");
+  assert.equal(await drawn({ glyphs: "nerd" }, { LITCLAUDE_HUD_GLYPHS: "basic" }), "square", "the status line's variable decides for both");
+  assert.notEqual(await drawn({ glyphs: "basic" }, { LITCLAUDE_HUD_GLYPHS: "nerd" }), "square");
+  assert.equal(await drawn({}, { TERM_PROGRAM: "ghostty", NO_COLOR: "1" }), "square");
+  assert.equal(await drawn({}, { HOME: "/h" }, { list: undefined }), "square", "a host with no folder list keeps the square form");
+});
+
+test("the bottom edge's context gauge is round in the round form, in the same five cells", () => {
+  for (const percent of [0, 6, 18, 42, 63, 90, 100]) {
+    const model = buildBandModel({ snapshot: lit(), now: NOW, isWorking: true, usage: { ...usage, context: { percent } }, git: "main", skills: chips(["lit-loop"]) });
+    for (const columns of [30, 44, 64, 80, 112]) {
+      const basic = draw(model, columns, "basic").rows.at(-1);
+      for (const glyphs of ["round", "nerd"]) {
+        const row = draw(model, columns, glyphs).rows.at(-1);
+        assert.equal(rowWidth(row), rowWidth(basic), `${glyphs} ${columns} ${percent}`);
+        assert.doesNotMatch(rowText(row), /[▰▱]/u);
+        if (glyphs === "round") assert.equal(rowText(row).replace(/\ue0b6 {3}\ue0b4/u, "ooooo"), rowText(basic).replace(/[▰▱]{5}/u, "ooooo"), "nothing else on the edge changes");
+      }
+    }
+  }
+  const at = (percent, glyphs) => {
+    const row = draw(buildBandModel({ snapshot: lit(), now: NOW, usage: { ...usage, context: { percent } }, git: "main" }), 80, glyphs).rows.at(-1);
+    const start = row.findIndex(({ text }) => text === "\ue0b6");
+    return row.slice(start, start + 5).map(({ fg, bg }) => bg ?? fg);
+  };
+  const track = at(0, "round")[0];
+  assert.deepEqual(at(0, "round"), Array(5).fill(track), "empty is one smooth track");
+  assert.deepEqual(at(42, "round").map((color) => color !== track), [true, true, false, false, false], "filled cells as the square bar's");
+  assert.deepEqual(at(100, "round").map((color) => color !== track), Array(5).fill(true));
 });

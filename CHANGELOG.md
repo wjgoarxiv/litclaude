@@ -4,6 +4,12 @@
 
 - The README cover is a new loop: a terminal in the sunset look with the LIT card, a pixel LITFAMILY wordmark and a striped half-sunk sun, in place of the seven robot panels. The still for reduced motion is its first frame; both files are smaller.
 - The README demo is a new silent loop of one request (the hook, the sunset LIT card with its map, three lanes, the failing then passing test, COMPLETE), with a Korean copy for the Korean page; the Claude Code chat around the card is redrawn.
+- The installer's cards are round where the terminal can draw it: step pills, highlighted rows, buttons, swatches and
+  the status-line previews, with one blank row between blocks and every value in one column. Other terminals get the
+  same rows square; pipes, CI, `--yes` and `TERM=dumb` are unchanged.
+- The status line, the LIT card and the installer decide round or square by one rule: `LITCLAUDE_HUD_GLYPHS` or the
+  `glyphs` option, then the terminal (Windows Terminal, VS Code, WezTerm, Ghostty, kitty), square over SSH, then any
+  installed Nerd Font by file name. The card's context gauge is round too, in the same five cells.
 - The Claude desktop and mobile apps wear the sunset too. The LIT card is drawn with a half-sunk sun, its reflection,
   a layered sea, stars and a neon border, only where no words are; rows, words and size stay as they were. `subtle`
   and an idle card hold the sunset still.
