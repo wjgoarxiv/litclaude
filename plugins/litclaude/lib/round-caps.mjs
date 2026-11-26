@@ -1,6 +1,6 @@
 // lib/mod/round.mjs's rule for the processes that run on Node: the status line and the installer.
 
-import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { ignitionStateRoot } from "./hud-ignition.mjs";
@@ -12,6 +12,15 @@ const listFolder = (path) => readdirSync(path, { withFileTypes: true })
   .map((entry) => ({ name: entry.name, kind: entry.isFile() ? "file" : entry.isDirectory() ? "dir" : "other", isLink: !entry.isFile() && !entry.isDirectory() }));
 
 export const nerdFontInstalled = (env = process.env) => findNerdFont(listFolder, fontFolders(withHome(env)));
+
+/** Drops the kept answer, so the next status line looks again. */
+export const forgetNerdFont = (env = process.env) => {
+  try {
+    rmSync(join(ignitionStateRoot(env), "nerd-font.json"), { force: true });
+  } catch {
+    // A shared temp folder may be another user's; a new font changes its folder, which drops the answer too.
+  }
+};
 
 /** The status line draws often, so its answer is kept for a day, or until a font folder changes. */
 export const nerdFontInstalledCached = async (env = process.env, now = Date.now()) => {
@@ -42,8 +51,12 @@ export const nerdFontInstalledCached = async (env = process.env, now = Date.now(
   return found;
 };
 
-/** The card's stored `glyphs` option, whichever marketplace LitClaude came from. */
-export const storedGlyphs = (settings) => Object.entries(settings?.pluginConfigs ?? {}).find(([key]) => key.startsWith("litclaude@"))?.[1]?.options?.glyphs;
+/** The card's stored `glyphs` option: the one the installer writes, then any other marketplace's LitClaude. */
+export const storedGlyphs = (settings) => {
+  const configs = settings?.pluginConfigs ?? {};
+  return configs["litclaude@litclaude-ai"]?.options?.glyphs
+    ?? Object.entries(configs).find(([key, config]) => key.startsWith("litclaude@") && config?.options?.glyphs !== undefined)?.[1].options.glyphs;
+};
 
 const readSettings = (env) => {
   try {

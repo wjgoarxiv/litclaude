@@ -46,6 +46,10 @@ test("the variable, then the card's option, then auto", () => {
   assert.equal(glyphSetting({ LITCLAUDE_HUD_GLYPHS: "basic" }, "nerd"), "basic");
   assert.equal(glyphSetting({ LITCLAUDE_HUD_GLYPHS: "" }, "basic"), "basic");
   assert.equal(storedGlyphs({ pluginConfigs: { "other@x": { options: { glyphs: "nerd" } }, "litclaude@anything": { options: { glyphs: "basic" } } } }), "basic");
+  for (const other of ["litclaude@aaa", "litclaude@zzz"]) {
+    assert.equal(storedGlyphs({ pluginConfigs: { [other]: { options: { glyphs: "basic" } }, "litclaude@litclaude-ai": { options: { glyphs: "round" } } } }), "round", "the one --glyphs writes comes first");
+    assert.equal(storedGlyphs({ pluginConfigs: { "litclaude@litclaude-ai": { options: { motion: "off" } }, [other]: { options: { glyphs: "basic" } } } }), "basic");
+  }
   for (const settings of [null, {}, { pluginConfigs: {} }, { pluginConfigs: { "litclaude@x": {} } }]) assert.equal(storedGlyphs(settings), undefined);
 });
 
@@ -63,6 +67,8 @@ test("a Nerd Font is told by its file name alone, in a bounded look", async () =
   assert.equal(opened, 200, "200 folders at most");
   for (const list of [async () => null, async () => "text", () => { throw new Error("denied"); }]) assert.equal(await findNerdFont(list, ["/f"]), false);
   assert.deepEqual(fontFolders({}), ["/Library/Fonts", "/usr/local/share/fonts", "/usr/share/fonts"]);
+  for (const relative of ["data", "./data", "../data"]) assert.deepEqual(fontFolders({ HOME: "/h", XDG_DATA_HOME: relative }), fontFolders({ HOME: "/h" }), "a relative XDG folder is ignored");
+  for (const data of ["/data", "C:\\data", "d:/data"]) assert.ok(fontFolders({ HOME: "/h", XDG_DATA_HOME: data }).includes(`${data}/fonts`));
   assert.ok(fontFolders({ LOCALAPPDATA: "C:/u", WINDIR: "C:/Windows" }).includes("C:/u/Microsoft/Windows/Fonts"));
 });
 

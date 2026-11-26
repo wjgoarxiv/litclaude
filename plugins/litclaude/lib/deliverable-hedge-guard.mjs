@@ -1,8 +1,9 @@
 import { existsSync, lstatSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { extractCreatedDocumentPaths, extractMutatedFilePaths } from "./mutated-file-paths.mjs";
+import { DOCUMENT_EXTENSIONS, extensionOf, readerFacing } from "./reader-facing-path.mjs";
 import { readRegularStable } from "./secure-path-read.mjs";
 import { extractArtifactText } from "../skills/lit-humanizer/scripts/artifact-text.mjs";
 import { NEGATION_CLUSTER_MESSAGE } from "../skills/lit-humanizer/scripts/core.mjs";
@@ -15,20 +16,10 @@ const MAX_DIFF_LINES = 50_000;
 const MAX_DIFF_TRACE_CELLS = 500_000;
 const MAX_DIFF_WORK = 8_000_000;
 const SCANNER_TIMEOUT_MS = 2000;
-const TEXT_EXTENSIONS = new Set([
-  ".adoc", ".asciidoc", ".csv", ".htm", ".html", ".markdown", ".md", ".mdx", ".org", ".rst", ".svg", ".tex", ".tsv", ".txt", ".xml",
-]);
-const DOCUMENT_EXTENSIONS = new Set([".docx", ".pptx", ".pdf"]);
-const READER_FACING_NAMES = new Set(["CHANGELOG", "CONTRIBUTING", "LICENSE", "NOTICE", "README"]);
 const INTERNAL_PATH_COMPONENTS = new Set(["plans", "evidence", "ledger", "ledgers", ".hermes", [".", "om", "o"].join("")]);
 const isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
 const cleanResult = { status: "clean", findings: [], paths: [] };
-const extensionOf = (path) => extname(path).toLowerCase();
-const readerFacing = (path) => TEXT_EXTENSIONS.has(extensionOf(path))
-  || DOCUMENT_EXTENSIONS.has(extensionOf(path))
-  || READER_FACING_NAMES.has(path.split(/[\\/]/u).at(-1).toUpperCase());
-
 const internalPath = (cwd, path) => {
   const components = relative(resolve(cwd), path).split(/[\\/]/u).filter(Boolean);
   const basename = components.at(-1) ?? "";

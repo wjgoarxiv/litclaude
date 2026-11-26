@@ -7,9 +7,10 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { inflateRawSync } from "node:zlib";
+import { xdgDataHome } from "../plugins/litclaude/lib/mod/round.mjs";
 
 export const ICON_FONT = Object.freeze({
   family: "Symbols Nerd Font Mono",
@@ -37,7 +38,7 @@ export class IconFontError extends Error {}
 export const iconFontDir = ({ platform = process.platform, env = process.env, home }) => {
   if (platform === "darwin") return join(home, "Library", "Fonts");
   if (platform === "win32") return null;
-  return join(env.XDG_DATA_HOME?.trim() || join(home, ".local", "share"), "fonts");
+  return join(xdgDataHome(env) || join(home, ".local", "share"), "fonts");
 };
 
 export const iconFontManifestPath = (litHome) => join(litHome, "icon-font", "manifest.json");
@@ -103,7 +104,14 @@ export const loadIconFontArchive = async ({ env = process.env, pins = ICON_FONT,
     if (!response.ok) throw new IconFontError(`the download answered HTTP ${response.status}`);
     const declared = Number(response.headers?.get?.("content-length") ?? 0);
     if (declared > pins.archiveMaxBytes) throw new IconFontError("the download is larger than the pinned archive");
-    bytes = Buffer.from(await response.arrayBuffer());
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of response.body ?? []) {
+      size += chunk.length;
+      if (size > pins.archiveMaxBytes) throw new IconFontError("the download is larger than the pinned archive");
+      chunks.push(chunk);
+    }
+    bytes = Buffer.concat(chunks);
   }
   if (bytes.length > pins.archiveMaxBytes) throw new IconFontError("the archive is larger than the pinned archive");
   const actual = sha256(bytes);
@@ -134,6 +142,7 @@ export const planIconFontInstall = ({ platform = process.platform, env = process
   return {
     supported: true,
     dir,
+    problem: lstatOrNull(dir)?.isSymbolicLink() ? `${dir} is a link` : null,
     files: pins.files.map((file) => {
       const path = join(dir, file.name);
       return { ...file, path, state: destinationState(path, file.sha256) };
@@ -162,8 +171,13 @@ const writeManifest = (litHome, manifest) => {
 // folder, then a hard link claims the destination, which fails if anything appeared there.
 const writeNewFile = (path, bytes) => {
   const staging = `${path}.litclaude-${process.pid}.tmp`;
-  writeFileSync(staging, bytes, { flag: "wx", mode: 0o644 });
+  const fd = openSync(staging, "wx", 0o644);
   try {
+    try {
+      writeFileSync(fd, bytes);
+    } finally {
+      closeSync(fd);
+    }
     linkSync(staging, path);
   } finally {
     unlinkSync(staging);
@@ -178,9 +192,11 @@ const writeNewFile = (path, bytes) => {
 export const installIconFont = ({ archive, platform = process.platform, env = process.env, home, litHome, pins = ICON_FONT, spawn = spawnSync, now = () => new Date() }) => {
   const plan = planIconFontInstall({ platform, env, home, pins });
   if (!plan.supported) return { status: "unsupported", installed: [], present: [], skipped: [] };
+  if (plan.problem) throw new IconFontError(`${plan.problem}; nothing was installed`);
   const entries = extractZipEntries(archive, pins.files.map(({ entry }) => entry));
   const previous = readManifest(litHome)?.files ?? [];
-  const owned = [];
+  // A font folder that changed since (XDG_DATA_HOME) leaves the earlier files LitClaude's to remove.
+  const owned = previous.filter((entry) => !plan.files.some(({ path }) => path === entry.path));
   const installed = [];
   const present = [];
   const skipped = [];
@@ -190,19 +206,23 @@ export const installIconFont = ({ archive, platform = process.platform, env = pr
     if (sha256(bytes) !== file.sha256) throw new IconFontError(`${file.entry} in the archive does not match its pinned SHA-256; nothing was installed`);
   }
   mkdirSync(plan.dir, { recursive: true });
-  for (const file of plan.files) {
-    if (file.state === "absent") {
-      writeNewFile(file.path, entries.get(file.entry));
-      installed.push(file.path);
-      owned.push({ path: file.path, sha256: file.sha256, kind: file.kind });
-    } else if (file.state === "same") {
-      present.push(file.path);
-      if (previous.some((entry) => entry.path === file.path && entry.sha256 === file.sha256)) owned.push({ path: file.path, sha256: file.sha256, kind: file.kind });
-    } else {
-      skipped.push({ path: file.path, reason: file.state === "different" ? "a different file is already there" : "something other than a regular file is there" });
+  try {
+    for (const file of plan.files) {
+      if (file.state === "absent") {
+        writeNewFile(file.path, entries.get(file.entry));
+        installed.push(file.path);
+        owned.push({ path: file.path, sha256: file.sha256, kind: file.kind });
+      } else if (file.state === "same") {
+        present.push(file.path);
+        if (previous.some((entry) => entry.path === file.path && entry.sha256 === file.sha256)) owned.push({ path: file.path, sha256: file.sha256, kind: file.kind });
+      } else {
+        skipped.push({ path: file.path, reason: file.state === "different" ? "a different file is already there" : "something other than a regular file is there" });
+      }
     }
+  } finally {
+    // A later file that fails must not leave the earlier one unrecorded.
+    if (owned.length > 0) writeManifest(litHome, { family: pins.family, release: pins.release, installedAt: now().toISOString(), files: owned });
   }
-  if (owned.length > 0) writeManifest(litHome, { family: pins.family, release: pins.release, installedAt: now().toISOString(), files: owned });
   let fontCache = null;
   if (platform !== "darwin" && installed.length > 0) {
     const result = spawn("fc-cache", ["-f", plan.dir], { encoding: "utf8", timeout: 60_000 });
@@ -251,7 +271,7 @@ export const iconFontStatus = ({ platform = process.platform, env = process.env,
 export const terminalFontHint = (env = process.env, family = ICON_FONT.family) => {
   const program = env.TERM_PROGRAM ?? "";
   if (program === "iTerm.app") return `iTerm2: only if icons show as boxes, set Settings > Profiles > Text > Non-ASCII Font to ${family}.`;
-  if (program === "Apple_Terminal") return `Terminal.app: macOS font fallback usually finds ${family}; if icons show as boxes, pick a Nerd Font in Settings > Profiles > Text.`;
+  if (program === "Apple_Terminal") return "Terminal.app: it has no fallback font setting; if icons show as boxes, pick a full Nerd Font in Settings > Profiles > Text.";
   if (program === "vscode") return `VS Code: only if icons show as boxes, add it to terminal.integrated.fontFamily, for example "Menlo, '${family}'".`;
   if (program === "ghostty") return `Ghostty: Nerd Font symbols are built in; if icons still show as boxes, add font-family = ${family} after your font in its config.`;
   if (program === "WezTerm") return `WezTerm: Nerd Font symbols are built in; if icons still show as boxes, add '${family}' to config.font = wezterm.font_with_fallback { ... }.`;

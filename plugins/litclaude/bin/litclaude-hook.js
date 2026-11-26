@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { standard, micro, colorMode, supportsBlocks } from "../lib/lit-mark.mjs";
@@ -10,16 +10,17 @@ import { clearActivation, hasActivated, readActivation, recordActivation } from 
 import { parsePlanTaskRows } from "../lib/plan-task-rows.mjs";
 import { DISCIPLINE_ENTRY } from "../lib/mod/workflow.mjs";
 import { stackPath } from "../lib/workflow-stack.mjs";
-import { continueWorkflowStack, endWorkflowStack, observeWorkflowPostTool, observeWorkflowPreTool, observeWorkflowSubagentStop, planRefOf, startWorkflowStage } from "../lib/workflow-stage.mjs";
+import { continueWorkflowStack, endWorkflowStack, observeWorkflowPostTool, observeWorkflowSubagentStop, planRefOf, startWorkflowStage } from "../lib/workflow-stage.mjs";
 import { renameNote } from "../lib/rename-aliases.mjs";
 import { interfaceMode } from "../lib/interface-mode.mjs";
 import { transcriptHasContextPressure } from "../lib/context-pressure.mjs";
 import { extractMutatedFilePaths, serializeUntrustedData } from "../lib/mutated-file-paths.mjs";
 import { extractAddedCommentLines } from "../lib/added-comment-lines.mjs";
-import { evaluateDeliverableHedgeGuard, formatDeliverableHedgeContext, formatHumanizerBlockReason } from "../lib/deliverable-hedge-guard.mjs";
+import { evaluateDeliverableHedgeGuard, formatDeliverableHedgeContext } from "../lib/deliverable-hedge-guard.mjs";
 import { dynamicRulesBlock, staticRulesBlock } from "../lib/rules/engine.mjs";
 import { claimSessionIgnition, consumePostCompactBudget } from "../lib/rules/session-state.mjs";
 import { resolveProjectStateRoot } from "../lib/project-state-root.mjs";
+import { lifecycleRootFor } from "../lib/lifecycle-root.mjs";
 import { isGoPrompt, takeNextStep, writeNextStep } from "../lib/rewind/next-step.mjs";
 import { markLiveness } from "../lib/session-liveness.mjs";
 import { adhdSuggestion } from "../lib/rewind/suggest.mjs";
@@ -47,7 +48,6 @@ import {
   parseStartWorkInvocation,
   startWorkFromInvocation,
   handleStartWorkStop,
-  handleStartWorkPreToolUse,
   parseTrustedStartWorkResume,
   recordStartWorkSessionEnd,
   recordStartWorkSubagentStart,
@@ -64,7 +64,7 @@ import { applyAutoHandoffRoute, autoHandoffReloadContext, evaluateAutoHandoffSto
 import { collectCompactSnapshot } from "../lib/precompact-snapshot.mjs";
 import { recordRunEnd } from "../lib/shown-ledger.mjs";
 import { claimParkPing } from "../lib/park-ping.mjs";
-import { checkBackDenial, clearTimerStarted, isCheckBackPrompt, takeCheckBack, timerStartedTurn } from "../lib/check-back.mjs";
+import { clearTimerStarted, isCheckBackPrompt, takeCheckBack } from "../lib/check-back.mjs";
 import { inviteMessage, parseInvitePrompt, recordInvite, shareLine } from "../lib/invite.mjs";
 import { claimSessionExtensionsNotice } from "../lib/extensions-notice.mjs";
 import { buildSkillPlan, installedExtensionPlugins, parseSkillHatch, skillPlanContext, skillPlanIds } from "../lib/skill-plan.mjs";
@@ -73,7 +73,7 @@ import { dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, request
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
 import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, naturalLitCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, withoutCode } from "../lib/route-match.mjs";
-import { planCheckRewrite, recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
+import { recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
 import { evaluateReceiptGate, readReceiptGateMode } from "../lib/receipt-gate.mjs";
 
 const formatDurablePlanNotice = (cwd) => {
@@ -96,62 +96,6 @@ const markLivenessQuietly = (input, state) => {
   }
 };
 
-// The main checkout's run governs a linked worktree only when the run is active or paused and its
-// own worktree covers the session's cwd, or the session is one of the run's sessions; a sibling
-// worktree, or a main checkout with no running work, leaves the worktree its own lifecycle. A
-// session that holds a `lit cancel` notice there stays governed until its next prompt lifts it.
-const governsLinkedCwd = (mainRoot, cwd, sessionId) => {
-  try {
-    const path = join(mainRoot, ".litclaude", "boulder.json");
-    if (statSync(path).size > 4 * 1024 * 1024) return true;
-    const state = JSON.parse(readFileSync(path, "utf8"));
-    if (typeof sessionId === "string" && state?.cancel_notices?.[sessionId]) return true;
-    const work = state?.active_work_id ? state.works?.[state.active_work_id] : null;
-    if (!work || !["active", "paused"].includes(work.status)) return false;
-    if (typeof sessionId === "string" && (work.session_ids ?? []).includes(sessionId)) return true;
-    const scope = work.effective_worktree_root ?? work.worktree_path ?? mainRoot;
-    const inside = relative(scope.normalize("NFC"), realpathSync(resolve(cwd)).normalize("NFC"));
-    return inside === "" || (!inside.startsWith("..") && !isAbsolute(inside));
-  } catch {
-    // An unreadable record keeps today's fail-closed lookup.
-    return true;
-  }
-};
-
-// The walk ends at the project's own git root: a lifecycle in a folder that merely contains the
-// repository (a workspace of several checkouts) never governs it. Without git it goes to the top.
-const lifecycleRootFor = (cwd, sessionId = null) => {
-  const stateRoot = resolveProjectStateRoot(cwd);
-  const gitRoot = existsSync(join(stateRoot, ".git")) ? stateRoot : null;
-  let current = resolve(cwd);
-  while (true) {
-    if (existsSync(join(current, ".litclaude", "boulder.json"))) return current;
-    const gitMarker = join(current, ".git");
-    try {
-      if (lstatSync(gitMarker).isFile()) {
-        const marker = readFileSync(gitMarker, "utf8");
-        if (marker.length <= 4096) {
-          const match = /^gitdir:\s*(.+?)\s*$/mu.exec(marker);
-          if (match) {
-            const gitDir = resolve(current, match[1]);
-            const worktreesDir = dirname(gitDir);
-            if (worktreesDir.split(/[\\/]/u).at(-1) === "worktrees") {
-              const mainRoot = dirname(dirname(worktreesDir));
-              if (existsSync(join(mainRoot, ".litclaude", "boulder.json")) && governsLinkedCwd(mainRoot, cwd, sessionId)) return mainRoot;
-            }
-          }
-        }
-      }
-    } catch {
-      // Not a linked git worktree marker; continue walking parents.
-    }
-    if (current === gitRoot) return stateRoot;
-    const parent = dirname(current);
-    if (parent === current) return stateRoot;
-    current = parent;
-  }
-};
-
 // Where `lit cancel` looks: the lifecycle that governs this cwd when it runs a work, else the nearest
 // folder above the cwd that does, so a session inside a nested repository still reaches the run.
 const cancelRootFor = (cwd, lifecycleRoot) => {
@@ -160,27 +104,6 @@ const cancelRootFor = (cwd, lifecycleRoot) => {
     if (existsSync(join(current, ".litclaude", "boulder.json")) && hasActiveStartWork(current)) return current;
     if (dirname(current) === current) return lifecycleRoot;
   }
-};
-
-// A session whose Bash cwd was deleted would otherwise have every tool denied by the
-// fail-closed lifecycle check. Only a missing cwd moves to the project root; a cwd that
-// exists, even a symlink or a file, keeps today's evaluation, and no existing root keeps
-// the fail-closed deny.
-const missingCwdFallback = (input) => {
-  let cwd;
-  try {
-    cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
-  } catch {
-    cwd = undefined;
-  }
-  if (typeof cwd === "string" && lstatSync(resolve(cwd), { throwIfNoEntry: false }) !== undefined) return null;
-  const projectDir = process.env.CLAUDE_PROJECT_DIR;
-  if (typeof projectDir !== "string" || projectDir.length === 0) return null;
-  if (statSync(resolve(projectDir), { throwIfNoEntry: false })?.isDirectory() !== true) return null;
-  return {
-    input: { ...input, cwd: projectDir },
-    advisory: `The working directory ${inertFilesystemData(cwd ?? "unknown")} no longer exists; LitClaude evaluated this tool call at the project root ${inertFilesystemData(projectDir)}. Run \`cd\` back to the project before continuing.`,
-  };
 };
 
 const readInput = () => {
@@ -476,12 +399,6 @@ const postEditSkillEntries = (filePaths, addedComments) => {
   }
   return entries.slice(0, 2);
 };
-
-// A Bash command that commits or rewrites history is the moment lit-commit exists for. Read-only
-// inspection (status, diff, log without -S/-G) is deliberately excluded — it needs no guidance.
-const gitHistoryCommand = /^\s*git\s+(?:commit|rebase|cherry-pick|reset|revert|bisect|blame|reflog|filter-branch|push|stash)\b/u;
-const isGitHistoryCommand = (input) =>
-  input?.tool_name === "Bash" && typeof input?.tool_input?.command === "string" && gitHistoryCommand.test(input.tool_input.command);
 
 // The handoff adapter has the same disable-model-invocation shape as the sci-vis adapter below.
 const isTypedHandoffCommand = (prompt) => /^\s*\/litclaude:lit-handoff(?=$|\s)/u.test(prompt);
@@ -1536,104 +1453,9 @@ switch (eventName) {
   }
   case "check-back-guard":
   case "pre-tool-use": {
-    // A turn a check-back timer started only reports: everything but reading is denied, first.
-    // `check-back-guard` is the same check for the network and schedule tools, and nothing more.
-    try {
-      const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
-      if (timerStartedTurn({ stateRoot: resolveProjectStateRoot(cwd), sessionId: input.session_id })) {
-        const reason = checkBackDenial(typeof input.tool_name === "string" ? input.tool_name : "this tool");
-        if (reason) {
-          console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } }));
-          break;
-        }
-      }
-    } catch {
-      // No readable mark: the ordinary checks below decide.
-    }
-    if (eventName === "check-back-guard") break;
-    try {
-      const fallback = missingCwdFallback(input);
-      const guardInput = fallback ? fallback.input : input;
-      const fallbackContext = fallback ? { additionalContext: fallback.advisory } : {};
-      const cwd = typeof guardInput.cwd === "string" ? guardInput.cwd : process.cwd();
-      const decision = handleStartWorkPreToolUse(lifecycleRootFor(cwd, guardInput.session_id), guardInput);
-      if (decision.decision === "deny") {
-        // The opt-in park ping (plugin option park_ping): only a first park carries `parked`.
-        const terminalSequence = decision.parked
-          ? claimParkPing({ stateRoot: lifecycleRootFor(cwd, guardInput.session_id), workId: decision.parked.workId, steps: [decision.parked] })
-          : null;
-        console.log(JSON.stringify({
-          ...(terminalSequence ? { terminalSequence } : {}),
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse",
-            permissionDecision: "deny",
-            permissionDecisionReason: decision.reason,
-            ...fallbackContext,
-          },
-        }));
-      } else {
-        // The LIT card's stage record: a workflow skill starts it, a review lane's reviewer marks
-        // its lane running.
-        try {
-          observeWorkflowPreTool(cwd, guardInput);
-        } catch {
-          // The stage record only feeds the card; a failed write never changes the tool decision.
-        }
-        let humanizerContext = "";
-        try {
-          const result = evaluateDeliverableHedgeGuard({ input: guardInput, pluginRoot, projectDir: process.env.CLAUDE_PROJECT_DIR });
-          if (result.status === "block") {
-            console.log(JSON.stringify({
-              hookSpecificOutput: {
-                hookEventName: "PreToolUse",
-                permissionDecision: "deny",
-                permissionDecisionReason: formatHumanizerBlockReason(result),
-                ...fallbackContext,
-              },
-            }));
-            break;
-          }
-          humanizerContext = formatDeliverableHedgeContext(result);
-        } catch {
-          humanizerContext = "lit-humanizer check skipped; the write was allowed (guard could not complete).";
-        }
-        const contexts = [
-          fallback?.advisory ?? "",
-          decision.context ?? "",
-          isGitHistoryCommand(input)
-            ? "Skill(lit-commit): this is a commit or history operation. Read the ground truth before acting, keep unrelated dirty state intact, and never rewrite published history without explicit approval."
-            : "",
-          humanizerContext,
-        ].filter(Boolean);
-        // A piped or `;`-chained check records its own exit. No permissionDecision: the user's
-        // normal permission prompt stays in place, and updatedInput only replaces the command.
-        const rewrittenCommand = guardInput.tool_name === "Bash" && guardInput.tool_input && typeof guardInput.tool_input === "object"
-          ? planCheckRewrite({
-            cwd,
-            sessionId: guardInput.session_id,
-            command: guardInput.tool_input.command,
-            runInBackground: guardInput.tool_input.run_in_background === true,
-          })
-          : null;
-        if (contexts.length > 0 || rewrittenCommand) {
-          console.log(JSON.stringify({
-            hookSpecificOutput: {
-              hookEventName: "PreToolUse",
-              ...(contexts.length > 0 ? { additionalContext: contexts.join("\n\n") } : {}),
-              ...(rewrittenCommand ? { updatedInput: { ...guardInput.tool_input, command: rewrittenCommand } } : {}),
-            },
-          }));
-        }
-      }
-    } catch (error) {
-      console.log(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: `start-work authority check failed closed: ${error instanceof Error ? error.message : "unknown lifecycle error"}`,
-        },
-      }));
-    }
+    // hooks.json calls bin/litclaude-guard.js for these two; this route is the same code.
+    const { runPreToolUse } = await import("../lib/pre-tool-use.mjs");
+    await runPreToolUse(eventName, input);
     break;
   }
   case "post-tool-use": {

@@ -694,6 +694,20 @@ The installer never asks for a model or reasoning effort, because Claude Code pi
 model; the summary prints `Model selection: host-owned`. Existing settings are preserved:
 LitClaude keeps track of the rules it inserted and removes only those.
 
+### Install through a coding agent
+
+`install --agent` prints the steps for a coding agent and does nothing else: no question, no file, no
+process. `--help`, the first card and any run without a person at the terminal point to it. The steps
+install with `--yes --round`:
+
+- `--round` adds the icon font only when no icon font is here. `LITCLAUDE_ICON_FONT_SOURCE` names a local
+  copy of the pinned archive. Windows gets no font.
+- `--glyphs auto|round|square` saves whether the status line and the LIT card draw round ends. A later
+  install or update keeps it, and `uninstall` leaves it as your own setting.
+- `install`, `update` and `doctor` print one `ROUND_ENDS:` line. `shown` is a saved `round`; `ready` is a
+  terminal that draws the ends itself; `check` means an icon font is here and only you can see whether the
+  terminal uses it; `square` names the reason and one fix.
+
 ### The HUD
 
 Interactive installation previews the available HUD accents. The LitClaude HUD
@@ -732,10 +746,10 @@ or light, and how many colors the terminal can show.
 - The color depth is detected for you, including truecolor under WSL. If the guess is
   wrong, set `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`; it wins over detection.
 - On a dark truecolor terminal the gauges and the brand get round ends when the terminal can draw them. The
-  status line, the LIT card and the installer ask the same question: `LITCLAUDE_HUD_GLYPHS` (`nerd`, `round` or
-  `basic`) or the card's `glyphs` option decides first. Otherwise Windows Terminal 1.21 or later, VS Code,
+  status line, the LIT card and the installer ask the same question: `LITCLAUDE_HUD_GLYPHS` (`auto`, `round`,
+  `nerd` or `square`) decides first, then the card's `glyphs` option (`install --glyphs`). Otherwise Windows Terminal 1.21 or later, VS Code,
   WezTerm, Ghostty and kitty are round, an SSH session is square, and any other terminal is round when a Nerd
-  Font is installed, found by its file name. If you see boxes, set `LITCLAUDE_HUD_GLYPHS=basic`. A window that will run out before its reset shows `! out 1h28m` in place
+  Font is installed, found by its file name. If you see boxes, run `npx --yes @litfamily/litclaude@latest update --yes --glyphs square`. A window that will run out before its reset shows `! out 1h28m` in place
   of the reset time.
 - To switch color off, set `NO_COLOR`: it removes every HUD escape even when its value is
   empty. `TERM=dumb` also keeps the HUD plain, whatever another signal or depth override

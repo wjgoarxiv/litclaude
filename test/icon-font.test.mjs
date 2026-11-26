@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import fs, { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -117,12 +118,16 @@ test("the archive is refused unless its SHA-256 is the pinned one, from a local 
     let asked;
     const fetchImpl = async (url) => {
       asked = url;
-      return { ok: true, status: 200, headers: { get: () => String(archive.length) }, arrayBuffer: async () => archive };
+      return { ok: true, status: 200, headers: { get: () => String(archive.length) }, body: [archive.subarray(0, 9), archive.subarray(9)] };
     };
     assert.deepEqual(await loadIconFontArchive({ env: {}, pins, fetchImpl }), archive);
     assert.equal(asked, pins.url);
     await assert.rejects(loadIconFontArchive({ env: {}, pins, fetchImpl: async () => ({ ok: false, status: 404 }) }), /HTTP 404/u);
-    await assert.rejects(loadIconFontArchive({ env: {}, pins, fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => String(archive.length) }, arrayBuffer: async () => Buffer.from("tampered") }) }), /SHA-256/u);
+    let sent = 0;
+    const endless = async function* () { for (;;) { sent += 1; if (sent > 50) throw new Error("the whole body was read"); yield Buffer.alloc(1000); } };
+    await assert.rejects(loadIconFontArchive({ env: {}, pins: { ...pins, archiveMaxBytes: 10_000 }, fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, body: endless() }) }), /larger than the pinned archive/u);
+    assert.equal(sent, 11, "the download stops at the cap, not at the end");
+    await assert.rejects(loadIconFontArchive({ env: {}, pins, fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => String(archive.length) }, body: [Buffer.from("tampered")] }) }), /SHA-256/u);
   } finally {
     cleanup();
   }
@@ -132,6 +137,7 @@ test("the font folder is the per-user one, and Windows is not installed into", (
   assert.equal(iconFontDir({ platform: "darwin", env: {}, home: "/Users/a" }), "/Users/a/Library/Fonts");
   assert.equal(iconFontDir({ platform: "linux", env: {}, home: "/home/a" }), "/home/a/.local/share/fonts");
   assert.equal(iconFontDir({ platform: "linux", env: { XDG_DATA_HOME: "/data" }, home: "/home/a" }), "/data/fonts");
+  for (const relative of ["data", "./data", "../data"]) assert.equal(iconFontDir({ platform: "linux", env: { XDG_DATA_HOME: relative }, home: "/home/a" }), "/home/a/.local/share/fonts", "the XDG rule ignores a relative path");
   assert.equal(iconFontDir({ platform: "win32", env: {}, home: "C:\\Users\\a" }), null);
 });
 
@@ -184,6 +190,73 @@ test("install never overwrites a different file or writes through a link, and ch
     } finally {
       cleanup2();
     }
+  } finally {
+    cleanup();
+  }
+});
+
+test("a linked font folder is refused before anything is written", { skip: process.platform === "win32" }, () => {
+  const { dir, home, litHome, cleanup } = scratch();
+  try {
+    const archive = fixtureZip();
+    const pins = fixturePins(archive);
+    mkdirSync(join(dir, "real"));
+    mkdirSync(join(home, "Library"), { recursive: true });
+    for (const target of [join(dir, "real"), join(dir, "gone")]) {
+      symlinkSync(target, join(home, "Library", "Fonts"));
+      assert.match(planIconFontInstall({ platform: "darwin", env: {}, home, pins }).problem, /Library\/Fonts is a link/u);
+      assert.throws(() => installIconFont({ archive, platform: "darwin", env: {}, home, litHome, pins }), /Library\/Fonts is a link.*nothing was installed/u);
+      rmSync(join(home, "Library", "Fonts"));
+    }
+    assert.deepEqual(readdirSync(join(dir, "real")), []);
+    assert.equal(existsSync(join(dir, "gone")), false);
+    assert.equal(existsSync(iconFontManifestPath(litHome)), false);
+  } finally {
+    cleanup();
+  }
+});
+
+test("a write that fails halfway leaves no temporary file, and another's temporary file stays", () => {
+  const { home, litHome, cleanup } = scratch();
+  const writeFile = fs.writeFileSync;
+  try {
+    const archive = fixtureZip();
+    const pins = fixturePins(archive);
+    fs.writeFileSync = (path, data, options) => {
+      if (Buffer.isBuffer(data) && data.equals(FONT)) {
+        writeFile(path, data.subarray(0, 4), options);
+        throw Object.assign(new Error("ENOSPC: no space left on device"), { code: "ENOSPC" });
+      }
+      return writeFile(path, data, options);
+    };
+    syncBuiltinESMExports();
+    assert.throws(() => installIconFont({ archive, platform: "darwin", env: {}, home, litHome, pins }), /ENOSPC/u);
+    fs.writeFileSync = writeFile;
+    syncBuiltinESMExports();
+    assert.deepEqual(readdirSync(join(home, "Library", "Fonts")), []);
+    const taken = join(home, "Library", "Fonts", `SymbolsNerdFontMono-Regular.ttf.litclaude-${process.pid}.tmp`);
+    writeFileSync(taken, "someone else's");
+    assert.throws(() => installIconFont({ archive, platform: "darwin", env: {}, home, litHome, pins }), /EEXIST/u);
+    assert.equal(readFileSync(taken, "utf8"), "someone else's");
+  } finally {
+    fs.writeFileSync = writeFile;
+    syncBuiltinESMExports();
+    cleanup();
+  }
+});
+
+test("a font folder that changes keeps the files of the earlier one, so uninstall removes both", () => {
+  const { dir, home, litHome, cleanup } = scratch();
+  try {
+    const archive = fixtureZip();
+    const pins = fixturePins(archive);
+    const spawn = () => ({ error: { code: "ENOENT" } });
+    const paths = [];
+    for (const data of ["one", "two"]) paths.push(...installIconFont({ archive, platform: "linux", env: { XDG_DATA_HOME: join(dir, data) }, home, litHome, pins, spawn }).installed);
+    assert.equal(paths.length, 4);
+    assert.deepEqual(JSON.parse(readFileSync(iconFontManifestPath(litHome), "utf8")).files.map(({ path }) => path).sort(), [...paths].sort());
+    assert.deepEqual(uninstallIconFont({ litHome }).removed.sort(), [...paths].sort());
+    for (const path of paths) assert.equal(existsSync(path), false);
   } finally {
     cleanup();
   }

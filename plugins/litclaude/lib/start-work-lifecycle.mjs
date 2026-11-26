@@ -17,7 +17,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { SCOPE_LINE } from "./plan-scope-roots.mjs";
@@ -25,6 +25,8 @@ import { parsePlanTaskRows } from "./plan-task-rows.mjs";
 import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { isGoPrompt } from "./rewind/next-step.mjs";
 import { recordRunEnd } from "./shown-ledger.mjs";
+import { idleMs, isStale, lastActivityMs, START_WORK_STALE_MS } from "./start-work-peek.mjs";
+import { gitFlagIsUnsafe, isReaderFilter, parseReaders, posixDrivePath } from "./start-work-readers.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
 const SCHEMA_VERSION = 3;
@@ -49,6 +51,8 @@ const forbiddenActions = new Set([
   "host-config-write",
   "destructive-vcs",
 ]);
+
+export { START_WORK_STALE_MS };
 
 export class StartWorkLifecycleError extends Error {
   constructor(message, status = 65) {
@@ -198,8 +202,8 @@ export const releaseStartWorkLock = (root, owner) => {
   return true;
 };
 
-const withLock = (root, operation) => {
-  const owner = acquireStartWorkLock(root);
+const withLock = (root, operation, options) => {
+  const owner = acquireStartWorkLock(root, options);
 
   try {
     return operation();
@@ -997,11 +1001,30 @@ const shellRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?
 const searchRelocationPattern = /(?:^|\s)(?:--prefix|--cwd|--directory|--chdir)(?:=|\s|$)/u;
 const relocationPatternFor = (segment) => (/^(?:grep|rg)[ \t]/u.test(segment) ? searchRelocationPattern : shellRelocationPattern);
 
-const canonicalBashTargets = (cwd, targets, action) => {
-  if (targets.some((target) => /[~$*?\[\]{}]/u.test(target))) {
+// `link/../x`: the kernel follows the link before it climbs, while `resolve` drops both, so a path
+// that climbs out of a link is not the path the guard would judge.
+const climbsOutOfLink = (cwd, target) => {
+  const parts = target.split(process.platform === "win32" ? /[\\/]/u : "/");
+  if (!parts.includes("..")) return false;
+  let at = isAbsolute(target) ? parsePath(target).root : cwd;
+  for (const part of parts) {
+    if (part === "..") {
+      if (lstatSync(at, { throwIfNoEntry: false })?.isSymbolicLink()) return true;
+      at = dirname(at);
+    } else if (part && part !== ".") {
+      at = join(at, part);
+    }
+  }
+  return false;
+};
+
+const canonicalBashTargets = (cwd, words, action) => {
+  const targets = words.map((word) => posixDrivePath(word));
+  if (targets.some((target) => /[~$*?\[\]{}]/u.test(target) || /^[=^]/u.test(target))) {
     return { denied: "unverified path-bearing Bash argument" };
   }
   try {
+    if (targets.some((target) => climbsOutOfLink(cwd, target))) return { denied: "unverified path-bearing Bash argument" };
     return {
       action,
       targetRoots: (targets.length ? targets : [cwd]).map((target) => canonicalTarget(resolve(cwd, target), "Bash target")),
@@ -1034,11 +1057,13 @@ const shellWords = (command) => {
       } else word.text += ch;
       continue;
     }
-    if (/\s/u.test(ch)) {
+    if (ch === " " || ch === "\t") {
       if (word) words.push(word);
       word = null;
       continue;
     }
+    // The shell splits words at no other blank, so a no-break space is part of a name here.
+    if (/\s/u.test(ch)) return null;
     if (/[;&|<>()`$\\*?[\]{}~#]/u.test(ch)) return null;
     word ??= { text: "" };
     if (ch === "'" || ch === '"') quote = ch;
@@ -1050,47 +1075,6 @@ const shellWords = (command) => {
 };
 
 const pathArgumentDenied = { denied: "unverified path-bearing Bash argument" };
-
-// grep and rg: the first operand is the search pattern (data) unless -e or --regexp gave it; the
-// rest are the paths searched. Flags that read a file, run a preprocessor or carry a path are
-// refused; the short flags that take a value consume the next word as that value.
-const SEARCH_VALUE_FLAGS = Object.freeze({ grep: "ABCmdD", rg: "ABCmgtTjMEr" });
-
-const classifySearchWords = (tool, args, cwd) => {
-  let pattern = false;
-  let operands = false;
-  const targets = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const text = args[index].text;
-    if (!operands && text === "--") {
-      operands = true;
-      continue;
-    }
-    if (!operands && text.startsWith("-")) {
-      if (/^--(?:file|pre|pre-glob|exclude-from|ignore-file)(?:=|$)/u.test(text)) return pathArgumentDenied;
-      if (/^-[A-Za-z0-9]+$/u.test(text)) {
-        if (text.includes("f")) return pathArgumentDenied;
-        if (text.includes("e")) {
-          pattern = true;
-          if (text.endsWith("e")) index += 1;
-        } else if (SEARCH_VALUE_FLAGS[tool].includes(text.at(-1))) {
-          index += 1;
-        }
-        continue;
-      }
-      if (/^--regexp(?:=|$)/u.test(text)) {
-        pattern = true;
-        if (!text.includes("=")) index += 1;
-        continue;
-      }
-      if (/^--[A-Za-z][\w-]*(?:=[^/]*)?$/u.test(text)) continue;
-      return pathArgumentDenied;
-    }
-    if (!pattern) pattern = true;
-    else targets.push(text);
-  }
-  return canonicalBashTargets(cwd, targets, "read");
-};
 
 // `node <script> [args]` runs the script: an execute under the working directory and the script,
 // with every argument that reads as a path checked too. Bare words are data.
@@ -1144,9 +1128,9 @@ const isTrustedCliPath = (text, cwd) => {
 const lifecycleControl = { control: true };
 
 // Read-only git: status, diff, log and show over plain words. A flag that writes a file or runs an
-// external program is refused. An operand after `--`, one holding a `/` or one naming an existing
-// file is a path, checked as a read under the grants; other operands (HEAD~1, a commit, main..topic)
-// are data. Anything else, including a quote, an operator or `node -e`, meets the strict checks.
+// external program is refused. An operand after `--`, one holding a `/`, one naming an existing
+// file or the part after the colon (`HEAD:a.txt`, `-L1,5:a.txt`) is a path, checked as a read under the
+// grants, and git's pathspec magic (`:/x`, `::x`, any `:` word after `--`) is refused; other operands (HEAD~1, a commit, main..topic) are data. Anything else, including a quote, an operator or `node -e`, meets the strict checks.
 const GIT_READ_SUBCOMMANDS = new Set(["status", "diff", "log", "show"]);
 const GIT_WORD = /^[\w.\/@^:=+,-][\w.\/@^~:=+,-]*$/u;
 const classifyReadOnlyGit = (command, cwd) => {
@@ -1155,13 +1139,18 @@ const classifyReadOnlyGit = (command, cwd) => {
   const paths = [];
   let operands = false;
   for (const word of words.slice(2)) {
-    if (!GIT_WORD.test(word)) return pathArgumentDenied;
+    if (!GIT_WORD.test(word) || (operands ? word.startsWith(":") : /^:[/:^]/u.test(word))) return pathArgumentDenied;
     if (!operands && word === "--") {
       operands = true;
       continue;
     }
     if (!operands && word.startsWith("-")) {
-      if (/^--(?:output|ext-diff|textconv)(?:=|$)/u.test(word) || word.includes("/")) return pathArgumentDenied;
+      if (gitFlagIsUnsafe(word) || word.includes("/")) return pathArgumentDenied;
+      if (/^-L.*:/u.test(word)) paths.push(word.slice(word.lastIndexOf(":") + 1) || ".");
+      continue;
+    }
+    if (!operands && /^[^:]*:[^/:]/u.test(word)) {
+      paths.push(word.slice(word.lastIndexOf(":") + 1));
       continue;
     }
     if (operands || word.includes("/") || existsSync(resolve(cwd, word))) paths.push(word);
@@ -1171,7 +1160,8 @@ const classifyReadOnlyGit = (command, cwd) => {
 
 const classifyBashWords = (words, cwd) => {
   const [head, ...args] = words;
-  if (head.text === "grep" || head.text === "rg") return classifySearchWords(head.text, args, cwd);
+  // A search passes only through the closed reader grammar, which knows which word is a file.
+  if (head.text === "grep" || head.text === "rg") return pathArgumentDenied;
   // `date [+FORMAT]` and `tmux ls` only print; `date -s`, a bare date operand and every other tmux
   // verb (kill-server, send-keys) meet the strict checks.
   if (head.text === "date" && (args.length === 0 || (args.length === 1 && args[0].text.startsWith("+")))) {
@@ -1240,7 +1230,7 @@ const PLAIN_PATH_WORD = /^[\p{L}\p{N}_.\/@+,:=][\p{L}\p{N}_.\/@+,:=-]*$/u;
 const classifyRelocatedGit = (command, cwd) => {
   const match = /^git[ \t]+-C[ \t]+(\S+)[ \t]+((?:status|diff|log|show)(?:[ \t].*)?)$/u.exec(command);
   if (!match) return null;
-  if (!PLAIN_PATH_WORD.test(match[1])) return pathArgumentDenied;
+  if (!PLAIN_PATH_WORD.test(match[1]) || match[1].startsWith("+")) return pathArgumentDenied;
   const directory = canonicalBashTargets(cwd, [match[1]], "read");
   if (directory.denied) return directory;
   return classifyReadOnlyGit(`git ${match[2]}`, directory.targetRoots[0]) ?? pathArgumentDenied;
@@ -1250,7 +1240,7 @@ const classifyRelocatedGit = (command, cwd) => {
 const classifyCd = (command, cwd) => {
   const match = /^cd[ \t]+(\S+)$/u.exec(command);
   if (!match) return null;
-  if (!PLAIN_PATH_WORD.test(match[1])) return pathArgumentDenied;
+  if (!PLAIN_PATH_WORD.test(match[1]) || match[1].startsWith("+")) return pathArgumentDenied;
   const directory = canonicalBashTargets(cwd, [match[1]], "read");
   if (directory.denied) return directory;
   try {
@@ -1263,9 +1253,61 @@ const classifyCd = (command, cwd) => {
 
 const MAX_CHAIN_SEGMENTS = 4;
 
+// After `cd <link>` the shell climbs by the typed path and the guard by the real one, so a later
+// `cd ..` in the same chain would land somewhere else than checked.
+const cdTracker = () => {
+  let linked = false;
+  return (from, word, to) => {
+    if (linked && word.split(/[\\/]/u).includes("..")) return false;
+    linked ||= resolve(from, word).normalize("NFC") !== to.normalize("NFC");
+    return true;
+  };
+};
+
+// The plain readers of lib/start-work-readers.mjs, their paths resolved. Null when the command holds
+// anything else or names a path that cannot be verified; the strict refusal then stands.
+const classifyReaders = (command, cwd) => {
+  const segments = parseReaders(command);
+  if (!segments || segments.length > MAX_CHAIN_SEGMENTS) return null;
+  const follow = cdTracker();
+  const chain = [];
+  let here = cwd;
+  for (const segment of segments) {
+    let base = here;
+    if (segment.dir) {
+      const directory = canonicalBashTargets(here, [segment.dir], "read");
+      if (directory.denied) return null;
+      [base] = directory.targetRoots;
+    }
+    const named = segment.cd === undefined ? segment.targets : [segment.cd];
+    const maybe = (segment.maybe ?? []).filter((word) => word.includes("/") || existsSync(resolve(base, word)));
+    // A path with a blank in it is taken only when it exists: otherwise two words may have been meant.
+    if ([...named, ...maybe].some((word) => /\s/u.test(word) && !existsSync(resolve(base, posixDrivePath(word))))) return null;
+    if (!segment.git && named.some((word) => word.includes("^"))) return null;
+    const classified = canonicalBashTargets(base, [...(segment.git ? [base] : []), ...named, ...maybe], "read");
+    if (classified.denied) return null;
+    if (segment.cd === undefined) {
+      chain.push({ ...classified, reader: true });
+      continue;
+    }
+    const [to] = classified.targetRoots;
+    if (!lstatSync(to, { throwIfNoEntry: false })?.isDirectory() || !follow(here, segment.cd, to)) return null;
+    chain.push({ ...classified, reader: true, cd: to, cdWord: segment.cd });
+    here = to;
+  }
+  return chain.length === 1 ? chain[0] : { chain };
+};
+
 // Commands joined by ` && ` are classified one by one, each in the directory the `cd` before it
-// left. Every other joiner (`;`, `||`, a pipe, a redirect) stays unverified inside its segment.
+// left. Every other joiner (`;`, `||`, a pipe, a redirect) stays unverified inside its segment. A
+// command the checks refuse still passes when all of it is plain readers: words such as "git config"
+// are then a search pattern or a file name, not an action.
 const classifyBash = (command, cwd) => {
+  const strict = classifyStrictBash(command, cwd);
+  if (!strict.denied || typeof command !== "string" || command.length > 32_768) return strict;
+  return classifyReaders(command, cwd) ?? strict;
+};
+const classifyStrictBash = (command, cwd) => {
   if (typeof command !== "string" || command.length === 0 || command.length > 32_768) {
     return { denied: "unclassified mutating Bash command" };
   }
@@ -1274,14 +1316,21 @@ const classifyBash = (command, cwd) => {
   const segments = trimmed.split(/[ \t]+&&[ \t]+/u);
   if (segments.length === 1) return classifyBashSegment(trimmed, cwd);
   if (segments.length > MAX_CHAIN_SEGMENTS) return pathArgumentDenied;
+  const follow = cdTracker();
   const chain = [];
   let here = cwd;
   for (const segment of segments) {
     if (segment.length === 0) return pathArgumentDenied;
-    const classified = classifyBashSegment(segment, here);
+    const strict = classifyBashSegment(segment, here);
+    const classified = strict.denied ? classifyReaders(segment, here) ?? strict : strict;
     if (classified.denied) return classified;
     chain.push(classified);
-    if (classified.cd) here = classified.cd;
+    if (classified.cd) {
+      // A `cd` in a pipe or under `env` runs in a child, so the shell stays where it was.
+      if (peelShellNoise(segment) !== segment.trim()) return pathArgumentDenied;
+      if (!follow(here, classified.cdWord ?? segment.replace(/^cd[ \t]+/u, "").replace(/["']/gu, ""), classified.cd)) return pathArgumentDenied;
+      here = classified.cd;
+    }
   }
   return { chain };
 };
@@ -1355,7 +1404,7 @@ const peelShellNoise = (segment) => {
   const parts = pipeParts(text);
   if (parts && parts.length > 1) {
     let keep = parts.length;
-    while (keep > 1 && parts.length - keep < MAX_FILTERS && isReadFilter(parts[keep - 1])) keep -= 1;
+    while (keep > 1 && parts.length - keep < MAX_FILTERS && (isReadFilter(parts[keep - 1]) || isReaderFilter(parts[keep - 1]))) keep -= 1;
     text = parts.slice(0, keep).join("|");
   }
   return text.replace(STDERR_JOIN, "").trim();
@@ -1394,7 +1443,9 @@ const classifyBashSegment = (raw, cwd) => {
   const words = shellWords(trimmed);
   const worded = words ? classifyBashWords(words, cwd) : null;
   if (worded) return worded;
-  if (/[;&|`<>\n"'\\]/u.test(trimmed) || trimmed.includes("$(")) return { denied: "unverified path-bearing Bash argument" };
+  if (/[;&|`<>\n"'\\]|[^\S \t]/u.test(trimmed) || trimmed.includes("$(")) return { denied: "unverified path-bearing Bash argument" };
+  // The shapes below split on blanks, so a word the shell would expand is never one of theirs.
+  if (/[~$*?[\]{}()#]/u.test(trimmed)) return pathArgumentDenied;
 
   const cat = /^cat\s+(.+)$/u.exec(trimmed);
   if (cat) {
@@ -1405,13 +1456,6 @@ const classifyBashSegment = (raw, cwd) => {
   const simpleRead = /^(?:head|tail|stat)\s+(.+)$/u.exec(trimmed);
   if (simpleRead) {
     const targets = simpleRead[1].split(/\s+/u);
-    if (targets.some((target) => target.startsWith("-"))) return { denied: "unverified path-bearing Bash argument" };
-    return canonicalBashTargets(cwd, targets, "read");
-  }
-  const search = /^(?:rg|grep)\s+(\S+)(?:\s+(.+))?$/u.exec(trimmed);
-  if (search) {
-    if (search[1].startsWith("-")) return { denied: "unverified path-bearing Bash argument" };
-    const targets = search[2]?.split(/\s+/u) ?? [];
     if (targets.some((target) => target.startsWith("-"))) return { denied: "unverified path-bearing Bash argument" };
     return canonicalBashTargets(cwd, targets, "read");
   }
@@ -1468,9 +1512,6 @@ const classifyBashSegment = (raw, cwd) => {
   if (/^(?:npm|pnpm|yarn)\s+(?:pack|run\s+pack(?::[\w-]+)?)$/iu.test(trimmed)) {
     return canonicalBashTargets(cwd, [], "package");
   }
-  if (/^git\s+(?:status|diff|log|show|branch)(?:\s+--?[A-Za-z-]+)*$/iu.test(trimmed)) {
-    return canonicalBashTargets(cwd, [], "vcs-read");
-  }
   return { denied: "unclassified mutating Bash command" };
 };
 
@@ -1525,8 +1566,8 @@ const isOwnRewindScript = (path, cwd) => {
 // A Bash shape the guard cannot verify is refused, not paused, so the refusal says what does run;
 // without it a session tried a script in the write-only temp folder and stopped. Forbidden actions
 // (push, publish, tag, reset) never get this note.
-const BASH_WAY_OUT = "This start-work guard verifies one plain command per Bash call: no `;`, `||`, `$`, backticks or quoted code, redirects only as `2>&1`, at most four plain commands joined by ` && `, and up to four trailing read filters: `| head` or `| tail` (`-n N`, `-N`, `-c N`), `| grep` or `| rg` with flags and one pattern (quotes allowed, no `$` or backtick), `| cut -d<c> -f<list>`, `| uniq [-c]`, `| wc` or `| sort` with flags only. Split the command into separate calls. To run code, write a script inside the project and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply, and the user can end the run with `lit cancel`.";
-const bashDenial = (reason) => denial(`${reason}. ${BASH_WAY_OUT}`);
+const BASH_WAY_OUT = "one plain command per Bash call, or up to four joined by ` && `, each with up to four read filters after `|`. Readers pass with quotes and their read-only flags on paths inside the grants: cat, head, tail, wc, grep, rg, find, ls, sed (p, d, q, s), awk, jq, sort, uniq, cut, diff, stat, file, git status, diff, log, show, blame, ls-files and `git -C <dir>` of those. Refused: `;`, `||`, `$` or backtick expansion, globs outside quotes, redirects other than `2>&1` and `2>/dev/null`, inline code (`node -e`, `python -c`), flags that write a file or start a program. Split the command into separate calls. To run code, write a script inside the project and run `node <script>`, then remove it. This is not an approval prompt; `lit approve` does not apply, and the user can end the run with `lit cancel`.";
+const bashDenial = (reason, work) => denial(`${reason}. The guard of start-work run ${work.work_id} (${work.plan_name}) in this session verifies ${BASH_WAY_OUT}`);
 const OUTSIDE_GRANT = "Bash target is outside the effective authority grant; a plan can name that folder on a `Scope roots: <path> (<actions>)` line";
 
 // The plugin this module ships in: reading its own skills, commands and references is never a
@@ -1663,12 +1704,6 @@ const parkedMessage = (boundary) => (boundary.hits >= 3
   ? `LitClaude start-work: ${boundary.action} access to ${boundary.root} is already parked (asked ${boundary.hits} times); do not retry it. Carry on with the plan's other tasks, and mark a task that cannot be done without it with a \`BLOCKED: <reason>\` line under its row.`
   : `LitClaude start-work parked this call: ${boundary.action} access to ${boundary.root} is outside this plan's scope, so this one call did not run. The run keeps going: carry on with the plan's other tasks. If a task cannot be done without it, add a \`BLOCKED: <reason>\` line under that task's row and move on. Do not stop to ask; the user can allow parked steps later with \`lit approve\` (optional) or end the run with \`lit cancel\`.`);
 
-// A run is stale, and another session may take it over, once its owning session has ended or the
-// lifecycle has not been written for two hours (plans/lit-adhd.md D8).
-export const START_WORK_STALE_MS = 2 * 60 * 60 * 1000;
-// Activity is the later of the last ledger event and the last allowed owner tool call.
-const lastActivityMs = (work) => Math.max(Date.parse(work.updated_at) || 0, Date.parse(work.last_tool_at ?? "") || 0);
-const idleMs = (work, now) => Math.max(0, now - (lastActivityMs(work) || now));
 // A heartbeat for the owner and its lanes (they share its session id): at most one state write a
 // minute, with no ledger event, so a busy run never looks idle to another session.
 const ACTIVITY_WRITE_MS = 60_000;
@@ -1676,7 +1711,7 @@ const ACTIVITY_WRITE_MS = 60_000;
 // delaying a tool call, and the next call a minute on writes it instead.
 const HEARTBEAT_LOCK_WAIT_MS = 200;
 const recordToolActivity = (root, work, now) => {
-  if (now - lastActivityMs(work) < ACTIVITY_WRITE_MS) return;
+  if (!work.root_session_ended_at && now - lastActivityMs(work) < ACTIVITY_WRITE_MS) return;
   let owner;
   try {
     owner = acquireStartWorkLock(root, { timeoutMs: HEARTBEAT_LOCK_WAIT_MS });
@@ -1687,8 +1722,10 @@ const recordToolActivity = (root, work, now) => {
     const state = readState(root);
     const current = state.works[work.work_id];
     if (!current || current.root_session_id !== work.root_session_id || !["active", "paused"].includes(current.status)) return;
-    if (now - lastActivityMs(current) < ACTIVITY_WRITE_MS) return;
+    if (!current.root_session_ended_at && now - lastActivityMs(current) < ACTIVITY_WRITE_MS) return;
     current.last_tool_at = new Date(now).toISOString();
+    // A resumed session keeps its id: its call shows the run is live again, so other sessions leave it alone.
+    delete current.root_session_ended_at;
     saveState(root, state);
   } catch {
     // A failed heartbeat must not refuse a call the guard allowed.
@@ -1696,7 +1733,6 @@ const recordToolActivity = (root, work, now) => {
     releaseStartWorkLock(root, owner);
   }
 };
-const isStale = (work, now) => Boolean(work.root_session_ended_at) || idleMs(work, now) >= START_WORK_STALE_MS;
 const formatAge = (ms) => {
   const minutes = Math.floor(ms / 60_000);
   if (minutes < 1) return "under a minute";
@@ -1959,6 +1995,12 @@ const otherSessionDecision = (root, work, input, now) => {
       if (protectedPath) return protectedPath;
       reads = !classified.denied && !classified.control
         && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+      // The plain readers are held to the project and this session's own folders here; a path
+      // elsewhere keeps the older answer.
+      const watched = [root, executionRoot, work.effective_worktree_root].filter((path) => typeof path === "string");
+      reads &&= (classified.chain ?? [classified]).every((link) => !link.reader
+        || link.targetRoots.every((target) => watched.some((path) => rootCovers(path, target)))
+        || harnessAccess(link, work, input, [root, input.cwd]));
       // Its own scratchpad and the project's memory are this session's notes, not the work's files.
       reads ||= !classified.denied && !classified.control && !classified.chain
         && classified.action === "write" && harnessAccess(classified, work, input, [root, input.cwd]);
@@ -1978,9 +2020,7 @@ const otherSessionDecision = (root, work, input, now) => {
     return { decision: "allow-normal", action: "read", root, roots: [root], context: `Another session is running start-work ${work.work_id} here (last activity ${age} ago); you may read, nudge its worker with \`herdr agent prompt\` and write notes in your scratchpad or the shared project memory, not change project files.` };
   }
   const route = `/litclaude:start-work ${planRoute(root, work)}`;
-  const takeover = isStale(work, now)
-    ? `That session has ended or gone idle, so you can take the work over by typing ${route} here.`
-    : `Once that session ends or sits idle for 2 hours, you can take it over by typing ${route} here.`;
+  const takeover = `Once that session ends or sits idle for 2 hours, it no longer limits this one, and you can take the work over by typing ${route} here.`;
   return denial(`LitClaude start-work ${work.work_id} (${work.plan_name}) belongs to another session in this project (last activity ${age} ago), so this session may read but not change project files. It may nudge that session's worker with \`herdr agent prompt <name> "<text>"\` and write notes in its own scratchpad or the project memory, which every session of this project shares. It frees up when that session finishes the work. ${takeover} To end it now, tell the user to type \`lit cancel\` here (no command line is needed).`);
 };
 
@@ -2044,6 +2084,14 @@ const cancelNoticeDecision = (root, state, input) => {
   return denial(`The user typed \`lit cancel\` and cancelled start-work ${notice.work_id} (${notice.plan_name}). Stop working on that plan: change nothing more, end this turn and tell the user it was cancelled. Reads still work; the next prompt the user types in this session lifts this.`);
 };
 
+// The longest a tool call waits for another writer's lock, well under the host's 10 s hook timeout: a
+// hook that times out decides nothing, while this wait ends in a refusal that names the lock.
+export const PRE_TOOL_LOCK_WAIT_MS = 1_500;
+const preToolLockWait = () => {
+  const configured = Number.parseInt(process.env.LITCLAUDE_START_WORK_LOCK_TIMEOUT_MS ?? "", 10);
+  return configured >= 0 ? Math.min(configured, PRE_TOOL_LOCK_WAIT_MS) : PRE_TOOL_LOCK_WAIT_MS;
+};
+
 export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}) => {
   const canonicalRoot = canonicalDirectory(root, "cwd root");
   if (!existsSync(startWorkStatePath(canonicalRoot))) return { decision: "allow-normal" };
@@ -2055,7 +2103,7 @@ export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}
   try {
     state = readState(canonicalRoot);
   } catch {
-    state = withLock(canonicalRoot, () => readState(canonicalRoot));
+    state = withLock(canonicalRoot, () => readState(canonicalRoot), { timeoutMs: preToolLockWait() });
   }
   const work = state.active_work_id ? state.works[state.active_work_id] : null;
   const running = Boolean(work && ["active", "paused"].includes(work.status));
@@ -2065,6 +2113,8 @@ export const handleStartWorkPreToolUse = (root, input, { now = Date.now() } = {}
   }
   if (!running) return { decision: "allow-normal" };
   if (typeof input?.session_id !== "string" || input.session_id !== work.root_session_id) {
+    // A run whose session ended or went idle keeps its place for a takeover but limits nobody else.
+    if (isStale(work, now)) return { decision: "allow-normal" };
     return otherSessionDecision(canonicalRoot, work, input, now);
   }
   const decided = ownerToolDecision(canonicalRoot, state, work, input);
@@ -2077,7 +2127,7 @@ const ownerToolDecision = (canonicalRoot, state, work, input) => {
   const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
   const classified = classifyToolAuthority(executionRoot, input);
   if (classified.denied) {
-    return input.tool_name === "Bash" && !classified.denied.startsWith("forbidden") ? bashDenial(classified.denied) : denial(classified.denied);
+    return input.tool_name === "Bash" && !classified.denied.startsWith("forbidden") ? bashDenial(classified.denied, work) : denial(classified.denied);
   }
   const protectedPath = classified.control ? null : sensitiveDenial(classified);
   if (protectedPath) return protectedPath;
@@ -2089,7 +2139,7 @@ const ownerToolDecision = (canonicalRoot, state, work, input) => {
   if (classified.chain) {
     const covered = classified.chain.every((link) => link.control
       || link.targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, link.action, targetRoot))));
-    return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : bashDenial(OUTSIDE_GRANT);
+    return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : bashDenial(OUTSIDE_GRANT, work);
   }
   const targetRoots = classified.targetRoots ?? [classified.targetRoot];
   const authorized = targetRoots.every((targetRoot) => work.authority.grants.some((grant) => grantCovers(grant, classified.action, targetRoot)));
@@ -2097,7 +2147,7 @@ const ownerToolDecision = (canonicalRoot, state, work, input) => {
     return { decision: "allow-normal", action: classified.action, root: targetRoots[0], roots: targetRoots };
   }
   if (classified.boundaryExpansion === false) {
-    return bashDenial(OUTSIDE_GRANT);
+    return bashDenial(OUTSIDE_GRANT, work);
   }
   const refused = (work.authority.denied_boundaries ?? []).find((denied) => denied.action === classified.action
     && targetRoots.every((targetRoot) => rootCovers(denied.root, targetRoot)));

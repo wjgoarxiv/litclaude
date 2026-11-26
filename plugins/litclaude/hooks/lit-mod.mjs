@@ -25,7 +25,7 @@ import { BURST_MS, POWER_MS, SCENE, composeScene, lookArgs, lookColors, sceneKey
 import { composeBand, composeEvidence } from "../lib/mod/frame.mjs";
 import { TIMINGS } from "../lib/mod/motion.mjs";
 import { renderBand, renderRows } from "../lib/mod/render.mjs";
-import { findNerdFont, fontFolders, glyphSetting, roundCaps } from "../lib/mod/round.mjs";
+import { findNerdFont, fontFolders, glyphWord, roundCaps } from "../lib/mod/round.mjs";
 import { accentFromSettings, effectiveMotion, normalizeModSettings, resolveGlyphs } from "../lib/mod/settings.mjs";
 import { composeSvgCard } from "../lib/mod/svg-card.mjs";
 import { chipStates, litSkillId, noteSkill } from "../lib/mod/skills.mjs";
@@ -131,7 +131,7 @@ const createLive = (options) => ({
   answeredBoundary: null,
   noColor: false,
   roundCaps: false,
-  glyphEnv: "auto",
+  glyphEnv: null,
   // The loaded and installed LitClaude versions (restart chip), and when the installed one was read.
   versions: null,
   versionPaths: null,
@@ -166,7 +166,7 @@ async function readRoundCaps($, live) {
     LOCALAPPDATA: await $.env.get("LOCALAPPDATA"),
     WINDIR: await $.env.get("WINDIR"),
   };
-  live.glyphEnv = glyphSetting(env);
+  live.glyphEnv = glyphWord(env.LITCLAUDE_HUD_GLYPHS);
   // The fonts of the machine Claude Code runs on are not the ones on screen over SSH.
   if (env.SSH_CONNECTION) live.iconFont = { present: false, path: null, note: "icon font not used: over SSH the fonts here are not the ones on screen" };
   live.roundCaps = await roundCaps({ env, hasFont: () => findNerdFont((path) => $.fs.list(path), fontFolders(env)) }).catch(() => false);
@@ -174,7 +174,10 @@ async function readRoundCaps($, live) {
 
 // The status line's glyph variable wins over the card's option, so both surfaces take one form.
 function glyphsFor(live, settings, surface) {
-  const option = live.glyphEnv === "basic" ? "basic" : live.glyphEnv !== "auto" && settings.glyphs === "basic" ? "auto" : settings.glyphs;
+  const saved = glyphWord(settings.glyphs);
+  const fromEnv = live.glyphEnv;
+  // A variable that asks for round ends is already in live.roundCaps; the saved choice then adds only its icons.
+  const option = fromEnv === "basic" || fromEnv === "auto" ? fromEnv : fromEnv && saved === "basic" ? "auto" : saved;
   return resolveGlyphs(option, surface, live.iconFont.present, live.roundCaps);
 }
 

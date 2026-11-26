@@ -1942,6 +1942,15 @@ describe("the run's own harness folders need no boundary", () => {
       assert.equal(decide(files.memory), "allow", "own memory");
       assert.equal(decide(files.ownerScratchpad), "deny", "the owner's scratchpad");
       assert.equal(decide(files.projectFile), "deny", "a project file");
+      const run = (command) => {
+        const result = preToolIn(env, root, "Bash", { command }, { ...watcher, tool_use_id: `tool-${command}` });
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim() ? parse(result).hookSpecificOutput?.permissionDecision ?? "allow" : "allow";
+      };
+      assert.equal(run(`grep -n -A 3 x ${files.ownScratchpad}`), "allow", "a search of its own scratchpad");
+      assert.equal(run(`tail -n 3 ${files.ownScratchpad} | head -1`), "allow", "a tail of its own scratchpad");
+      assert.equal(run(`grep -n -A 3 x ${files.ownerScratchpad}`), "deny", "a search of the owner's scratchpad");
+      assert.equal(run("tail -n 5 /etc/hosts"), "deny");
       assert.equal(JSON.parse(readFileSync(join(root, ".litclaude", "boulder.json"), "utf8")).works["work-1"].status, "active");
     } finally {
       for (const path of [config, hostTmp, root]) rmSync(path, { recursive: true, force: true });

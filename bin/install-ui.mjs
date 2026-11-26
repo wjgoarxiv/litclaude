@@ -97,7 +97,7 @@ const ASCII = {
 const ASCII_TEXT = { "—": "-", "·": "-", "…": "...", "→": "->", "한국어": "Korean" };
 
 // ---- the cards ---------------------------------------------------------------------------------
-export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false, animate = true, settleMs = SETTLE_MS, now = Date.now, proc = process }) => {
+export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false, animate = true, hint = "", settleMs = SETTLE_MS, now = Date.now, proc = process }) => {
   const depth = hudColorDepth(env);
   const ascii = asciiLocale(env);
   const glyph = ascii ? ASCII : UNICODE;
@@ -127,6 +127,9 @@ export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false,
   const cardWidth = () => Math.min(size().cols - 2, MAX_WIDTH);
   const heading = (text) => paint(plainText(text), { bold: true });
   const quiet = (text) => paint(plainText(text), { dim: true });
+  // The run's hint sits in the empty row above the first card's keys; a card without that row goes without it.
+  let cardHint = hint;
+  const hintRow = (inner) => (cardHint && cells(cardHint) <= inner ? quiet(cardHint) : "");
 
   // A filled chip: one padding cell at each end, which the round form gives to its caps.
   const chip = (text, stops) => {
@@ -264,6 +267,7 @@ export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false,
       replaceWith(stopped);
       throw error;
     } finally {
+      cardHint = "";
       if (onKeypress) stdin.removeListener("keypress", onKeypress);
       if (onResize) stdout.removeListener("resize", onResize);
       if (onEnd) stdin.removeListener("end", onEnd);
@@ -329,7 +333,7 @@ export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false,
       const last = choices.at(-1).key;
       const hintRows = hints([`${glyph.keys} move`, `${choices[0].key}-${choices.length > 9 ? "9, 0" : last} jump`, "Enter choose", "Ctrl+C stop"], inner);
       const card = { tag, title };
-      const roomy = fit(card, [{ rows: ["", ...noteRows, "", ...list, "", ...hintRows] }, { rows: [...noteRows, "", ...list, "", ...hintRows] }, { rows: [...noteRows, ...list, ...hintRows], tight: true }]);
+      const roomy = fit(card, [{ rows: ["", ...noteRows, "", ...list, hintRow(inner), ...hintRows] }, { rows: [...noteRows, "", ...list, hintRow(inner), ...hintRows] }, { rows: [...noteRows, ...list, ...hintRows], tight: true }]);
       if (roomy.over <= 0) return roomy.rows;
       // Too short for the whole list: a window on it that follows the highlight, the arrows saying there is more.
       const shortHint = (more) => hints([more, "Enter choose", "Ctrl+C stop"], inner);
@@ -393,8 +397,8 @@ export const createInstallUi = ({ stdin, stdout, env, round: wantsRound = false,
       const small = buttons(true);
       const pair = big.length === 3 ? big : small;
       return fit({ tag, title: `${title} ${initial ? "[Y/n]" : "[y/N]"}` }, [
-        { rows: ["", ...noteRows, "", ...pair, "", ...hintRows] },
-        { rows: [...noteRows, "", ...pair, "", ...hintRows] },
+        { rows: ["", ...noteRows, "", ...pair, hintRow(inner), ...hintRows] },
+        { rows: [...noteRows, "", ...pair, hintRow(inner), ...hintRows] },
         { rows: [...noteRows, ...pair, ...hintRows], tight: true },
         { rows: [...noteRows, ...small, ...hintRows], tight: true },
         { rows: [...noteRows, ...small, ...hints(["y / n", `Enter = ${yes ? "Yes" : "No"}`, "Ctrl+C stop"], inner)], tight: true },

@@ -8,12 +8,13 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import {
   BUNDLED_RULE_SUBDIR,
   GLOBAL_DISTANCE,
-  PROJECT_MARKERS,
   PROJECT_RULE_SUBDIRS,
   PROJECT_SINGLE_FILES,
   USER_HOME_RULE_SUBDIRS,
 } from "./constants.mjs";
 import { scanRuleFiles, singleFileInfo } from "./scanner.mjs";
+
+export { findProjectRoot } from "./project-root.mjs";
 
 const toPosix = (value) => value.replaceAll("\\", "/");
 
@@ -39,20 +40,6 @@ const canonicalTargetIsInside = (projectRoot, targetFile) => {
     return isSameOrChildPath(realpathSync.native(existing), realRoot);
   } catch {
     return false;
-  }
-};
-
-/** Walk up from startDir until a directory holds a project marker. Null when none does. */
-export const findProjectRoot = (startDir) => {
-  if (typeof startDir !== "string" || startDir.length === 0) return null;
-  let current = resolve(startDir);
-  for (;;) {
-    for (const marker of PROJECT_MARKERS) {
-      if (existsSync(join(current, marker))) return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) return null;
-    current = parent;
   }
 };
 

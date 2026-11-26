@@ -67,7 +67,7 @@ import { runRewindCli } from "../plugins/litclaude/lib/rewind/collect.mjs";
 import { runSessionsCli } from "../plugins/litclaude/lib/session-state.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { runWhyCli } from "../plugins/litclaude/lib/route-why-cli.mjs";
-import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
+import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate, shouldRunAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plugins/litclaude/lib/invite.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
@@ -77,7 +77,7 @@ import { createInstallUi, richTerminal, wrap } from "./install-ui.mjs";
 import { colorMode, supportsBlocks } from "./litfamily-banner.mjs";
 import { textWidth } from "../plugins/litclaude/lib/mod/layout.mjs";
 import { xterm256Hex } from "../plugins/litclaude/lib/mod/settings.mjs";
-import { roundCapsHere } from "../plugins/litclaude/lib/round-caps.mjs";
+import { forgetNerdFont, nerdFontInstalled, roundCapsHere, storedGlyphs } from "../plugins/litclaude/lib/round-caps.mjs";
 import { SIZES, pickSize, synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import {
   ICON_FONT,
@@ -91,6 +91,8 @@ import {
   uninstallIconFont,
   windowsIconFontInstructions,
 } from "./icon-font.mjs";
+import { AGENT_COMMAND, AGENT_POINTER, agentGuide, asksForAgentGuide, questionTitle } from "./agent-guide.mjs";
+import { roundEndsLine } from "./round-ends.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -98,6 +100,8 @@ const version = packageJson.version;
 
 const usage = `Usage: litclaude-ai [--dry-run] <install|doctor|config|invite|path|run|update|uninstall|extensions|agent-file|litgoal|wikify|workflow-check|workflow-stage|rewind|sessions|start-work|start-work-next|public-read|why> [...args]
        litclaude-ai --version
+
+Are you an agent? Run: ${AGENT_COMMAND}
 
 Commands:
   install       Register the packaged LitClaude plugin in Claude Code.
@@ -178,6 +182,13 @@ Install options:
                 release and refused unless its SHA-256 matches; an offline copy
                 of that archive can be named with LITCLAUDE_ICON_FONT_SOURCE.
                 An interactive install asks instead (default No).
+  --round       Make round ends possible: add that same font only when no icon font is
+                here. A run that cannot add it still installs LitClaude and says why.
+                Windows gets no font; Windows Terminal and VS Code draw the ends.
+  --glyphs <auto|round|square>
+                Save whether the status line and the LIT card draw round ends. A later
+                install or update keeps the choice; LITCLAUDE_HUD_GLYPHS wins over it.
+  --agent       Print the install guide for coding agents and do nothing else.
 
 `;
 
@@ -266,6 +277,7 @@ const OUTPUT_STYLE_NAMES = {
   "eli5-ko": "LitClaude — ELI5 (한국어)",
 };
 const permissionModes = new Set(["safe", "balanced", "yolo"]);
+const glyphChoices = ["auto", "round", "square"];
 const permissionOwnershipDescription =
   "preserves pre-existing entries; removes only LitClaude-inserted entries on mode change or uninstall";
 
@@ -280,6 +292,8 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
   let permissionExplicit = Boolean(process.env.LITCLAUDE_PERMISSION_MODE);
   let assumeYes = false;
   let iconFont = false;
+  let round = false;
+  let glyphs = null;
   let agentFile = true;
 
   for (let index = 0; index < rest.length; index += 1) {
@@ -312,6 +326,16 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
       iconFont = true;
       continue;
     }
+    if (arg === "--round") {
+      round = true;
+      continue;
+    }
+    if (arg === "--glyphs") {
+      glyphs = rest[index + 1];
+      if (!glyphChoices.includes(glyphs)) fail(`--glyphs must be one of ${glyphChoices.join(", ")}`, 64);
+      index += 1;
+      continue;
+    }
     if (arg === "--no-agent-file") {
       agentFile = false;
       continue;
@@ -319,7 +343,7 @@ const parseInstallOptions = (rest, existingPermissionMode = "safe") => {
     fail(`Unknown install option: ${arg}`, 64);
   }
 
-  return { permissionMode, permissionExplicit, assumeYes, iconFont, agentFile };
+  return { permissionMode, permissionExplicit, assumeYes, iconFont, round, glyphs, agentFile };
 };
 
 // Claude Code ignores permissionMode in plugin agent frontmatter, so the planner stays
@@ -448,8 +472,11 @@ const asciiFrame = (text) => asciiTerminal()
 
 const familyBanner = (options) => asciiFrame(familyBannerRows(options));
 
+const personAtTerminal = () => Boolean(process.stdin.isTTY && process.stdout.isTTY && !Object.hasOwn(process.env, "CI"));
+
 const familyBannerRows = ({ color = shouldColorInstall() } = {}) => [
   brandOrange(FAMILY_RULE, color),
+  ...(personAtTerminal() ? [] : [AGENT_POINTER]),
   "",
   ...renderLitClaudeWordmark({ color }),
   `       ${BANNER_TAGLINE}`,
@@ -717,7 +744,7 @@ const chooseHudAccent = async (existingAccent = "cyan", { tag, stored = false } 
     installUi.setAccent(preservedAccent);
     return installUi.choose({
       tag,
-      title: "Status-line colour",
+      title: questionTitle("accent"),
       note: `Sets the accent colour of the status line; press Enter to keep ${preservedAccent}.`,
       choices: hudAccentThemes.map((theme, index) => ({ id: theme.name, label: theme.name, key: String((index + 1) % 10), color: theme.name, views: hudAccentViews(theme) })),
       initial: preservedAccent,
@@ -771,7 +798,7 @@ const chooseOutputStyle = async (existingChoice = "off", { tag, stored = false }
   if (installUi) {
     return installUi.choose({
       tag,
-      title: "Output style",
+      title: questionTitle("style"),
       note: "Sets how Claude words its replies; None leaves the style you use now alone.",
       choices: OUTPUT_STYLE_OPTIONS.map(({ id, label }, index) => ({ id, label, key: String(index), detail: OUTPUT_STYLE_DETAILS[id] })),
       initial: preserved,
@@ -816,7 +843,7 @@ const chooseIconFont = async ({ iconFont, assumeYes, tag }) => {
   if (installUi) {
     return installUi.confirm({
       tag,
-      title: "Icon font",
+      title: questionTitle("font"),
       note: `${planIconFontInstall(iconFontPaths()).supported
         ? "Downloads the symbols-only Nerd Font (MIT) into your user font folder"
         : "Shows how to install the symbols-only Nerd Font (MIT) by hand"} for the status band's icons and round pills; No leaves your fonts as they are.`,
@@ -833,11 +860,12 @@ const chooseIconFont = async ({ iconFont, assumeYes, tag }) => {
 
 const iconFontPaths = () => ({ platform: process.platform, env: process.env, home: homedir(), litHome: litHome() });
 
+// Resolves to why the font is not there, for the ROUND_ENDS line; undefined when all went well.
 const runIconFontInstall = async () => {
   const where = iconFontPaths();
   if (!planIconFontInstall(where).supported) {
     say(`ICON_FONT_SKIPPED: ${windowsIconFontInstructions()}`);
-    return;
+    return undefined;
   }
   try {
     const archive = await loadIconFontArchive({ env: process.env });
@@ -847,10 +875,32 @@ const runIconFontInstall = async () => {
     for (const { path, reason } of result.skipped) say(`ICON_FONT_LEFT_ALONE: ${path} (${reason})`);
     if (result.fontCache) say(`ICON_FONT_CACHE: ${result.fontCache}`);
     say(`ICON_FONT_HINT: ${terminalFontHint(process.env)}`);
+    return undefined;
   } catch (error) {
     if (installUi) say(`ICON_FONT_FAILED: ${error.message}`);
     else process.stderr.write(`ICON_FONT_FAILED: ${error.message}\n`);
+    return error.message;
   }
+};
+
+// Whether any of the two places that draw round ends is on: the status line, the LIT card.
+const roundSurface = (settings) => {
+  if (ownsHudStatusLine(settings, settings[litClaudeSettingsKey] ?? {})) return "on";
+  if (modOptionsOf(settings).band === "off") return "off";
+  return settings.enabledPlugins?.[pluginKey] === false ? "disabled" : "on";
+};
+
+const roundEnds = async (fontProblem) => {
+  const settings = readClaudeSettings();
+  return roundEndsLine({
+    env: process.env,
+    platform: process.platform,
+    surface: roundSurface(settings),
+    saved: storedGlyphs(settings),
+    fontHere: await nerdFontInstalled(),
+    fontProblem,
+    tty: Boolean(process.stdout.isTTY),
+  });
 };
 
 const iconFontDoctorLine = () => {
@@ -1036,7 +1086,7 @@ const installAttribution = async ({ assumeYes, tag }) => {
   if (installUi && mode === undefined) {
     const keep = await installUi.confirm({
       tag,
-      title: "Co-Authored-By line",
+      title: questionTitle("attribution"),
       note: "Yes keeps Claude Code's Co-Authored-By line in commits and pull requests; No hides it.",
       initial: true,
       foldYes: "keep",
@@ -1086,7 +1136,7 @@ const installAgentFile = async ({ assumeYes, agentFile, tag }) => {
     if (installUi) {
       yes = await installUi.confirm({
         tag,
-        title: "LitFamily block",
+        title: questionTitle("agentFile"),
         note: `Adds a short LitFamily block to ${homeRelative(path)}; your own text there stays as it is, and No leaves the file alone.`,
         initial: true,
         foldYes: "add",
@@ -1176,6 +1226,10 @@ const configModOptions = (rest, home = claudeHome()) => {
   if (!Object.hasOwn(MOD_CHOICES, key)) fail(`Unknown option: ${key}. Options: ${[...Object.keys(MOD_CHOICES), "mark", "agentFile", "attribution", "receiptGate"].join(", ")}`, 64);
   const value = String(raw ?? "").trim().toLowerCase();
   if (!MOD_CHOICES[key].includes(value) || rest.length > 2) fail(`${key} takes one of: ${MOD_CHOICES[key].join(", ")}`, 64);
+  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(setModOption(key, value, home))}\n`);
+};
+
+const setModOption = (key, value, home) => {
   const settings = readClaudeSettings(home);
   writeModOptions(settings, { [key]: value });
   const litClaude = settings[litClaudeSettingsKey];
@@ -1185,7 +1239,7 @@ const configModOptions = (rest, home = claudeHome()) => {
     settings[litClaudeSettingsKey] = { ...litClaude, modOptionsWritten: written };
   }
   writeClaudeSettings(settings, home);
-  process.stdout.write(`MOD_OPTIONS: ${modOptionsLine(settings)}\n`);
+  return settings;
 };
 
 // `invite @<id>` records who invited this machine (lib/invite.mjs) and unlocks the card's club look;
@@ -1636,6 +1690,7 @@ const verifyInstalledPayload = ({ home, litClaudeHome, targetPlugin }) => {
     "hooks/lit-mod.mjs",
     "hooks/lit-band-client.mjs",
     "bin/litclaude-hook.js",
+    "bin/litclaude-guard.js",
     "lib/start-work-lifecycle.mjs",
     "lib/start-work-cli.mjs",
     ...canonicalSkillResourceFiles,
@@ -1742,7 +1797,7 @@ const SUMMARY_NOTES = [
 
 // The closing card: what is installed, the settings it runs with, what to do next. Every fact the plain
 // run prints is here, and a warning is never left out or shortened.
-const writeInstallSummary = ({ home, hudAccent, hudManaged, permissionMode, localMarketplace, outputStyleChoice, preservedPath }) => {
+const writeInstallSummary = ({ home, hudAccent, hudManaged, permissionMode, localMarketplace, outputStyleChoice, preservedPath, ends }) => {
   const notes = installNotes.map((line) => {
     const [pattern, label, mark] = SUMMARY_NOTES.find(([candidate]) => candidate.test(line)) ?? [/^/u, "Note", "warn"];
     return { mark: /left as it is|user-changed|your own attribution/u.test(line) && mark === "done" ? "note" : mark, label, value: line.replace(pattern, "").replaceAll(`${homedir()}${sep}`, `~${sep}`) };
@@ -1795,14 +1850,14 @@ const writeInstallSummary = ({ home, hudAccent, hudManaged, permissionMode, loca
   process.stdout.write(` ${installUi.heading(heading)}\n`);
   for (const { prose, text } of blocks) process.stdout.write(`${prose ? wrap(text, width - 2).map((row) => `   ${row}`).join("\n") : ` ${text}`}\n`);
   process.stdout.write("\n");
-  process.stdout.write(`INSTALL_PASS: LitClaude ${version} installed\n`);
+  process.stdout.write(`INSTALL_PASS: LitClaude ${version} installed\n${ends}\n`);
 };
 
 const install = async ({ dryRun, rest }) => {
   const home = claudeHome();
   const litClaudeHome = litHome();
   const existingLitClaude = readClaudeSettings(home)[litClaudeSettingsKey] ?? {};
-  const { permissionMode, permissionExplicit, assumeYes, iconFont, agentFile } = parseInstallOptions(rest, existingLitClaude.permissionMode);
+  const { permissionMode, permissionExplicit, assumeYes, iconFont, round, glyphs, agentFile } = parseInstallOptions(rest, existingLitClaude.permissionMode);
   const existingHudAccent = normalizeHudAccent(existingLitClaude.hudAccent);
   const existingOutputStyle = existingLitClaude.outputStyleChoice ?? "off";
   const requestedHudAccent = process.env.LITCLAUDE_HUD_ACCENT
@@ -1826,7 +1881,15 @@ const install = async ({ dryRun, rest }) => {
     process.stdout.write(`Would mutate global Claude settings permissions.allow/deny: ${permissionMode} (${permissionSource})\n`);
     process.stdout.write(`Permission profile: ${permissionProfile(permissionMode).description}\n`);
     const fontPlan = planIconFontInstall(iconFontPaths());
-    if (iconFont) {
+    if (round && !iconFont && await nerdFontInstalled()) {
+      process.stdout.write("Icon font: already here, so --round would add nothing\n");
+    } else if (fontPlan.problem && (round || iconFont)) {
+      process.stdout.write(`Would skip icon font: ${fontPlan.problem}\n`);
+    } else if (round && !iconFont) {
+      process.stdout.write(fontPlan.supported
+        ? `Would install icon font: ${ICON_FONT.files.map(({ name }) => name).join(" and ")} (${ICON_FONT.family} ${ICON_FONT.release}) into ${fontPlan.dir} from ${ICON_FONT.url} (SHA-256 ${ICON_FONT.archiveSha256})\n`
+        : "Icon font: none on Windows; Windows Terminal and VS Code draw the round ends themselves\n");
+    } else if (iconFont) {
       process.stdout.write(fontPlan.supported
         ? `Would install icon font: ${ICON_FONT.family} ${ICON_FONT.release} into ${fontPlan.dir} from ${ICON_FONT.url} (SHA-256 ${ICON_FONT.archiveSha256})\n`
         : `Would skip icon font: ${windowsIconFontInstructions()}\n`);
@@ -1835,6 +1898,7 @@ const install = async ({ dryRun, rest }) => {
     } else {
       process.stdout.write("Icon font: not requested (pass --icon-font)\n");
     }
+    if (glyphs) process.stdout.write(`Would save the glyphs choice: ${glyphs} (${claudeSettingsPath(home)})\n`);
     process.stdout.write(!agentFile || readAgentFileMode({ litHome: litClaudeHome }) === "off"
       ? `Agent file: off (${agentFilePath(home)} left as it is)\n`
       : `Would add the LitFamily block to ${agentFilePath(home)} (asks first; --yes adds it, --no-agent-file skips)\n`);
@@ -1847,7 +1911,7 @@ const install = async ({ dryRun, rest }) => {
   }
 
   if (!assumeYes && richTerminal({ stdin: process.stdin, stdout: process.stdout, env: process.env })) {
-    installUi = createInstallUi({ stdin: process.stdin, stdout: process.stdout, env: process.env, round: await installerRoundCaps(), animate: shouldAnimateInstall() });
+    installUi = createInstallUi({ stdin: process.stdin, stdout: process.stdout, env: process.env, round: await installerRoundCaps(), animate: shouldAnimateInstall(), hint: AGENT_POINTER });
     installUi.setAccent(requestedHudAccent);
   }
   const progress = createInstallProgress();
@@ -1855,7 +1919,7 @@ const install = async ({ dryRun, rest }) => {
   const asks = [
     ["accent", !process.env.LITCLAUDE_HUD_ACCENT],
     ["style", !process.env.LITCLAUDE_OUTPUT_STYLE],
-    ["font", !iconFont],
+    ["font", !iconFont && !round],
     ["attribution", storedAttributionMode(litClaudeHome) === undefined],
     ["agentFile", agentFile && readAgentFileMode({ litHome: litClaudeHome }) !== "off" && agentFileState({ path: agentFilePath(home), version }) === "absent"],
   ].filter(([, asked]) => asked).map(([name]) => name);
@@ -1868,7 +1932,11 @@ const install = async ({ dryRun, rest }) => {
   const outputStyleChoice = assumeYes
     ? normalizeOutputStyle(process.env.LITCLAUDE_OUTPUT_STYLE ?? existingOutputStyle)
     : await chooseOutputStyle(existingOutputStyle, { tag: tag("style"), stored: existingLitClaude.outputStyleChoice !== undefined });
-  const wantsIconFont = await chooseIconFont({ iconFont, assumeYes, tag: tag("font") });
+  const fontHere = round && !iconFont && await nerdFontInstalled();
+  const wantsIconFont = round && !iconFont
+    ? !fontHere && planIconFontInstall(iconFontPaths()).supported
+    : await chooseIconFont({ iconFont, assumeYes, tag: tag("font") });
+  let fontProblem;
   const preservation = preflightInstallOwnership({ preserveModifiedSkill: true });
   const preservedPath = preserveModifiedLegacySkill(preservation, litClaudeHome);
   const targetCompatibility = versionRoot(litClaudeHome);
@@ -1912,6 +1980,7 @@ const install = async ({ dryRun, rest }) => {
     () => {
       registerClaudePlugin(targetPlugin, localMarketplace, home, hudAccent, permissionMode);
       installOutputStyle(outputStyleChoice, home);
+      if (glyphs) setModOption("glyphs", glyphs, home);
     },
   );
 
@@ -1955,12 +2024,13 @@ const install = async ({ dryRun, rest }) => {
     ["Permissions", `${permissionMode}; global settings allow/deny; ownership-safe removal`],
     ["Launch", "claude"],
   ]);
+  if (fontHere) say("ICON_FONT_PRESENT: an icon font is already here; nothing was added");
   if (installUi) {
     const details = { home, hudAccent, hudManaged, permissionMode, localMarketplace, outputStyleChoice, preservedPath };
     try {
       if (wantsIconFont) {
         const card = installUi.progress({ tag: "LIT", title: "Icon font", steps: [{ name: "Font", text: "download, check and install" }] });
-        await card.run(0, runIconFontInstall);
+        fontProblem = await card.run(0, runIconFontInstall);
         const ok = !installNotes.some((line) => /^ICON_FONT_(?:FAILED|LEFT_ALONE|SKIPPED)/u.test(line));
         card.finish("Icon font files", ok ? "installed" : "not installed; the summary says why", ok);
       }
@@ -1968,7 +2038,8 @@ const install = async ({ dryRun, rest }) => {
       await installAgentFile({ assumeYes, agentFile, tag: tag("agentFile") });
     } finally {
       // The install itself is done by now, so it is reported even when a late question was stopped.
-      writeInstallSummary(details);
+      if (round) forgetNerdFont();
+      writeInstallSummary({ ...details, ends: await roundEnds(fontProblem) });
       if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
     }
     return;
@@ -1982,7 +2053,8 @@ const install = async ({ dryRun, rest }) => {
   process.stdout.write(asciiFrame(`Global Claude settings permissions.allow/deny: ${permissionMode} — ${permissionProfile(permissionMode).description}\n`));
   process.stdout.write(asciiFrame(`MOD_OPTIONS: ${modOptionsLine(readClaudeSettings(home))} (change: litclaude-ai config <option> <value>)\n`));
   process.stdout.write(asciiFrame("DESKTOP_APP: ready — the Claude desktop app's Code tab reads these same settings; open a new session there\n"));
-  if (wantsIconFont) await runIconFontInstall();
+  if (wantsIconFont) fontProblem = await runIconFontInstall();
+  if (round) forgetNerdFont();
   await installAttribution({ assumeYes });
   await installAgentFile({ assumeYes, agentFile });
   const leftovers = extensionLeftovers({
@@ -1993,7 +2065,9 @@ const install = async ({ dryRun, rest }) => {
   });
   const sameName = sameNameSkills({ claudeHome: home, cwd: process.cwd() });
   process.stdout.write(`\n${extensionsNoticeLines({ leftovers, sameName }).join("\n")}\n\n`);
+  process.stdout.write("RESTART: quit Claude Code if it is open, then start it again so the plugin loads.\n");
   process.stdout.write("Launch with: claude\n");
+  process.stdout.write(`${await roundEnds(fontProblem)}\n`);
   if (preservedPath) process.stderr.write(`INSTALL_WARNING: PRESERVED_MODIFIED_SKILL lit-korean at ${preservedPath}\n`);
 };
 
@@ -2013,7 +2087,7 @@ const writeAutoHandoffDoctorLines = () => {
   }
 };
 
-const doctor = ({ dryRun }) => {
+const doctor = async ({ dryRun }) => {
   if (dryRun) {
     const pluginPath = intendedPluginPath();
     process.stdout.write("DRY_RUN: doctor LitClaude install\n");
@@ -2045,6 +2119,7 @@ const doctor = ({ dryRun }) => {
     "hooks/lit-mod.mjs",
     "hooks/lit-band-client.mjs",
     "bin/litclaude-hook.js",
+    "bin/litclaude-guard.js",
     "bin/litclaude-mcp.js",
     "lib/start-work-lifecycle.mjs",
     "lib/start-work-cli.mjs",
@@ -2150,6 +2225,7 @@ const doctor = ({ dryRun }) => {
     process.stdout.write("HUD_STATUSLINE_WARNING: LitClaude HUD is not the active Claude statusLine\n");
   }
   process.stdout.write("Launch with: claude\n");
+  process.stdout.write(`${await roundEnds()}\n`);
   process.stdout.write("DOCTOR_PASS\n");
 };
 
@@ -2202,6 +2278,8 @@ const runClaude = ({ dryRun, rest }) => {
   exitAfterFlush(result.status ?? 1);
 };
 
+const ICON_FONT_GONE = "ICON_FONT_NOTE: other products that used this font may now draw square ends";
+
 const uninstall = ({ dryRun }) => {
   const home = litHome();
   const pluginCacheRoot = join(claudeHome(), "plugins", "cache", "litclaude-ai");
@@ -2211,6 +2289,7 @@ const uninstall = ({ dryRun }) => {
     const fonts = uninstallIconFont({ litHome: home, dryRun: true });
     for (const path of fonts.removed) process.stdout.write(`Would remove icon font file: ${path}\n`);
     for (const { path, reason } of fonts.kept) process.stdout.write(`Would keep icon font file: ${path} (${reason})\n`);
+    if (fonts.removed.length > 0) process.stdout.write(`${ICON_FONT_GONE}\n`);
     process.stdout.write(`Would remove the LitFamily block from ${agentFilePath()} (your own text stays)\n`);
     return;
   }
@@ -2218,6 +2297,7 @@ const uninstall = ({ dryRun }) => {
   const fonts = uninstallIconFont({ litHome: home });
   for (const path of fonts.removed) process.stdout.write(`ICON_FONT_REMOVED: ${path}\n`);
   for (const { path, reason } of fonts.kept) process.stdout.write(`ICON_FONT_KEPT: ${path} (${reason})\n`);
+  if (fonts.removed.length > 0) process.stdout.write(`${ICON_FONT_GONE}\n`);
   rmSync(currentRoot(home), { recursive: true, force: true });
   rmSync(versionRoot(home), { recursive: true, force: true });
   removeEmptyDirectory(join(home, "litclaude-ai"));
@@ -2255,6 +2335,14 @@ const emitAutomaticUpdateResult = (result) => {
 
 const runEligibleAutomaticUpdate = (parsed) => {
   if (!["install", "update", "doctor"].includes(parsed.command)) return { status: "gated" };
+  // The automatic install runs unseen and on a short clock: no place for a font download or its ROUND_ENDS line.
+  if (parsed.rest.includes("--round") || parsed.rest.includes("--glyphs")) {
+    const rest = parsed.rest.filter((arg) => arg !== "--round" && arg !== "--glyphs");
+    if (parsed.command === "update" && shouldRunAutomaticUpdate({ surface: "management", command: parsed.command, rest, dryRun: parsed.dryRun })) {
+      process.stderr.write(`UPDATE_NOTE: with --round or --glyphs this run reinstalls LitClaude ${version}; for the newest, run npx --yes @litfamily/litclaude@latest update ${parsed.rest.join(" ")}\n`);
+    }
+    return { status: "gated" };
+  }
   // Validate install/update flags before any automatic side effect. This keeps
   // malformed or ambiguous requests fail-closed rather than forwarding them to npm.
   if (parsed.command === "install" || parsed.command === "update") {
@@ -2282,6 +2370,10 @@ const runEligibleAutomaticUpdate = (parsed) => {
 };
 
 const main = async () => {
+  if (asksForAgentGuide(process.argv.slice(2))) {
+    process.stdout.write(agentGuide());
+    return;
+  }
   const parsed = parseArgs(process.argv.slice(2));
   const { command } = parsed;
 
@@ -2326,7 +2418,7 @@ const main = async () => {
       await install(parsed);
       break;
     case "doctor":
-      doctor(parsed);
+      await doctor(parsed);
       break;
     case "config":
       configModOptions(parsed.rest);

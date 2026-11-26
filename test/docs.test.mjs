@@ -307,7 +307,7 @@ test("both READMEs give a copyable install prompt for coding agents that asks be
     const prompts = [...install.matchAll(/```text\n([\s\S]*?)```/gu)].map((m) => m[1]).filter((block) => block.includes("DOCTOR_PASS"));
     assert.equal(prompts.length, 1, `${path} install section has one agent prompt`);
     const [prompt] = prompts;
-    for (const phrase of ["@litfamily/litclaude", "npx @litfamily/litclaude@latest --dry-run install --yes", "npx @litfamily/litclaude@latest install --yes", "npx @litfamily/litclaude@latest doctor", askFirst, restart]) {
+    for (const phrase of ["@litfamily/litclaude", "npx --yes @litfamily/litclaude@latest --dry-run install --yes --round", "npx --yes @litfamily/litclaude@latest install --yes --round", "npx --yes @litfamily/litclaude@latest doctor", askFirst, restart]) {
       assert.ok(prompt.includes(phrase), `${path} agent prompt includes ${phrase}`);
     }
     assert.ok(prompt.indexOf("@latest --dry-run install") < prompt.indexOf("@latest install --yes"), `${path}: the plan comes before the install`);

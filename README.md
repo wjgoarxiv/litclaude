@@ -404,17 +404,42 @@ Copy the whole block:
 ```text
 Please install LitClaude, a plugin for Claude Code, on this computer.
 
-- Use only the official npm package @litfamily/litclaude. Do not clone repositories or
-  install anything else.
-- Before you change anything, check that Node.js, npm and Claude Code are installed, then run
-  npx @litfamily/litclaude@latest --dry-run install --yes
-  Show me what it would change and ask whether to go ahead. Wait for my answer.
-- When I say yes, run npx @litfamily/litclaude@latest install --yes
-  (--yes keeps the default status-line colour and output style; I can run the install again
-  in my own terminal later to pick them.)
-- Then run npx @litfamily/litclaude@latest doctor and tell me the result. It should end in
-  DOCTOR_PASS. If it does not, show me the lines that failed and stop there.
-- Finally, remind me to quit Claude Code and start it again so the plugin loads.
+- Use only the official npm package @litfamily/litclaude; add no other source. Leave hook approvals,
+  folder trust and sign-in to me.
+- Check that Node.js, npm and Claude Code are here. Then preview, which changes nothing:
+  npx --yes @litfamily/litclaude@latest --dry-run install --yes --round
+  Show me what it would change.
+- Ask me whether to keep every default; the install line below does. These are the choices:
+  Status-line colour: cyan. Output style: None. I can pick both later in my own terminal with
+  npx --yes @litfamily/litclaude@latest install
+  Icon font: No; --round adds it only when no icon font is here, --icon-font in any case. It is
+  SymbolsNerdFontMono-Regular.ttf with its licence, put in ~/Library/Fonts (macOS) or
+  ~/.local/share/fonts (Linux); Windows gets no font.
+  Co-Authored-By line: stays. I can turn it off later with
+  npx --yes @litfamily/litclaude@latest config attribution off
+  LitFamily block: added to my global CLAUDE.md; --no-agent-file leaves that file alone.
+  The status line and the LIT card are on after the install, with no flag.
+  Wait for my answer.
+- When I say yes, install:
+  npx --yes @litfamily/litclaude@latest install --yes --round
+  To update an installed LitClaude, run this line in its place:
+  npx --yes @litfamily/litclaude@latest update --yes --round
+- Check it:
+  npx --yes @litfamily/litclaude@latest doctor
+  It should end in DOCTOR_PASS, and print one ROUND_ENDS: line. If a step fails, show me the lines
+  and stop.
+- Show me this and ask if both ends are round:  LIT 
+  When they are round:
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs round
+  When I see boxes:
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs square
+  and tell me that round ends need a full Nerd Font as my terminal's own font, or Symbols Nerd Font
+  Mono as its fallback font (iTerm2 Non-ASCII Font, VS Code terminal.integrated.fontFamily, kitty
+  symbol_map). Terminal.app has no fallback setting, so it needs the full Nerd Font. Over SSH or
+  from a phone, leave it. This undoes either choice:
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs auto
+- Finally, remind me to quit Claude Code and start it again so the plugin loads. Signing in and
+  answering Claude Code's own questions stay with me.
 ```
 
 </details>
@@ -757,8 +782,11 @@ a very narrow window or output piped into another program gets one plain line in
 followed by the version. In a truecolor terminal the status line shows the same colours: its `🔥LIT v<version>`
 badge sits on a pill that fades from ice blue to rose, and on a dark background the gauges have round ends when
 a Nerd Font is installed or the terminal draws them itself (Windows Terminal 1.21 or later, VS Code, WezTerm,
-Ghostty, kitty). The card and the installer follow the same rule. If you see boxes instead, set
-`LITCLAUDE_HUD_GLYPHS=basic`, or `glyphs basic` with `config`; either one covers all three.
+Ghostty, kitty). The card and the installer follow the same rule. `install --round` adds the icon font when none
+is here, and the `ROUND_ENDS:` line at the end of `install`, `update` and `doctor` says what to expect. If you
+see boxes instead, run `npx --yes @litfamily/litclaude@latest update --yes --glyphs square`; `--glyphs round`
+keeps the ends round, over SSH too, and `--glyphs auto` goes back to the rule. A later update keeps your choice, and `LITCLAUDE_HUD_GLYPHS` (the same
+three words) wins over it.
 
 A healthy `doctor` run ends in `DOCTOR_PASS`. You rarely need `update` by hand: once a day at most, a new
 Claude Code session checks npm for a newer version in the background, and a later session installs it before

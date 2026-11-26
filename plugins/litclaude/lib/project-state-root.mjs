@@ -1,7 +1,7 @@
 import { closeSync, constants, existsSync, lstatSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
-import { findProjectRoot } from "./rules/discovery.mjs";
+import { findProjectRoot } from "./rules/project-root.mjs";
 
 const outermostGitRoot = (startDir) => {
   let root = null;

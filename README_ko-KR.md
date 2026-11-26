@@ -361,17 +361,42 @@ Claude 설정을 건드리게 두기 전에, 설치 프로그램이 어디에 �
 ```text
 이 컴퓨터에 Claude Code 플러그인 LitClaude를 설치해 주세요.
 
-- 공식 npm 패키지 @litfamily/litclaude만 사용하세요. 저장소를 복제하거나 다른 것을
-  설치하지 마세요.
-- 무엇이든 바꾸기 전에 Node.js, npm, Claude Code가 설치되어 있는지 확인한 뒤 다음을 실행하세요.
-  npx @litfamily/litclaude@latest --dry-run install --yes
-  무엇이 바뀌는지 보여 주고, 진행할지 물어본 다음 제 답을 기다리세요.
-- 제가 좋다고 하면 npx @litfamily/litclaude@latest install --yes 를 실행하세요.
-  (--yes는 상태 줄 색상과 출력 스타일을 기본값으로 둡니다. 나중에 제 터미널에서 설치를
-  다시 실행해 고를 수 있습니다.)
-- 그다음 npx @litfamily/litclaude@latest doctor 를 실행하고 결과를 알려 주세요. 마지막 줄이
-  DOCTOR_PASS여야 합니다. 그렇지 않으면 실패한 줄을 보여 주고 거기서 멈추세요.
-- 마지막으로, 플러그인이 로드되도록 Claude Code를 종료했다가 다시 시작하라고 알려 주세요.
+- 공식 npm 패키지 @litfamily/litclaude만 사용하고 다른 출처는 더하지 마세요. hook 승인, 폴더 신뢰,
+  로그인은 제가 합니다.
+- Node.js, npm, Claude Code가 설치되어 있는지 확인한 뒤 미리 보기를 실행하세요. 아무것도 바꾸지 않습니다.
+  npx --yes @litfamily/litclaude@latest --dry-run install --yes --round
+  무엇이 바뀌는지 보여 주세요.
+- 기본값을 모두 그대로 둘지 물어보세요. 아래 설치 명령은 기본값을 씁니다. 고를 수 있는 것은 다음과 같습니다.
+  상태 줄 색상은 cyan, 출력 스타일은 None입니다. 둘 다 나중에 제 터미널에서 고를 수 있습니다.
+  npx --yes @litfamily/litclaude@latest install
+  아이콘 글꼴은 기본이 아니요입니다. --round는 아이콘 글꼴이 하나도 없을 때만, --icon-font는 언제나 넣습니다.
+  파일은 SymbolsNerdFontMono-Regular.ttf와 라이선스이고 ~/Library/Fonts(macOS)나
+  ~/.local/share/fonts(Linux)에 들어갑니다. Windows에는 글꼴을 넣지 않습니다.
+  Co-Authored-By 줄은 남깁니다. 나중에 이렇게 끌 수 있습니다.
+  npx --yes @litfamily/litclaude@latest config attribution off
+  LitFamily 구역은 전역 CLAUDE.md에 들어갑니다. --no-agent-file을 붙이면 그 파일을 건드리지 않습니다.
+  상태 줄과 LIT 카드는 따로 지정하지 않아도 설치하면 켜집니다.
+  제 답을 기다리세요.
+- 제가 좋다고 하면 설치하세요.
+  npx --yes @litfamily/litclaude@latest install --yes --round
+  이미 설치한 LitClaude를 업데이트할 때는 위 명령 대신 이것을 실행하세요.
+  npx --yes @litfamily/litclaude@latest update --yes --round
+- 확인하세요.
+  npx --yes @litfamily/litclaude@latest doctor
+  마지막 줄은 DOCTOR_PASS여야 하고 ROUND_ENDS: 줄이 하나 나옵니다. 실패한 단계가 있으면 그 줄을 보여 주고
+  멈추세요.
+- 이것을 보여 주고 양 끝이 모두 둥근지 물어보세요:  LIT 
+  둥글면 이렇게 저장합니다.
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs round
+  네모 상자로 보이면 이것을 실행하세요.
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs square
+  그리고 둥근 끝을 쓰려면 터미널 글꼴을 온전한 Nerd Font로 바꾸거나 Symbols Nerd Font Mono를 대체 글꼴로
+  더해야 한다고 알려 주세요(iTerm2 Non-ASCII Font, VS Code terminal.integrated.fontFamily, kitty
+  symbol_map). Terminal.app에는 대체 글꼴 설정이 없어서 온전한 Nerd Font가 필요합니다. SSH나 휴대폰으로 보고
+  있다면 그대로 두세요. 어느 쪽이든 이렇게 되돌립니다.
+  npx --yes @litfamily/litclaude@latest update --yes --round --glyphs auto
+- 마지막으로, 플러그인이 로드되도록 Claude Code를 종료했다가 다시 시작하라고 알려 주세요. 로그인과 Claude Code가
+  묻는 질문은 제가 처리합니다.
 ```
 
 </details>
@@ -651,7 +676,9 @@ npx @litfamily/litclaude@latest uninstall   # LitClaude가 설치한 것 제거
 같은 장면을 기호로만 그립니다. UTF-8을 쓰지 않는 터미널, `TERM=dumb`, 아주 좁은 창, 다른 프로그램으로 넘기는 출력에는 `LIT · claude code` 한 줄과 버전만
 나옵니다. 트루컬러 터미널에서는 상태 줄도 같은 색을 씁니다. `🔥LIT v<버전>` 배지가 얼음빛 파랑에서 장밋빛으로 번지는 알약 모양 위에 놓입니다.
 어두운 배경에서는 게이지 양 끝도 둥글게 나옵니다. Nerd Font를 설치했거나, 터미널이 둥근 끝을 직접 그릴 때(Windows Terminal 1.21 이상, VS Code, WezTerm, Ghostty, kitty)입니다. 카드와 설치
-프로그램도 같은 기준을 따릅니다. 네모 상자가 보이면 `LITCLAUDE_HUD_GLYPHS=basic`이나 `config glyphs basic`으로 바꾸세요. 하나만 바꿔도 셋 다 바뀝니다. `NO_COLOR`에서는 글자만 남고 노을은 그리지 않습니다.
+프로그램도 같은 기준을 따릅니다. `install --round`는 아이콘 글꼴이 없을 때 넣어 주고, `install`, `update`, `doctor` 끝의 `ROUND_ENDS:` 줄이 어떻게 보일지 알려 줍니다. 네모 상자가 보이면
+`npx --yes @litfamily/litclaude@latest update --yes --glyphs square`를 실행하세요. `--glyphs round`는 SSH에서도 둥근 끝을 쓰고, `--glyphs auto`는 원래 기준으로 돌아갑니다. 고른 값은 다음 업데이트에도 남고, `LITCLAUDE_HUD_GLYPHS`(같은 세 낱말)를
+설정하면 그 값이 우선합니다. `NO_COLOR`에서는 글자만 남고 노을은 그리지 않습니다.
 
 문제가 없으면 `doctor`는 `DOCTOR_PASS`로 끝납니다. `update`를 직접 입력할 일은 많지 않습니다. 새 Claude Code 세션은 하루 한 번까지 백그라운드에서 npm의 새
 버전을 확인하고, 이후 세션이 작업을 시작하기 전에 설치합니다. `uninstall`은 LitClaude가 관리하는 플러그인, 상태 줄, 권한, 로컬 상태 항목만 지우고, 직접 수정한 설치라면

@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" pre-tool-use",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-guard.js\" pre-tool-use",
             "timeout": 10,
             "statusMessage": "checking LitClaude bounded authority"
           }
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" check-back-guard",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-guard.js\" check-back-guard",
             "timeout": 10
           }
         ]

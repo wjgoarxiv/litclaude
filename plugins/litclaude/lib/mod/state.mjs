@@ -13,6 +13,7 @@
 // from the working directory and across a linked Git worktree to its main checkout.
 
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
+import { xdgDataHome } from "./round.mjs";
 import { parseStageRecord } from "./workflow.mjs";
 
 export const STATE_CAPS = Object.freeze({
@@ -625,7 +626,7 @@ export const iconFontCandidates = (env) => {
   const home = env?.HOME?.trim();
   const folders = [];
   if (home) folders.push(joinPath(home, "Library", "Fonts"));
-  const data = env?.XDG_DATA_HOME?.trim() || (home ? joinPath(home, ".local", "share") : "");
+  const data = xdgDataHome(env) || (home ? joinPath(home, ".local", "share") : "");
   if (data) folders.push(joinPath(data, "fonts"));
   const local = env?.LOCALAPPDATA?.trim();
   if (local) folders.push(joinPath(local, "Microsoft", "Windows", "Fonts"));

@@ -3,22 +3,32 @@
 // over SSH the fonts here are not the ones on screen; otherwise a Nerd Font installed here, told by file
 // names alone. No Node built-ins: the card reads folders through the host, the rest through lib/round-caps.mjs.
 
-const EXPLICIT = ["nerd", "round", "basic"];
+// `square` is the installer's word for `basic`.
+const WORDS = { auto: "auto", round: "round", nerd: "nerd", basic: "basic", square: "basic" };
 const FONT_NAME = /(?:nerd[ _-]?font|[a-z0-9]NF[MP]?[-_. ]).*\.(?:ttf|otf|ttc)$/iu;
 const MAX_NAMES = 4000;
 const MAX_FOLDERS = 200;
 const MAX_LEVELS = 3;
 
+/** "auto", "round", "nerd" or "basic" for a setting's value; null for anything else. */
+export const glyphWord = (value) => (Object.hasOwn(WORDS, value ?? "") ? WORDS[value] : null);
+
 /** `LITCLAUDE_HUD_GLYPHS`, then the card's `glyphs` option; "auto" when neither chooses. */
-export const glyphSetting = (env, option) => [env?.LITCLAUDE_HUD_GLYPHS, option].find((value) => EXPLICIT.includes(value)) ?? "auto";
+export const glyphSetting = (env, option) => glyphWord(env?.LITCLAUDE_HUD_GLYPHS) ?? glyphWord(option) ?? "auto";
 
 export const drawsRoundCaps = (env) => Boolean(env?.WT_SESSION || env?.KITTY_WINDOW_ID)
   || env?.TERM === "xterm-kitty" || /^(?:vscode|wezterm|ghostty)$/iu.test(env?.TERM_PROGRAM ?? "");
 
+/** XDG_DATA_HOME, or null when it is not an absolute path: the XDG rule ignores a relative one. */
+export const xdgDataHome = (env) => {
+  const path = env?.XDG_DATA_HOME?.trim();
+  return /^(?:[\\/]|[a-z]:[\\/])/iu.test(path ?? "") ? path : null;
+};
+
 /** Every platform's font folders the environment names; one that is not here is simply empty. */
 export const fontFolders = (env) => {
   const home = env?.HOME?.trim();
-  const data = env?.XDG_DATA_HOME?.trim() || (home && `${home}/.local/share`);
+  const data = xdgDataHome(env) || (home && `${home}/.local/share`);
   return [
     home && `${home}/Library/Fonts`, "/Library/Fonts",
     data && `${data}/fonts`, home && `${home}/.fonts`, "/usr/local/share/fonts", "/usr/share/fonts",

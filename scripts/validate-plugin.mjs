@@ -49,6 +49,7 @@ async function main() {
   await exists(join(pluginRoot, ".mcp.json"));
   await exists(join(pluginRoot, ".lsp.json"));
   await exists(join(pluginRoot, "bin", "litclaude-hook.js"));
+  await exists(join(pluginRoot, "bin", "litclaude-guard.js"));
   await exists(join(pluginRoot, "bin", "litclaude-lsp-doctor.js"));
   await exists(join(pluginRoot, "bin", "litclaude-mcp.js"));
   await exists(join(pluginRoot, "lib", "start-work-lifecycle.mjs"));

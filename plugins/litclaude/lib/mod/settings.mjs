@@ -9,7 +9,7 @@
 
 export const MOD_CHOICES = Object.freeze({
   motion: ["full", "subtle", "off"],
-  glyphs: ["auto", "nerd", "basic"],
+  glyphs: ["auto", "round", "square", "nerd", "basic"],
   band: ["always", "auto", "off"],
   notify: ["off", "finish", "finish+sound"],
   club: ["on", "off"],
@@ -41,6 +41,7 @@ export const effectiveMotion = (motion, hostSettings) => (hostSettings?.prefersR
 export const resolveGlyphs = (preference, surface, iconFontPresent, roundCaps = false) => {
   if (surface !== "terminal") return "basic";
   if (preference === "auto") return iconFontPresent ? "nerd" : roundCaps ? "round" : "basic";
+  if (preference === "round") return iconFontPresent ? "nerd" : "round";
   return preference === "nerd" ? "nerd" : "basic";
 };
 

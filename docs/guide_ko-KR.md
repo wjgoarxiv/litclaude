@@ -634,6 +634,20 @@ npm install -g @litfamily/litclaude
 litclaude install
 ```
 
+### 코딩 에이전트로 설치
+
+`install --agent`는 코딩 에이전트가 따를 순서를 출력하고 끝납니다. 묻지 않고, 파일도 만들지 않고, 다른
+프로그램도 실행하지 않습니다. `--help`, 첫 카드, 사람이 터미널 앞에 없는 실행에서 이 명령을 안내합니다. 이
+순서는 `--yes --round`로 설치합니다.
+
+- `--round`는 아이콘 글꼴이 하나도 없을 때만 넣습니다. `LITCLAUDE_ICON_FONT_SOURCE`로 고정된 압축 파일의
+  로컬 사본을 지정할 수 있습니다. Windows에는 글꼴을 넣지 않습니다.
+- `--glyphs auto|round|square`는 상태 줄과 LIT 카드의 양 끝 모양을 저장합니다. 다음 설치와 업데이트에도
+  남고, `uninstall`도 사용자 설정으로 보고 그대로 둡니다.
+- `install`, `update`, `doctor`는 `ROUND_ENDS:` 줄을 하나 출력합니다. `shown`은 `round`를 저장한
+  상태이고, `ready`는 터미널이 둥근 끝을 직접 그립니다. `check`는 아이콘 글꼴은 있지만 터미널이 그 글꼴을
+  쓰는지는 눈으로 봐야 한다는 뜻이고, `square`는 이유와 해결 방법 하나를 알려 줍니다.
+
 ### HUD
 
 대화형 설치는 최대 다섯 가지를 카드로 하나씩 묻습니다. 상태 줄 색상, 출력 스타일, 아이콘 글꼴(기본
@@ -679,10 +693,10 @@ HUD 모양은 서로 다른 두 설정이 정합니다. 터미널 배경이 어�
   `LITCLAUDE_HUD_COLOR_DEPTH=truecolor|256|16|plain`으로 직접 정하세요. 이 값이 자동 감지보다
   우선합니다.
 - 어두운 truecolor 터미널에서는 게이지와 brand 양 끝이 둥글게 나옵니다. 터미널이 둥근 끝을
-  그릴 수 있을 때입니다. 상태 줄, LIT 카드, 설치 프로그램이 같은 기준을 씁니다. `LITCLAUDE_HUD_GLYPHS`(`nerd`,
-  `round`, `basic`)나 카드의 `glyphs` 옵션이 먼저입니다. 정하지 않았다면 Windows Terminal 1.21 이상, VS Code,
+  그릴 수 있을 때입니다. 상태 줄, LIT 카드, 설치 프로그램이 같은 기준을 씁니다. `LITCLAUDE_HUD_GLYPHS`(`auto`,
+  `round`, `nerd`, `square`)가 먼저이고 그다음이 카드의 `glyphs` 옵션(`install --glyphs`)입니다. 정하지 않았다면 Windows Terminal 1.21 이상, VS Code,
   WezTerm, Ghostty, kitty는 둥글고, SSH로 접속했다면 각지고, 다른 터미널은 Nerd Font 파일 이름이 글꼴 폴더에
-  있을 때 둥급니다. 네모 상자가 보이면 `LITCLAUDE_HUD_GLYPHS=basic`으로 지정하세요. 리셋 전에 다 쓸 속도이면 리셋 시간 자리에 `! out 1h28m`이 나옵니다.
+  있을 때 둥급니다. 네모 상자가 보이면 `npx --yes @litfamily/litclaude@latest update --yes --glyphs square`를 실행하세요. 리셋 전에 다 쓸 속도이면 리셋 시간 자리에 `! out 1h28m`이 나옵니다.
 - 색을 아예 끄려면 `NO_COLOR`를 설정하세요. 값이 빈 문자열이어도 HUD의 ANSI를 모두 끕니다.
   `TERM=dumb`에서도 다른 색상 신호나 깊이 설정과 상관없이 색 없이 나옵니다. 예전 설정인
   `LITCLAUDE_HUD_NO_COLOR=1`도 계속 됩니다.

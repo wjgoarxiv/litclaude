@@ -107,7 +107,7 @@ becomes instructions for the compaction summary.
 | --- | --- | --- |
 | `SessionStart` | `plugins/litclaude/bin/litclaude-hook.js session-start` | Runs the bounded foreground automatic-update barrier on a fresh session (or starts the detached version-cache refresh when the cache is stale), discovers repo-local rule files, names the newest valid `plans/<slug>.md`, and on `source: compact` spends one of two durable re-injection reservations at reduced caps and, with automatic handoff on, reloads the fresh handoff once. |
 | `UserPromptSubmit` | `plugins/litclaude/bin/litclaude-hook.js user-prompt-submit` | Detects prompt routes and injects workflow context; independently delivers static rules not already recorded for this session; answers the exact prompts `lit-handoff auto on <percent>`, `lit-handoff auto off` and `lit-handoff auto status` by changing or reporting the automatic handoff setting; answers a whole-prompt `lit invite [@<github-id>]` itself and blocks the turn (see [Invite](#invite-lit-invite)). |
-| `PreToolUse` | `plugins/litclaude/bin/litclaude-hook.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
+| `PreToolUse` | `plugins/litclaude/bin/litclaude-guard.js pre-tool-use` | Enforces semantic action/root grants before Write, Edit, MultiEdit, NotebookEdit, Bash, Agent, and bounded read tools execute; denies supported reader-facing text writes with a humanizer block-tier finding. |
 | `PostToolUse` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use` | Moves the LIT card's stage record on from what the tool did (plan saved, task checked, lit-loop step, a reviewer's verdict from an `Agent` result). Names the post-edit checks the edit actually earned, injects any glob-scoped rule matching the edited paths, and checks successfully created DOCX/PPTX/PDF files for humanizer findings, including paths reported by Bash output. |
 | `PostToolUseFailure` | `plugins/litclaude/bin/litclaude-hook.js post-tool-use-failure` | For a Bash command that exits non-zero, such as a bare failing `npm test`, moves the LIT card's lit-loop map from what the command wrote and from its failing test run, which never counts as VERIFY. Nothing else runs on a failed tool. |
 | `PreCompact` | `plugins/litclaude/bin/litclaude-hook.js pre-compact` | Saves a handoff before every compaction, manual or automatic, unless `LITCLAUDE_PRECOMPACT_HANDOFF=0`: the plan's row state and `git status`, written by the hook itself without a model turn. Answers with one short line naming the current plan row, which Claude Code adds to its summary instructions. See [Save before every compaction](#save-before-every-compaction). |
@@ -567,7 +567,7 @@ Uninstall removes only the defaults it wrote that are still unchanged.
 | Option | Values | Default |
 | --- | --- | --- |
 | `motion` | `full`, `subtle` (no overshoot, shimmer, embers, sweep or comet, shorter; the LIT pill still breathes during work and the sunset holds still), `off` (final frames only) | `full` |
-| `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills where the terminal draws the caps: Windows Terminal 1.21 or later, VS Code, WezTerm, Ghostty, kitty, or any other terminal outside SSH with a Nerd Font installed), `nerd`, or `basic` | `auto` |
+| `glyphs` | `auto` (Nerd glyphs when the icon font is installed; otherwise the basic symbols, with round pills where the terminal draws the caps: Windows Terminal 1.21 or later, VS Code, WezTerm, Ghostty, kitty, or any other terminal outside SSH with a Nerd Font installed), `round` (round pills everywhere, SSH included, with the Nerd glyphs when the icon font is installed), `nerd`, or `square` (also spelled `basic`). `install` and `update` save this option with `--glyphs auto\|round\|square` | `auto` |
 | `band` | `always` (the whole session, idle included), `auto` (only while work is active or a skill of this request is lit), `off` | `always` |
 | `notify` | `off`, `finish` (a notification through your own notification channel, `$.ui.notify`, when LIT work completes or a LIT turn longer than three minutes ends), `finish+sound` (the same; a sound is added once LitClaude ships one, and none ships yet) | `off` |
 | `club` | `on` (the idle card wears the club look once `lit invite` recorded an inviter), `off` (the plain ready card, byte for byte) | `on` |
@@ -610,21 +610,30 @@ come from a Nerd Font. `litclaude-ai install
 --icon-font`, or a Yes to the install question (default No), adds the symbols-only Nerd Font,
 Symbols Nerd Font Mono (MIT), to the per-user font folder (`~/Library/Fonts` on macOS,
 `~/.local/share/fonts` on Linux, then `fc-cache -f` if present; on Windows it prints how to
-install it by hand). Your terminal font stays as it is: most macOS terminals take the missing
-icons from the installed font through system font fallback, and the installer prints one line for
-your terminal (from `TERM_PROGRAM`) in case it does not. The archive is the pinned Nerd Fonts
+install it by hand). `--round` adds it only when no Nerd Font's file name is in a font folder, and a run
+that cannot add it still installs LitClaude and says why. Your terminal font stays as it is. WezTerm,
+Ghostty, kitty, VS Code and Windows Terminal draw the caps themselves; other terminals need a full Nerd
+Font as their font, or the symbols font as their fallback (iTerm2 Non-ASCII Font, VS Code
+`terminal.integrated.fontFamily`, kitty `symbol_map`). Terminal.app has no fallback setting, so it needs a
+full Nerd Font. The installer prints one line for your terminal (from `TERM_PROGRAM`). The archive is the pinned Nerd Fonts
 release asset, refused unless its SHA-256 matches; `LITCLAUDE_ICON_FONT_SOURCE` names an offline
 copy of the same archive. The licence goes next to the font, a manifest under `~/.litclaude`
-records the two files, `uninstall` removes only those (and only while unchanged), and `doctor`
+records the two files, `uninstall` removes only those (and only while unchanged) and says that other
+products may then draw square ends, and `doctor`
 prints `ICON_FONT:`. With `glyphs` on `auto`, the band checks those font folders by stat at session
 start and says what it decided on the `/lit-evidence` gates tab.
 
 Round caps follow one rule (`lib/mod/round.mjs`) on the status line, the card and the installer.
-`LITCLAUDE_HUD_GLYPHS` (`nerd`, `round` or `basic`) wins, then the `glyphs` option, then a terminal that
+`LITCLAUDE_HUD_GLYPHS` (`auto`, `round`, `nerd`, `square` or `basic`) wins, then the `glyphs` option, then a terminal that
 draws the caps itself; over SSH the answer is no, and otherwise a Nerd Font's file name in a font folder
 decides. The look through the folders opens no font and stops at 4,000 names, 200 folders or three levels.
 The card asks once a session; the status line keeps its answer in the per-user temp folder for a day, or
-until a font folder changes.
+until a font folder changes; `--round` drops it.
+
+`install`, `update` and `doctor` each print one `ROUND_ENDS:` line (`bin/round-ends.mjs`): `shown` for a
+saved `round`, `ready` for a terminal that draws the caps itself, `check` when an icon font is here and the
+terminal is not known to use it, and `square` with the reason and one fix. `check` asks for a look at the
+test pill of `install --agent`, because a font in the folder does not say what the terminal draws.
 
 The mod is read-only. It reads LitClaude's own state, the Git `HEAD` of the working directory and
 the merged settings (for the status line's accent), the names in the font folders, and nothing else: the ignition record in the

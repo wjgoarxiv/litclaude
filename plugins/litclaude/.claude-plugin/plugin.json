@@ -24,7 +24,7 @@
     "glyphs": {
       "type": "string",
       "title": "LIT band glyphs",
-      "description": "auto uses the icon font when it is installed (litclaude-ai install --icon-font); nerd always; basic works with any font.",
+      "description": "auto uses the icon font when it is installed (litclaude-ai install --icon-font); round always draws round ends; nerd always draws the icons too; square (or basic) works with any font.",
       "default": "auto"
     },
     "band": {
