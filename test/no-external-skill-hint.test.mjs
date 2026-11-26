@@ -5,7 +5,7 @@
 // The old names are assembled from pieces so this file never spells them out.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { extname, join, relative } from "node:path";
 import test from "node:test";
@@ -23,6 +23,9 @@ const mentioned = new RegExp(`${oldName}|${oldVendor}`, "iu");
 const fakeKey = "test-key-not-real-0000";
 const oldSwitches = { [oldSwitch]: "1", [`${oldSwitch}_MODE`]: "on", [oldKey]: fakeKey };
 const textExtensions = new Set([".js", ".mjs", ".cjs", ".json", ".md", ".sh", ".py", ".yaml", ".yml", ".toml", ".txt"]);
+
+// Temp paths end in random letters that can spell the old name by chance; hide them before matching.
+const withoutPath = (text, dir) => [dir, realpathSync(dir)].reduce((out, path) => out.split(path).join("<tmp>"), text);
 
 const walk = (dir, out = []) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -60,7 +63,7 @@ test("the prompt hook ignores the old switches: no outbound request, no hint lin
     const output = JSON.parse(result.stdout);
     assert.match(output.hookSpecificOutput.additionalContext, /no workflow activation/u);
     assert.doesNotMatch(result.stdout, /skill hint/iu);
-    assert.doesNotMatch(result.stdout, mentioned);
+    assert.doesNotMatch(withoutPath(result.stdout, cwd), mentioned);
     assert.equal(result.stdout.includes(fakeKey), false);
     assert.equal(existsSync(log), false, existsSync(log) ? readFileSync(log, "utf8") : "");
     assert.equal(existsSync(join(cwd, ".litclaude", oldName)), false, "no state folder for the removed hint");
@@ -79,7 +82,7 @@ test("doctor prints nothing about the removed skill hint", () => {
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /DRY_RUN/u);
-    const printed = `${result.stdout}${result.stderr}`;
+    const printed = withoutPath(`${result.stdout}${result.stderr}`, home);
     assert.doesNotMatch(printed, mentioned);
     assert.equal(printed.includes(fakeKey), false);
   } finally {
