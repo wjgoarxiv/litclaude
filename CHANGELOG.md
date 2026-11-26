@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.66 - 2026-11-26
+
+- `litclaude install --agent` prints the install steps for a coding agent and does nothing else: no question, no file, no process. `--help`, the first card and any run without a person at the terminal point to it.
+- `install --round` adds the icon font for round ends only when no icon font is here; Windows gets no font. `--glyphs auto|round|square` saves whether the status line and the LIT card draw round ends, and a later install or update keeps it.
+- `install`, `update` and `doctor` end with one `ROUND_ENDS:` line: `shown`, `ready`, `check` or `square`, with the reason and one fix.
+- An automatic update with `--round` or `--glyphs` reinstalls the running version and says how to get the newest one.
+- The start-work hooks are faster: they read the run through a light peek and a separate guard entry, so a turn no longer waits on the full ledger or refuses a plain command.
+- A relative `XDG_DATA_HOME` is ignored, as the XDG rules ask.
+
 ## 1.0.65 - 2026-11-25
 
 - The README cover is a new loop: a terminal in the sunset look with the LIT card, a pixel LITFAMILY wordmark and a striped half-sunk sun, in place of the seven robot panels. The still for reduced motion is its first frame; both files are smaller.

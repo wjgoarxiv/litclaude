@@ -112,7 +112,7 @@ describe("litclaude-ai CLI", () => {
 
   it("prints the package version without requiring install state", () => {
     assert.equal(existsSync(binPath), true, "litclaude-ai bin must exist");
-    assert.equal(packageJson.version, "1.0.65");
+    assert.equal(packageJson.version, "1.0.66");
 
     for (const flag of ["--version", "-v"]) {
       const result = spawnSync(process.execPath, [binPath, flag], {
@@ -177,7 +177,7 @@ describe("litclaude-ai CLI", () => {
       assert.equal(result.status, 0, result.stderr);
       const report = JSON.parse(result.stdout);
       assert.equal(report.status, "pass");
-    assert.equal(report.version, "1.0.65");
+    assert.equal(report.version, "1.0.66");
       assert.equal(report.checks.goalGuidance, true);
 			assert.equal(report.checks.hostWorkflowsEnabled, true);
 			assert.equal(report.checks.backgroundTasksEnabled, true);
