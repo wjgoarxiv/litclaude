@@ -1,8 +1,8 @@
-// The opt-in ping when start-work parks a step: one terminal notification (OSC 9, or OSC 777 for
+// The ping when start-work parks a step: one terminal notification (OSC 9, or OSC 777 for
 // terminals that only read that one) that names what waits and the words to type. Claude Code writes
 // a hook's `terminalSequence` to the terminal on the hook's behalf, in an interactive session only.
-// It is off unless the plugin option `park_ping` (env CLAUDE_PLUGIN_OPTION_PARK_PING) is `on` or
-// `osc777`. Each parked step is pinged once: the shown-ledger records its id before the sequence is
+// It is on (OSC 9) unless the plugin option `park_ping` (env CLAUDE_PLUGIN_OPTION_PARK_PING) is `off`;
+// `osc777` picks the other sequence. Each parked step is pinged once: the shown-ledger records its id before the sequence is
 // returned, and a step whose record cannot be written is not pinged at all, so a retry never pings.
 // The ping only informs; it approves nothing.
 import { recordShown, wasShown } from "./shown-ledger.mjs";
@@ -11,12 +11,12 @@ export const PARK_PING_ENV = "CLAUDE_PLUGIN_OPTION_PARK_PING";
 const NAMED_STEPS = 2;
 const ROOT_CHARS = 80;
 
-/** "osc9", "osc777" or null (off). */
+/** "osc9" (the default), "osc777" or null (off). */
 export const parkPingMode = (env = process.env) => {
   const value = String(env[PARK_PING_ENV] ?? "").trim().toLowerCase();
-  if (value === "on" || value === "osc9") return "osc9";
+  if (value === "off" || value === "no" || value === "0" || value === "false") return null;
   if (value === "osc777") return "osc777";
-  return null;
+  return "osc9";
 };
 
 // Escape bytes, BEL and other control characters would end or forge the sequence; they become spaces.
@@ -27,10 +27,10 @@ const plain = (text, limit) => {
 
 /** The notification text. It starts with a letter: the host rejects an OSC 9 body that starts with a digit. */
 export const parkPingText = (steps) => {
-  const named = steps.slice(0, NAMED_STEPS).map(({ action, root }) => `${plain(action, 12)} ${plain(root, ROOT_CHARS)}`).join("; ");
+  const named = steps.slice(0, NAMED_STEPS).map(({ action, root, command }) => (command ? `${plain(command, ROOT_CHARS)}` : `${plain(action, 12)} ${plain(root, ROOT_CHARS)}`)).join("; ");
   const more = steps.length > NAMED_STEPS ? ` (+${steps.length - NAMED_STEPS} more)` : "";
   const noun = steps.length === 1 ? "step waits" : "steps wait";
-  return `LitClaude start-work: a parked ${noun} on you: ${named}${more}. Type lit approve to allow, or lit cancel to end the run.`;
+  return `LitClaude start-work: a parked ${noun} on you: ${named}${more}. The run goes on; answer when it wraps up with lit approve, lit deny or lit skip-row.`;
 };
 
 export const parkPingSequence = (mode, text) => (mode === "osc777"

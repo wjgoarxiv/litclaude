@@ -496,7 +496,7 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
     }
   });
 
-  it("emits one continuation per new progress and allows stop-hook re-entry", () => {
+  it("emits one continuation per new progress and drives stop-hook re-entry within the budget", () => {
     const root = fixtureRoot();
     try {
       writePlan(root, ["# Approved Plan", "", "## TODOs", "", "- [ ] First", "- [ ] Second", ""]);
@@ -517,22 +517,23 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
         session_id: "session-1", prompt_id: "prompt-1", stop_hook_active: true,
       });
       assert.equal(reentry.status, 0, reentry.stderr);
-      assert.equal(reentry.stdout, "");
+      assert.match(parse(reentry).reason, /no row changed since the last stop/u, "re-entry is driven: one nudge for the unchanged plan");
+      {
+        const spent = parse(runHook("stop", root, { session_id: "session-1", prompt_id: "prompt-1", stop_hook_active: true }));
+        assert.notEqual(spent?.decision, "block", "then the budget holds");
+        assert.match(spent?.systemMessage ?? "", /waiting on you/u, "then the budget holds: the spent budget shows the inbox once");
+      }
+      assert.equal(runHook("stop", root, { session_id: "session-1", prompt_id: "prompt-1", stop_hook_active: true }).stdout, "", "and then quiet");
 
       writePlan(root, ["# Approved Plan", "", "## TODOs", "", "- [x] First", "- [x] Second", ""]);
       const reevaluated = runHook("stop", root, {
         session_id: "session-1", prompt_id: "prompt-1", stop_hook_active: false,
       });
       assert.equal(reevaluated.status, 0, reevaluated.stderr);
-      assert.equal(parse(reevaluated).decision, "block");
-      assert.match(parse(reevaluated).reason, /all top-level tasks checked/u);
-      // Real-session QA (plans/lit-adhd.md todo 14, S2 and S4): each run needed five tries to find the
-      // complete call's arguments, so the continuation now quotes the exact call, and it works as quoted.
-      const quoted = /`litclaude-ai start-work (complete [^`]+)`/u.exec(parse(reevaluated).reason)?.[1];
-      assert.ok(quoted, parse(reevaluated).reason);
-      const completed = runCli(root, quoted.split(" "));
-      assert.equal(completed.status, 0, completed.stdout + completed.stderr);
-      assert.equal(parse(completed).state.works["work-1"].status, "completed");
+      // Every row ticked and no Done-when check to fail: the run closes itself, no `complete` call needed.
+      assert.notEqual(parse(reevaluated).decision, "block");
+      assert.match(parse(reevaluated).systemMessage, /is complete: every row is ticked/u);
+      assert.equal(parse(runCli(root, ["status"])).state.works["work-1"].status, "completed");
 
       const later = runHook("stop", root, {
         session_id: "session-1", prompt_id: "prompt-2", stop_hook_active: false,
@@ -675,7 +676,9 @@ describe("schema-3 bounded-authority start-work lifecycle", () => {
       litLoopSkill: routeSurfaces.litLoopSkill,
     })) {
       const compactText = text.replace(/\s+/gu, " ");
-      assert.match(compactText, /stop_hook_active.{0,220}true.{0,80}stay(?:s)? silent/iu, `${name} must keep Stop re-entry non-blocking`);
+      // F2 C1: re-entry is driven from the current plan, bounded by the per-state budget, never replayed.
+      assert.match(compactText, /stop_hook_active.{0,220}true.{0,200}(?:budget|blocks at most twice)/iu, `${name} must keep Stop re-entry bounded`);
+      assert.match(compactText, /stop_hook_active.{0,400}(?:never replays|never by replaying|never from a stored receipt|not replay|never replay)/iu, `${name} must say re-entry never replays stale output`);
       assert.doesNotMatch(text, /same-prompt[^\n]*replay|replays it only|replay returns the same payload|retained prompts replay/iu, `${name} must not prescribe stale Stop replay`);
     }
 

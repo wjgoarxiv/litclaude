@@ -1,6 +1,6 @@
 ---
 name: ultra-brainstorm
-description: Wide ideation at scale. Asks how many cheap idea agents to launch (100 or more), shows the cost first, fans them out through the Workflow tool, has reducers cluster and a judge score the ideas, then shows the sorted top list and asks the user to pick, combine or widen. Never implements.
+description: "Wide ideation at scale: asks how many cheap idea agents to launch (100 or more), shows the cost first, fans them out, has reducers cluster and a judge score the ideas, then shows the sorted top list; never implements. Use for 'hundreds of ideas', 'a swarm of idea agents'; 에이전트 많이 풀어서 아이디어 대량으로. Not for a handful of options (lit-brainstorm)."
 argument-hint: "<topic or question>"
 goal: never
 ---

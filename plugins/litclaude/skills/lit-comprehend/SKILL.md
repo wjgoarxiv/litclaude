@@ -1,6 +1,6 @@
 ---
 name: lit-comprehend
-description: "Build a self-contained explainer that makes agent-written work understandable: anchor on what the user already knew, explain the intuition before code, walk the change in conceptual order, offer a micro-world when useful, and close with a quiz. Use this when the user explicitly asks for an explainer or needs to reason with a substantial change. Propose the scope and wait whenever the target had to be inferred."
+description: "Build a self-contained explainer that makes agent-written work understandable: intuition before code, a walk through the change in conceptual order, a micro-world when useful, and a quiz. Use when the user cannot follow a change and wants to understand it ('walk me through', 'help me understand', 'with a quiz'); 이해가 안 돼, 퀴즈까지 포함해서 설명서. Not for a one-line answer, a merge verdict (review-work) or a status card (lit-adhd)."
 goal: never
 ---
 

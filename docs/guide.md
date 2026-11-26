@@ -199,6 +199,9 @@ compare it with the files as they are now, and then carry on.
 | `lit <draw a P&ID …>`, `/litclaude:lit-schematic <brief>` | Draw a P&ID, PFD, apparatus figure or isometric cutaway of real equipment; also `lit-schematic` and `$lit-schematic`. The skill now lives in the `figures` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `<make slides …> lit`, `/litclaude:lit-pptx` | Build a `.pptx` deck from a request or sources; also `lit-pptx` and `$lit-pptx`. The skill now lives in the `decks` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
 | `<write a report …> lit`, `/litclaude:lit-docx` | Build a `.docx` report, plan, proposal, or manuscript; also `lit-docx` and `$lit-docx`. The skill now lives in the `documents` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
+| `lit <엑셀로 정리해줘 …>`, `lit make an xlsx report`, `/litclaude:lit-xlsx` | Build an `.xlsx` workbook with live formulas, recalculated, audited and checked as rendered sheets; also `lit-xlsx` and `$lit-xlsx`. The skill lives in the `sheets` plugin of wjgoarxiv-skills; LitClaude's same-name stub routes to it or gives the install line |
+| `lit approve`, `lit approve x`, `lit deny`, `lit skip-row [N]` | Answer a start-work run's inbox: replay the listed local [B] steps in order, replay the listed [X] steps (push, publish, tag, bumps and anything not known to be local), drop the parked steps, or skip the waiting rows (or row N). See [Long runs that finish themselves](#long-runs-that-finish-themselves) |
+| `lit pause`, `lit resume` | Hold a start-work run where it is, then let it go on; also `lit 멈춤`, `lit 일시정지` and `lit 재개` |
 | `litclaude wikify <capture/save/review/query/config>` | Manage reviewed local structured knowledge |
 | `browser-drive`, `$browser-drive` | Drive a real page. It first checks for `vercel-labs/agent-browser` 0.34.0 or later; anything newer than 0.34.0 still works and is marked `beyond-verified`. If the driver is missing or older, it names the install commands and leaves running them to you |
 
@@ -209,6 +212,57 @@ Some skills are called by name: `lit-crucible` (adversarial planning), `lit-init
 Start the prompt with the bare name or with `$<skill-id>`. Older names still work for one
 release and print a deprecation note; see
 [the alias migration table](./migration.md#one-release-rename-aliases).
+
+### Without `lit`
+
+A prompt with no `lit` starts no workflow, and LitClaude still helps Claude find the right skill.
+When the prompt clearly asks for a conceptual diagram, a plot of measured data, a kinetic-type film,
+a visual check of a built page or a wiki, the hook names those skills as candidates plus "none", and
+Claude decides for each one whether to load it. When no rule fires, Claude gets one short line of 15
+common skills (`lit-plan`, `review-work`, `debugging`, `lit-brainstorm`, `deep-interview`, the office
+and figure skills and others) and decides the same way, so `뭘 만들지 잘 모르겠어` can still end up in
+lit-brainstorm. Nothing loads by itself, and a prompt with `lit` routes exactly as before. A rule is
+added only after it finds at least 85% of the prompts it should and fires on at most 10% of the
+look-alikes, on a held-out half of the test prompts it was not tuned on.
+
+## Long runs that finish themselves
+
+A plan you approve runs row by row until every row is ticked and the plan's `## Done when` check
+passes, and then start-work closes the run itself. You type nothing to finish it, and no message tells
+Claude to suggest `lit cancel`. Parked local steps do not hold a finished run open: the closing line
+names each one it set aside, and only push, publish, tag, bumps, deploys, network calls and deletes outside
+the project keep the run in wrap-up. The run is built for the hours you are away, so a step that needs you
+does not stop it.
+
+**Commits, if the plan allows them.** Put a line like this in the plan:
+
+```text
+Run charter: commit on feat/csv-export in /path/to/your/repo
+```
+
+The approval question shows it first, and your `yes` lets the run commit on that branch of that
+repository by itself, with `git add` of named files and `git commit -m`. Amend, other branches, push,
+tag, publish and version bumps are not covered.
+
+**Parking.** A command the run may not do by itself is set aside with its folder, and Claude moves on
+to the next row. A row that cannot be done at all gets `IMPOSSIBLE: <reason>` in the plan. Secrets and
+your real home folders are refused outright and never parked.
+
+**One inbox at the end.** When the rows are done or nothing else can move, the run lists what waits: the
+open rows, the `IMPOSSIBLE` rows and every parked command with its folder. Answer it with one prompt:
+
+| Type | What happens |
+| --- | --- |
+| `lit approve` | Runs the [B] steps of the list you were shown (local and undoable: `cd`, `mkdir`, `touch`, `git add`, and `cp` or `mv` onto a new path, all inside the project and outside `.git`; a package script or any program is X) in order, each in its folder; the first failure stops the rest |
+| `lit approve x` | Typed alone as the whole prompt, runs the list's [X] steps: push, publish, tag, bumps and every other command not known to be local and undoable |
+| `lit deny` | Drops the parked steps and keeps those commands refused |
+| `lit skip-row`, `lit skip-row 3` | Skips the waiting rows, or row 3, and drops their parked steps |
+| `lit pause`, `lit resume` | Holds the run where it is, then lets it go on (`lit 멈춤`, `lit 재개`) |
+
+The first time a step parks, a terminal notification names it; turn that off with the `park_ping`
+option. Claude Code's `/goal` joins only when the plan has a `goal: native` line, and then it ends by
+itself after a reply that starts with `WAITING-ON-USER:` or after 30 turns. The hook details are in
+[the hooks reference](./hooks.md#long-runs-that-finish-themselves).
 
 ## Automatic handoff
 
@@ -312,7 +366,7 @@ Concept art; each product runs in its own host.
 ## Extensions
 
 The skills in this section are LitFamily extensions. LitClaude's core works on its own, and these
-nine skills that make files now sit on the extension shelf,
+ten skills that make files sit on the extension shelf,
 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills). Installing the ones you use beside
 LitClaude gives you the full LitFamily experience. Add the shelf once with
 `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`; each part below names the plugin to
@@ -389,6 +443,17 @@ example and label it as one instead of stopping to ask. Under a bare `lit`, neit
 style questions. Their Node and Python packages install on first use from pinned
 lockfiles into `~/.cache/litclaude/office-runtime`. That runtime now ships with the decks and
 documents plugins, so `litclaude doctor` no longer reports it.
+
+`lit-xlsx` builds Excel workbooks and ships as the `sheets` plugin of the same marketplace
+(`claude plugin install sheets@wjgoarxiv-skills`, or `npx @litfamily/litclaude extensions install sheets`).
+It is the one extension that never lived inside LitClaude; the same-name stub exists so that
+`lit 엑셀로 정리해줘` or `lit make an xlsx report` still lands somewhere. A workbook is finished when
+its numbers are formulas that keep working after someone changes an input, so the skill builds the
+sheets through one small kit, lets LibreOffice recalculate the file in a throwaway profile, audits it
+for formula errors and hardcoded results, renders every sheet to a PNG and looks at it before handing
+it over. The default look is restrained; a `dashboard` preset adds a KPI band and charts. Its Python
+runtime installs on first use into its own cache. Without the plugin, a workbook request gets the
+install lines back instead of a file.
 
 `lit-diagram-drawer`, `lit-schematic` and `lit-scientific-visualization` now ship as the `figures`
 plugin of the same marketplace (`claude plugin install figures@wjgoarxiv-skills`), with the
@@ -763,7 +828,7 @@ HUD shows it as is and invents no value.
 Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
 tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
 guidance, the routing that picks a workflow, the authority checks, and the ledger that
-keeps the record. Through them, the package's 39 skills (30 core skills and nine extension stubs), 20 current commands, three hidden
+keeps the record. Through them, the package's 40 skills (30 core skills and ten extension stubs), 20 current commands, three hidden
 compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
 Code allows or blocks still applies.
 
@@ -786,10 +851,10 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["39 skills · 20 commands · 11 agents"]
+    LC --> S["40 skills · 20 commands · 11 agents"]
 ```
 
-Every core skill works on a fresh install because the package carries what each skill needs. The nine extension
+Every core skill works on a fresh install because the package carries what each skill needs. The ten extension
 skills need their wjgoarxiv-skills plugin; until it is installed, their stub gives the install line.
 The release checks make sure of it. A skill that needs reference material must find it
 inside the packed tarball, and a skill that needs none must give a written reason in an
@@ -818,8 +883,13 @@ waits for you: it proposes a native `Workflow` and calls it only after you opt i
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` to turn that route off. When Claude Code gives the model
 a worktree tool, use `EnterWorktree`.
 
-Goals follow one rule: LitClaude sets a native goal only after you say yes. When `lit plan`
-writes a plan, it turns the plan's `## Done when` check into one condition and asks once:
+Goals follow one rule: LitClaude sets a native goal only when the plan asks for one with a
+`goal: native` line and you say yes. Without that line the approval question is
+`Approve plan and start work? (yes / no)`, and start-work drives the run to its last row on its own.
+When the plan carries a `Run charter: commit on <branch> in <repo>` line, the question shows it first
+(see [Long runs that finish themselves](#long-runs-that-finish-themselves)). With `goal: native`, `lit plan`
+turns the plan's `## Done when` check into one condition, always ending with ", or the latest reply starts
+with WAITING-ON-USER:, or after 30 turns" so the goal ends by itself, and asks once:
 `Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. Before asking, it runs the
 check once to make sure the goal is not already met. An exact `yes` does two things at once: it
 starts start-work on that plan, with the same grants as typing `/litclaude:start-work <plan>`, and
@@ -838,15 +908,18 @@ task on its own.
 you can walk away. When a task needs something outside the plan's scope, only that call is
 set aside ("parked") and the run keeps going with the other tasks; reading Claude Code's
 own folders for the session never stops it, and secrets and settings files are simply
-refused. If every open task ends up waiting on parked calls, the turn ends with one list.
-Approving is optional: type `lit approve` to allow the parked calls for this work, or
-`lit deny` to refuse them. To end a run, type `lit cancel` (or `lit 취소`) in any window of
+refused. When nothing else can move, the run wraps up with one inbox.
+Approving is optional: type `lit approve` to allow the parked calls for this work (`lit approve x` for a
+push, publish, tag, bump or any command not known to be local), `lit deny` to refuse them, or `lit skip-row` to skip the waiting rows.
+Only the commands in the list you were last shown run, each exactly as shown.
+To end a run, type `lit cancel` (or `lit 취소`) in any window of
 the project; nothing needs to be copied. The exact route also still works:
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 
-When `stop_hook_active` is `true`, the hook stays silent, so an old prompt never gets
-replayed.
+When `stop_hook_active` is `true` (the stop right after a block), the start-work driver still reads the
+current plan, so a run can close or wrap up there; it never replays an old reply, and it blocks at most
+twice for one unchanged plan state.
 
 The run state lives in `.litclaude/start-work/`, behind a lock folder (`.lock`) that lets only
 one session write it at a time. A lock left behind by a session that crashed clears itself: the

@@ -1,6 +1,6 @@
 ---
 name: lit-schematic
-description: "Moved: lit-schematic draws physical schematics (P&ID, PFD, BFD, equipment layout, apparatus figure, isometric cutaway, 공정도, 계장도, 모식도, 장치도) and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace. Load Skill(figures:lit-schematic) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: lit-schematic draws physical schematics (P&ID, PFD, BFD, equipment layout, apparatus figure, isometric cutaway) and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace. Use for 'draw a P&ID', 'apparatus figure'; 공정도, 계장도, 모식도, 장치도 그려줘. Loads Skill(figures:lit-schematic) when installed; otherwise gives the install line. Not for conceptual diagrams (lit-diagram-drawer) or data plots (lit-scientific-visualization)."
 ---
 
 ## #contract.activation

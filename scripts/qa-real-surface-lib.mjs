@@ -215,7 +215,7 @@ function phaseCorrect(phase, run) {
       && /🔥 \*\*LIT IGNITED · lit-loop\*\* 🔥/u.test(context);
   }
   return run.parsed.systemMessage === undefined
-    && /^LitClaude prompt hook checked: no workflow activation\.(?: If this request asks for work that a listed litclaude skill covers, [^\n]+)?$/u.test(context);
+    && /^LitClaude prompt hook checked: no workflow activation\.(?: If this request asks for work that a listed litclaude skill covers, [^\n]+| No skill rule matched\. [^\n]+)?$/u.test(context);
 }
 
 const aggregatePhase = (samples) => {
@@ -283,6 +283,9 @@ export async function runLitClaudeLocalSpeed({ sourceRoot, arm, samples, scenari
   const env = {
     ...handle.env,
     CLAUDE_PLUGIN_ROOT: handle.pluginPath,
+    // Session records live in the shared temp folder by default; a previous run's record for the same
+    // session id would turn S1 into a "lit-loop is already active" continuation.
+    LITCLAUDE_HUD_STATE_ROOT: tempRoot("speed-local-hud"),
     LITCLAUDE_NO_AUTO_UPDATE: "1",
     LITCLAUDE_NO_UPDATE_CHECK: "1",
     NO_UPDATE_NOTIFIER: "1",

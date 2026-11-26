@@ -1,6 +1,6 @@
 ---
 name: readme-studio
-description: "Moved: readme-studio builds factual project READMEs with inspected covers, outlined typography and local motion, and now ships as the `video-covers` plugin of the wjgoarxiv-skills marketplace. Load Skill(video-covers:readme-studio) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: readme-studio builds factual project READMEs with inspected covers, outlined typography and local motion, and now ships as the `video-covers` plugin of the wjgoarxiv-skills marketplace. Use for 'write a README with a cover', 'redo the README'; README 커버 만들어줘, 공개 전에 README 정리. Loads Skill(video-covers:readme-studio) when installed; otherwise gives the install line. Not for a one-line README fix or a landing page (frontend-ui-ux)."
 ---
 
 ## #contract.activation

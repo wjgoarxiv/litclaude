@@ -1,6 +1,6 @@
 ---
 name: deep-interview
-description: Socratic deep-interview loop that turns a vague idea into an execution-ready spec, using a quantitative ambiguity score to gate when requirements are clear enough to build. Use this BEFORE planning or implementation whenever a request is broad, underspecified, or missing acceptance criteria — or when the user says "interview me", "ask me everything", "don't assume", or "deep interview".
+description: "Socratic interview that turns a vague idea into an execution-ready spec, asking one question at a time until an ambiguity score says it is clear enough to build. Use before planning when the request is broad or underspecified, or the user says 'not sure what I want', 'interview me', 'ask me'; 뭘 만들지 모르겠어, 막연해, 질문하면서 정리해줘. Not for generating options (lit-brainstorm) or attacking a settled plan (lit-crucible)."
 argument-hint: "[--quick|--standard|--deep] <idea or vague description>"
 ---
 

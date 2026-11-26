@@ -1,6 +1,7 @@
 // Outside folders a plan's todos name must be granted before the work starts, so a lane never stops
 // to ask the user for them. start-work reads `Scope roots:` lines with SCOPE_LINE; lit-plan's checks
 // use uncoveredScopePaths to name each todo path no such line covers, with the line to paste.
+import { createHash } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
@@ -10,6 +11,44 @@ import { planLinesOutsideFences } from "./plan-task-rows.mjs";
 // `Scope roots: <path> (<action>, <action>)` lines in the plan widen the grants it starts with.
 // Global, for `matchAll` only: `.test()` or `.exec()` on this shared object would carry `lastIndex`.
 export const SCOPE_LINE = /^Scope roots?:[ \t]*(\S+)[ \t]*\(([a-z, -]+)\)[ \t]*$/gmu;
+
+// `Run charter: commit on <branch> in <repo>` asks, as part of the plan the user approves, for local
+// commits on that one branch of that one repository. Push, publish, tag and version bumps are never
+// part of a charter. Global, for `matchAll` only.
+export const COMMIT_LINE = /^Run charter:[ \t]*commit on[ \t]+(\S+)[ \t]+in[ \t]+(\S+)[ \t]*$/gmu;
+
+/** The plan text outside code fences: a `Scope roots:` or `Run charter:` line in a fenced example grants nothing. */
+export const charterText = (planText) => planLinesOutsideFences(planText).map(({ line }) => line).join("\n");
+
+/**
+ * A hash of the plan's grant lines as written (outside fences). The approval question records it, and
+ * a `yes` starts the plan with those grants only while the plan still has the same lines.
+ */
+export const charterHash = (planText) => {
+  const visible = charterText(planText);
+  const lines = [...visible.matchAll(SCOPE_LINE), ...visible.matchAll(COMMIT_LINE)].map(([line]) => line.trim());
+  return createHash("sha256").update(lines.join("\n")).digest("hex").slice(0, 16);
+};
+
+/**
+ * What a plan's approval grants, for the approval question: its `Scope roots:` lines and its
+ * `Run charter:` commit lines, with relative paths resolved against `projectRoot`.
+ */
+export const planCharter = (planText, projectRoot) => {
+  const at = (path) => (isAbsolute(path) ? path : resolve(projectRoot, path));
+  const visible = charterText(planText);
+  return {
+    scopeRoots: [...visible.matchAll(SCOPE_LINE)].map(([, path, actions]) => ({ root: at(path), actions: actions.split(",").map((word) => word.trim()).filter((word) => word && word !== "commit") })),
+    commits: [...visible.matchAll(COMMIT_LINE)].map(([, branch, repo]) => ({ repo: at(repo), branch })),
+  };
+};
+
+/** One line for the approval question naming what `yes` grants beyond the project itself. */
+export const describeCharter = ({ scopeRoots, commits }) => {
+  const scope = scopeRoots.length ? scopeRoots.map(({ root, actions }) => `${root} (${actions.join(", ")})`).join("; ") : "this project only";
+  const commit = commits.length ? `local commits on ${commits.map(({ branch, repo }) => `${branch} in ${repo}`).join("; ")}` : "no commits";
+  return `Run charter: scope ${scope}; ${commit}. Push, publish, tag and version bumps still ask each time.`;
+};
 
 // An absolute path of two or more segments. A command quoted in an inline code span (it holds a
 // space) is data, not a folder the work reaches, so only spans that are one path count.

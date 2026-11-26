@@ -1,6 +1,6 @@
 ---
 name: browser-drive
-description: Drive a real browser to navigate, fill, click, and extract when the answer only exists in a running page. Probes for the external driver and reports its identity before acting, and returns a named blocker rather than silently substituting a fetch, a guess, or a different automation path. Use for explicit browser work; not for explaining how the web works, and not for verifying a rendered surface, which is visual-qa.
+description: "Drive a real browser to navigate, fill, click and extract when the answer only exists in a running page; probes the external driver first and names a blocker rather than substituting a fetch. Use for 'open it in the browser', 'click through', 'fill the form'; 실제 브라우저로, 직접 채워보고, 클릭해서. Not for checking a built interface at several sizes (visual-qa) or summarising a URL."
 ---
 
 ## #contract.activation

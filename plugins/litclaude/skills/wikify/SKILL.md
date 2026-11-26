@@ -1,6 +1,6 @@
 ---
 name: wikify
-description: "Maintain a task-local Claude Code wiki and reviewed product-local knowledge with inert sources and explicit locality."
+description: "Maintain a task-local Claude Code wiki and reviewed product-local knowledge: capture, link, query and review notes with inert sources and explicit locality. Use for 'add this to our knowledge wiki', 'build a wiki from my notes'; 위키로 정리, 지식 위키에서 찾아줘. Not for Wikipedia lookups or AGENTS.md guidance (lit-init)."
 ---
 
 ## #contract.activation

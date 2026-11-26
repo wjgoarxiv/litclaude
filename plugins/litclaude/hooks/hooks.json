@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" user-prompt-submit",
-            "timeout": 10,
+            "timeout": 120,
             "statusMessage": "checking LitClaude workflow and bounded-authority lifecycle"
           }
         ]
@@ -104,7 +104,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/litclaude-hook.js\" stop",
-            "timeout": 10,
+            "timeout": 120,
             "statusMessage": "checking LitClaude start-work and litgoal completion"
           }
         ]

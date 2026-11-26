@@ -1,6 +1,6 @@
 ---
 name: lit-humanizer
-description: Rewrite model-written English or Korean prose to fit its audience and genre while preserving the user's meaning, voice, facts, and uncertainty.
+description: "Rewrite a Korean or English draft so it reads in the writer's own voice instead of templated model prose, keeping meaning, facts, numbers and uncertainty. Use when asked to polish or de-template a paragraph, email, report or message, or make it sound less AI-written; 내 말투로 다듬어줘, 번역투 빼줘, 자연스럽게 고쳐줘. Not for spelling-only fixes, translation, or AI bloat in code (lit-burnoff)."
 ---
 
 ## #contract.activation

@@ -29,6 +29,7 @@ export const canonicalSkillIds = Object.freeze([
   "lit-scientific-visualization",
   "lit-team",
   "lit-typographic-motion",
+  "lit-xlsx",
   "litgoal",
   "litresearch",
   "litwork",

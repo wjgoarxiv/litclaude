@@ -6,7 +6,7 @@ import { classifyObservation } from "../plugins/litclaude/lib/start-work-lifecyc
 import { EXTRA_DENIES, NUDGE_ALLOWS, REPLAY, makeWorld, mapCommand, projectWithWork, verdict } from "./helpers/observer-replay.mjs";
 
 const OWNER_SNAPSHOT = JSON.parse(readFileSync(new URL("./fixtures/observer-owner-snapshot.json", import.meta.url), "utf8"));
-const READ_NOTE = /^Another session is running start-work work-1 here \(last activity [^)]+\); you may read, nudge its worker with `herdr agent prompt` and write notes in your scratchpad or the shared project memory, not change project files\.$/u;
+const READ_NOTE = /^Another session is running start-work work-1 here \(last activity [^)]+\); you may read and write notes in your scratchpad or the shared project memory, not change project files\. Only the user answers that run's parked steps, in its own session\.$/u;
 const OTHER_DENIAL = /^LitClaude start-work work-1 \(approved\.md\) belongs to another session in this project/u;
 
 // plans/litclaude-1042.md todo 2 (A1): on 2026-10-27 a second session watching a running work was

@@ -46,7 +46,7 @@ test("the band's options are plain strings: an options list would stop Claude Co
   const config = manifest.userConfig;
   // park_ping is read by the hook runner (CLAUDE_PLUGIN_OPTION_PARK_PING), not by the band.
   assert.deepEqual(Object.keys(config).sort(), ["band", "club", "glyphs", "look", "motion", "notify", "park_ping"]);
-  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off", park_ping: "off", club: "on", look: "on" });
+  assert.deepEqual(Object.fromEntries(Object.entries(config).map(([key, field]) => [key, field.default])), { motion: "full", glyphs: "auto", band: "always", notify: "off", park_ping: "on", club: "on", look: "on" });
   for (const [key, field] of Object.entries(config)) {
     assert.equal(field.type, "string", key);
     assert.equal("options" in field, false, `${key} must not declare options`);

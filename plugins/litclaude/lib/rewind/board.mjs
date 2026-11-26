@@ -112,7 +112,7 @@ const doNowOf = (data) => {
     return sentence(plan ? planName(plan) : humanize(path));
   };
   if (next.kind === "resume-frame") return { kind: "resume", skill: target.skill, stage: target.stage, type: next.say ?? "lit continue" };
-  if (next.kind === "approve-boundary") return { kind: "approve", plan: nameOfPlan(target.plan), action: target.action ?? null, root: placeOf(target.root), type: next.say ?? "lit approve", alt: "lit cancel" };
+  if (next.kind === "approve-boundary") return { kind: "approve", plan: nameOfPlan(target.plan), action: target.action ?? null, root: placeOf(target.root), type: next.say ?? "lit approve", alt: "lit deny" };
   if (next.kind === "continue-work") {
     const work = (data.startWork ?? []).find((item) => item.plan === target.plan);
     return { kind: "continue", plan: nameOfPlan(target.plan), done: work?.progress?.done ?? null, total: work?.progress?.total ?? null, type: next.say ?? "go" };
@@ -150,7 +150,7 @@ const remindersOf = (data, doNow) => {
     if (session.waitingReason === "start-work boundary") {
       if (doNow.kind === "approve") continue;
       const work = (data.startWork ?? []).find((item) => item.id8 === session.id8);
-      list.push({ kind: "approve", plan: sentence(work ? humanize(work.plan) : session.title), type: "lit approve", alt: "lit cancel" });
+      list.push({ kind: "approve", plan: sentence(work ? humanize(work.plan) : session.title), type: "lit approve", alt: "lit deny" });
     } else if (session.waitingReason === "paused workflow") {
       if ((session.self && doNow.kind === "resume") || (doNow.kind === "resume-there" && doNow.id8 === session.id8)) continue;
       const frame = (data.workflows ?? []).find((item) => item.id8 === session.id8 && item.status === "paused");

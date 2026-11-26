@@ -221,10 +221,12 @@ async function goalTick($, live) {
     const transcript = live.configDir ? await $.fs.read(transcriptPathFor(live.configDir, cwd, sessionId)).catch(() => "") : "";
     const step = goalStep({ intent, owner, clear, transcript, sessionId });
     const now = new Date(await $.clock.now()).toISOString();
-    if (step.do === "skip-yours" || step.do === "set") await $.fs.write(intentPath, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
+    if (step.do === "skip-yours") await $.fs.write(intentPath, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
     if (step.do === "set") {
       try {
         await $.command.run({ command: "goal", args: step.condition });
+        // Used up only once /goal ran: a failed run leaves the intent for the next idle to retry.
+        await $.fs.write(intentPath, `${JSON.stringify({ ...intent, consumedAt: now })}\n`);
         await $.fs.write(intentPath.replace(/intent\.json$/u, "owner.json"), `${JSON.stringify({ version: 1, condition: intent.condition, hash: intent.hash, id: intent.id, plan: intent.plan, sessionId, setAt: now, confirmed: false })}\n`);
       } catch {
         $.ui.toast(`Goal not confirmed. Paste: /goal ${step.condition}`);

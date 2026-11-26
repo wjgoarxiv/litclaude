@@ -1,6 +1,6 @@
 ---
 name: lit-pptx
-description: "Moved: lit-pptx builds finished PowerPoint decks (.pptx, slides, 발표자료, 슬라이드, PPT) and now ships as the `decks` plugin of the wjgoarxiv-skills marketplace. Load Skill(decks:lit-pptx) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: lit-pptx builds finished PowerPoint decks (.pptx, slides, keynote-style talks) and now ships as the `decks` plugin of the wjgoarxiv-skills marketplace. Use for 'make a deck', 'slides for my talk'; 발표자료, 슬라이드, PPT 만들어줘. Loads Skill(decks:lit-pptx) when installed; otherwise gives the install line. Not for a Word report (lit-docx) or a single diagram (lit-diagram-drawer)."
 ---
 
 ## #contract.activation

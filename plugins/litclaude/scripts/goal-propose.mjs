@@ -12,8 +12,9 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { goalWritePath } from "../lib/goal-files.mjs";
-import { GOAL_STATUS, compileCondition, goalGuideMarkdown, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { GOAL_OPT_IN, GOAL_STATUS, compileCondition, goalGuideMarkdown, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
 import { normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
+import { charterHash, describeCharter, planCharter } from "../lib/plan-scope-roots.mjs";
 import { prepareStateDir, STATE_WRITE_FLAG } from "../lib/project-state-root.mjs";
 
 // A symlinked or non-folder state path throws instead of writing through it.
@@ -36,13 +37,16 @@ export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), 
     return { line: GOAL_STATUS.skipped(`${plan} cannot be read`) };
   }
   const askedAt = new Date(now).toISOString();
+  // The run charter rides on the same question: the user's yes grants these scope roots and commits.
+  const charter = describeCharter(planCharter(planText, cwd));
   // A readable plan with no settable goal still gets the start question; yes then starts the work only.
   const startOnly = (reason) => {
-    const consent = { version: 1, condition: null, hash: startOnlyHash(plan), id: null, plan, reason, askedAt };
+    const consent = { version: 1, condition: null, hash: startOnlyHash(plan), id: null, plan, reason, askedAt, charter_hash: charterHash(planText) };
     record(cwd, sessionId, consent);
-    return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, guide: goalGuideMarkdown("startOnly"), consent };
+    return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, guide: goalGuideMarkdown("startOnly"), consent, charter };
   };
   if (/^goal:\s*never\s*$/mu.test(planText)) return startOnly("this plan is marked goal: never");
+  if (!GOAL_OPT_IN.test(planText)) return startOnly("a native /goal is opt-in: add a `goal: native` line to the plan for one; start-work drives the run either way");
   const done = parseDoneWhen(planText);
   if (!done.ok) return startOnly(done.reason);
   const built = compileCondition({ plan, check: done.check });
@@ -51,9 +55,9 @@ export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), 
   if (!lint.ok) return startOnly(lint.reasons.join("; "));
   const dry = falsify({ cwd, plan, planText, check: done.check, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) });
   if (!dry.ok) return startOnly(dry.reason);
-  const consent = { version: 1, condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan, askedAt };
+  const consent = { version: 1, condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan, askedAt, charter_hash: charterHash(planText) };
   record(cwd, sessionId, consent);
-  return { line: GOAL_STATUS.asked(built.condition), guide: goalGuideMarkdown("asked", built.condition), consent };
+  return { line: GOAL_STATUS.asked(built.condition), guide: goalGuideMarkdown("asked", built.condition), consent, charter };
 };
 
 // `goal-propose.mjs --loop --check "<cmd>" <objective...>`: lit-loop's question, once its failing check
@@ -94,12 +98,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID || null;
   let line;
   let guide;
+  let charter;
   try {
-    ({ line, guide } = first === "--loop" && rest[0] === "--check"
+    ({ line, guide, charter } = first === "--loop" && rest[0] === "--check"
       ? proposeLoopGoal({ cwd: process.cwd(), sessionId, check: rest[1], objective: rest.slice(2).join(" ") })
       : proposeGoal({ cwd: process.cwd(), sessionId, planArg: first }));
   } catch (error) {
     line = GOAL_STATUS.skipped(error instanceof Error ? error.message : "the question could not be recorded");
   }
-  process.stdout.write(guide ? `${line}\n\n${guide}\n` : `${line}\n`);
+  const head = charter ? `${charter}\n${line}` : line;
+  process.stdout.write(guide ? `${head}\n\n${guide}\n` : `${head}\n`);
 }

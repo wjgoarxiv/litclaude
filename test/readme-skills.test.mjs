@@ -25,6 +25,7 @@ const CORE = [
 const PLUGINS = [
   ["decks", ["lit-pptx"]],
   ["documents", ["lit-docx"]],
+  ["sheets", ["lit-xlsx"]],
   ["figures", ["lit-diagram-drawer", "lit-schematic", "lit-scientific-visualization"]],
   ["design", ["frontend-ui-ux", "visual-qa"]],
   ["video-covers", ["readme-studio", "lit-typographic-motion"]],

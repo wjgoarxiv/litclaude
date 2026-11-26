@@ -1,6 +1,6 @@
 ---
 name: lit-loop
-description: Evidence-bound LitClaude execution loop with goal/workflow/worktree bootstrap, RED->GREEN tests, manual QA artifacts, cleanup receipts, and continuation ledgers.
+description: "Evidence-bound LitClaude execution loop that keeps going until the success criteria hold: goal, workflow and worktree bootstrap, RED->GREEN tests, manual QA artifacts, cleanup receipts and continuation. Use for 'keep iterating until it passes', 'loop until CI is clean', 'work on it overnight'; 계속 진행해줘, 통과할 때까지 반복. Not for executing a checked plan file (start-work) or a one-shot change."
 ---
 
 ## #contract.activation
@@ -221,8 +221,9 @@ or `lit deny` (refuse them and carry on), or the exact
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 UserPromptSubmit route as an alternative. The whole prompt `lit cancel`, typed in
 any session of the project, ends the running work. Stop continuations are progress-fingerprinted and root-session-only;
-normal Stop events re-evaluate progress, `stop_hook_active: true` re-entry stays
-silent, later unchanged progress stays silent, and stale state remains inert.
+every Stop re-evaluates progress, `stop_hook_active: true` re-entry is driven from the
+current plan within the same per-state budget (never by replaying stale output), later
+unchanged progress stays silent, and stale state remains inert.
 
 ## Subagent Assignment Contract
 

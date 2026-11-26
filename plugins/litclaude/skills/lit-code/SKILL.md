@@ -1,6 +1,6 @@
 ---
 name: lit-code
-description: "lit-code: Strict Claude Code implementation discipline adapted for LitClaude: TDD, typed boundaries, parse-once input, small files, real integration checks, and no silent lint/type escapes."
+description: "lit-code: strict implementation discipline: TDD, typed boundaries, parse-once input, small files and real integration checks. Use when the user asks for code built test-first, with strict types or small modules; 타입 안전하게, 테스트 먼저, 파일 작게, any 없이 코드 짜줘. Not for a quick one-off script, a bug fix (debugging) or a behaviour-preserving restructure (refactor)."
 ---
 
 ## #contract.activation

@@ -69,7 +69,8 @@ export const goalStateFromTranscript = (jsonlText) => {
     const status = record?.attachment;
     if (status?.type !== "goal_status" || typeof status.condition !== "string") continue;
     if (status.met === true) {
-      met.add(status.condition);
+      // The host records a `/goal clear` as `met:true, sentinel:true`: the goal ended, it was not met.
+      if (status.sentinel !== true) met.add(status.condition);
       if (active === status.condition) active = null;
     } else {
       if (active !== status.condition) checks = 0;
@@ -120,6 +121,8 @@ export const goalStep = ({ intent, owner, clear, transcript, sessionId }) => {
       : { do: "close", why: "not confirmed", status: GOAL_STATUS.notConfirmed(owner.condition) };
   }
   if (state.active !== owner.condition) return { do: "close", why: "gone", status: null };
-  const why = clear && !clear.consumedAt ? clear.why : /^BLOCKED:/mu.test(lastAssistantText(transcript)) ? "BLOCKED" : state.checks >= STALL_CHECKS ? "stalled" : null;
+  // A clear request older than this goal was meant for an earlier one.
+  const freshClear = clear && !clear.consumedAt && !(Date.parse(clear.at) < Date.parse(owner.setAt));
+  const why = freshClear ? clear.why : /^BLOCKED:/mu.test(lastAssistantText(transcript)) ? "BLOCKED" : state.checks >= STALL_CHECKS ? "stalled" : null;
   return why ? { do: "clear", why, status: GOAL_STATUS.cleared(owner.id, why) } : { do: "none" };
 };

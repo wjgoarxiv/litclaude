@@ -1,6 +1,6 @@
 ---
 name: lit-diagram-drawer
-description: "Moved: lit-diagram-drawer draws conceptual diagrams (architecture, workflow, system map, data model, timeline, 다이어그램, 도식) and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace. Load Skill(figures:lit-diagram-drawer) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: lit-diagram-drawer draws conceptual diagrams (architecture, workflow, system map, data model, timeline) and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace. Use for 'draw an architecture diagram', 'flowchart'; 다이어그램, 구성도, 도식, 개념도 그려줘. Loads Skill(figures:lit-diagram-drawer) when installed; otherwise gives the install line. Not for equipment drawings (lit-schematic) or data plots (lit-scientific-visualization)."
 ---
 
 ## #contract.activation

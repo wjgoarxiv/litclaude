@@ -1,6 +1,6 @@
 ---
 name: lit-team
-description: "lit-team: Type lit team <goal>; this session becomes the orchestrator and runs the team for you. It picks the distribution itself (subagents, a Workflow fan-out, herdr panes or git worktrees), writes the member briefs into a durable team packet, launches, watches and wakes members, merges and re-verifies their work, and returns one report. Use for team mode, coordinated parallel work, or a goal with two or more independent slices. Not for a single one-shot delegation; use a plain subagent for that."
+description: "lit-team: Type lit team <goal>; this session becomes the orchestrator and runs the team for you. It picks the distribution (subagents, a Workflow fan-out, herdr panes or git worktrees), writes member briefs into a durable team packet, launches, watches and wakes members, merges and re-verifies their work, and returns one report. Use for team mode or a goal with two or more independent slices; 팀으로 나눠서, 동시에 진행, 워크트리 나눠서 각자 작업. Not for a single one-shot delegation or idea generation (ultra-brainstorm)."
 ---
 
 ## #contract.activation

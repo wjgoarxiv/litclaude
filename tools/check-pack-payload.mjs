@@ -29,7 +29,7 @@ export const README_SKILL_IMAGE_PATHS = Object.freeze([
   'refactor', 'lit-burnoff', 'lit-burnoff-file', 'lit-code', 'lit-commit', 'lsp-setup',
   'automatic-checks',
   // The extension rows (docs/skills.md "Extensions"), plugin by plugin.
-  'lit-pptx', 'lit-docx', 'lit-diagram-drawer', 'lit-schematic', 'lit-scientific-visualization',
+  'lit-pptx', 'lit-docx', 'lit-xlsx', 'lit-diagram-drawer', 'lit-schematic', 'lit-scientific-visualization',
   'frontend-ui-ux', 'visual-qa', 'readme-studio', 'lit-typographic-motion',
 ].map((id) => `docs/assets/skills/${id}.webp`));
 

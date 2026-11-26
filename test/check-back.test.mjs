@@ -142,7 +142,7 @@ describe("check-back follow-up", () => {
     run(f, "pre-tool-use", { hook_event_name: "PreToolUse", prompt_id: "p-start", tool_use_id: "toolu_1", tool_name: "Write", tool_input: { file_path: join(outside, "r.txt"), content: "x" } });
     const text = report(checkBack(f));
     assert.match(text, /start-work \S+ is (active|paused)\./u);
-    assert.match(text, /Waiting on you: write \S*outside\. Type lit approve or lit cancel\./u);
+    assert.match(text, /Waiting on you: write \S*outside\. Type lit approve, lit deny or lit skip-row\./u);
   });
 
   it("an unreadable mark fails closed for its own session only", (t) => {

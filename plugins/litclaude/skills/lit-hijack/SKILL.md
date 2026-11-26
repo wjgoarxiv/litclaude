@@ -1,6 +1,6 @@
 ---
 name: lit-hijack
-description: Port the know-how in someone else's published work (X posts and long articles, threads, GitHub repos, gists, blog posts, PDFs, video transcripts) into your own skill or system, clean-room. Captures sources with provenance, distils the mechanisms, gates the licence, finds the gaps with file:line evidence, writes a source-free spec, builds it through a separate implementer, proves the change on the real surface and reports what was taken. Use for "hijack this", "port this technique", "find what my skill lacks from these posts", "take over this repo's principles".
+description: "Port the know-how in someone else's published work (posts, articles, threads, repos, gists, PDFs, transcripts) into your own skill or system, clean-room: provenance, a licence gate, a source-free spec, a separate implementer and parity proof on the real surface. Use for 'hijack this', 'port this technique into my skill'; 포팅해줘, 클린룸으로 다시 구현. Not for a referenced survey (litresearch) or forking a repo."
 argument-hint: "<urls or files> [into <target path or new skill name>]"
 ---
 

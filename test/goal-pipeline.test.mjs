@@ -15,7 +15,7 @@ const hookPath = join(plugin, "bin", "litclaude-hook.js");
 const temp = mkdtempSync(join(tmpdir(), "litclaude-goal-"));
 after(() => rmSync(temp, { recursive: true, force: true }));
 
-const PLAN = "# P\n\n## Todos\n\n- [ ] 1. Make the test pass\n\n## Done when\n\ncheck: `npm test`\n";
+const PLAN = "# P\ngoal: native\n\n## Todos\n\n- [ ] 1. Make the test pass\n\n## Done when\n\ncheck: `npm test`\n";
 const project = (name, { plan = PLAN, testExit = 1 } = {}) => {
   const cwd = join(temp, name);
   mkdirSync(join(cwd, "plans"), { recursive: true });
@@ -48,7 +48,7 @@ describe("goal compiler and lint", () => {
     const done = parseDoneWhen(PLAN);
     assert.deepEqual(done, { ok: true, check: "npm test" });
     const built = compileCondition({ plan: "plans/p.md", check: done.check });
-    assert.match(built.condition, /^Every row in plans\/p\.md is ticked and `npm test` exits 0 \[lit:[0-9a-f]{8}\]$/u);
+    assert.match(built.condition, /^Every row in plans\/p\.md is ticked and `npm test` exits 0, or the latest reply starts with WAITING-ON-USER:, or after 30 turns \[lit:[0-9a-f]{8}\]$/u);
     assert.equal(parseDoneWhen("# P\n").ok, false);
     assert.equal(parseDoneWhen("## Done when\n\nwhen it works\n").ok, false);
   });
@@ -83,14 +83,15 @@ describe("goal-propose CLI", () => {
     const cwd = project("propose");
     const { line, consent } = proposeGoal({ cwd, planArg: "plans/p.md" });
     assert.equal(line, GOAL_STATUS.asked(consent.condition));
-    assert.match(line, /^Approve plan, start work and set goal: \/goal Every row in plans\/p\.md is ticked and `npm test` exits 0 \[lit:[0-9a-f]{8}\]\? \(yes \/ edit \/ no\)$/u);
+    assert.match(line, /^Approve plan, start work and set goal: \/goal Every row in plans\/p\.md is ticked and `npm test` exits 0, or the latest reply starts with WAITING-ON-USER:, or after 30 turns \[lit:[0-9a-f]{8}\]\? \(yes \/ edit \/ no\)$/u);
     assert.equal(consent.hash, conditionHash(consent.condition));
     assert.deepEqual(goalFiles(cwd), ["consent.json"]);
   });
 
   it("without a goal it still asks to start the work, naming why no goal was set (R1)", () => {
     for (const [name, opts, reason] of [
-      ["no-block", { plan: "# P\n\n- [ ] 1. a\n" }, /no `## Done when` block/u],
+      ["no-block", { plan: "# P\ngoal: native\n\n- [ ] 1. a\n" }, /no `## Done when` block/u],
+      ["not opted in", { plan: PLAN.replace("goal: native\n", "") }, /goal: native/u],
       ["true", { plan: PLAN.replace("- [ ]", "- [x]"), testExit: 0 }, /already true/u],
       ["never", { plan: `goal: never\n${PLAN}` }, /goal: never/u],
     ]) {
@@ -123,12 +124,14 @@ describe("consent: only an exact yes arms the goal", () => {
   });
 
   it("no, edit, silence (any other prompt) and a stale or tampered question arm nothing", () => {
-    for (const answer of ["no", "edit", "yes please", "y", "go", "ok"]) {
+    for (const answer of ["no", "edit", "yes please", "y", "go"]) {
       const cwd = project(`a-${answer.replace(/\W/gu, "")}`);
       proposeGoal({ cwd, planArg: "plans/p.md" });
       hook(cwd, answer);
       assert.equal(existsSync(intentPath(cwd)), false, answer);
-      assert.equal(existsSync(join(cwd, ".litclaude", "goal", "consent.json")), false, `${answer} ends the question`);
+      // `no` and `edit` answer the question; any other prompt leaves it open until it expires.
+      const answered = ["no", "edit"].includes(answer);
+      assert.equal(existsSync(join(cwd, ".litclaude", "goal", "consent.json")), !answered, `${answer} ${answered ? "ends" : "keeps"} the question`);
     }
     const stale = project("stale");
     proposeGoal({ cwd: stale, planArg: "plans/p.md", now: Date.now() - 31 * 60 * 1000 });
@@ -140,6 +143,7 @@ describe("consent: only an exact yes arms the goal", () => {
     hook(tampered, "yes");
     assert.equal(existsSync(intentPath(tampered)), false, "hash no longer matches");
     assert.equal(consentAnswer(" YES "), "yes");
+    assert.equal(consentAnswer("네"), "yes");
     assert.equal(consentAnswer("yes."), null);
   });
 

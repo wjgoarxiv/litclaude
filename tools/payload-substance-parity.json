@@ -34,6 +34,7 @@
         "lit-scientific-visualization",
         "lit-team",
         "lit-typographic-motion",
+        "lit-xlsx",
         "litgoal",
         "litresearch",
         "litwork",
@@ -50,8 +51,8 @@
         "wikify"
       ],
       "inventory": {
-        "count": 42,
-        "sha256": "4af2f829ee0e9b2cd391dcf60f921fc7fdb874df354fe12a9a3a7118364516c9"
+        "count": 43,
+        "sha256": "1a7ee20a21e40a986c50083b3fe40b808f41f8138feb2996463da982f41638f7"
       }
     },
     "p28": {

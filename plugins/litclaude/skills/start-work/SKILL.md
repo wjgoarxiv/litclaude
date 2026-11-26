@@ -148,29 +148,43 @@ parser without manufacturing a resumable boundary.
 
 Use `pause` only when the next operation crosses a genuinely new non-forbidden
 action/root boundary; it parks that boundary and the work stays active. An
-already covered boundary stays active without a revision change. Commit, push,
-publish, tag, release, version bump, registry write, host-config write, and
-destructive VCS are forbidden boundaries: block them instead of manufacturing a
-pause. Secrets and settings (`~/.ssh`, `~/.aws`, `.env` files, private keys,
-Claude Code settings, `.mcp.json`, git configuration, the start-work state) are
-refused outright, never parked. Parked steps do not decide completion; the
-plan's checkboxes do.
+already covered boundary stays active without a revision change. Push, publish,
+tag, release, version bump, registry write, host-config write, and destructive
+VCS are irreversible (tier X) and never granted by a pause. Commits run only
+through the run charter: a `Run charter: commit on <branch> in <repo>` line in
+the approved plan allows plain `git add <files>` and `git commit -m/-F/-a` in
+that repository while that branch is checked out; amend, `--no-verify` and any
+other branch stay X. Secrets and settings (`~/.ssh`, `~/.aws`, `.env` files,
+private keys, Claude Code settings, `.mcp.json`, git configuration, the
+start-work state, host tool homes such as `~/.claude` or `~/.codex`) are refused
+outright, never parked. Parked steps do not decide completion; the plan's
+checkboxes do.
 
-A parked call never freezes the run: carry on with the plan's other tasks, and
-mark a task that cannot be done without it with a `BLOCKED: <reason>` line under
-its row. Do not stop to ask. When every open task waits on parked calls, the
-Stop hook ends the turn with one list. The whole prompt `lit cancel` (or
-`lit 취소`), typed in any session of the project, ends the running work; no work
-id or revision is needed, and the cancelled session may only read until the
-user types again there.
+Nothing the guard refuses is a dead end. A Bash command it cannot verify is
+parked with its exact text and folder; the tool result says "parked; continue
+with the next row", and so do you: carry on with the plan's other tasks, and
+mark a task that cannot be done without it with a `BLOCKED: <reason>` line
+under its row. Do not stop to ask, and do not retry a parked command. When only
+parked or blocked rows remain, the Stop hook ends the turn with one inbox for
+the user.
 
 Resume is deliberately asymmetric. There is no `--user-confirmed`, generic
 agent-callable resume bypass, or prose-based approval. Only a prompt the user
 types settles parked steps, and doing so is optional: the whole prompt
-`lit approve` (or `lit 승인`) grants every parked boundary for this work, and
-`lit deny` (or `lit 거절`) refuses them and keeps those paths refused. When the
-run waits on parked steps, tell the user what they reach and those replies, plus
-`lit cancel`. The entire exact route stays accepted as an alternative:
+`lit approve` (or `lit 승인`) grants every parked path boundary and runs the
+local, undoable (B) commands of the list the user was last shown, in order,
+each in its own folder; `lit approve x`, typed alone as the whole prompt, runs
+that list's X commands (irreversible, outward, or not known to be local), and
+nothing else does; `lit deny` (or
+`lit 거절`) drops them and keeps them refused; `lit skip-row [N]` ticks the
+blocked rows (or row N) as skipped and drops their parked steps. `lit pause`
+stops the Stop hook from driving the run (its guard still holds) until
+`lit resume`. A row no answer can unblock gets an `IMPOSSIBLE: <reason>` line
+instead of `BLOCKED:`; when only such rows are left the run stops with their
+reasons. When the run waits on parked steps, tell the user what they reach and
+those replies, and start that reply with `WAITING-ON-USER:` so an opted-in
+`/goal` ends too. The
+entire exact route stays accepted as an alternative:
 
 ```text
 /litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>
@@ -188,8 +202,9 @@ does not echo the user's prompt.
 tilde fences, so examples and nested criteria cannot become completion proof.
 `Stop` is root-session only and uses Claude's real `prompt_id` plus strict
 boolean `stop_hook_active`: a new progress fingerprint gets one continuation,
-each normal Stop re-evaluates current progress, and host re-entry with that flag
-set to `true` stays silent instead of replaying stale blocking output. Later
+each Stop re-evaluates current progress, and host re-entry with that flag set
+to `true` is driven from the current plan within the same per-state budget,
+never by replaying stale blocking output. Later
 unchanged prompts are silent and fall through to litgoal. `SubagentStart` and
 `SubagentStop` record child lanes and Claude-owned worktree identity separately;
 child continuation is inert and active lanes block completion. `cancel` and `complete` are

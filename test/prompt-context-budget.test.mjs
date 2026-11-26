@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { SKILL_FIRST_NOTICE } from "./helpers/hook-context.mjs";
+import { SKILL_FIRST_NOTICE, SUGGESTION_NOTICE } from "./helpers/hook-context.mjs";
 
 // Claude Code shows a hook's additionalContext inline only below 10,000 characters. Above that the
 // model gets a saved-file stub and a preview of about 2,000 bytes, so anything past the preview is
@@ -128,11 +128,20 @@ describe("per-route prompt context budget", () => {
     });
   }
 
-  it("leaves an unrouted prompt at the one-line skill-first notice", () => {
+  it("leaves an unrouted prompt at the one-line catalog notice, under 120 tokens", () => {
     for (const prompt of ["what is 2+2", "2+2는 얼마야?"]) {
       assert.equal(promptContext(prompt), SKILL_FIRST_NOTICE, prompt);
     }
-    assert.ok(bytes(SKILL_FIRST_NOTICE) <= 400, `${bytes(SKILL_FIRST_NOTICE)} bytes`);
+    assert.ok(bytes(SKILL_FIRST_NOTICE) <= 480, `${bytes(SKILL_FIRST_NOTICE)} bytes`);
+  });
+
+  it("offers every skill whose suggestion rule fired, plus none, and never activates a route", () => {
+    const context = promptContext("draw an architecture diagram of our services and make a kinetic typography video of the launch quote");
+    assert.match(context, SUGGESTION_NOTICE);
+    assert.match(context, /lit-typographic-motion/u);
+    assert.match(context, /lit-diagram-drawer/u);
+    assert.doesNotMatch(context, /LIT IGNITED/u);
+    assert.equal(promptContext("fix this failing test"), SKILL_FIRST_NOTICE);
   });
 
   it("leaves a slash prompt at the bare notice, since the host already expanded its skill", () => {
@@ -163,8 +172,8 @@ describe("per-route prompt context budget", () => {
 
 // A prompt with no lit token reaches no route, so the notice is the only LitClaude text beside it.
 // In an empty print-mode run the model spent its first turns reading the workspace and never
-// reached the skill the request described. The notice is the same for every unrouted prompt; it
-// never inspects the wording, so it cannot be tuned to these requests.
+// reached the skill the request described. The notice is either the candidate list of the
+// suggestion tier or the compact catalog line; neither activates a route.
 describe("an unrouted work request is pointed at the skill list first", () => {
   for (const prompt of [
     "Inspect this patch for actionable defects; each finding needs file and line evidence plus a reproduction path, with runtime risks grouped separately.",
@@ -180,7 +189,8 @@ describe("an unrouted work request is pointed at the skill list first", () => {
     "The sign-in page is built; exercise its error and success states at phone and desktop sizes, then compare captures for breakage.",
   ]) {
     it(`${prompt.slice(0, 48)}... gets the skill-first notice and no route`, () => {
-      assert.equal(promptContext(prompt), SKILL_FIRST_NOTICE);
+      const context = promptContext(prompt);
+      assert.ok(context === SKILL_FIRST_NOTICE || SUGGESTION_NOTICE.test(context), context);
     });
   }
 });

@@ -44,7 +44,7 @@ const planOf = (context) => /<litclaude-skill-plan>\n(Skill plan: [^\n]+)/u.exec
 describe("S1 skill plan — one lit prompt, several fitting skills", () => {
   it("collects every matching route in priority order, the cascade's route first (English)", () => {
     const plan = planOf(run("lit build a landing page that shows a chart of our experiment data"));
-    assert.equal(plan, "Skill plan: 1 design:frontend-ui-ux (primary) → 2 figures:lit-scientific-visualization (user types /figures:lit-scientific-visualization)");
+    assert.equal(plan, "Skill plan: 1 design:frontend-ui-ux (primary) → 2 figures:lit-scientific-visualization");
   });
 
   it("collects them from a Korean prompt too", () => {
@@ -110,7 +110,7 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
 
   it("`lit +viz +ui +crucible <task>` forces exactly that plan and routes the task without the names", () => {
     const context = run("lit +viz +ui +crucible tidy the results");
-    assert.equal(planOf(context), "Skill plan: 1 lit-loop (primary) → 2 figures:lit-scientific-visualization (user types /figures:lit-scientific-visualization) → 3 design:frontend-ui-ux → 4 lit-crucible");
+    assert.equal(planOf(context), "Skill plan: 1 lit-loop (primary) → 2 figures:lit-scientific-visualization → 3 design:frontend-ui-ux → 4 lit-crucible");
     assert.match(context, /keep it exactly, add nothing and drop nothing/u);
     assert.doesNotMatch(context, /Catalog \(installed here\)/u);
     assert.match(run("lit +ui +nope polish it"), /Ignored unknown plan names: \+nope\./u);

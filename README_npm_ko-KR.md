@@ -83,6 +83,15 @@ Claude Code를 다시 시작하세요.
 | `lit ultra-brainstorm <주제>` | 아이디어 에이전트 30~300개가 낸 것 중 점수 매긴 상위 10개 |
 | `lit team <목표>` | 이 세션이 팀을 굴리고 결과를 알려 줌 |
 | `lit adhd`(또는 `lit rewind`), 이어서 `go` | 지금 할 한 가지를 담은 여섯 줄 카드, 그리고 그 일 |
+| `lit 엑셀로 정리해줘`, `lit make an xlsx report` | 수식이 살아 있는 Excel 통합 문서(`sheets` 확장) |
+| `lit approve`, `lit approve x`, `lit deny`, `lit skip-row` | 긴 작업이 모아 둔 받은편지함에 대한 답 |
+| `lit pause`, `lit resume` | 긴 작업을 그 자리에 멈춰 두었다가 다시 이어 가기 |
+
+승인한 계획은 마지막 행까지 진행하고, `## Done when` 확인이 통과하면 스스로 닫힙니다. 내 승인이 필요한 단계는
+세워 두고 작업은 계속되며, 끝에 받은편지함 하나가 기다리는 것을 모아 보여 줍니다. Claude가 할 수 없던 행에는
+`IMPOSSIBLE: <이유>`가 붙습니다. 계획에 `Run charter: commit on <branch> in <repo>` 줄이 있으면 그 브랜치에서
+커밋할 수 있고, `goal: native` 줄이 있으면 Claude Code의 `/goal`이 함께하되 언제나 스스로 끝납니다. `lit` 없이 요청해도
+Claude가 맞는 스킬을 후보로 받아 불러올지 정합니다.
 
 Claude 데스크톱 앱과 모바일 앱(Claude Code 2.1.325 이상)에서는 LitClaude가 앱에 Ignition 룩도 입힙니다. LitFamily 색과
 LIT 상태를 따라 쉬고, 타오르고, 신호를 보내고, 터지는 신스웨이브 노을 배경입니다. `npx @litfamily/litclaude@latest config look still`은

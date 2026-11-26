@@ -1,6 +1,6 @@
 ---
 name: lit-burnoff-file
-description: "lit-burnoff-file: Removes AI-generated code smells from a SINGLE file while preserving functionality. For multiple files, run per file in parallel."
+description: "Remove AI-generated code smells (bloat, needless helpers, vague abstractions, fake certainty) from a SINGLE file while preserving behaviour. Use for 'deslop this file', 'make parser.py less AI-looking'; 이 파일 슬롭 제거, 이 파일 AI 냄새 지워줘. Not for several files or a whole repo (lit-burnoff) or prose (lit-humanizer)."
 ---
 
 ## #contract.activation

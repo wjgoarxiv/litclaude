@@ -1,6 +1,6 @@
 ---
 name: comment-checker
-description: "Comment hygiene workflow adapted for LitClaude: keep comments useful, remove stale narration, and preserve intent-bearing notes."
+description: "Comment hygiene: remove stale, noisy or narrating comments and keep the ones that carry intent. Use when asked to prune, clean up or check comments or TODOs in code; 주석 정리, 주석 점검, 쓸모없는 주석 제거. Not for writing new docstrings, replying to review comments, or AI bloat in code itself (lit-burnoff)."
 ---
 
 ## #contract.activation

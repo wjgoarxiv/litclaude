@@ -1,6 +1,6 @@
 ---
 name: autoresearch
-description: "Run a budgeted Claude Code research family after plan and authority approval; routes core, debug, fix, learn, plan, predict, reason, scenario, security, and ship modes."
+description: "Run a bounded experiment loop under an approved budget: one change per iteration, judged against a declared metric, benchmark or evaluator, then kept or reverted. Use when a score, loss or latency must improve through repeated measured attempts; 점수 올리는 실험 반복, 한 번에 하나씩 바꿔가며 측정. Not for a literature survey (litresearch) or a single eval run."
 ---
 
 ## #contract.activation

@@ -54,6 +54,13 @@ and you can skip any step you do not need.
 | 5. Review | `/litclaude:review-work` | A review in five lanes, findings first |
 | 6. Hand off | `handoff` | Decisions and the next step, saved to a file |
 
+**Without `lit`.** A plain request starts no workflow, but LitClaude still tells Claude which of its skills
+could help. When a request clearly asks for a diagram, a plot of measured data, a kinetic-type film, a visual
+check of a built page or a wiki, Claude sees those skills as candidates; otherwise it sees one short line of the
+15 most common skills. Claude decides for each one whether it fits and loads it, or answers with none. Each of
+these rules shipped only after a test on held-out prompts showed it finds at least 85% of the requests it
+should and fires on at most 10% of the look-alikes.
+
 Install with one line, then start Claude Code in your project ([Quick start](#quick-start) has the full first run):
 
 ```bash
@@ -221,11 +228,11 @@ isolation, runs the old and new skill on the same held-out prompt, and ends with
 ## Extensions
 
 LitClaude's core is complete and works on its own: the lit workflows, planning, review, research, handoffs and
-Korean prose all ship in this package. The nine skills that make files are LitFamily extensions now, five
+Korean prose all ship in this package. The ten skills that make files are LitFamily extensions, six
 Claude Code plugins on the extension shelf [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills),
-and installing the ones you use beside LitClaude gives you the full LitFamily experience. Each is the same
-skill LitClaude used to ship, and a same-name stub in LitClaude hands your request to it once it is installed,
-or gives you the install line when it is not.
+and installing the ones you use beside LitClaude gives you the full LitFamily experience. Nine are the same
+skills LitClaude used to ship; the tenth, lit-xlsx for Excel workbooks, started on the shelf. A same-name stub
+in LitClaude hands your request to each one once it is installed, or gives you the install line when it is not.
 
 <p align="center">
   <picture>
@@ -235,7 +242,8 @@ or gives you the install line when it is not.
 </p>
 
 On the left is the core: 33 skills grouped by the job they do, plus the agents, hooks, LIT card, status line
-and the MCP and LSP servers around them. The middle column holds the nine stubs, which ship in the same
+and the MCP and LSP servers around them. The picture predates the `sheets` plugin, so it shows nine of the ten
+stubs. The middle column holds those stubs, which ship in the same
 package and keep the old skill names, so a deck request or a bare `lit-pptx` still lands somewhere; the band
 at the bottom shows the four steps an install takes and the `litclaude-ai extensions` commands that run them
 for you.
@@ -244,13 +252,14 @@ Add the shelf once, then install the plugins you want, and run `/reload-plugins`
 
 ```bash
 claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
-claude plugin install decks@wjgoarxiv-skills   # or documents, figures, design, video-covers
+claude plugin install decks@wjgoarxiv-skills   # or documents, sheets, figures, design, video-covers
 ```
 
 | Plugin | Skills | What it makes |
 | --- | --- | --- |
 | `decks` | lit-pptx | PowerPoint decks |
 | `documents` | lit-docx | Word reports, proposals and manuscripts |
+| `sheets` | lit-xlsx | Excel workbooks with live formulas, recalculated and checked as rendered sheets |
 | `figures` | lit-diagram-drawer, lit-schematic, lit-scientific-visualization | diagrams, P&IDs and cutaways, journal figures |
 | `design` | frontend-ui-ux, visual-qa | web interfaces and the visual check of a built one |
 | `video-covers` | lit-typographic-motion, readme-studio | short films and README covers |
@@ -606,14 +615,53 @@ setting, and the doctor shows what is in force:
 
 [How automatic handoff works, step by step](./docs/guide.md#automatic-handoff).
 
+## Long runs that finish themselves
+
+A plan you approve with `yes` runs row by row until every row is ticked and the plan's `## Done when` check
+passes, and then the run closes itself. You do not type `complete`, and nothing tells you to type
+`lit cancel` to get out of a stuck step. Parked local steps do not hold a finished run open: the closing
+line names each one it set aside, and only push, publish, tag, bumps, deploys, network calls and deletes
+outside the project keep the run waiting for you. Three things keep the run moving while you are not there.
+
+The plan can allow commits. When a plan carries a line like the one below, the approval question shows it
+first, and your `yes` lets the run make local commits on that branch of that repository with plain `git add`
+of named files and `git commit -m`. Amending, other branches, push, tag, publish and version bumps stay
+outside it.
+
+```text
+Run charter: commit on feat/csv-export in /path/to/your/repo
+```
+
+A step that needs your yes is parked, and the run goes on. LitClaude keeps the exact command and the folder it
+was meant to run in, tells Claude to continue with the next row, and saves the step for you. Secrets and your
+real home folders are never parked; those calls stay refused. A row Claude cannot finish at all gets the marker
+`IMPOSSIBLE: <reason>` in the plan, and the run moves past it.
+
+When the rows are done, or nothing else can move, the run wraps up with one inbox: the rows still waiting, the
+`IMPOSSIBLE` rows, and every parked command with its folder. You answer it in one prompt:
+
+| Type | What happens |
+| --- | --- |
+| `lit approve` | Runs the [B] steps of the list you were shown (`cd`, `mkdir`, `touch`, `git add`, and `cp` or `mv` onto a new path, all inside the project and outside `.git`) in order, each in its folder; the first failure stops the rest |
+| `lit approve x` | Typed alone as the whole prompt, runs the list's [X] steps: push, publish, tag, bumps and every command LitClaude cannot show to be local and undoable |
+| `lit deny` | Drops the parked steps and keeps those exact commands refused |
+| `lit skip-row` or `lit skip-row 3` | Skips every waiting row, or row 3, and drops its parked steps |
+| `lit pause`, then `lit resume` | Holds the run where it is, then lets it go on |
+
+Claude Code's own `/goal` stays out of it unless the plan asks for it with a `goal: native` line. Even then
+the goal ends by itself: its condition always closes with "or the latest reply starts with
+WAITING-ON-USER:, or after 30 turns".
+
+[The run guard, step by step](./docs/hooks.md#long-runs-that-finish-themselves).
+
 ## While you are away
 
-Two helpers tell you when a long run needs you. Both stay off until you turn them on.
+Two helpers tell you when a long run needs you.
 
-- **A ping when a step parks.** start-work keeps going when one call needs your yes, and parks only that call.
-  Set the `park_ping` option to `on` (or `osc777`) in `/plugin` → LitClaude → configure, and the first time a step
-  parks you get one terminal notification naming what waits. Type `lit approve` or `lit cancel` when you are back;
-  approving stays with you. Inside tmux, add `set -g allow-passthrough on`.
+- **A ping when a step parks.** The first time a step parks you get one terminal notification naming the
+  command that waits. It is on by default; set the `park_ping` option to `off` (or `osc777`) in `/plugin` →
+  LitClaude → configure. Answer with `lit approve`, `lit deny` or `lit skip-row` when you are back; approving
+  stays with you. Inside tmux, add `set -g allow-passthrough on`.
 - **A check back later.** When a loop ends waiting on something that changes by itself, such as a CI run, Claude
   may offer to check back in a few minutes. Only your yes sets the timer. That later turn only reports, and when
   nothing changed no turn runs at all. The timer lives in this Claude Code session and ends with it.
@@ -623,7 +671,7 @@ Two helpers tell you when a long run needs you. Both stay off until you turn the
 ## What you get
 
 LitClaude ships 30 core skills you can start, three that run on their own, 20 slash commands and 11 agents,
-plus nine stubs that lead to the extension skills. Most days you will use a handful of them, one per job:
+plus ten stubs that lead to the extension skills. Most days you will use a handful of them, one per job:
 
 | Job | Type | What you get |
 | --- | --- | --- |
@@ -898,7 +946,7 @@ or sells it under another name, please [open an issue](https://github.com/wjgoar
 | Page | What it covers |
 | --- | --- |
 | [Guide](./docs/guide.md) | Install options, what you will see on screen, the promo film, every route, automatic handoff, slides and documents, the status line, safety, and the Claude Code integration in depth |
-| [All skills](./docs/skills.md) | The 30 core skills, the automatic checks and the nine extension skills, one row each |
+| [All skills](./docs/skills.md) | The 30 core skills, the automatic checks and the ten extension skills, one row each |
 | [Hooks](./docs/hooks.md), [agents](./docs/agents.md), [privacy and network behavior](./docs/privacy.md) | What runs, who runs it, and what leaves your machine |
 | [Migration and ownership conflicts](./docs/migration.md), [package-name migration and marketplace choices](./docs/migration.md#scoped-npm-migration) | Moving between installs and package names |
 | [Native `/goal` surface](./docs/native-goal-surface.md), [workflow compatibility audit](./docs/workflow-compatibility-audit.md) | How LitClaude fits Claude Code's own features |

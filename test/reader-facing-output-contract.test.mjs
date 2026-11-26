@@ -234,7 +234,7 @@ describe("reader-facing communication contract", () => {
     ]);
     const currentCommands = commandPaths.filter((path) => !redirects.includes(path));
     assert.equal(currentCommands.length, 21, "cover every current first-party command prompt");
-    assert.equal(skillPaths.length, 42, "cover every active first-party skill prompt");
+    assert.equal(skillPaths.length, 43, "cover every active first-party skill prompt");
 
     for (const path of [...currentCommands, ...skillPaths]) {
       const prompt = read(path);

@@ -16,7 +16,7 @@ const plugin = join(root, "plugins", "litclaude");
 const temp = mkdtempSync(join(tmpdir(), "litclaude-goal-guide-"));
 after(() => rmSync(temp, { recursive: true, force: true }));
 
-const PLAN = "# P\n\n## Todos\n\n- [ ] 1. Make the test pass\n\n## Done when\n\ncheck: `npm test`\n";
+const PLAN = "# P\ngoal: native\n\n## Todos\n\n- [ ] 1. Make the test pass\n\n## Done when\n\ncheck: `npm test`\n";
 const project = (name, plan = PLAN) => {
   const cwd = join(temp, name);
   mkdirSync(join(cwd, "plans"), { recursive: true });
@@ -68,7 +68,7 @@ describe("goal answer guide", () => {
     assert.equal(proposeGoal({ cwd, planArg: "../x.md" }).guide, undefined, "no question, no guide");
     const cli = spawnSync(process.execPath, [join(plugin, "scripts", "goal-propose.mjs"), "plans/p.md"], { cwd: project("cli"), encoding: "utf8" });
     assert.equal(cli.status, 0, cli.stderr);
-    assert.match(cli.stdout, /^Approve plan, start work and set goal: .*\(yes \/ edit \/ no\)\n\n> \*\*▶ Answer: /u);
+    assert.match(cli.stdout, /^Run charter: [^\n]*\nApprove plan, start work and set goal: .*\(yes \/ edit \/ no\)\n\n> \*\*▶ Answer: /u);
   });
 
   it("the lit-loop hook question carries the plain guide under the line", () => {

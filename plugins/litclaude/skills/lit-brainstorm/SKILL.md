@@ -1,6 +1,6 @@
 ---
 name: lit-brainstorm
-description: Open-ended idea generation for asks like "what could we do", "give me options", "name this" or "brainstorm". Diverge into many genuinely different options through several lenses, cluster and score them against stated criteria, converge on a short list with trade-offs, then hand the pick to deep-interview or lit-plan. Never implements.
+description: "Open-ended idea generation: diverge into genuinely different options through several lenses, cluster and score them against stated criteria, converge on a short list with trade-offs, then hand the pick to deep-interview or lit-plan; never implements. Use for 'give me options', 'name this', 'what could we do', 'brainstorm'; 아이디어 좀 내줘, 후보 뽑아줘, 같이 고민해줘. Not for hundreds of ideas from many agents (ultra-brainstorm)."
 argument-hint: "[--quick|--standard|--wide] <topic, question or thing to name>"
 goal: never
 ---

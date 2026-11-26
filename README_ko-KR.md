@@ -48,6 +48,12 @@ Claude가 목표를 정하고, 실패하는 테스트를 쓰고, 버그를 고�
 | 5. 검토 | `/litclaude:review-work` | 다섯 갈래로 검토하고 발견한 문제부터 알려 줍니다 |
 | 6. 넘겨주기 | `handoff` | 결정과 다음 할 일을 파일로 남깁니다 |
 
+**`lit` 없이.** 평범한 요청은 워크플로를 시작하지 않지만, LitClaude는 도움이 될 만한 스킬을 Claude에게 알려
+줍니다. 다이어그램, 측정 데이터 그래프, 키네틱 타이포 영상, 만든 화면의 시각 검사, 위키를 분명히 요청하면 그 스킬들이
+후보로 올라가고, 그렇지 않으면 자주 쓰는 스킬 15개를 적은 짧은 한 줄이 갑니다. 후보마다 맞는지 Claude가 판단해서 불러오고,
+맞는 것이 없으면 아무것도 불러오지 않습니다. 이 규칙들은 따로 떼어 둔 시험 문장에서 찾아야 할 요청의 85% 이상을 찾고, 비슷하지만
+다른 요청에는 10% 이하로만 반응한다는 것을 확인한 뒤에 들어갔습니다.
+
 설치는 한 줄입니다. 그다음 프로젝트에서 Claude Code를 실행하세요(처음 써 보는 전체 과정은 [빠른 시작](#빠른-시작)에 있습니다).
 
 ```bash
@@ -197,9 +203,10 @@ lit-typographic-motion은 먼저 연출안을 쓰고, 사운드를 깔아 프레
 ## 확장
 
 LitClaude의 핵심 기능은 그 자체로 완성되어 있고 혼자서도 잘 돌아갑니다. lit 워크플로, 계획, 리뷰, 조사, 핸드오프, 한국어 문장 다듬기가 모두 이 패키지에 들어 있고, 파일을 만드는
-스킬 아홉 개는 이제 확장 선반 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)의 Claude Code 플러그인 다섯 개로 나뉜
-LitFamily 확장입니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있고, 모두 LitClaude가 예전에 싣던 그 스킬 그대로이며, LitClaude에 남은
-같은 이름의 안내용 스킬이 설치된 확장으로 요청을 넘기거나 설치 명령을 알려 줍니다.
+스킬 열 개는 확장 선반 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)의 Claude Code 플러그인 여섯 개로 나뉜
+LitFamily 확장입니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있습니다. 아홉 개는 LitClaude가 예전에 싣던 그 스킬
+그대로이고, 열 번째인 Excel 통합 문서 스킬 lit-xlsx는 처음부터 선반에서 시작했습니다. LitClaude에 남은 같은 이름의 안내용 스킬이 설치된
+확장으로 요청을 넘기거나 설치 명령을 알려 줍니다.
 
 <p align="center">
   <picture>
@@ -208,7 +215,8 @@ LitFamily 확장입니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily
   </picture>
 </p>
 
-왼쪽은 핵심입니다. 스킬 33개를 하는 일에 따라 묶었고, 그 곁에 에이전트, 훅, LIT 카드, 상태 줄, MCP와 LSP 서버가 있습니다. 가운데 칸은 같은 패키지에 든 안내용 스킬 아홉 개로,
+왼쪽은 핵심입니다. 스킬 33개를 하는 일에 따라 묶었고, 그 곁에 에이전트, 훅, LIT 카드, 상태 줄, MCP와 LSP 서버가 있습니다. 그림은 `sheets`
+플러그인보다 먼저 그려서 안내용 스킬 열 개 중 아홉 개만 보입니다. 가운데 칸은 같은 패키지에 든 그 안내용 스킬들로,
 예전 이름을 그대로 갖고 있어서 발표자료를 부탁하거나 `lit-pptx`라고만 쳐도 요청이 갈 곳을 잃지 않고, 아래 띠는 설치가 거치는 네 단계와 이를 대신 실행하는
 `litclaude-ai extensions` 명령을 보여 줍니다.
 
@@ -216,13 +224,14 @@ LitFamily 확장입니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily
 
 ```bash
 claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills
-claude plugin install decks@wjgoarxiv-skills   # 또는 documents, figures, design, video-covers
+claude plugin install decks@wjgoarxiv-skills   # 또는 documents, sheets, figures, design, video-covers
 ```
 
 | 플러그인 | 스킬 | 만드는 것 |
 | --- | --- | --- |
 | `decks` | lit-pptx | PowerPoint 발표자료 |
 | `documents` | lit-docx | Word 보고서, 제안서, 논문 원고 |
+| `sheets` | lit-xlsx | 수식이 살아 있는 Excel 통합 문서, 다시 계산하고 시트를 렌더링해 확인 |
 | `figures` | lit-diagram-drawer, lit-schematic, lit-scientific-visualization | 다이어그램, P&ID와 컷어웨이, 논문 그림 |
 | `design` | frontend-ui-ux, visual-qa | 웹 화면과 만든 화면의 시각 검사 |
 | `video-covers` | lit-typographic-motion, readme-studio | 짧은 영상과 README 표지 |
@@ -535,18 +544,53 @@ Claude Code를 시작하기 전에 셸에서 켤 수도 있습니다. 두 환경
 
 [자동 핸드오프가 단계별로 어떻게 돌아가는지](./docs/guide_ko-KR.md#자동-핸드오프)
 
+## 혼자 끝까지 가는 긴 작업
+
+`yes`로 승인한 계획은 모든 행에 체크가 되고 계획의 `## Done when` 확인이 통과할 때까지 한 행씩 진행한 뒤, 스스로 작업을 닫습니다.
+`complete`를 입력할 필요가 없고, 막힌 단계에서 빠져나오려고 `lit cancel`을 치라는 말도 나오지 않습니다. 보류된 로컬 단계는 끝난 작업을 붙잡지 않습니다. 마지막 줄에
+실행하지 않은 단계를 하나씩 적고, push, publish, tag, 버전 올림, 배포, 네트워크 호출, 프로젝트 밖 삭제만 나를 기다립니다. 내가 자리에 없는 동안
+작업이 멈추지 않도록 세 가지가 돕습니다.
+
+계획이 커밋을 허락할 수 있습니다. 계획에 아래와 같은 줄이 있으면 승인 질문이 그 줄을 맨 먼저 보여 주고, 내가 `yes`라고 답하면 그
+저장소의 그 브랜치에서 이름을 적은 파일의 `git add`와 `git commit -m`으로 로컬 커밋을 할 수 있습니다. amend, 다른 브랜치, push,
+tag, publish, 버전 올리기는 여기에 들어가지 않습니다.
+
+```text
+Run charter: commit on feat/csv-export in /path/to/your/repo
+```
+
+내 승인이 필요한 단계는 세워 두고, 작업은 계속됩니다. LitClaude는 그 명령과 실행할 폴더를 그대로 적어 두고, Claude에게 다음 행으로
+넘어가라고 알린 뒤 그 단계를 나중을 위해 보관합니다. 비밀 정보와 실제 홈 폴더를 건드리는 호출은 보관하지 않고 그대로 거절합니다.
+Claude가 끝낼 수 없는 행에는 계획에 `IMPOSSIBLE: <이유>` 표시가 붙고, 작업은 그 행을 지나갑니다.
+
+행이 다 끝나거나 더 움직일 것이 없으면, 작업은 받은편지함 하나로 정리됩니다. 아직 기다리는 행, `IMPOSSIBLE` 행, 세워 둔 명령과 그
+폴더가 모두 들어 있습니다. 답은 한 번의 입력으로 합니다.
+
+| 입력 | 하는 일 |
+| --- | --- |
+| `lit approve` | 보여 준 목록의 [B] 단계(프로젝트 안, `.git` 밖에서 하는 `cd`, `mkdir`, `touch`, `git add`, 그리고 새 경로로 하는 `cp`, `mv`)를 순서대로, 각자의 폴더에서 실행합니다. 처음 실패한 곳에서 나머지는 멈춥니다 |
+| `lit approve x` | 다른 글자 없이 이것만 입력하면 목록의 [X] 단계를 실행합니다. push, publish, tag, 버전 올리기, 그리고 이 컴퓨터 안에서 되돌릴 수 있다고 확인되지 않은 모든 명령입니다 |
+| `lit deny` | 세워 둔 단계를 버리고, 그 명령은 계속 거절합니다 |
+| `lit skip-row` 또는 `lit skip-row 3` | 기다리는 행 모두, 또는 3번 행을 건너뛰고 그 행의 세워 둔 단계를 버립니다 |
+| `lit pause`, 그다음 `lit resume` | 작업을 그 자리에 멈춰 두었다가 다시 이어 갑니다 (`lit 멈춤`, `lit 재개`도 됩니다) |
+
+Claude Code 자체의 `/goal`은 계획에 `goal: native` 줄이 있을 때만 씁니다. 그때도 목표는 스스로 끝납니다. 조건이 언제나
+"or the latest reply starts with WAITING-ON-USER:, or after 30 turns"로 끝나기 때문입니다.
+
+[실행 가드가 단계별로 어떻게 돌아가는지](./docs/hooks.md#long-runs-that-finish-themselves)
+
 ## 자리를 비울 때
 
-긴 작업이 나를 기다릴 때 알려 주는 기능이 두 가지 있습니다. 둘 다 직접 켜야 동작합니다.
+긴 작업이 나를 기다릴 때 알려 주는 기능이 두 가지 있습니다.
 
-- **단계가 멈추면 알림.** start-work는 내 승인이 필요한 호출 하나만 세워 두고 나머지 일을 계속합니다. `/plugin` → LitClaude → configure에서 `park_ping`을 `on`(또는 `osc777`)으로 바꾸면, 단계가 처음 멈출 때 무엇이 기다리는지 알려 주는 터미널 알림이 한 번 옵니다. 돌아와서 `lit approve`나 `lit cancel`을 입력하세요. 승인은 언제나 내가 직접 합니다. tmux 안에서는 `set -g allow-passthrough on`을 추가하세요.
+- **단계가 멈추면 알림.** 단계가 처음 세워질 때 기다리는 명령을 알려 주는 터미널 알림이 한 번 옵니다. 기본으로 켜져 있고, `/plugin` → LitClaude → configure에서 `park_ping`을 `off`(또는 `osc777`)로 바꿀 수 있습니다. 돌아와서 `lit approve`, `lit deny`, `lit skip-row` 중 하나로 답하세요. 승인은 언제나 내가 직접 합니다. tmux 안에서는 `set -g allow-passthrough on`을 추가하세요.
 - **나중에 다시 확인.** CI처럼 저절로 바뀔 일을 기다리며 루프가 끝나면, Claude가 몇 분 뒤에 다시 확인해 줄지 물을 수 있습니다. 내가 좋다고 답할 때만 타이머가 생깁니다. 그 턴은 보고만 하고, 바뀐 것이 없으면 턴 자체가 돌지 않습니다. 타이머는 지금 Claude Code 세션에 속해서 세션을 닫으면 함께 사라집니다.
 
 [알림이 동작하는 방식](./docs/hooks.md#ping-when-a-step-parks)
 
 ## 무엇을 할 수 있나요
 
-LitClaude에는 직접 시작하는 핵심 스킬 30개와 알아서 도는 스킬 3개, 슬래시 명령 20개, 에이전트 11개, 그리고 확장 스킬로 안내하는 스킬 9개가 들어 있습니다. 평소에는 그중 몇 개만, 할 일마다 하나씩 쓰게 됩니다.
+LitClaude에는 직접 시작하는 핵심 스킬 30개와 알아서 도는 스킬 3개, 슬래시 명령 20개, 에이전트 11개, 그리고 확장 스킬로 안내하는 스킬 10개가 들어 있습니다. 평소에는 그중 몇 개만, 할 일마다 하나씩 쓰게 됩니다.
 
 | 할 일 | 입력 | 얻는 것 |
 | --- | --- | --- |
@@ -774,7 +818,7 @@ LitClaude는 npm에 `@litfamily/litclaude`로 올라가며,
 | 문서 | 다루는 내용 |
 | --- | --- |
 | [안내서](./docs/guide_ko-KR.md) | 설치 옵션, 화면에 나오는 모습, 홍보 영상, 전체 입력 경로, 자동 핸드오프, 발표자료와 문서, 상태 줄, 안전, Claude Code 연결 구조 |
-| [전체 스킬](./docs/skills_ko-KR.md) | 핵심 스킬 30개, 자동 점검, 확장 스킬 9개를 한 줄씩 그림과 함께 |
+| [전체 스킬](./docs/skills_ko-KR.md) | 핵심 스킬 30개, 자동 점검, 확장 스킬 10개를 한 줄씩 그림과 함께 |
 | [hook](./docs/hooks.md), [에이전트](./docs/agents.md), [개인정보와 네트워크](./docs/privacy.md) | 무엇이 돌고, 누가 돌리고, 무엇이 밖으로 나가는지 |
 | [이전과 소유권 충돌](./docs/migration.md), [패키지 이름 이전과 마켓플레이스 선택](./docs/migration.md#scoped-npm-migration) | 설치 방식과 패키지 이름을 옮길 때 |
 | [Claude Code `/goal` 지원 범위](./docs/native-goal-surface.md), [작업 흐름 호환성 점검](./docs/workflow-compatibility-audit.md) | LitClaude가 Claude Code 자체 기능과 맞물리는 방식 |

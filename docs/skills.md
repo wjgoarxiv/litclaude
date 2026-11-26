@@ -3,8 +3,8 @@
 [README](../README.md) · [Guide](./guide.md) · [한국어](./skills_ko-KR.md)
 
 LitClaude's core holds 30 skills you start yourself and three that run on their own. They ship in the
-plugin and need nothing else. Nine more skills are LitFamily extensions: they moved to the wjgoarxiv-skills
-marketplace in five small plugins, and LitClaude keeps a same-name stub for each. With the extension
+plugin and need nothing else. Ten more skills are LitFamily extensions: they live on the wjgoarxiv-skills
+marketplace in six small plugins, and LitClaude keeps a same-name stub for each. With the extension
 installed, the stub hands the request over; without it, the stub gives you the install line. Each row shows
 a picture of what the skill gives you, the prompt or command that starts it, and the result.
 
@@ -173,8 +173,8 @@ One row per skill: what it looks like, the route that starts it, and what you ge
 
 ## Extensions
 
-The extension skills live in five plugins you install beside LitClaude, one at a time, only for the work
-you do. In your own terminal, `npx @litfamily/litclaude extensions list` shows all five and whether each
+The extension skills live in six plugins you install beside LitClaude, one at a time, only for the work
+you do. In your own terminal, `npx @litfamily/litclaude extensions list` shows all six and whether each
 is installed. The install line under each plugin prints its install plan, stops if a skill of your own has
 the same name, and runs the plan when you add `--yes`.
 
@@ -209,6 +209,23 @@ npx @litfamily/litclaude extensions install documents
 <td><img src="./assets/skills/lit-docx.webp" width="240" alt="In the documents extension. Ask for a report with lit and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery." /></td>
 <td><code>lit-docx</code><br /><sub><code>/litclaude:lit-docx &lt;request&gt;</code> · <code>documents:lit-docx</code></sub></td>
 <td>In the <code>documents</code> extension. Ask for a report with <code>lit</code> and get a styled Word file with its Markdown source. Korean text is set in Pretendard, and the pages are rendered and read before delivery.</td>
+</tr>
+</table>
+
+### sheets
+
+Excel workbooks with live formulas.
+
+```bash
+npx @litfamily/litclaude extensions install sheets
+```
+
+<table>
+<tr><th>What it looks like</th><th>Skill</th><th>What you get</th></tr>
+<tr>
+<td><img src="./assets/skills/lit-xlsx.webp" width="240" alt="In the sheets extension. Ask for a budget, a model or a dashboard with lit and get an Excel file whose numbers are live formulas. LibreOffice recalculates it, an audit looks for formula errors, and every sheet is rendered and read before delivery." /></td>
+<td><code>lit-xlsx</code><br /><sub><code>/litclaude:lit-xlsx &lt;request&gt;</code> · <code>sheets:lit-xlsx</code></sub></td>
+<td>In the <code>sheets</code> extension. Ask for a budget, a model or a dashboard with <code>lit</code> and get an Excel file whose numbers are live formulas. LibreOffice recalculates it, an audit looks for formula errors, and every sheet is rendered and read before delivery.</td>
 </tr>
 </table>
 

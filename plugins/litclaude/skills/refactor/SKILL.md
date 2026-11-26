@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: "Behavior-preserving refactor workflow adapted for LitClaude: characterize first, split safely, preserve public contracts, and verify through tests plus real surface evidence."
+description: "Behaviour-preserving refactor: characterize first, split safely, preserve public contracts, and verify through tests plus the real surface. Use for 'refactor', 'split this god class', 'restructure without changing behaviour'; 리팩터링, 기능 바뀌지 않게 파일 나눠줘, 구조만 정리. Not for a new feature, deleting comments (comment-checker) or AI bloat (lit-burnoff)."
 ---
 
 ## #contract.activation

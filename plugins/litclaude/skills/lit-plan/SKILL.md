@@ -95,13 +95,23 @@ Stop hook saves the plan as this session's next step once the plan file is writt
 what lets the one word `go` start it. The hook starts the work
 with grants derived from the project; a plan that needs more names it on a line
 such as `Scope roots: <path> (read)`, and anything else outside the
-project is parked (only that call; the run keeps going, and the user may allow it
-later with `lit approve` or end the run with `lit cancel`). Every absolute
+project is parked (only that call; the run keeps going, and the user settles it
+when the run wraps up, with `lit approve` or `lit deny`; `lit cancel` stays the user's own way to end a run, never one to suggest). Every absolute
 path a todo names outside the project must sit under such a line: `scaffold-plan.mjs
 --check` and the Stop hook list each uncovered one with the exact line to paste
 (`Scope roots: <existing folder> (read)`), and the Stop hook blocks until it is there.
 Widen `(read)` by hand when a lane must write in that folder. A command quoted in
 backticks is data and is not read for paths.
+
+**Run charter.** A plan whose rows commit adds one line per repository it commits in,
+`Run charter: commit on <branch> in <repo>` (the branch the run works on, never `main` unless the
+user asked). The user's `yes` to the approval question grants exactly that: plain `git add <files>`
+and `git commit -m/-F/-a` in that repository while that branch is checked out, checked at every
+call. Amend, a commit on any other branch, push, tag, publish and version bumps stay the user's own
+steps and are never part of a charter. `goal-propose.mjs` prints the charter as the first line of
+its output (`Run charter: scope …; local commits on …` or `no commits`); put that line above the
+approval question unchanged, so the user sees what `yes` grants. The charter is recorded in the run
+state by the code that starts the work; never write it into `.litclaude/boulder.json` by hand.
 
 ## Planning Contract
 
@@ -310,6 +320,10 @@ unavailable:
   allowlisted test command that exits 0 only when the work is done (`npm test`,
   `node --test …`, `pytest`, `make check`, `bash scripts/<check>.sh`). No judgment
   words ("works", "looks good", "잘 동작"), never a push or publish.
+- A native `/goal` is opt-in: write a `goal: native` line near the top of the plan only when the user
+  asks for one. Without it start-work's own Stop hook drives the run and the question offers only the start.
+  An opted-in goal always ends itself: its condition closes with "or the latest reply starts with
+  WAITING-ON-USER:, or after 30 turns".
 - After writing the plan, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" plans/<slug>.md`
   once and add the one line it prints to the approval question, unchanged: either
   `Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`, or, when no goal can

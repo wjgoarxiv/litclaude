@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: "Moved: visual-qa checks an interface that is already built (states at several viewport sizes, screenshots, an evidence manifest, named blockers) and now ships as the `design` plugin of the wjgoarxiv-skills marketplace. Load Skill(design:visual-qa) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: visual-qa checks an interface that is already built (states at several viewport sizes, screenshots, an evidence manifest, named blockers) and now ships as the `design` plugin of the wjgoarxiv-skills marketplace. Use for 'check my page at mobile and desktop', 'screenshot what is broken'; 모바일에서 깨지는지 스크린샷으로 확인, 시각적으로 검수. Loads Skill(design:visual-qa) when installed; otherwise gives the install line. Not for building or restyling (frontend-ui-ux)."
 ---
 
 ## #contract.activation

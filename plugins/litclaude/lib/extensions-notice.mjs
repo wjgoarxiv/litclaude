@@ -1,4 +1,4 @@
-// The LitFamily extensions notice. Nine skills that make files left LitClaude for the wjgoarxiv-skills
+// The LitFamily extensions notice. Ten skills that make files live on the wjgoarxiv-skills
 // marketplace; LitClaude keeps a same-name stub for each. The installer prints this notice after every
 // install or update, and the SessionStart hook shows it once in the first session that runs a new
 // version (recorded in LitClaude's own home, beside the update-notifier state). On an upgrade it also
@@ -12,6 +12,7 @@ import { join, relative, sep } from "node:path";
 export const EXTENSION_SKILLS = Object.freeze({
   "lit-pptx": "decks",
   "lit-docx": "documents",
+  "lit-xlsx": "sheets",
   "lit-diagram-drawer": "figures",
   "lit-schematic": "figures",
   "lit-scientific-visualization": "figures",
@@ -141,11 +142,11 @@ export const sameNameSkills = ({ claudeHome, cwd, home = homedir() }) => {
 export const extensionsNoticeLines = ({ leftovers = [], sameName = [] } = {}) => [
   "LitFamily extensions",
   "  LitClaude's core is complete and works on its own.",
-  "  Nine skills that make files (decks, documents, figures, design, video covers) are now LitFamily",
+  "  Ten skills that make files (decks, documents, sheets, figures, design, video covers) are LitFamily",
   `  extensions, kept on the extension shelf at ${EXTENSIONS_SHELF}. Install the ones`,
   "  you use beside LitClaude to get the full LitFamily experience:",
   `    ${MARKETPLACE_LINE}`,
-  `    ${installLine("decks")}   # or documents, figures, design, video-covers`,
+  `    ${installLine("decks")}   # or documents, sheets, figures, design, video-covers`,
   "  To update an installed extension, refresh the shelf first and then the plugin. Claude Code installs a",
   "  new copy only when the plugin's version has changed, and the new copy loads after /reload-plugins or",
   "  in a new session:",

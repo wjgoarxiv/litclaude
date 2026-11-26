@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { suggestionCatalogLine } from "../../plugins/litclaude/lib/skill-plan.mjs";
 
 const NO_WORKFLOW_ACTIVATION = "LitClaude prompt hook checked: no workflow activation.";
-// An unrouted prompt that is not a typed slash command also points the model at the skill list.
-export const SKILL_FIRST_NOTICE = `${NO_WORKFLOW_ACTIVATION} If this request asks for work that a listed litclaude skill covers, load that skill with the Skill tool before reading files or running commands; a question answered from knowledge needs no skill.`;
+// An unrouted prompt that is not a typed slash command and fires no suggestion rule gets the compact catalog line.
+export const SKILL_FIRST_NOTICE = suggestionCatalogLine();
+// An unrouted prompt whose suggestion rules fired gets the candidate list plus "none" instead.
+export const SUGGESTION_NOTICE = /^LitClaude prompt hook checked: no workflow activation\. Skill candidates the hook matched: [^\n]+; none\. Decide yes or no for each, then load the ones that fit with the Skill tool before reading files or running commands; if none fits, work without a skill\.$/u;
 
 export function assertNoWorkflowActivationContext(context, label = "hook context") {
   const [notice] = context.split("\n\n## Project Instructions\n", 1);
   assert.ok(
-    notice === NO_WORKFLOW_ACTIVATION || notice === SKILL_FIRST_NOTICE,
+    notice === NO_WORKFLOW_ACTIVATION || notice === SKILL_FIRST_NOTICE || SUGGESTION_NOTICE.test(notice),
     `${label} should keep the no-activation result ahead of any always-on project rules`,
   );
 }

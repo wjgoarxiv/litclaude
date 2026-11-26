@@ -53,20 +53,20 @@ const write = (f, path, id, env) => run(f, "pre-tool-use", {
   hook_event_name: "PreToolUse", prompt_id: "p-start", tool_use_id: id, tool_name: "Write", tool_input: { file_path: path, content: "x" },
 }, env);
 const notify = (f, type = "permission_prompt", env) => run(f, "notification", { hook_event_name: "Notification", notification_type: type, message: "Claude needs your permission" }, env);
-const OSC9 = /^\u001b\]9;LitClaude start-work: a parked step waits on you: write .+\. Type lit approve to allow, or lit cancel to end the run\.\u0007$/u;
+const OSC9 = /^\u001b\]9;LitClaude start-work: a parked step waits on you: write .+\. The run goes on; answer when it wraps up with lit approve, lit deny or lit skip-row\.\u0007$/u;
 
 describe("park ping", () => {
-  it("is enrolled: a Notification hook and a plugin option that defaults to off", () => {
+  it("is enrolled: a Notification hook and a plugin option that defaults to on (row 5)", () => {
     const hooks = JSON.parse(readFileSync(join(pluginRoot, "hooks", "hooks.json"), "utf8")).hooks;
     assert.match(hooks.Notification[0].hooks[0].command, /litclaude-hook\.js\\?" notification$/u);
     assert.equal(hooks.Notification[0].matcher, "^(permission_prompt|idle_prompt|agent_needs_input)$");
     const option = JSON.parse(readFileSync(join(pluginRoot, ".claude-plugin", "plugin.json"), "utf8")).userConfig.park_ping;
-    assert.equal(option.default, "off");
+    assert.equal(option.default, "on");
     assert.match(option.description, /approves nothing/u);
   });
 
   it("sends nothing when the option is off: the park still denies the call", (t) => {
-    const f = fixture(t);
+    const f = fixture(t, "off");
     start(f);
     const parked = write(f, join(f.outside, "r.txt"), "toolu_1");
     assert.equal(parked.hookSpecificOutput.permissionDecision, "deny");
@@ -101,7 +101,7 @@ describe("park ping", () => {
   });
 
   it("a notification pings once for a step parked before the option was on", (t) => {
-    const f = fixture(t);
+    const f = fixture(t, "off");
     start(f);
     write(f, join(f.outside, "r.txt"), "toolu_1");
     const on = { ...f.env, [OPTION]: "on" };

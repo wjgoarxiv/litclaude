@@ -1,6 +1,6 @@
 ---
 name: lit-init
-description: "lit-init: Initialize a hierarchical AGENTS.md knowledge base for a repository — a root AGENTS.md plus complexity-scored subdirectory files. Use when the user wants to bootstrap or refresh project knowledge for Claude Code, onboard a codebase, generate AGENTS.md/CLAUDE.md guidance, or map an unfamiliar repo. Adapted for the Claude Code host: discovery via background explore subagents + the LSP tool, parallel generation via Dynamic workflow."
+description: "lit-init: initialize a hierarchical AGENTS.md knowledge base for a repository: a root AGENTS.md plus complexity-scored subdirectory files. Use when the user wants to bootstrap or refresh project knowledge for Claude Code, onboard a codebase, generate AGENTS.md/CLAUDE.md guidance, or map an unfamiliar or newly inherited repo ('I just inherited this repo', 'get oriented'); 인수인계받은 프로젝트, 구조 파악해서 AGENTS.md 만들어줘, 에이전트용 안내 파일. Adapted for the Claude Code host: discovery via background explore subagents and the LSP tool, parallel generation via Dynamic workflow. Not for a README (readme-studio) or a language-server setup (lsp-setup)."
 ---
 
 ## #contract.activation

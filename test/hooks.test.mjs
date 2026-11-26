@@ -169,7 +169,7 @@ describe("Claude hook runner", () => {
   it("keeps the native PreToolUse matcher and Stop time budget", () => {
     const hooks = JSON.parse(readFileSync(hooksConfigPath, "utf8")).hooks;
     assert.equal(hooks.PreToolUse[0].matcher, "^(Read|Grep|Glob|Write|Edit|MultiEdit|NotebookEdit|Bash|Agent|Skill)$");
-    assert.equal(hooks.Stop[0].hooks[0].timeout, 10);
+    assert.equal(hooks.Stop[0].hooks[0].timeout, 120, "Stop runs the plan's Done-when check (90 s cap) before it closes a finished run");
   });
 
   it("keeps the native PostToolUse matcher", () => {

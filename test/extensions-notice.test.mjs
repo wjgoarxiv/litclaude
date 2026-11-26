@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { extensionsNoticeLines, sameNameSkills } from "../plugins/litclaude/lib/extensions-notice.mjs";
 
-// Nine file-making skills are now LitFamily extensions on the wjgoarxiv-skills shelf. The installer says so
+// Ten file-making skills are LitFamily extensions on the wjgoarxiv-skills shelf. The installer says so
 // after every install or update, and the first session that runs a new version says so once. On an upgrade
 // both name what older versions left on disk. Neither reaches a JSON result.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,7 +17,7 @@ const ESC = String.fromCharCode(27);
 const NOTICE = [
   "LitFamily extensions",
   "LitClaude's core is complete and works on its own.",
-  "Nine skills that make files (decks, documents, figures, design, video covers) are now LitFamily",
+  "Ten skills that make files (decks, documents, sheets, figures, design, video covers) are LitFamily",
   "extensions, kept on the extension shelf at github.com/wjgoarxiv/wjgoarxiv-skills.",
   "to get the full LitFamily experience",
   "claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills",

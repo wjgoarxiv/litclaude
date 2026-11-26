@@ -191,6 +191,9 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. 이 스킬은 이제 wjgoarxiv-skills의 `figures` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. 스킬 본체는 wjgoarxiv-skills의 `decks` 플러그인으로 옮겼고, LitClaude의 같은 이름 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `<보고서 써줘 …> lit`, `/litclaude:lit-docx` | 보고서·기획서·제안서·논문 원고를 `.docx`로 만듭니다. `lit-docx`와 `$lit-docx`도 지원합니다. 이 스킬은 이제 wjgoarxiv-skills의 `documents` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
+| `lit 엑셀로 정리해줘`, `lit make an xlsx report`, `/litclaude:lit-xlsx` | 수식이 살아 있는 `.xlsx` 통합 문서를 만들고, 다시 계산하고, 수식을 점검하고, 시트를 렌더링해 확인합니다. `lit-xlsx`와 `$lit-xlsx`도 지원합니다. 이 스킬은 wjgoarxiv-skills의 `sheets` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
+| `lit approve`, `lit approve x`, `lit deny`, `lit skip-row [N]` | start-work 작업의 받은편지함에 답합니다. 목록의 로컬 [B] 단계를 순서대로 실행하거나, 목록의 [X] 단계(push·publish·tag·버전 올리기와 로컬이라고 확인되지 않은 명령)를 실행하거나, 세워 둔 단계를 버리거나, 기다리는 행(또는 N번 행)을 건너뜁니다. [혼자 끝까지 가는 긴 작업](#혼자-끝까지-가는-긴-작업)을 보세요. |
+| `lit pause`, `lit resume` | start-work 작업을 그 자리에 멈춰 두었다가 다시 이어 갑니다. `lit 멈춤`, `lit 일시정지`, `lit 재개`도 됩니다. |
 | `litclaude wikify <capture/save/review/query/config>` | 검토를 거친 프로젝트 지식을 로컬에 정리합니다. |
 | `browser-drive`, `$browser-drive` | 실제 웹 페이지를 조작합니다. 먼저 `vercel-labs/agent-browser` 0.34.0 이상이 있는지 확인하고, 0.34.0보다 새 버전이면 그대로 쓰되 `beyond-verified`로 표시합니다. 없거나 더 오래된 버전이면 설치 명령만 알려 주고, 실행은 사용자에게 맡깁니다. |
 
@@ -200,6 +203,51 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 `lit-code`(구현 규율)입니다. 프롬프트 앞에 이름이나 `$<skill-id>`를 쓰면 됩니다.
 예전 이름도 한 릴리스 동안은 안내 문구와 함께 새 스킬로 연결됩니다.
 [이름 이전 표](./migration.md#one-release-rename-aliases)를 참고하세요.
+
+### `lit` 없이
+
+`lit`이 없는 프롬프트는 워크플로를 시작하지 않지만, LitClaude는 Claude가 맞는 스킬을 찾도록 돕습니다.
+개념 다이어그램, 측정 데이터 그래프, 키네틱 타이포 영상, 만든 화면의 시각 검사, 위키를 분명히 요청하면 훅이 그
+스킬들을 후보로, "none"과 함께 알려 주고, Claude가 하나씩 불러올지 정합니다. 맞는 규칙이 없으면 자주 쓰는 스킬
+15개(`lit-plan`, `review-work`, `debugging`, `lit-brainstorm`, `deep-interview`, 문서·그림 스킬 등)를 적은
+짧은 한 줄이 가고, Claude가 같은 방식으로 정합니다. 그래서 `뭘 만들지 잘 모르겠어`도 lit-brainstorm으로 갈 수 있습니다.
+저절로 불러오는 스킬은 없고, `lit`이 붙은 프롬프트의 경로는 그대로입니다. 규칙은 맞춰 보지 않은 절반의 시험 문장에서
+찾아야 할 요청의 85% 이상을 찾고, 비슷하지만 다른 요청에는 10% 이하로만 반응할 때만 들어갑니다.
+
+## 혼자 끝까지 가는 긴 작업
+
+승인한 계획은 모든 행에 체크가 되고 계획의 `## Done when` 확인이 통과할 때까지 한 행씩 진행하고, 그다음 start-work가
+작업을 스스로 닫습니다. 끝내려고 입력할 것이 없고, Claude에게 `lit cancel`을 권하라는 메시지도 나오지 않습니다. 보류된 로컬 단계는
+끝난 작업을 붙잡지 않습니다. 마지막 줄에 실행하지 않은 단계를 하나씩 적고, push, publish, tag, 버전 올림, 배포,
+네트워크 호출, 프로젝트 밖 삭제만 마무리 단계에서 나를 기다립니다. 내가
+자리를 비운 몇 시간을 위해 만든 작업이라, 내가 필요한 단계가 있어도 작업이 멈추지 않습니다.
+
+**계획이 허락하면 커밋도 합니다.** 계획에 이런 줄을 넣으세요.
+
+```text
+Run charter: commit on feat/csv-export in /path/to/your/repo
+```
+
+승인 질문이 이 줄을 먼저 보여 주고, 내가 `yes`라고 답하면 작업이 그 저장소의 그 브랜치에서 이름을 적은 파일의
+`git add`와 `git commit -m`으로 스스로 커밋합니다. amend, 다른 브랜치, push, tag, publish, 버전 올리기는 들어가지 않습니다.
+
+**세워 두기.** 작업이 혼자 할 수 없는 명령은 그 폴더와 함께 따로 세워 두고, Claude는 다음 행으로 넘어갑니다. 아예 할 수
+없는 행에는 계획에 `IMPOSSIBLE: <이유>`가 붙습니다. 비밀 정보와 실제 홈 폴더를 건드리는 호출은 세워 두지 않고 바로 거절합니다.
+
+**마지막에 받은편지함 하나.** 행이 다 끝나거나 더 움직일 것이 없으면, 기다리는 것을 한곳에 모아 보여 줍니다. 열린 행,
+`IMPOSSIBLE` 행, 세워 둔 명령과 그 폴더입니다. 한 번의 입력으로 답하세요.
+
+| 입력 | 하는 일 |
+| --- | --- |
+| `lit approve` | 보여 준 목록의 [B] 단계(프로젝트 안, `.git` 밖에서 하는 `cd`, `mkdir`, `touch`, `git add`, 그리고 새 경로로 하는 `cp`, `mv`. 패키지 스크립트와 다른 프로그램은 모두 X입니다)를 순서대로, 각자의 폴더에서 실행합니다. 처음 실패한 곳에서 나머지는 멈춥니다 |
+| `lit approve x` | 다른 글자 없이 이것만 입력하면 목록의 [X] 단계를 실행합니다. push, publish, tag, 버전 올리기, 그리고 이 컴퓨터 안에서 되돌릴 수 있다고 확인되지 않은 모든 명령입니다 |
+| `lit deny` | 세워 둔 단계를 버리고, 그 명령은 계속 거절합니다 |
+| `lit skip-row`, `lit skip-row 3` | 기다리는 행, 또는 3번 행을 건너뛰고 그 행의 세워 둔 단계를 버립니다 |
+| `lit pause`, `lit resume` | 작업을 그 자리에 멈춰 두었다가 다시 이어 갑니다 (`lit 멈춤`, `lit 재개`) |
+
+단계가 처음 세워질 때 터미널 알림이 그 명령을 알려 줍니다. `park_ping` 설정으로 끌 수 있습니다. Claude Code의 `/goal`은
+계획에 `goal: native` 줄이 있을 때만 함께하고, 그때도 `WAITING-ON-USER:`로 시작하는 답이 나오거나 30턴이 지나면 스스로
+끝납니다. 훅의 자세한 동작은 [훅 참조](./hooks.md#long-runs-that-finish-themselves)에 있습니다.
 
 ## 자동 핸드오프
 
@@ -299,7 +347,7 @@ LitClaude, LitHermes, LitCodex, LitOpenCode, LitGrok, LitMuse, LitGravity를 아
 ## 확장
 
 이 절의 스킬은 LitFamily 확장입니다. LitClaude의 핵심 기능은 혼자서도 잘 돌아가고, 파일을 만드는
-이 스킬 아홉 개는 이제 확장 선반인 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)에
+이 스킬 열 개는 확장 선반인 [wjgoarxiv-skills](https://github.com/wjgoarxiv/wjgoarxiv-skills)에
 있습니다. 쓰는 것만 LitClaude 옆에 설치하면 LitFamily를 온전히 쓸 수 있습니다. 선반은
 `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills`로 한 번 추가하고, 아래 각 부분에 적힌
 플러그인을 설치하면 됩니다. 나중에 업데이트할 때는 `claude plugin marketplace update wjgoarxiv-skills`를
@@ -368,6 +416,15 @@ DOCX·PDF를 Markdown으로 바꾸거나 기존 `.docx`를 고치는 일도 맡�
 예시라고 표시합니다. `lit`만 붙인 요청에서는 스타일도 묻지 않습니다. 필요한 Node·Python 패키지는
 처음 쓸 때 고정된 lockfile에서 `~/.cache/litclaude/office-runtime`에 설치됩니다. 이 런타임은 이제
 decks·documents 플러그인과 함께 배포되므로 `litclaude doctor`는 더 이상 보고하지 않습니다.
+
+`lit-xlsx`는 Excel 통합 문서를 만들고, 같은 마켓플레이스의 `sheets` 플러그인으로 설치합니다
+(`claude plugin install sheets@wjgoarxiv-skills`, 또는 `npx @litfamily/litclaude extensions install sheets`).
+LitClaude 안에 있던 적이 없는 유일한 확장이고, 같은 이름의 안내용 스킬은 `lit 엑셀로 정리해줘`나
+`lit make an xlsx report`가 갈 곳을 잃지 않도록 있습니다. 통합 문서는 입력값을 바꿔도 숫자가 수식으로 계속 맞아야
+끝난 것이므로, 스킬은 작은 도구 묶음 하나로 시트를 만들고, LibreOffice가 버리는 프로필에서 파일을 다시 계산하게 한 뒤,
+수식 오류와 수식 자리에 박아 넣은 숫자를 점검하고, 시트마다 PNG로 렌더링해 눈으로 확인한 다음 넘깁니다. 기본 모양은
+절제되어 있고, `dashboard` 프리셋은 KPI 띠와 차트를 더합니다. Python 런타임은 처음 쓸 때 자체 캐시에 설치됩니다.
+플러그인이 없으면 통합 문서 요청에는 파일 대신 설치 명령이 돌아옵니다.
 
 `lit-diagram-drawer`, `lit-schematic`, `lit-scientific-visualization`은 이제 같은 마켓플레이스의 `figures`
 플러그인으로 설치합니다(`claude plugin install figures@wjgoarxiv-skills`). scientific-visualization 원본과
@@ -709,7 +766,7 @@ HUD는 배경색을 강제로 바꾸지 않습니다. Claude가 사용 한도 �
 Claude Code는 세션이 시작될 때, 프롬프트를 보낼 때, 도구가 돌 때, 서브에이전트가 시작하고 끝날
 때, 세션이 끝날 때마다 플러그인에 알립니다. 이 알림은 플러그인 안의 네 부분에 전달됩니다. 프로젝트
 규칙을 읽어 들이는 부분, 작업 흐름을 고르는 부분, 권한을 확인하는 부분, 기록을 남기는 부분입니다.
-이렇게 해서 39개 skill(핵심 30개와 확장 안내 9개)·20개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
+이렇게 해서 40개 skill(핵심 30개와 확장 안내 10개)·20개 command·3개 숨김 호환 경로·11개 agent가 Claude Code 안에서
 동작하고, Claude Code가 허용하거나 막는 것은 그대로 적용됩니다.
 
 ```mermaid
@@ -731,11 +788,11 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["39 skills · 20 commands · 11 agents"]
+    LC --> S["40 skills · 20 commands · 11 agents"]
 ```
 
 새로 설치한 컴퓨터에서도 모든 핵심 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
-때문입니다. 확장 스킬 아홉 개는 wjgoarxiv-skills 플러그인이 있어야 하고, 그 전에는 안내용 스킬이 설치 명령을 알려 줍니다. 배포 전 검사가 이를 확인합니다. 참고 자료가 필요한 스킬은 그 자료를 패키지 묶음
+때문입니다. 확장 스킬 열 개는 wjgoarxiv-skills 플러그인이 있어야 하고, 그 전에는 안내용 스킬이 설치 명령을 알려 줍니다. 배포 전 검사가 이를 확인합니다. 참고 자료가 필요한 스킬은 그 자료를 패키지 묶음
 안에서 찾아야 하고, 자료 없이 도는 스킬은 그 이유를 허용 목록에 적어 두어야 합니다. 그래서
 개발자의 checkout에만 있는 파일 때문에 설치한 컴퓨터에서 오류가 나는 일을 막습니다.
 
@@ -761,8 +818,12 @@ flowchart LR
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1`로 끌 수 있습니다. Claude Code가 모델에게 worktree 도구를 열어
 주는 환경이라면 `EnterWorktree`를 쓰세요.
 
-목표는 한 가지 원칙을 따릅니다. LitClaude는 사용자가 yes라고 답한 뒤에만 native goal을 겁니다.
-`lit plan`이 계획을 쓰면 계획의 `## Done when` 검사를 조건 하나로 바꾸고 한 번만 묻습니다.
+목표는 한 가지 원칙을 따릅니다. LitClaude는 계획에 `goal: native` 줄이 있고 사용자가 yes라고 답할 때만
+native goal을 겁니다. 그 줄이 없으면 승인 질문은 `Approve plan and start work? (yes / no)`이고, start-work가
+마지막 행까지 스스로 작업을 끌고 갑니다. 계획에 `Run charter: commit on <branch> in <repo>` 줄이 있으면 질문이
+그 줄을 먼저 보여 줍니다([혼자 끝까지 가는 긴 작업](#혼자-끝까지-가는-긴-작업) 참고). `goal: native`가 있으면
+`lit plan`이 계획의 `## Done when` 검사를 조건 하나로 바꾸는데, 이 조건은 언제나 ", or the latest reply starts
+with WAITING-ON-USER:, or after 30 turns"로 끝나서 목표가 스스로 끝납니다. 그리고 한 번만 묻습니다.
 `Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. 묻기 전에 검사를 한 번 돌려
 목표가 이미 이뤄진 상태가 아닌지 확인합니다. 정확히 `yes`라고 답하면 두 가지가 한 번에 일어납니다.
 그 계획으로 start-work가 시작되고(`/litclaude:start-work <plan>`을 직접 입력할 때와 같은 권한), 목표가
@@ -780,16 +841,16 @@ mod가 턴이 끝날 때 `/goal <condition>`을 실행한 뒤 대화 기록에�
 `/start-work`는 schema-3 bounded-authority start-work lifecycle을 관리합니다. 맡겨 두고 자리를
 떠나도 되도록 만들었습니다. 계획 범위 밖의 접근이 필요하면 그 호출 하나만 따로 미뤄 두고(parked),
 나머지 일은 계속합니다. 이 세션이 쓰는 Claude Code 폴더를 읽을 때는 멈추지 않고, 비밀 파일과
-설정 파일은 묻지 않고 거절합니다. 남은 일이 모두 미뤄 둔 호출을 기다리면 목록을 한 번 보여 주고
-그 턴을 끝냅니다. 허용은 선택입니다. 미뤄 둔 호출을 허용하려면 `lit approve`(또는 `lit 승인`),
-거절하려면 `lit deny`(또는 `lit 거절`)라고 답하세요. 실행을 끝내려면 프로젝트의 어느 창에서든
+설정 파일은 묻지 않고 거절합니다. 더 움직일 것이 없으면 받은편지함 하나로 정리합니다.
+허용은 선택입니다. 미뤄 둔 호출을 허용하려면 `lit approve`(또는 `lit 승인`, push·publish·tag·버전 올리기와 로컬이라고 확인되지 않은 명령은
+`lit approve x`. 마지막으로 보여 준 목록의 명령만, 보여 준 그대로 실행됩니다), 거절하려면 `lit deny`(또는 `lit 거절`), 기다리는 행을 건너뛰려면 `lit skip-row`라고 답하세요. 실행을 끝내려면 프로젝트의 어느 창에서든
 `lit cancel`(또는 `lit 취소`)이라고 입력하면 됩니다. 복사할 명령은 없습니다. 다음 경로도 그대로
 쓸 수 있습니다.
 
 `/litclaude:start-work resume --work-id <id> --revision <n> --boundary-id <id> --prompt-id <id> --grant-id <id>`
 
-`stop_hook_active`가 `true`이면 hook은 조용히 멈추므로, 지난 프롬프트가 다시 재생되는 일이
-없습니다.
+`stop_hook_active`가 `true`여도(막은 직후의 Stop) start-work는 지금의 계획을 다시 읽으므로, 작업이 거기서
+끝나거나 받은편지함으로 정리될 수 있습니다. 지난 답을 다시 재생하지는 않고, 바뀌지 않은 같은 상태에서는 두 번까지만 막습니다.
 
 실행 상태는 `.litclaude/start-work/`에 있고, 한 번에 한 세션만 쓰도록 잠금 폴더(`.lock`)가 지킵니다.
 세션이 비정상으로 끝나 잠금이 남아도 저절로 풀립니다. 5초가 지나도 주인 기록이 없거나, 잠금을 잡은

@@ -79,6 +79,7 @@ const triggerByToken = {
   // wording reaches them through hasOfficeIntent below.
   "lit-pptx": { command: "/litclaude:lit-pptx", skill: "Skill(lit-pptx)", skillId: "lit-pptx", discipline: "lit-pptx" },
   "lit-docx": { command: "/litclaude:lit-docx", skill: "Skill(lit-docx)", skillId: "lit-docx", discipline: "lit-docx" },
+  "lit-xlsx": { command: "/litclaude:lit-xlsx", skill: "Skill(lit-xlsx)", skillId: "lit-xlsx", discipline: "lit-xlsx" },
   // Film requests. A leading token names the skill; a bare `lit` plus a creation verb and
   // motion-video wording reaches it through hasMotionVideoIntent, ahead of office and UI.
   "lit-typographic-motion": { command: "/litclaude:lit-typographic-motion", skill: "Skill(lit-typographic-motion)", skillId: "lit-typographic-motion", discipline: "lit-typographic-motion" },
@@ -330,6 +331,14 @@ const hasExplicitInterviewRoute = (normalized) => /\blit(?:work)?\s+(?:deep\s?in
 // cascade below with the handoff payload; explainRoute reports it as `exact:handoff`.
 const isExactBareHandoff = (prompt) => typeof prompt === "string" && /^\s*(?:lit\s+)?handoff\s*$/iu.test(prompt);
 const hasExplicitHijackRoute = (normalized) => /\blit(?:work)?\s+(?:hijack(?:ing)?|하이재킹|하이잭)(?=$|[^\w-])/u.test(normalized);
+// `lit crucible <idea>` and adversarial wording after `lit` ("lit stress-test this plan", "lit 압박 테스트") ask for
+// lit-crucible; without this the plain word `plan` pulled them to lit-plan and `crucible` fell to lit-loop.
+const hasExplicitCrucibleRoute = (normalized) => /\blit(?:work)?\s+crucible\b/u.test(normalized)
+  || /\b(?:pressure|stress)\s?test\b[^.?!]{0,40}\b(?:plan|design|proposal|idea|spec|requirements?|architecture)\b|\bpoke\s+holes\b|\bred\s?team\b|\bdevil'?s\s+advocate\b|압박\s?테스트|허점/u.test(normalized);
+// Korean forms of the plan, review and debug words, which the English word boundaries never matched.
+const koreanPlanWord = /계획\s?(?:을\s?)?(?:세워|세우|짜|부터|먼저)|계획서\s?(?:쓰|작성)|플랜\s?(?:을\s?)?짜/u;
+const koreanReviewWord = /리뷰\s?(?:해|좀|부탁)|코드\s?리뷰|검토해\s?줘/u;
+const koreanDebugWord = /디버깅|디버그/u;
 const hasExplicitTeamRoute = (normalized) => /\blit(?:work)?\s+(?:team(?:\s+mode)?|teammates)\b/u.test(normalized);
 // A casual one-line request ends with `lit` ("… 조사해줘 lit"), so the research verb is not next to
 // the token. Korean stems are bare substrings for the reason given at the UI route below; 조사를 and
@@ -408,13 +417,18 @@ const quantifiedDocument = /\b(?:each|every|all|any|both|these|those|other|exist
 // A slide count beside a slide noun ("덱 10장", "a 10-slide deck") asks for the deck without a making verb.
 const slideCount = /\d+\s?장|\b\d+[\s-]?slides?\b/u;
 
-// Returns the office skills a bare-lit prompt asks for, slides first when both are named.
+// "an xlsx report" or "엑셀 보고서" is a workbook (lit-xlsx), not a Word document.
+const sheetReport = /\b(?:xlsx|excel|spreadsheet)\s+reports?\b|엑셀\s?(?:보고서|리포트)/gu;
+const sheetNoun = /\b(?:xlsx|excel|spreadsheets?)\b|엑셀|스프레드\s?시트|표\s?계산/u;
+
+// Returns the office skills a bare-lit prompt asks for: slides, then a Word document, then a workbook.
 const officeIntent = (normalized) => {
   const counted = slideCount.test(normalized) && slideNoun.test(normalized);
   if ((!officeVerb.test(normalized) && !counted) || codeDocumentation.test(normalized)) return [];
   const skills = [];
   if (slideNoun.test(normalized)) skills.push("lit-pptx");
-  if (documentNoun.test(normalized.replace(/\b(?:slide|presentation)\s+(?:doc|document)\b/gu, " ").replace(quantifiedDocument, " "))) skills.push("lit-docx");
+  if (documentNoun.test(normalized.replace(/\b(?:slide|presentation)\s+(?:doc|document)\b/gu, " ").replace(sheetReport, " ").replace(quantifiedDocument, " "))) skills.push("lit-docx");
+  if (sheetNoun.test(normalized)) skills.push("lit-xlsx");
   return skills;
 };
 
@@ -495,7 +509,8 @@ const structuralShape = /\b(?:call ?sites?|callsites?|declarations?|import state
 // file" both match. The cost is asymmetric — a false fire ends in "probe -> unavailable ->
 // labelled textual", which is what the model would have done anyway, while a MISS on "replace
 // all imports of lodash" produces a naive text replace that breaks code.
-const hasStructuralSearchIntent = (normalized) => structuralVerb.test(normalized) && structuralShape.test(normalized);
+// A web search for tutorials about a structural tool ("search the web for ast-grep tutorials") is research, not a code search.
+const hasStructuralSearchIntent = (normalized) => structuralVerb.test(normalized) && structuralShape.test(normalized) && !/\bsearch\s+the\s+web\b|\btutorials?\b/u.test(normalized);
 
 // Companion-only detectors (S1). Neither ever becomes the primary route: "chart" and "diagram" alone must
 // not pull interface or loop work away (see the lit-diagram-drawer row above). A figure of data needs a
@@ -538,13 +553,14 @@ const findNaturalLitTrigger = (prompt) => {
   // skill" names other skills as material, not as the route.
   if (hasExplicitHijackRoute(normalized)) return { ...triggerByToken["lit-hijack"], source: "natural-language" };
   if (hasExplicitInterviewRoute(normalized)) return { ...triggerByToken["deep-interview"], source: "natural-language" };
+  if (hasExplicitCrucibleRoute(normalized)) return { ...triggerByToken["lit-crucible"], source: "natural-language" };
   if (containsPlainWord(normalized, "plan") && hasReviewModifier(prompt)) {
     return { ...triggerByToken["lit-plan"], source: "natural-language" };
   }
-  if (containsPlainWord(normalized, "review")) return { ...triggerByToken["review-work"], source: "natural-language" };
+  if (containsPlainWord(normalized, "review") || koreanReviewWord.test(normalized)) return { ...triggerByToken["review-work"], source: "natural-language" };
   // Above the lit-loop fallthrough: "lit debug the hang" should reach the debugging methodology rather
   // than a generic loop. Both stems are checked because the word boundary makes "debug" miss "debugging".
-  if (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging")) {
+  if (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging") || koreanDebugWord.test(normalized)) {
     return { ...triggerByToken.debugging, source: "natural-language" };
   }
   if (/^\s*lit(?:work)?\s+start\s+work(?=$|[^\w-])/u.test(normalized)) {
@@ -578,7 +594,7 @@ const findNaturalLitTrigger = (prompt) => {
   }
   if (hasExplicitResearchRoute(normalized)) return { ...triggerByToken.litresearch, source: "natural-language" };
   if (containsPlainWord(normalized, "goal")) return { ...triggerByToken.litgoal, source: "natural-language" };
-  if (containsPlainWord(normalized, "plan")) return { ...triggerByToken["lit-plan"], source: "natural-language" };
+  if (containsPlainWord(normalized, "plan") || koreanPlanWord.test(normalized)) return { ...triggerByToken["lit-plan"], source: "natural-language" };
   // Above the lit-loop fallthrough, same position as the debugging route: "lit restyle the
   // dashboard" should reach the interface skill rather than a generic loop.
   if (hasUiDesignIntent(normalized) || hasUiModeIntent(normalized)) return { ...triggerByToken["frontend-ui-ux"], source: "natural-language" };
@@ -628,6 +644,38 @@ const findWorkflowTrigger = (prompt) => {
   return undefined;
 };
 
+// The suggestion tier (no `lit` needed). It never starts a workflow and never changes the route above: for a
+// prompt without `lit` it returns every skill whose rule fires, in table order, with no cap, and the hook
+// offers them as candidates plus "none" for the model to accept or drop one by one. Each rule is a
+// conjunction or a strong phrase, kept only while test/fixtures/routing-eval scores it at recall >= 0.85
+// and near-miss false positives <= 0.10 on both halves (tools/routing-eval.mjs). Korean stems are bare
+// substrings, as at the UI route.
+const knowledgeQuestion = /^\s*(?:what\s+(?:is|are|does)|what's|how\s+(?:does|do)|explain|define)\b|\b(?:explain|difference\s+between|definition)\b|뭐야|뭔지|무슨\s?뜻|뜻이|설명해|설명만|차이가?\s?뭐|어떻게\s?(?:동작|돌아가|진행해|시작해)/u;
+const webArtifact = /\b(?:react|component|web\s?app|website|dashboard|landing\s?page)\b|컴포넌트|웹앱|웹\s?화면|대시보드/u;
+
+// Shipped rules only. Rules that missed recall >= 0.85 or near-miss FP <= 0.10 on either half were dropped
+// (.litclaude/evidence/2026-11-26-autopilot-routing-xlsx/task-7.json lists them); a new rule joins only after it
+// passes both halves.
+const SUGGESTION_RULES = [
+  ["wikify", (n) => !knowledgeQuestion.test(n) && !/wikipedia|mediawiki|위키\s?백과/u.test(n) && /\bwiki\b|\bknowledge\s+base\b|위키/u.test(n)],
+  ["visual-qa", (n) => !knowledgeQuestion.test(n) && !/용량|\bfile\s+size\b|\bcompress\b/u.test(n)
+    && /\bscreenshots?\b|\bbreakpoints?\b|\bviewports?\b|\bmobile\b[^.?!]{0,40}\bdesktop\b|\blayout\s+breakage\b|\bon\s+(?:mobile|phone|tablet)\b[^.?!]{0,30}\b(?:check|looks?|broken)\b|\b(?:check|looks?|broken)\b[^.?!]{0,30}\bon\s+(?:mobile|phone|tablet)\b|모바일에서\s?(?:확인|깨지)|반응형\s?(?:확인|점검)|\bclipped\s+text\b|스크린샷|캡처|시각적으로\s?검수|텍스트\s?잘림|깨지는\s?(?:거|데)/u.test(n)],
+  ["lit-typographic-motion", (n) => hasMotionVideoIntent(n) || /\bshort\s+(?:kinetic\s+type\s+)?film\b|\bkinetic\s+(?:type|typography)\b|키네틱|루프\s?커버\s?영상/u.test(n)],
+  ["lit-diagram-drawer", (n) => !schematicStrongNoun.test(n) && (diagramNoun.test(n) || /\bconceptual\s+figure\b|개요도|개념도/u.test(n))
+    && (schematicDrawVerb.test(n) || schematicMakeVerb.test(n) || officeVerb.test(n))],
+  ["lit-scientific-visualization", (n) => vizNoun.test(n) && (vizCue.test(n) || schematicDrawVerb.test(n)) && !webArtifact.test(n) && !diagramNoun.test(n)],
+];
+
+/** Every skill id the suggestion tier offers for a prompt without `lit`, in table order; [] when none fires. */
+const suggestedSkills = (prompt) => {
+  if (typeof prompt !== "string") return [];
+  const raw = rawTriggerText(prompt);
+  if (hasLitTrigger(raw) || containsSlashCommandMention(raw)) return [];
+  const normalized = normalizedTriggerText(prompt);
+  if (!normalized.trim()) return [];
+  return SUGGESTION_RULES.filter(([, fires]) => fires(normalized)).map(([id]) => id);
+};
+
 // A review modifier anywhere in the prompt makes dual plan review REQUIRED, not optional.
 // Korean "고정밀" is included because the trigger vocabulary is bilingual; the match runs on
 // code-stripped text so a quoted example in a fence cannot arm the gate.
@@ -669,9 +717,10 @@ const ROUTE_RULES = [
   { id: "natural:brainstorm", lit: true, match: ({ normalized }) => hasExplicitBrainstormRoute(normalized) && routeOf("lit-brainstorm") },
   { id: "natural:hijack", lit: true, match: ({ normalized }) => hasExplicitHijackRoute(normalized) && routeOf("lit-hijack") },
   { id: "natural:deep-interview", lit: true, match: ({ normalized }) => hasExplicitInterviewRoute(normalized) && routeOf("deep-interview") },
+  { id: "natural:crucible", lit: true, match: ({ normalized }) => hasExplicitCrucibleRoute(normalized) && routeOf("lit-crucible") },
   { id: "natural:plan-review-modifier", lit: true, match: ({ normalized, prompt }) => containsPlainWord(normalized, "plan") && hasReviewModifier(prompt) && routeOf("lit-plan") },
-  { id: "natural:review", lit: true, match: ({ normalized }) => containsPlainWord(normalized, "review") && routeOf("review-work") },
-  { id: "natural:debug", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging")) && routeOf("debugging") },
+  { id: "natural:review", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "review") || koreanReviewWord.test(normalized)) && routeOf("review-work") },
+  { id: "natural:debug", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging") || koreanDebugWord.test(normalized)) && routeOf("debugging") },
   { id: "natural:start-work", lit: true, match: ({ normalized }) => /^\s*lit(?:work)?\s+start\s+work(?=$|[^\w-])/u.test(normalized) && routeOf("start-work") },
   { id: "natural:schematic-film", lit: true, match: ({ normalized }) => schematicStrongNoun.test(normalized) && hasMotionVideoIntent(normalized) && routeOf("lit-schematic") },
   { id: "natural:motion", lit: true, match: ({ normalized }) => hasMotionVideoIntent(normalized) && routeOf("lit-typographic-motion") },
@@ -687,7 +736,7 @@ const ROUTE_RULES = [
   { id: "natural:office", lit: true, match: ({ normalized }) => routeOf(officeIntent(normalized)[0]) },
   { id: "natural:research", lit: true, match: ({ normalized }) => hasExplicitResearchRoute(normalized) && routeOf("litresearch") },
   { id: "natural:goal", lit: true, match: ({ normalized }) => containsPlainWord(normalized, "goal") && routeOf("litgoal") },
-  { id: "natural:plan", lit: true, match: ({ normalized }) => containsPlainWord(normalized, "plan") && routeOf("lit-plan") },
+  { id: "natural:plan", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "plan") || koreanPlanWord.test(normalized)) && routeOf("lit-plan") },
   { id: "natural:interface", lit: true, match: ({ normalized }) => (hasUiDesignIntent(normalized) || hasUiModeIntent(normalized)) && routeOf("frontend-ui-ux") },
   { id: "natural:structural-search", lit: true, match: ({ normalized }) => hasStructuralSearchIntent(normalized) && routeOf("structural-search") },
   { id: "stop:start-work-words", stop: "natural", lit: true, match: ({ normalized }) => containsPlainWord(normalized, "start") && containsPlainWord(normalized, "work") && !hasTrailingLitInvocation(normalized) },
@@ -746,6 +795,7 @@ export {
   rawTriggerText,
   restartLitPattern,
   resumeLitPattern,
+  suggestedSkills,
   triggerByToken,
   withoutCode,
 };

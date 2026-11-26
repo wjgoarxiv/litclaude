@@ -1,6 +1,6 @@
 ---
 name: frontend-ui-ux
-description: "Moved: frontend-ui-ux builds and inspects web interfaces (pages, screens, dashboards, design systems; polish, audit and harden passes) and now ships as the `design` plugin of the wjgoarxiv-skills marketplace. Load Skill(design:frontend-ui-ux) when it is installed; otherwise this stub gives the user the install line, and a lit workflow still runs the interface probe kept here."
+description: "Moved: frontend-ui-ux builds and inspects web interfaces (pages, screens, dashboards, design systems; polish, audit, harden), now in the `design` plugin of the wjgoarxiv-skills marketplace. Use to build, design or restyle a UI; 화면 디자인, 랜딩 페이지, 대시보드 UI. Loads Skill(design:frontend-ui-ux) when installed, else gives the install line. Not for checking a built page (visual-qa)."
 ---
 
 ## #contract.activation

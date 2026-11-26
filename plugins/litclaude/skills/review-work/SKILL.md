@@ -1,6 +1,6 @@
 ---
 name: review-work
-description: Claude-native LitClaude review in two named modes. Plan review checks a plan before start-work (complete, ordered, verifiable); work review runs five lanes over a diff, branch or PR after lit-loop or start-work. It auto-picks from what exists, takes lit review plan or lit review work, and reports findings first with evidence artifacts and cleanup receipts.
+description: "Review a patch, diff, branch or plan in named lanes (scope, tests and evidence, package, security, real-surface readiness) and report findings first with file:line references; fixes come after. Use when asked whether changes are correct, risky or safe to merge; 리뷰해줘, 머지해도 되는지, PR 위험한 데 있는지. Not for proofreading prose (lit-humanizer) or pressure-testing an idea (lit-crucible)."
 goal: never
 ---
 

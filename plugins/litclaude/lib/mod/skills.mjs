@@ -34,6 +34,7 @@ export const LIT_SKILL_IDS = Object.freeze([
   "lit-scientific-visualization",
   "lit-team",
   "lit-typographic-motion",
+  "lit-xlsx",
   "litgoal",
   "litresearch",
   "litwork",
@@ -52,7 +53,7 @@ export const LIT_SKILL_IDS = Object.freeze([
 
 // The wjgoarxiv-skills plugins that ship LitFamily's moved skills (extensions-notice.mjs
 // EXTENSION_SKILLS, kept equal by a test). A skill they carry fires as `<plugin>:<id>`.
-export const EXTENSION_PLUGINS = Object.freeze(["decks", "documents", "figures", "design", "video-covers"]);
+export const EXTENSION_PLUGINS = Object.freeze(["decks", "documents", "sheets", "figures", "design", "video-covers"]);
 
 const KNOWN = new Set(LIT_SKILL_IDS);
 const EXTENSIONS = new Set(EXTENSION_PLUGINS);

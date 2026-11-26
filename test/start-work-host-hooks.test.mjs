@@ -124,8 +124,10 @@ describe("Claude-native bounded-authority host hooks", () => {
       const malformedWrite = preTool(root, "Write", {}, { prompt_id: "prompt-malformed", tool_use_id: "tool-malformed" });
       assert.equal(parse(malformedWrite).hookSpecificOutput.permissionDecision, "deny");
       assert.match(parse(malformedWrite).hookSpecificOutput.permissionDecisionReason, /unclassified mutating/iu);
+      // Refused commands are parked with their text for `lit approve`; none becomes a path grant.
       const state = parse(runCli(root, ["status"])).state;
-      assert.equal(state.revision, 1);
+      assert.ok(state.works["work-1"].pending_boundaries.every(({ kind }) => kind === "command"));
+      assert.equal(state.works["work-1"].authority.grants.some(({ issued_by: by }) => by === "trusted-user-prompt-submit"), false);
       assert.equal(state.works["work-1"].status, "active");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -182,7 +184,7 @@ describe("Claude-native bounded-authority host hooks", () => {
       }
 
       const state = parse(runCli(root, ["status"])).state;
-      assert.equal(state.revision, 1, "Bash target denials must not manufacture a resumable boundary");
+      assert.ok(state.works["work-1"].pending_boundaries.every(({ kind }) => kind === "command"), "Bash target denials park the command, never a resumable path boundary");
       assert.equal(state.works["work-1"].status, "active");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -234,7 +236,7 @@ describe("Claude-native bounded-authority host hooks", () => {
         assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
       }
       const state = parse(runCli(root, ["status"])).state;
-      assert.equal(state.revision, 1, "read-only classification never manufactures a boundary");
+      assert.ok(state.works["work-1"].pending_boundaries.every(({ kind }) => kind === "command"), "read-only classification never manufactures a path boundary");
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
@@ -309,8 +311,10 @@ describe("Claude-native bounded-authority host hooks", () => {
         assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
         assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
       }
+      // The refused shapes above were parked as commands, so the work moved on from revision 1.
+      const revision = String(parse(runCli(root, ["status"])).state.revision);
       const forbidden = runCli(root, [
-        "pause", "--work-id", "work-1", "--session-id", "session-root", "--expected-revision", "1",
+        "pause", "--work-id", "work-1", "--session-id", "session-root", "--expected-revision", revision,
         "--action", "host-config-write", "--target-root", outside, "--idempotency-key", "forbidden",
       ]);
       assert.notEqual(forbidden.status, 0);
@@ -397,11 +401,12 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
-  it("allows stop-hook re-entry and re-evaluates progress on the next normal Stop event", () => {
+  it("drives stop-hook re-entry from the current plan and re-evaluates progress on the next Stop", () => {
     const root = fixtureRoot();
     try {
       initialize(root);
-      writePlan(root, true);
+      // One row ticked and one open: progress without finishing, so the run does not close itself.
+      writeFileSync(join(root, "plans", "approved.md"), "# Approved\n\n## TODOs\n\n- [x] Ship safely\n- [ ] Then more\n");
       const first = runHook("stop", root, {
         session_id: "session-root", prompt_id: "prompt-stop-1", stop_hook_active: false,
       });
@@ -414,7 +419,13 @@ describe("Claude-native bounded-authority host hooks", () => {
         session_id: "session-root", prompt_id: "prompt-stop-1", stop_hook_active: true,
       });
       assert.equal(reentry.status, 0, reentry.stderr);
-      assert.equal(reentry.stdout, "", "stop-hook re-entry must not replay a stale blocking receipt");
+      // The stop after a block is driven too (F2 C1): the unchanged plan gets its one nudge, then the budget holds.
+      assert.match(parse(reentry).reason, /no row changed since the last stop/u, "re-entry reads the current plan, not a stale receipt");
+      {
+        const spent = parse(runHook("stop", root, { session_id: "session-root", prompt_id: "prompt-stop-1", stop_hook_active: true }));
+        assert.notEqual(spent?.decision, "block", "re-entry");
+        assert.match(spent?.systemMessage ?? "", /waiting on you/u, "re-entry: the spent budget shows the inbox once");
+      }
 
       writePlan(root, false);
       const reevaluated = runHook("stop", root, {
@@ -423,9 +434,17 @@ describe("Claude-native bounded-authority host hooks", () => {
       assert.equal(reevaluated.status, 0, reevaluated.stderr);
       assert.equal(parse(reevaluated).decision, "block");
       assert.match(parse(reevaluated).reason, /Ship safely/u);
+      // A stop with no row changed gets one nudge; the stops after it stay silent.
+      const nudge = parse(runHook("stop", root, { session_id: "session-root", prompt_id: "prompt-stop-2", stop_hook_active: false }));
+      assert.match(nudge.reason, /no row changed since the last stop/u);
 
+      {
+        const spent = parse(runHook("stop", root, { session_id: "session-root", prompt_id: "prompt-stop-2b", stop_hook_active: false }));
+        assert.notEqual(spent?.decision, "block", "second unchanged stop");
+        assert.match(spent?.systemMessage ?? "", /waiting on you/u, "second unchanged stop: the spent budget shows the inbox once");
+      }
       for (const input of [
-        { session_id: "session-root", prompt_id: "prompt-stop-2", stop_hook_active: false },
+        { session_id: "session-root", prompt_id: "prompt-stop-2c", stop_hook_active: false },
         { session_id: "wrong", prompt_id: "prompt-stop-3", stop_hook_active: false },
         { session_id: "session-root", prompt_id: "prompt-stop-4", stop_hook_active: "false" },
       ]) {
@@ -463,13 +482,14 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
-  it("bounds continuation receipts while all stop-hook re-entry stays silent", () => {
+  it("bounds continuation receipts, and stop-hook re-entry stays inside the per-state budget", () => {
     const root = fixtureRoot();
     try {
       initialize(root);
       const outputs = [];
       for (let index = 0; index < 20; index += 1) {
-        writePlan(root, index % 2 === 0);
+        // Toggle one row while another stays open, so the run never finishes and closes itself.
+        writeFileSync(join(root, "plans", "approved.md"), `# Approved\n\n## TODOs\n\n- [${index % 2 === 0 ? "x" : " "}] Ship safely\n- [ ] Then more\n`);
         const result = runHook("stop", root, {
           session_id: "session-root", prompt_id: `prompt-receipt-${index}`, stop_hook_active: false,
         });
@@ -483,13 +503,14 @@ describe("Claude-native bounded-authority host hooks", () => {
       const retained = runHook("stop", root, {
         session_id: "session-root", prompt_id: "prompt-receipt-19", stop_hook_active: true,
       });
-      assert.equal(retained.stdout, "");
+      assert.match(parse(retained).reason, /no row changed since the last stop/u, "the one nudge for an unchanged plan");
 
       const evicted = runHook("stop", root, {
         session_id: "session-root", prompt_id: "prompt-receipt-0", stop_hook_active: true,
       });
       assert.equal(evicted.status, 0, evicted.stderr);
-      assert.equal(evicted.stdout, "");
+      assert.match(parse(evicted).systemMessage ?? "", /waiting on you/u, "the spent budget shows the inbox, never a stale receipt");
+      assert.equal(runHook("stop", root, { session_id: "session-root", prompt_id: "prompt-receipt-0", stop_hook_active: true }).stdout, "");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -899,7 +920,7 @@ describe("Claude-native bounded-authority host hooks", () => {
           assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
           assert.match(output.hookSpecificOutput.permissionDecisionReason, reason, command);
         }
-        assert.equal(parse(runCli(root, ["status"])).state.revision, 1, "read-only classification never manufactures a boundary");
+        assert.ok(parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries.every(({ kind }) => kind === "command"), "read-only classification never manufactures a path boundary");
       } finally {
         rmSync(root, { recursive: true, force: true });
         rmSync(outside, { recursive: true, force: true });
@@ -1078,10 +1099,11 @@ describe("start-work pauses only at a real authority boundary", () => {
         const output = denied(preTool(root, "Bash", { command }, { prompt_id: `prompt-nonode-${command.length}`, tool_use_id: `tool-nonode-${command.length}` }));
         assert.equal(output.permissionDecision, "deny", command);
       }
-      const reason = denied(preTool(root, "Bash", { command: "ls -a && cat package.json; cat src/x" }, { prompt_id: "prompt-why", tool_use_id: "tool-why" })).permissionDecisionReason;
+      const reason = denied(preTool(root, "Bash", { command: "ls -a && cat package.json; touch src/x" }, { prompt_id: "prompt-why", tool_use_id: "tool-why" })).permissionDecisionReason;
       assert.match(reason, /one plain command per Bash call/u);
       assert.match(reason, /node <script>/u);
-      assert.match(reason, /not an approval prompt/u);
+      assert.match(reason, /BLOCKED: <reason>.*continue with the next row/u);
+      assert.doesNotMatch(reason, /lit cancel/u);
       const temp = denied(preTool(root, "Bash", { command: `node ${join(outside, "x.mjs")}` }, { prompt_id: "prompt-temp", tool_use_id: "tool-temp" })).permissionDecisionReason;
       assert.match(temp, /inside the project/u, "an out-of-grant script is told where scripts run");
       const forbidden = denied(preTool(root, "Bash", { command: "git push" }, { prompt_id: "prompt-push", tool_use_id: "tool-push" })).permissionDecisionReason;
@@ -1189,7 +1211,7 @@ describe("start-work shared with other sessions in the same project", () => {
       assert.equal(read.status, 0, read.stderr);
       const readOutput = parse(read).hookSpecificOutput;
       assert.equal(readOutput.permissionDecision, undefined, "a read is not refused");
-      assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read, nudge its worker with `herdr agent prompt` and write notes in your scratchpad or the shared project memory, not change project files\./u);
+      assert.match(readOutput.additionalContext, /Another session is running start-work work-1 here \(last activity [^)]+\); you may read and write notes in your scratchpad or the shared project memory, not change project files\. Only the user answers that run's parked steps, in its own session\./u);
       const statusRun = other(root, "Bash", { command: "litclaude-ai start-work status" });
       assert.notEqual(statusRun.stdout && parse(statusRun).hookSpecificOutput.permissionDecision, "deny");
       const skill = other(root, "Skill", { skill: "litclaude:lit-adhd" });
@@ -1408,7 +1430,8 @@ describe("typed start-work is the approval", () => {
       assert.equal(parked.permissionDecision, "deny");
       assert.match(parked.permissionDecisionReason, new RegExp(`parked this call: read access to ${outside.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} is outside this plan's scope`, "u"));
       assert.match(parked.permissionDecisionReason, /carry on with the plan's other tasks/u);
-      assert.match(parked.permissionDecisionReason, /lit cancel/u);
+      assert.match(parked.permissionDecisionReason, /listed for the user when the run wraps up/u);
+      assert.doesNotMatch(parked.permissionDecisionReason, /lit cancel/u);
       assert.equal(work(root).status, "active", "the run keeps going");
       assert.equal(preTool(root, "Write", { file_path: join(root, "hello.txt"), content: "hi" }).stdout, "", "covered calls still run");
       preTool(root, "Read", { file_path: join(second, "c.txt") }, { prompt_id: "prompt-typed", tool_use_id: "tool-c" });
@@ -2172,13 +2195,20 @@ describe("a parked boundary never freezes the run", () => {
       const first = parse(stop());
       assert.equal(first.decision, "block");
       assert.match(first.reason, /Parked, not run: read /u);
-      assert.equal(stop().stdout, "", "the same queue and plan stay silent");
+      assert.match(parse(stop()).reason, /no row changed since the last stop/u, "one nudge for an unchanged plan");
+      {
+        const spent = parse(stop());
+        assert.notEqual(spent?.decision, "block", "then the spent budget");
+        assert.match(spent?.systemMessage ?? "", /waiting on you/u, "then the spent budget: the spent budget shows the inbox once");
+      }
+      assert.equal(stop().stdout, "", "then the same queue and plan stay silent");
       writeFileSync(join(root, "plans", "approved.md"), "# Approved\n\n## TODOs\n\n- [ ] Ship safely\n  BLOCKED: needs the parked read\n");
       const waiting = parse(stop());
       assert.notEqual(waiting.decision, "block");
-      assert.match(waiting.systemMessage, /Parked steps: read /u);
+      assert.match(waiting.systemMessage, /Parked, not run: read /u);
       assert.match(waiting.systemMessage, /lit approve/u);
-      assert.match(waiting.systemMessage, /lit cancel/u);
+      assert.doesNotMatch(waiting.systemMessage, /lit cancel/u, "row 5: the inbox never suggests lit cancel");
+      assert.match(waiting.systemMessage, /lit skip-row/u);
       assert.equal(stop().stdout, "");
     } finally {
       for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
@@ -2202,7 +2232,8 @@ describe("a parked boundary never freezes the run", () => {
       check("queued");
       ask(root, "lit approve", "prompt-approve");
       check("approved");
-      assert.equal(work(root).pending_boundaries.length, 0);
+      // The hard stops are parked as irreversible (X) steps: a plain `lit approve` grants the read and runs none of them.
+      assert.deepEqual(work(root).pending_boundaries.map(({ tier }) => tier), hardStops.map(() => "X"));
     } finally {
       for (const path of [root, outside]) rmSync(path, { recursive: true, force: true });
     }

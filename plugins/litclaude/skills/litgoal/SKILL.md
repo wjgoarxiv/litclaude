@@ -1,6 +1,6 @@
 ---
 name: litgoal
-description: Set and keep the finish line. Durable LitClaude goal orchestration with CLI-backed state, explicit success criteria, evidence ledgers, checkpoints, steering, quality gates, and cleanup receipts; lit-loop and start-work run toward the goal it holds.
+description: "Set and keep the finish line: durable LitClaude goal state with explicit success criteria, evidence ledgers, checkpoints and status across sessions. Use for 'set a goal', 'goal status', 'add a success criterion'; 목표 설정, 목표 상태 어때, 목표에 기준 추가. Not for brainstorming what the goal should be (lit-brainstorm) or a goal-setting feature in an app."
 ---
 
 ## #contract.activation

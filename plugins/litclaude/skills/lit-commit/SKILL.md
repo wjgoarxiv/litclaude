@@ -1,6 +1,6 @@
 ---
 name: lit-commit
-description: "lit-commit: MUST USE whenever a task needs a commit or git-history investigation. Covers atomic commits, staging, commit-message style, rebase, squash, fixup/autosquash, blame, bisect, reflog, git log -S/-G, and questions like who wrote this or when was this added. Do not use for ordinary code edits unless the user asks for git work."
+description: "lit-commit: commits and git-history work: atomic commits, staging, commit-message style, rebase, squash, fixup/autosquash, blame, bisect, reflog, git log -S/-G, and who wrote or added a line. Use when a task needs a commit or a history question; 커밋해줘, 커밋 메시지 써줘, 누가 언제 추가했는지 git blame. Not for ordinary code edits, explaining git concepts, or reviewing a diff (review-work)."
 ---
 
 ## #contract.activation

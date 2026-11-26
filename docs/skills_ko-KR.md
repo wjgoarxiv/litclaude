@@ -3,8 +3,8 @@
 [README](../README_ko-KR.md) · [안내서](./guide_ko-KR.md) · [English](./skills.md)
 
 LitClaude 핵심에는 직접 시작하는 스킬 30개와 알아서 도는 스킬 3개가 있습니다. 모두 플러그인에 들어
-있어서 따로 설치할 것이 없습니다. 스킬 아홉 개는 LitFamily 확장입니다. wjgoarxiv-skills 마켓플레이스의
-작은 플러그인 다섯 개로 옮겨 갔고, LitClaude에는 같은 이름의 안내용 스킬이 하나씩 남아 있습니다. 확장이
+있어서 따로 설치할 것이 없습니다. 스킬 열 개는 LitFamily 확장입니다. wjgoarxiv-skills 마켓플레이스의
+작은 플러그인 여섯 개에 있고, LitClaude에는 같은 이름의 안내용 스킬이 하나씩 있습니다. 확장이
 설치되어 있으면 안내용 스킬이 요청을 그쪽으로 넘기고, 없으면 설치 명령을 알려 줍니다. 줄마다 스킬이 주는
 결과를 그림으로 보여 주고, 시작하는 프롬프트나 명령, 얻는 것을 적었습니다.
 
@@ -173,8 +173,8 @@ LitClaude 핵심에는 직접 시작하는 스킬 30개와 알아서 도는 스�
 
 ## 확장
 
-확장 스킬은 플러그인 다섯 개에 나뉘어 있습니다. 하는 일에 필요한 것만 하나씩 LitClaude 곁에 설치하면
-됩니다. 내 터미널에서 `npx @litfamily/litclaude extensions list`를 실행하면 다섯 개와 설치 여부가 나옵니다.
+확장 스킬은 플러그인 여섯 개에 나뉘어 있습니다. 하는 일에 필요한 것만 하나씩 LitClaude 곁에 설치하면
+됩니다. 내 터미널에서 `npx @litfamily/litclaude extensions list`를 실행하면 여섯 개와 설치 여부가 나옵니다.
 플러그인마다 적힌 설치 명령은 설치 계획을 먼저 보여 주고, 같은 이름의 내 스킬이 있으면 멈추며, `--yes`를
 붙이면 실제로 설치합니다.
 
@@ -209,6 +209,23 @@ npx @litfamily/litclaude extensions install documents
 <td><img src="./assets/skills/lit-docx.webp" width="240" alt="documents 확장에 있습니다. lit으로 보고서를 요청하면 서식을 갖춘 Word 파일과 원고 Markdown이 나옵니다. 한국어는 Pretendard로 조판하고, 페이지를 렌더링해 읽어 본 뒤 넘깁니다." /></td>
 <td><code>lit-docx</code><br /><sub><code>/litclaude:lit-docx &lt;request&gt;</code> · <code>documents:lit-docx</code></sub></td>
 <td><code>documents</code> 확장에 있습니다. <code>lit</code>으로 보고서를 요청하면 서식을 갖춘 Word 파일과 원고 Markdown이 나옵니다. 한국어는 Pretendard로 조판하고, 페이지를 렌더링해 읽어 본 뒤 넘깁니다.</td>
+</tr>
+</table>
+
+### sheets
+
+수식이 살아 있는 Excel 통합 문서.
+
+```bash
+npx @litfamily/litclaude extensions install sheets
+```
+
+<table>
+<tr><th>이렇게 됩니다</th><th>스킬</th><th>얻는 것</th></tr>
+<tr>
+<td><img src="./assets/skills/lit-xlsx.webp" width="240" alt="sheets 확장에 있습니다. lit으로 예산표, 재무 모델, 대시보드를 요청하면 숫자가 수식으로 계산되는 Excel 파일이 나옵니다. LibreOffice로 다시 계산하고, 수식 오류를 점검하고, 시트마다 렌더링해 읽어 본 뒤 넘깁니다." /></td>
+<td><code>lit-xlsx</code><br /><sub><code>/litclaude:lit-xlsx &lt;request&gt;</code> · <code>sheets:lit-xlsx</code></sub></td>
+<td><code>sheets</code> 확장에 있습니다. <code>lit</code>으로 예산표, 재무 모델, 대시보드를 요청하면 숫자가 수식으로 계산되는 Excel 파일이 나옵니다. LibreOffice로 다시 계산하고, 수식 오류를 점검하고, 시트마다 렌더링해 읽어 본 뒤 넘깁니다.</td>
 </tr>
 </table>
 

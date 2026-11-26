@@ -1,6 +1,6 @@
 ---
 name: autoconference
-description: "Run a root-owned, budgeted Claude Code research conference; routes core, analyze, debate, plan, resume, ship, and survey modes."
+description: "Run a budgeted multi-agent research conference: several agents present, question and debate one question, then return a judged conclusion (core, analyze, debate, plan, resume, ship, survey modes). Use when asked for an agent debate or conference with a cost cap; 에이전트끼리 토론, 찬반 토론, 학회처럼. Not for one-pass research (litresearch) or parallel implementation (lit-team)."
 ---
 
 ## #contract.activation

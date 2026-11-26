@@ -86,13 +86,13 @@ const ok = (result) => {
 };
 
 describe("litclaude-ai extensions", () => {
-  it("lists the nine extensions as not installed on a fresh machine, also as JSON", (t) => {
+  it("lists the ten extensions as not installed on a fresh machine, also as JSON", (t) => {
     const box = sandbox(t);
     const text = ok(box.run("list"));
     for (const ids of Object.values(FAMILIES)) for (const id of ids) assert.match(text, new RegExp(`${id}\\s+\\S+\\s+not installed`, "u"));
     assert.match(text, /Marketplace: not added/u);
     const json = JSON.parse(ok(box.run("list", "--json")));
-    assert.equal(json.extensions.length, 9);
+    assert.equal(json.extensions.length, 10);
     assert.ok(json.extensions.every((row) => row.state === "not installed"));
     assert.deepEqual(box.hostCalls(), []);
   });

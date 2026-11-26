@@ -1,6 +1,6 @@
 ---
 name: lit-crucible
-description: "lit-crucible: Claude Code-native adversarial pre-planning skill that clarifies the brief, pressure-tests risks through independent lanes, and hands surviving constraints to /litclaude:lit-plan without implementation."
+description: "lit-crucible: adversarial pre-planning: clarifies the brief, pressure-tests risks through independent lanes and hands the surviving constraints to /litclaude:lit-plan, without implementation. Use for 'pressure-test this plan', 'poke holes', 'red-team the design', 'what could kill it'; 허점 찾아줘, 반대 입장에서 공격해 봐, 리스크부터 검증. Not for a settled decision that only needs a plan (lit-plan) or a code review (review-work)."
 ---
 
 ## #contract.activation

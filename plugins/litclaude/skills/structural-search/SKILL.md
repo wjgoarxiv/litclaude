@@ -1,6 +1,6 @@
 ---
 name: structural-search
-description: Search or rewrite source by syntax shape rather than matching bytes — locate calls, declarations, imports, and control flow by their tree structure, then preview and apply codemods safely. Use when a text search would over- or under-match because the target is a code construct, not a string. Verifies the structural engine's identity before trusting it, and degrades to labelled textual search or a named blocker rather than pretending.
+description: "Search or rewrite source by syntax shape rather than bytes: locate calls, declarations, imports and control flow by tree structure, then preview and apply codemods; verifies the engine before trusting it. Use when a text search would over- or under-match ('every call to X with ...', 'match by syntax'); 구조적으로 찾아서 바꿔줘, if 문 안의 if 찾아줘. Not for references to a symbol (lsp) or plain string search."
 ---
 
 ## #contract.activation

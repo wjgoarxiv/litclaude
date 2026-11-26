@@ -1,6 +1,6 @@
 ---
 name: lsp
-description: Claude Code language-server workflow for diagnostics, definitions, references, rename safety, and post-edit checks.
+description: "Use the configured language server for diagnostics, definitions, references, safe renames and post-edit checks. Use for 'find all references to X', 'rename this symbol', 'any type errors after this edit'; 심볼 참조 찾기, 정의 어디 있어, 타입 에러 진단해줘. Not for installing or configuring a server (lsp-setup) or text grep."
 ---
 
 ## #contract.activation

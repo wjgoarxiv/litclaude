@@ -4,7 +4,7 @@
 // or risky design. The model confirms or drops each companion against a short catalog of the skills that are
 // installed here and states the final plan before it works. `lit +viz +ui <task>` names the plan outright.
 //
-// An extension skill (the nine that moved to the wjgoarxiv-skills marketplace) is offered under its plugin's
+// An extension skill (the ten on the wjgoarxiv-skills marketplace) is offered under its plugin's
 // name only when that plugin is installed for this project; otherwise the plan names it once with its install
 // line. Read-only primaries (lit-adhd, review-work, litresearch, the brainstorms) never gain a companion that
 // can write. Pure apart from `installedExtensionPlugins`, which reads Claude Code's own plugin records.
@@ -33,6 +33,8 @@ export const SKILL_ALIASES = Object.freeze({
   pptx: "lit-pptx",
   doc: "lit-docx",
   docx: "lit-docx",
+  xlsx: "lit-xlsx",
+  excel: "lit-xlsx",
   diagram: "lit-diagram-drawer",
   schematic: "lit-schematic",
   motion: "lit-typographic-motion",
@@ -50,8 +52,9 @@ export const SKILL_ALIASES = Object.freeze({
 export const READ_ONLY_SKILLS = Object.freeze(new Set(["lit-adhd", "lit-rewind", "review-work", "litresearch", "lit-brainstorm", "ultra-brainstorm", "lit-crucible"]));
 const READ_ONLY_PRIMARIES = new Set(["lit-adhd", "lit-rewind", "review-work", "litresearch", "lit-brainstorm", "ultra-brainstorm"]);
 
-// The moved figures skill is user-invoked (disable-model-invocation): the model cannot load it.
-const USER_INVOKED = new Set(["lit-scientific-visualization"]);
+// Skills the model cannot load (disable-model-invocation); the user types them. The figures copy of
+// lit-scientific-visualization is model-invocable, so it is offered like any other extra.
+const USER_INVOKED = new Set([]);
 
 // One "use when" line per skill the catalog may offer. Extension skills appear only when installed.
 export const CATALOG = Object.freeze({
@@ -69,6 +72,7 @@ export const CATALOG = Object.freeze({
   "browser-drive": "act in a real browser page",
   "lit-pptx": "a finished .pptx deck",
   "lit-docx": "a finished .docx document",
+  "lit-xlsx": "a finished .xlsx workbook with live formulas",
   "lit-diagram-drawer": "a conceptual diagram (architecture, flow, timeline)",
   "lit-schematic": "a physical schematic (P&ID, PFD, apparatus, cutaway)",
   "lit-scientific-visualization": "a publication figure of measured data",
@@ -149,7 +153,7 @@ export const parseSkillHatch = (text, prompt = text) => {
 // Large or risky design asks: lit-crucible joins as the first companion. A request to explain or describe stays out.
 const riskyDesignAsk = /\b(?:redesign(?:ing)?|re-?architect(?:ure|ing)?|architecture|migrat(?:e|ion|ing)|overhaul(?:ing)?)\b|설계|아키텍처|마이그레이션|전면\s?개편/u;
 const explainAsk = /\b(?:explain|describe|summari[sz]e|what\s+is)\b|설명|요약/u;
-const DELIVERABLES = new Set(["lit-pptx", "lit-docx", "frontend-ui-ux", "lit-scientific-visualization", "lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"]);
+const DELIVERABLES = new Set(["lit-pptx", "lit-docx", "lit-xlsx", "frontend-ui-ux", "lit-scientific-visualization", "lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"]);
 
 export const wantsCrucible = (normalized, ids) => {
   if (explainAsk.test(normalized)) return false;
@@ -215,6 +219,32 @@ const catalogLines = (plan, installed) => {
     .filter(([id]) => !plan.readOnly || READ_ONLY_SKILLS.has(id))
     .filter(([id]) => !EXTENSION_SKILLS[id] || installed.has(EXTENSION_SKILLS[id]))
     .map(([id, use]) => `${EXTENSION_SKILLS[id] ? `${EXTENSION_SKILLS[id]}:${id}` : id} — ${use}`);
+};
+
+// The no-`lit` suggestion tier (route-match.mjs suggestedSkills). Both lines are fixed text plus skill ids;
+// nothing from the prompt is echoed. The catalog line is what a prompt gets when no rule fired.
+export const NO_ACTIVATION = "LitClaude prompt hook checked: no workflow activation.";
+export const SUGGESTION_CATALOG = Object.freeze(["lit-plan", "review-work", "debugging", "refactor", "litresearch", "lit-brainstorm", "deep-interview", "lit-humanizer", "lit-commit", "frontend-ui-ux", "lit-docx", "lit-pptx", "lit-diagram-drawer", "lit-schematic", "lit-scientific-visualization"]);
+export const suggestionCatalogLine = () => `${NO_ACTIVATION} No skill rule matched. If one of these fits, load it with the Skill tool before reading files or running commands; otherwise none: ${SUGGESTION_CATALOG.join(", ")}.`;
+
+// A core skill the model cannot load is named with what the user types instead.
+const USER_TYPED = Object.freeze({ "lit-handoff": "handoff" });
+
+const suggestionLabel = (id, installed, named) => {
+  if (Object.hasOwn(USER_TYPED, id)) return `${id} (user types \`${USER_TYPED[id]}\`)`;
+  const plugin = EXTENSION_SKILLS[id];
+  if (!plugin) return id;
+  if (installed.has(plugin)) return `${plugin}:${id}`;
+  if (named.has(plugin)) return `${id} (not installed)`;
+  named.add(plugin);
+  return `${id} (not installed: npx @litfamily/litclaude extensions install ${plugin})`;
+};
+
+/** The candidate list for the skills whose suggestion rule fired, plus "none"; null for an empty list. */
+export const suggestionContext = (ids, installed = new Set(), lead = `${NO_ACTIVATION} Skill candidates the hook matched:`) => {
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+  const named = new Set();
+  return `${lead} ${ids.map((id) => suggestionLabel(id, installed, named)).join("; ")}; none. Decide yes or no for each, then load the ones that fit with the Skill tool before reading files or running commands; if none fits, work without a skill.`;
 };
 
 /** The model-facing block. Fixed text around the plan; nothing from the prompt is echoed. */

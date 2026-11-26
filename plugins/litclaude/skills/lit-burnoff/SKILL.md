@@ -1,6 +1,6 @@
 ---
 name: lit-burnoff
-description: "lit-burnoff: Cleanup workflow for AI-generated bloat, vague wording, fake certainty, overbroad abstractions, and unsupported claims across a bounded set of LitClaude files. Locks behavior with regression/characterization tests FIRST, then runs a categorized, risk-ordered cleanup, then verifies with quality gates and a critical review. Covers 10 slop categories including performance equivalences, needless abstraction, and oversized modules. Use when the user asks to \"remove slop\", \"clean AI code\", \"deslop\", or clean up AI-generated patterns from recent changes."
+description: "lit-burnoff: cleanup workflow for AI-generated bloat, vague wording, fake certainty, overbroad abstractions and unsupported claims across a bounded set of LitClaude files. Locks behaviour with regression/characterization tests FIRST, then runs a categorized, risk-ordered cleanup, then verifies with quality gates and a critical review. Covers 10 slop categories including performance equivalences, needless abstraction and oversized modules. Use when the user asks to 'remove slop', 'clean AI code', 'deslop', or clean up AI-generated patterns from recent changes; 프로젝트 전체 AI 슬롭 정리, AI가 만든 코드 냄새 제거, 장황한 코드 여러 파일 정리. Not for a single file (lit-burnoff-file) or prose (lit-humanizer)."
 ---
 
 ## #contract.activation

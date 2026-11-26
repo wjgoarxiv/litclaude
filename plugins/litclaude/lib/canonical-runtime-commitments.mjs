@@ -24,21 +24,21 @@ export const CANONICAL_RUNTIME_COMMITMENTS = Object.freeze(new Map([
 export const CANONICAL_RUNTIME_ADAPTER_COMMITMENTS = Object.freeze([
   Object.freeze({
     path: "skills/autoresearch/SKILL.md",
-    size: 8153,
+    size: 8368,
     executable: false,
-    sha256: "be86f3e098fb74ac1ce99a4ece476837e31967b0e3b1886f5252164727ae87b4",
+    sha256: "a71f2d3d2f5698d3ff731ec0c62dcdc1050e373814e1a8943d21595b1adf8af7",
   }),
   Object.freeze({
     path: "skills/autoconference/SKILL.md",
-    size: 8262,
+    size: 8532,
     executable: false,
-    sha256: "9e326405d23919a910ea53211c4cab0306d2d848654763a0975338b2de058774",
+    sha256: "a4e9ead0889df7c88f4c3fa042058f9119b71ca5929e1ceea9774e042f610c27",
   }),
   Object.freeze({
     path: "skills/wikify/SKILL.md",
-    size: 10224,
+    size: 10444,
     executable: false,
-    sha256: "1894ea8588072f6766f7c6752d714ff3dea23d040e169eb4484d7178dfb96d94",
+    sha256: "4062f1bda512fdf3b07f11af52ba1ae50f44a295c22f22077792ba471f21c6e6",
   }),
   Object.freeze({
     path: "commands/autoresearch.md",

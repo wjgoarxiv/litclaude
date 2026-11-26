@@ -73,8 +73,25 @@ export const requestGoalClear = (cwd, why) => {
   } catch {
     // No session folders yet.
   }
+  // A goal armed or asked but not yet set dies with the cancel too, so the mod never sets it later.
+  let dropped = false;
+  for (const dir of dirs) {
+    for (const name of ["intent.json", "consent.json"]) {
+      try {
+        if (readJson(join(dir, name))) { rmSync(join(dir, name), { force: true }); dropped = true; }
+      } catch {
+        // Nothing to drop.
+      }
+    }
+  }
   const owned = dirs.filter((dir) => readJson(join(dir, "owner.json")));
-  return owned.map((dir) => writeAt(join(dir, "clear.json"), { version: 1, why, at: new Date().toISOString() })).some(Boolean);
+  return owned.map((dir) => writeAt(join(dir, "clear.json"), { version: 1, why, at: new Date().toISOString() })).some(Boolean) || dropped;
+};
+
+/** Arms a goal: writes intent.json and drops a clear request left over from an earlier goal. */
+export const armGoal = (cwd, sessionId, intent) => {
+  dropGoalFile(cwd, sessionId, "clear.json");
+  return writeGoalFile(cwd, sessionId, "intent.json", intent);
 };
 
 // A lit run's goal question is asked once per session: `sessions/<id>/goal-asked.json` records when it

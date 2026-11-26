@@ -1,6 +1,6 @@
 ---
 name: lit-adhd
-description: "After a break, a six-line verdict card for this repo: what changed since your last look, the one thing to do now and exactly what to type, why, what waits next, and how much was read. `lit adhd 자세히` shows the full KPI board with per-session cards; `lit adhd recap [session]` is the session recap (it replaced lit-recap). Alias: lit-rewind."
+description: "After a break, a six-line verdict card for this repo: what changed since your last look, the one thing to do now and exactly what to type, why, what waits next. `lit adhd 자세히` shows the full board; `lit adhd recap [session]` is the session recap (alias: lit-rewind). Use for 'I'm back, where were we'; 자리 비운 사이에 뭐 바뀌었어, 다녀왔는데 지금 상황. Not for a continuation file for the next session (lit-handoff)."
 goal: never
 ---
 

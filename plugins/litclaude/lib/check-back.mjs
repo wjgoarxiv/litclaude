@@ -58,7 +58,7 @@ export const buildCheckBackReport = ({ cwd, stateRoot, work = null, parked = nul
   }
   const steps = parked?.parked ?? [];
   if (steps.length) {
-    lines.push(`Waiting on you: ${steps.slice(0, 3).map(({ action, root }) => `${line(action, 12)} ${pathLine(root, 100)}`).join("; ")}${steps.length > 3 ? ` (+${steps.length - 3} more)` : ""}. Type lit approve or lit cancel.`);
+    lines.push(`Waiting on you: ${steps.slice(0, 3).map(({ action, root }) => `${line(action, 12)} ${pathLine(root, 100)}`).join("; ")}${steps.length > 3 ? ` (+${steps.length - 3} more)` : ""}. Type lit approve, lit deny or lit skip-row.`);
   }
   try {
     const goal = readLitgoalState(litgoalGoalsPath(stateRoot), null);

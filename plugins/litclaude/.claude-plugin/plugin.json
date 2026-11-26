@@ -42,8 +42,8 @@
     "park_ping": {
       "type": "string",
       "title": "Ping when start-work parks a step",
-      "description": "off, on (an OSC 9 terminal notification) or osc777 (for terminals that read only OSC 777): one ping per parked step, naming what waits and to type lit approve or lit cancel. It approves nothing. Inside tmux the notification reaches your terminal only with allow-passthrough on.",
-      "default": "off"
+      "description": "on (an OSC 9 terminal notification, the default), osc777 (for terminals that read only OSC 777) or off: one ping per parked step, naming what waits and the answers lit approve, lit deny and lit skip-row. It approves nothing. Inside tmux the notification reaches your terminal only with allow-passthrough on.",
+      "default": "on"
     },
     "club": {
       "type": "string",

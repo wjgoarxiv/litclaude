@@ -1,6 +1,6 @@
 ---
 name: litwork
-description: LitClaude delivery-execution discipline for shipping verified work end-to-end. Use when the user types `litwork`, or asks to ship, implement, finish, land, or fix something with proof rather than a summary. Triages the change set LIGHT or HEAVY, opens a durable notepad, registers one TodoWrite step per atomic unit, and drives PIN -> RED -> GREEN -> SURFACE -> CLEAN per success criterion, pairing every criterion with a real Manual-QA channel artifact and a cleanup receipt. Tests alone never prove done.
+description: "LitClaude delivery discipline for shipping verified work end to end: triage, a durable notepad, one step per atomic unit, PIN -> RED -> GREEN -> SURFACE -> CLEAN per criterion, with a real manual-QA artifact and a cleanup receipt; tests alone never prove done. Use when the user types `litwork` or asks to ship, implement or finish something with proof; 끝까지 마무리해줘, 실제 화면에서도 확인, 증거 남기고. Not for read-only reviews (review-work) or explanations."
 ---
 
 ## #contract.activation

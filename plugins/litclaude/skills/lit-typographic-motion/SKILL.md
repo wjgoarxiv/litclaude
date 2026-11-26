@@ -1,6 +1,6 @@
 ---
 name: lit-typographic-motion
-description: "Moved: lit-typographic-motion directs finished short films (kinetic type, lyric or quote videos, title sequences, stage films, silent README cover loops) and now ships as the `video-covers` plugin of the wjgoarxiv-skills marketplace. Load Skill(video-covers:lit-typographic-motion) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: lit-typographic-motion directs short films (kinetic type, lyric videos, title sequences, cover loops), now in the `video-covers` plugin of wjgoarxiv-skills. Use for kinetic type videos and README cover loops; 모션 그래픽, 가사 영상, 루프 커버 영상. Loads Skill(video-covers:lit-typographic-motion) when installed, else gives the install line. Not for edits."
 ---
 
 ## #contract.activation

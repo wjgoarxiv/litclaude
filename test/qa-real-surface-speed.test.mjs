@@ -73,8 +73,9 @@ test("local speed driver measures the installed hook without provider access", (
   assert.match(result.receipt.artifact.sha256, /^[a-f0-9]{64}$/u);
   assert.deepEqual(result.receipt.cleanup, {
     status: "complete",
-    resource_count: 4,
-    cleaned_count: 4,
+    // install, home, workspace, hook state and the speed run's own session-record folder
+    resource_count: 5,
+    cleaned_count: 5,
     leaked_count: 0,
     processes_remaining: 0,
   });

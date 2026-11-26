@@ -329,23 +329,23 @@ and a second compaction get nothing. When the percent feature also fired, both r
 ### Ping when a step parks
 
 start-work keeps going when it parks a call (a path outside the plan's scope, say), so a user who
-walked away learns about it only when they look again. The `park_ping` plugin option (off by
-default; set it in `/plugin` → LitClaude → configure, which saves it under `pluginConfigs` in your
+walked away learns about it only when they look again. The `park_ping` plugin option (on by
+default; change it in `/plugin` → LitClaude → configure, which saves it under `pluginConfigs` in your
 user settings) sends one terminal notification instead. Claude Code reads it to the hook as
 `CLAUDE_PLUGIN_OPTION_PARK_PING`.
 
 - `on`: an OSC 9 notification. `osc777`: the OSC 777 form, for terminals that read only that one.
-  Anything else is off.
+  `off` (or anything else) sends nothing.
 - The `PreToolUse` runner adds a `terminalSequence` to the denial of a call parked for the first
-  time, for example `LitClaude start-work: a parked step waits on you: write …/reports. Type lit
-  approve to allow, or lit cancel to end the run.` Claude Code writes it to the terminal for the hook.
-  A retry of the same call carries none.
+  time, for example `LitClaude start-work: a parked step waits on you: npm publish. The run goes on;
+  answer when it wraps up with lit approve, lit deny or lit skip-row.` Claude Code writes it to the
+  terminal for the hook. A retry of the same call carries none.
 - The `Notification` runner (on `permission_prompt`, `idle_prompt` or `agent_needs_input`) pings
   only for a parked step that was never pinged, such as one parked before the option was turned on.
 - Each step is pinged once. Its id goes into `.litclaude/shown/ledger.jsonl` as a hash before the
   sequence is returned; when that record cannot be written there is no ping.
-- The ping approves nothing. The step stays parked until you type `lit approve`, `lit deny` or
-  `lit cancel`.
+- The ping approves nothing. The step stays parked until you type `lit approve` (or `lit approve x`
+  for a push, publish, tag or bump), `lit deny` or `lit skip-row`.
 
 Claude Code emits `terminalSequence` in an interactive session only (not with `-p` or the SDK).
 Inside tmux the notification reaches your own terminal only with `set -g allow-passthrough on`.
@@ -742,6 +742,86 @@ an invalid id. The invite path imports no network module and opens no browser; p
 thread is up to the user. The card shows the club look from the next refresh, unless the `club`
 option is off.
 
+## Long runs that finish themselves
+
+A start-work run is meant to reach its last row without a person at the keyboard, and to stop only for a
+decision that really is the user's. Four pieces in `plugins/litclaude/lib/start-work-lifecycle.mjs` do that.
+
+**The run charter.** A plan line `Run charter: commit on <branch> in <repo>` (outside code fences) becomes a
+branch-scoped commit grant when the user answers `yes`, provided the plan's `Scope roots:` and `Run charter:`
+lines are still the ones the approval question recorded (their hash rides on the consent); edited after the
+question, they grant nothing until the plan is approved again; `scripts/goal-propose.mjs` prints that line first in the approval question,
+and the run state records it as the work's `charter`. The guard reads the branch from `.git` `HEAD` at call
+time (a linked worktree's `.git` file included), so a commit made after a branch switch is refused. Plain
+`git add <files>` and `git commit -m`, `-F`, `-a` or `-q` pass; `--amend`, `--no-verify`, `git add -A` or
+`.`, command substitution, a commit on any other branch, push, tag, reset, publish and version bumps do not.
+
+**Parking.** Every Bash call the guard would refuse (unverified, unclassified, outside the grants, a
+relocation) is parked as a command step with its exact text, its folder and a tier. B is an allowlist of
+shapes known to stay local and be undoable: `cd`, `touch`, `mkdir [-p]` and `git add`, and `cp` / `mv` onto a
+path that does not exist yet. Every path is resolved with realpath (the nearest existing parent for a new one)
+and must lie inside the project, outside `.git` and outside every protected path. Everything else is X: push,
+tag, publish, bump, reset, commits outside the charter, every package script and runner (`npm run`, `npm test`,
+`npx`, `node <file>`, `python <file>`, `make`, `bash <file>`; they run arbitrary code), and any other
+command the guard cannot show to be local (`gh`, `curl`, `ssh`, `rm -rf`, an unresolved git alias). A
+command the check cannot read is held with the reason "cannot check this command": listed, never replayed,
+not even on `lit approve x`. That covers `$`, backticks, `base64`, a nested shell, escaped bytes,
+`pushd`/`popd`, `builtin`, `command`, `exec`, `eval`, `source`, unquoted globs and braces, redirects, and
+any step its word parser does not fully read. The model is told "parked; continue
+with the next row", so the turn goes on. At most 32 B steps and 16 X steps are kept beside the 16 path
+boundaries. Secrets, settings and host tool homes, including the account's real home when `HOME` is replaced,
+are refused and never stored; that check follows `cd` between segments and reads the command with its
+quotes removed, and it runs again, with the tier and the folder, right before a replay. It is a backstop,
+not a sandbox: the list shows every command in full, and reading it is the real control. The user answers
+from the prompt:
+
+| Prompt | What the prompt hook does |
+| --- | --- |
+| `lit approve` / `lit 승인` | Grants the parked path boundaries, then replays the B commands of the list the user was last shown, in order, each in its stored folder, within a 100 s budget (the `UserPromptSubmit` timeout is 120 s); the first failure stops the rest, and one that times out stays parked, marked "timed out". With no list shown yet it runs nothing and shows the list |
+| `lit approve x` | Only as the exact whole prompt: replays the X steps of the list last shown; nothing else ever runs them |
+| `lit deny` / `lit 거절` | Drops the parked steps and keeps those exact commands refused |
+| `lit skip-row [N]` | Ticks the `BLOCKED` or `IMPOSSIBLE` rows (or row N) as skipped and drops their parked steps: each step remembers the row that was the next open one when it was parked, and a step parked under no row stays |
+| `lit pause` / `lit 멈춤` / `lit 일시정지` | Marks the run paused; Stop never drives a paused run |
+| `lit resume` / `lit 재개` | Clears the pause |
+
+The list is a snapshot. When the inbox (or a `lit approve` reply) is drawn, the shown commands are recorded
+with their ids, exact text, folder and tier, at most 8 of them, each printed whole with control characters
+written as escapes; more than 8 are counted as "N more" and are not part of the list. A replay runs only
+those recorded steps, so a step parked after the list was drawn, or one past the first 8, stays parked for
+the next list. Whatever is still parked after an answer is listed again.
+
+Trust boundary: anything that can type into the user's own Claude Code prompt is treated as the user, the
+same trust Claude Code's own permission prompts have, so no message tells another session or a pane tool to
+answer a run's inbox, and `lit approve x` counts only as the exact whole prompt.
+
+**One Stop decision.** `handleStartWorkStop` returns one of `continue`, `wrap-up`, `done` or `impossible`
+and writes it as `stop_decision`. `continue` blocks the Stop at most twice in a row for the same plan state, and once that budget is spent the next stop shows the wrap-up inbox (with the open row it could not move past) instead of ending silently, once per state
+(the host allows eight), and a turn that ended with no row changed gets one nudge. The driver also runs on the stop that follows its
+own block (`stop_hook_active: true`), which is where a run closes, wraps up or ends impossible; the same
+budget bounds it there. `wrap-up` prints one inbox:
+the waiting rows, the rows marked `IMPOSSIBLE: <reason>`, and every parked step with its command and folder
+(X steps marked), with the answers from the table above; it speaks once per state. `done` runs the plan's
+`## Done when` check (capped at 90 s inside the 120 s Stop timeout) and completes the run when every row is
+ticked and the check passes, so nobody types `complete`. A check that times out is not proof: the run stays
+open, the stop is blocked once with a message that says the check timed out, and the check waits for a new
+turn before it runs again. When every row is ticked and the check passes, parked local steps are set aside:
+the completion line names each one in full ("N set-aside steps were not run: ..."), and the
+`work.steps_set_aside` event records them. Outward or irreversible steps (push, publish, tag, version bumps,
+releases, deploys, network calls, deletes outside the project, plus `make`, package scripts and unknown git
+subcommands, which may do any of those) keep the run in wrap-up. A Bash self-check
+refused only for its shape (`;`, `||`, `$?`, `echo`, `2>&1`), whose parts are all readers or the Done-when
+check, gets a refusal that names each part to run as its own call, and nothing is parked. The model is never
+told to suggest `lit cancel`.
+
+**The goal is opt-in.** start-work arms Claude Code's `/goal` only when the plan carries a `goal: native`
+line (a typed `/litclaude:start-work` of such a plan arms it too). The condition always ends with ", or the
+latest reply starts with WAITING-ON-USER:, or after 30 turns", and the continuation text tells the model to
+start a reply that waits on the user with `WAITING-ON-USER:`, so the goal cannot loop on a decision only the
+user can make.
+
+Two parts are not built yet: the Done-when check still runs inside the Stop hook instead of in the background,
+and an orchestrator still waits two hours before it adopts a run its own lane started.
+
 ## Bounded-authority start-work lifecycle
 
 The hook and CLI share `plugins/litclaude/lib/start-work-lifecycle.mjs`.
@@ -796,8 +876,8 @@ bypass. Returned `<litclaude-start-work-context>` JSON is bounded structured
 data and contains no raw prompt. Stop ignores subagents and stale work/revision
 events; each normal Stop re-evaluates progress (the parked boundaries join the
 fingerprint, and the continuation lists them), a new fingerprint emits once,
-and `stop_hook_active: true` re-entry stays silent so stale output cannot block
-again. Later unchanged turns are silent. Transcript pressure checks read only regular,
+and `stop_hook_active: true` re-entry is driven from the current plan (never from a stored
+receipt) within the same per-state budget. Later unchanged turns are silent. Transcript pressure checks read only regular,
 non-symlink files at or below 256 KiB.
 Continuation receipts use the same bounded window as retained state events.
 They remain bounded audit receipts, not re-entry instructions; neither retained
@@ -909,6 +989,27 @@ phrasings keep the `BLOCKED:` handoff to `/litclaude:start-work`, because a prom
 hook cannot switch Claude Code agents. The `$start-work` shorthand and natural start-work
 phrases activate only when they lead the prompt; diagnostic prose and copied or
 blockquoted mentions remain inert.
+
+A bare `lit` prompt that asks to make a workbook (a making verb plus xlsx, excel, spreadsheet, 엑셀,
+스프레드시트 or 표 계산) routes to the `lit-xlsx` stub, the same way slide and report wording reaches
+`lit-pptx` and `lit-docx`; "an xlsx report" and "엑셀 보고서" count as workbooks. With the `sheets`
+plugin installed the stub loads `sheets:lit-xlsx`, and without it the stub gives the install lines.
+
+### Suggestions without `lit`
+
+A prompt with no `lit` starts no workflow, but the hook still names the skills that might help, and the
+model decides. `suggestedSkills` in `plugins/litclaude/lib/route-match.mjs` runs a small table of rules
+over the prompt and returns every skill whose rule fires, with no cap: today the diagram, scientific
+visualization, typographic motion, visual-qa and wikify rules. The hook offers those as candidates plus
+"none" and asks the model to decide yes or no for each and load only the ones that fit. When no rule fires,
+the context carries one compact catalog line of 15 common skills instead, about 100 tokens, so the choice
+stays with the model. Nothing is ever loaded for it, and the route of a `lit` prompt never changes.
+
+A rule joins the table only after `node tools/routing-eval.mjs --route` scores it on the
+`test/fixtures/routing-eval` prompts at recall of at least 0.85 and near-miss false positives of at most
+0.10, first on the dev half and then once on the sealed held-out half. Rules that missed (deep-interview,
+lit-brainstorm, lit-xlsx and others) were dropped; deep-interview and lit-brainstorm still appear in the
+catalog line, and lit-xlsx is reached with `lit` or by name.
 
 `autoresearch`, `autoconference`, and `wikify` are family routes. A leading bare
 token or dollar shorthand loads one Claude Code skill whose first argument selects

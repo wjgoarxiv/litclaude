@@ -1,6 +1,6 @@
 ---
 name: lit-docx
-description: "Moved: lit-docx builds finished Word documents (.docx, report, 보고서, 기획서, 제안서, memo, manuscript, 워드) and now ships as the `documents` plugin of the wjgoarxiv-skills marketplace. Load Skill(documents:lit-docx) when it is installed; otherwise this stub gives the user the install line."
+description: "Moved: lit-docx builds finished Word documents (report, memo, proposal, manuscript) and now ships as the `documents` plugin of the wjgoarxiv-skills marketplace. Use for 'write a report as a Word file', '.docx'; 보고서, 기획서, 제안서 작성, 워드로 정리. Loads Skill(documents:lit-docx) when installed; otherwise gives the install line. Not for slides (lit-pptx) or spreadsheets (lit-xlsx)."
 ---
 
 ## #contract.activation

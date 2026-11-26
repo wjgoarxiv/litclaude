@@ -84,7 +84,11 @@ typing it approves this plan and runs it. A plan that needs access outside the
 project names it on a `Scope roots: <path> (<actions>)` line. Every absolute path
 a todo names outside the project needs such a line: `scaffold-plan.mjs --check`
 and the Stop hook print the exact `Scope roots: <folder> (read)` line to paste,
-and the Stop hook blocks until the plan carries it.
+and the Stop hook blocks until the plan carries it. A plan whose rows commit adds
+`Run charter: commit on <branch> in <repo>` per repository; the user's `yes` then allows plain
+`git add <files>` and `git commit -m/-F/-a` there while that branch is checked out, and nothing
+more (no amend, other branch, push, tag, publish or bump). `goal-propose.mjs` prints the charter
+line first; show it above the approval question unchanged.
 
 The plan must include Claude Code-native bootstrap steps:
 

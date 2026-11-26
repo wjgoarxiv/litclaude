@@ -316,8 +316,8 @@ test("both READMEs give a copyable install prompt for coding agents that asks be
 
 test("English and Korean route tables retain browser-drive and omit removed skill learning", async () => {
   for (const [label, path, heading, inventory] of [
-    ["English guide", "docs/guide.md", "## What to type", /package's 39 skills/u],
-    ["Korean guide", "docs/guide_ko-KR.md", "## 무엇을 입력하나요", /39개 skill/u],
+    ["English guide", "docs/guide.md", "## What to type", /package's 40 skills/u],
+    ["Korean guide", "docs/guide_ko-KR.md", "## 무엇을 입력하나요", /40개 skill/u],
   ]) {
     const readme = await text(path);
     const routeTable = readme.match(new RegExp(`${escapeRegExp(heading)}[\\s\\S]*?(?=\\n## |$)`, "u"))?.[0] ?? "";
