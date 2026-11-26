@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.67 - 2026-11-26
+
+- A test that checks for the removed skill hint no longer fails by chance when a random temp folder name spells a banned word.
+
 ## 1.0.66 - 2026-11-26
 
 - `litclaude install --agent` prints the install steps for a coding agent and does nothing else: no question, no file, no process. `--help`, the first card and any run without a person at the terminal point to it.
