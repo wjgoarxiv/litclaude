@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.68 - 2026-11-27
 
 - Not built yet in this round: an orchestrator still waits the 2-hour stale window before it can take over its own lane's run (the run record does not say which session launched a lane); the `## Done when` check still runs inside the Stop hook instead of in the background; the litgoal stall cap (`STALL_CHECKS`) and the auto-loop limits are unchanged. `node tools/routing-eval.mjs --model` only prints the planned session count; model-level routing is not measured yet. The prompt hook can still suggest a `figures:` skill from the install records when this session has not enabled that plugin.
 
