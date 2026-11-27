@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -26,7 +26,9 @@ const parse = (result) => (result.stdout ? JSON.parse(result.stdout) : null);
 
 // A throwaway git project with one plan whose Done-when check is a script that exits 0.
 const project = (rows = ["- [ ] 1. First", "- [ ] 2. Second"]) => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-autopilot-")));
+  // The project sits one folder below its own temp folder, so `..` from it never holds the hook's
+  // HOME (on Linux both would otherwise be children of /tmp, and `..` would name the home folder).
+  const root = join(realpathSync(mkdtempSync(join(tmpdir(), "litclaude-autopilot-"))), "project");
   mkdirSync(join(root, "plans"), { recursive: true });
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(join(root, "src", "a.mjs"), "export const a = 1;\n");
@@ -60,7 +62,7 @@ const stop = (root, promptId) => parse(runHook("stop", root, { session_id: "owne
 const status = (root) => parse(runCli(root, ["status"]))?.state?.works?.["work-1"];
 const withProject = (rows, body) => async () => {
   const root = project(rows);
-  try { await body(root); } finally { rmSync(root, { recursive: true, force: true }); }
+  try { await body(root); } finally { rmSync(dirname(root), { recursive: true, force: true }); }
 };
 
 describe("autopilot replays of real cancel causes", () => {
