@@ -29,6 +29,7 @@ import { realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { MATRIX_COLUMNS, ORCHESTRATION_PARTS, SINGLE_LANE_LINE, checkPlanOrchestration } from "../lib/plan-orchestration.mjs";
 import { describeScopePath, uncoveredScopePaths } from "../lib/plan-scope-roots.mjs";
 import { parsePlanTaskRows, planLinesOutsideFences } from "../lib/plan-task-rows.mjs";
 import { ensureStateDirIgnored, resolveProjectStateRoot } from "../lib/project-state-root.mjs";
@@ -756,8 +757,12 @@ Your next move: <fill — e.g. approve, or ask for a high-accuracy review>. Full
 > Target 5-8 todos per wave. Fewer than 3 (except the final wave) means you under-split.
 
 ### Dependency matrix
-| Todo | Depends on | Blocks | Can parallelize with |
-| --- | --- | --- | --- |
+<!-- One line per row. "Same lane as" names the checkout or real host the row writes to; rows that share one never run together. -->
+| ${MATRIX_COLUMNS.join(" | ")} |
+| --- | --- | --- | --- | --- |
+
+<!-- One lane and nobody else works on the plan: keep the line below. Otherwise replace it with a "## Orchestration" section holding ${ORCHESTRATION_PARTS.map((part) => `### ${part}`).join(", ")}. -->
+${SINGLE_LANE_LINE}
 
 ## Todos
 > Implementation + Test = ONE todo. Never separate them.
@@ -955,6 +960,8 @@ export async function scaffold(cwd, { slug, intent, reset = false, force = false
  * UNCHECKED at this point. `scripts/audit-plan-checkboxes.mjs` is the different,
  * post-completion audit that requires them checked.
  */
+export { COURIER_COLUMNS, EXECUTOR_COLUMNS, MATRIX_COLUMNS, ORCHESTRATION_PARTS, SINGLE_LANE_LINE, checkPlanOrchestration } from "../lib/plan-orchestration.mjs";
+
 export function checkPlanStructure(text, projectRoot = null) {
   const problems = [];
   const lines = text.split(/\r?\n/u);
@@ -1029,8 +1036,10 @@ async function runCheck(checkPath, cwd) {
     throw new Error(`refused: --check cannot safely read ${checkPath}: ${read.failure}`);
   }
   const text = read.bytes.toString("utf8");
-  const { ok, problems } = checkPlanStructure(text, cwd);
-  if (ok) {
+  // The orchestration check runs here only: checkPlanStructure also decides which plan files are
+  // found again later, and a plan written before this check must stay findable.
+  const problems = [...checkPlanStructure(text, cwd).problems, ...checkPlanOrchestration(text).problems];
+  if (problems.length === 0) {
     process.stdout.write(`PLAN_STRUCTURE_PASS: ${checkPath}\n`);
     return 0;
   }

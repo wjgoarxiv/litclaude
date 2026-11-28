@@ -38,7 +38,7 @@ export const canonicalSkillResourceManifest = Object.freeze(
     ["lib/strict-json.mjs", "d941f327aabce5ffc212770852cfbc7e08dd03471e4e9bc9560eff54f06d489a"],
     ["lib/wikify-knowledge-cli.mjs", "6835f8d6d98a3dd26266409366c23b2da437c0cd41e63537f0f200667655132b"],
     ["lib/wikify-knowledge.mjs", "feaa8d1fc9606b00f5fa49115385a797c285eefdc9e202d94809f6c3cff5d224"],
-    ["scripts/scaffold-plan.mjs", "f1d5872e58abfc329ec8ae081afb7e24fdc502462c3ed867a3a3f094196cf0c9"],
+    ["scripts/scaffold-plan.mjs", "e7b823df61412d100d6a48dc1a5f19277209e9ae443c72ab8afde10a34fd82d0"],
     ["skills/autoconference/SKILL.md", "a4e9ead0889df7c88f4c3fa042058f9119b71ca5929e1ceea9774e042f610c27"],
     ["skills/autoresearch/SKILL.md", "a71f2d3d2f5698d3ff731ec0c62dcdc1050e373814e1a8943d21595b1adf8af7"],
     ["skills/browser-drive/scripts/capability-probe.mjs", "4bd5e3d7217ef0abf2461670a2d1f4fa5247a9c645cae13ca43a0dd384eb30f2"],

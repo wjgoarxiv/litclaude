@@ -9,8 +9,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   buildDraft,
   buildPlanSkeleton,
+  checkPlanOrchestration,
   checkPlanStructure,
+  COURIER_COLUMNS,
+  EXECUTOR_COLUMNS,
   FINAL_VERIFICATION_ITEMS,
+  MATRIX_COLUMNS,
+  ORCHESTRATION_PARTS,
+  SINGLE_LANE_LINE,
   parseArgs,
   PLAN_SECTION_HEADERS,
   resolveSafePlanPath,
@@ -688,6 +694,156 @@ describe("plan machinery — high-accuracy review gate is required, not optional
     assert.match(context, /One lane approving is not approval/u);
     assert.match(context, /inconclusive is not approval/u);
     assert.match(context, /--review-required/u);
+  });
+});
+
+describe("scaffold-plan — a plan that delegates says who runs what", () => {
+  const row = (number, wave) => [
+    `- [ ] ${number}. row ${number}`,
+    "  What to do / Must NOT do: x",
+    `  Parallelization: ${wave} | Blocked by: none | Blocks: none`,
+    "  References (the executor has NO interview context — be exhaustive): x",
+    "  Acceptance criteria (agent-executable): x",
+    "  QA scenarios (name the exact tool + invocation): x",
+    "  Commit: N",
+  ].join("\n");
+  const base = (rows, extra = "") =>
+    buildPlanSkeleton("x", "clear")
+      .replaceAll(/<fill[^>]*>/gu, "done")
+      .replace(/- \[ \] 1\. <title>[\s\S]*?(?=\n\n## Final verification wave)/u, rows)
+      .replace(`${SINGLE_LANE_LINE}\n`, extra);
+  const matrix = [
+    "## Dependency matrix",
+    `| ${MATRIX_COLUMNS.join(" | ")} |`,
+    "|---|---|---|---|---|",
+    "| 1 | none | app checkout | none | none |",
+    "| 2 | none | docs checkout | 1 | none |",
+  ].join("\n");
+  const orchestration = [
+    "## Orchestration",
+    "### Executors",
+    `| ${EXECUTOR_COLUMNS.join(" | ")} |`,
+    "|---|---|---|---|",
+    "| 1 | main session | builds on the last row | none |",
+    "| 2 | Sonnet subagent | separate files | main session |",
+    "### Isolation",
+    "Row 2 works in its own worktree and scratch folder.",
+    "### Concurrency",
+    "Two rows at most, queued by checkout.",
+    "### Hand-back",
+    "Row 2 writes its result to a named file and replies with the path.",
+    "### Watchdog",
+    "Ten minutes, one wake-up, then the main session takes the row over.",
+    "### Courier rows",
+    "none",
+    "### Guard notes",
+    "Lanes never commit, push or print the environment.",
+  ].join("\n");
+  const twoLanes = `${row(1, "Wave 1")}\n${row(2, "Wave 1")}`;
+  const delegating = (parts = `${matrix}\n\n${orchestration}\n`) => base(twoLanes, parts);
+  const problemsOf = (text) => checkPlanOrchestration(text).problems;
+
+  it("the skeleton starts as a single lane and passes", () => {
+    const filled = base(row(1, "Wave 1"), `${SINGLE_LANE_LINE}\n`);
+    assert.ok(buildPlanSkeleton("x", "clear").includes(`\n${SINGLE_LANE_LINE}\n`));
+    assert.deepEqual(problemsOf(filled), []);
+    assert.equal(checkPlanOrchestration(filled).delegates, false);
+  });
+
+  it("a plan with no sign of delegation and no line passes as before", () => {
+    assert.deepEqual(problemsOf(base(`${row(1, "Wave 1")}\n${row(2, "Wave 2")}`)), []);
+  });
+
+  it("fails rows that share a wave when the matrix and the section are missing, and names both", () => {
+    const problems = problemsOf(delegating(""));
+    assert.ok(problems.some((problem) => /missing "Dependency matrix"/u.test(problem)), problems.join("\n"));
+    assert.ok(problems.some((problem) => /missing section: ## Orchestration/u.test(problem)), problems.join("\n"));
+  });
+
+  it("a Parallelization line that names a delegate counts as delegating", () => {
+    const text = base(`${row(1, "Wave 1 (Sonnet subagent)")}\n${row(2, "Wave 2")}`);
+    assert.equal(checkPlanOrchestration(text).delegates, true);
+    assert.equal(checkPlanOrchestration(text).ok, false);
+  });
+
+  it("passes with the matrix and all seven parts", () => {
+    assert.deepEqual(problemsOf(delegating()), []);
+  });
+
+  it("names each missing or empty part", () => {
+    for (const part of ORCHESTRATION_PARTS) {
+      const without = delegating(`${matrix}\n\n${orchestration.replace(new RegExp(`### ${part}\\n[^#]*`, "u"), "")}\n`);
+      assert.ok(problemsOf(without).some((problem) => problem.includes(`missing part: ### ${part}`)), part);
+    }
+    const empty = delegating(`${matrix}\n\n${orchestration.replace("Ten minutes, one wake-up, then the main session takes the row over.", "")}\n`);
+    assert.ok(problemsOf(empty).some((problem) => /"### Watchdog" is empty/u.test(problem)));
+  });
+
+  it("fails a matrix that leaves a row out or lacks a column", () => {
+    const short = delegating(`${matrix.replace("| 2 | none | docs checkout | 1 | none |\n", "").replace(/\n\| 2 .*$/u, "")}\n\n${orchestration}\n`);
+    assert.ok(problemsOf(short).some((problem) => /no line for row\(s\) 2/u.test(problem)), problemsOf(short).join("\n"));
+    const oldColumns = delegating(`${matrix.replace("Runs with", "Can parallelize with")}\n\n${orchestration}\n`);
+    assert.ok(problemsOf(oldColumns).some((problem) => /lacks the column\(s\) Runs with/u.test(problem)));
+  });
+
+  it("fails two rows that share a checkout or a host and are set to run together", () => {
+    const clash = delegating(`${matrix.replace("docs checkout", "app checkout")}\n\n${orchestration}\n`);
+    assert.ok(problemsOf(clash).some((problem) => /rows 2 and 1 are set to run together but share "app checkout"/u.test(problem)), problemsOf(clash).join("\n"));
+  });
+
+  it("fails a delegated row with no fallback, an executor the host lacks, and a Workflow row without the opt-in", () => {
+    const noFallback = delegating(`${matrix}\n\n${orchestration.replace("| separate files | main session |", "| separate files | none |")}\n`);
+    assert.ok(problemsOf(noFallback).some((problem) => /row 2 is delegated to subagent with no fallback/u.test(problem)));
+    const unknown = delegating(`${matrix}\n\n${orchestration.replace("Sonnet subagent", "swarm of drones")}\n`);
+    assert.ok(problemsOf(unknown).some((problem) => /"swarm of drones", which Claude Code does not have/u.test(problem)));
+    const workflow = delegating(`${matrix}\n\n${orchestration.replace("Sonnet subagent", "Workflow fan-out")}\n`);
+    assert.ok(problemsOf(workflow).some((problem) => /opt-in word/u.test(problem)));
+    const optedIn = delegating(`${matrix}\n\n${orchestration.replace("| 2 | Sonnet subagent | separate files |", "| 2 | Workflow fan-out | forty similar files; needs the user's own opt-in word |")}\n`);
+    assert.deepEqual(problemsOf(optedIn), []);
+    const herdr = delegating(`${matrix}\n\n${orchestration.replace("Sonnet subagent", "herdr pane")}\n`);
+    assert.ok(problemsOf(herdr).some((problem) => /only when herdr is on/u.test(problem)));
+    const unnamed = delegating(`${matrix}\n\n${orchestration.replace("| 2 | Sonnet subagent | separate files | main session |\n", "")}\n`);
+    assert.ok(problemsOf(unnamed).some((problem) => /no executor is named for row\(s\) 2/u.test(problem)));
+  });
+
+  it("a courier row needs its question, place, answer file, meanwhile rows and fallback", () => {
+    const courier = (cellsText) => `### Courier rows\n| ${COURIER_COLUMNS.join(" | ")} |\n|---|---|---|---|---|---|\n${cellsText}`;
+    const full = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", courier("| 2 | Which plan are we on? | the vendor's billing page | answers/billing.md | row 1 | assume the free plan |"))}\n`);
+    assert.deepEqual(problemsOf(full), []);
+    const partial = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", courier("| 2 | Which plan are we on? | the vendor's billing page |  | row 1 | none |"))}\n`);
+    assert.ok(problemsOf(partial).some((problem) => /courier row 2 lacks Answer file, If no answer/u.test(problem)), problemsOf(partial).join("\n"));
+    const prose = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", "### Courier rows\nask someone")}\n`);
+    assert.ok(problemsOf(prose).some((problem) => /"### Courier rows" is "none" or a table/u.test(problem)));
+  });
+
+  it("the single line cannot sit beside shared waves or beside the section", () => {
+    const both = base(twoLanes, `${SINGLE_LANE_LINE}\n`);
+    assert.ok(problemsOf(both).some((problem) => /rows share a wave or name a delegate/u.test(problem)));
+    const twice = base(row(1, "Wave 1"), `${SINGLE_LANE_LINE}\n\n${orchestration}\n`);
+    assert.ok(problemsOf(twice).some((problem) => /keep one/u.test(problem)));
+  });
+
+  it("text inside a code fence is not read as the plan's own section", () => {
+    const fenced = base(row(1, "Wave 1"), `${SINGLE_LANE_LINE}\n\n\`\`\`\n${orchestration}\n\`\`\`\n`);
+    assert.deepEqual(problemsOf(fenced), []);
+  });
+
+  it("checkPlanStructure alone keeps accepting an older plan, so plan discovery is unchanged", () => {
+    assert.equal(checkPlanStructure(delegating("")).ok, true);
+  });
+
+  it("--check fails a delegating plan without the parts and passes it with them", () => {
+    const cwd = makeWorkspace();
+    mkdirSync(join(cwd, "plans"), { recursive: true });
+    writeFileSync(join(cwd, "plans", "bare.md"), delegating(""));
+    const bare = run(cwd, ["--check", "plans/bare.md"]);
+    assert.equal(bare.status, 1);
+    assert.match(bare.stderr, /PLAN_STRUCTURE_FAIL/u);
+    assert.match(bare.stderr, /orchestration: missing section: ## Orchestration/u);
+    writeFileSync(join(cwd, "plans", "full.md"), delegating());
+    const full = run(cwd, ["--check", "plans/full.md"]);
+    assert.equal(full.status, 0, full.stderr);
+    assert.match(full.stdout, /PLAN_STRUCTURE_PASS/u);
   });
 });
 

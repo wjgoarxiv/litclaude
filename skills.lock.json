@@ -903,6 +903,7 @@
     "plugins/litclaude/lib/owner-lock.mjs",
     "plugins/litclaude/lib/park-ping.mjs",
     "plugins/litclaude/lib/parked-step.mjs",
+    "plugins/litclaude/lib/plan-orchestration.mjs",
     "plugins/litclaude/lib/plan-scope-roots.mjs",
     "plugins/litclaude/lib/plan-task-rows.mjs",
     "plugins/litclaude/lib/pre-tool-use.mjs",
