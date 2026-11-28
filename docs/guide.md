@@ -179,6 +179,7 @@ compare it with the files as they are now, and then carry on.
 | `lit`, `litwork` | Evidence-first, test-first execution loop; also `$lit-loop`, `/lit-loop`, and `/litclaude:lit-loop` |
 | `lit plan <what>` | Planning only; also `$lit-plan` and `/lit-plan` |
 | `lit review <scope>` | Review a plan (plan review) or completed work (work review), picked from what exists; `lit review plan` or `lit review work` forces one; also `$review-work` and `/review-work` |
+| `review-plan plans/<slug>.md` | Review a plan before you answer `yes`: six read-only audits, the last one on who runs each row (dependency matrix and orchestration section); also `$review-plan` and `/litclaude:review-plan` |
 | `lit research <question>` | Cited public-source research; also `$litresearch` and `/litclaude:litresearch` |
 | `lit search <question>` | Public-source retrieval |
 | `lit query <question>` | Evidence lookup against durable local state |
@@ -841,7 +842,7 @@ HUD shows it as is and invents no value.
 Claude Code tells the plugin when things happen: a session starts, you send a prompt, a
 tool runs, a subagent starts or stops, the session ends. Those events feed four parts of the plugin: the rules that load project
 guidance, the routing that picks a workflow, the authority checks, and the ledger that
-keeps the record. Through them, the package's 40 skills (30 core skills and ten extension stubs), 20 current commands, three hidden
+keeps the record. Through them, the package's 40 skills (30 core skills and ten extension stubs), 21 current commands, three hidden
 compatibility redirects, and 11 agents reach you inside Claude Code, and whatever Claude
 Code allows or blocks still applies.
 
@@ -864,7 +865,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["40 skills · 20 commands · 11 agents"]
+    LC --> S["40 skills · 21 commands · 11 agents"]
 ```
 
 Every core skill works on a fresh install because the package carries what each skill needs. The ten extension

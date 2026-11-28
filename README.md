@@ -674,7 +674,7 @@ Two helpers tell you when a long run needs you.
 
 ## What you get
 
-LitClaude ships 30 core skills you can start, three that run on their own, 20 slash commands and 11 agents,
+LitClaude ships 30 core skills you can start, three that run on their own, 21 slash commands and 11 agents,
 plus ten stubs that lead to the extension skills. Most days you will use a handful of them, one per job:
 
 | Job | Type | What you get |
@@ -705,7 +705,9 @@ plus ten stubs that lead to the extension skills. Most days you will use a handf
 - **A second look before you merge.** `lit review` picks a mode from what exists: plan review for a plan that
   has not started, work review for a finished change. Work review sends five independent review lanes over the
   same change and its evidence, and they report findings first; fixing them is a separate step.
-  `lit review plan` or `lit review work` forces a mode.
+  `lit review plan` or `lit review work` forces a mode, and `review-plan plans/<slug>.md` reviews a plan
+  before you answer `yes`. The plan review also checks who runs each row: a plan with more than one lane
+  needs a dependency matrix and an orchestration section, and the plan checker fails it without them.
 - **Research with sources.** `lit research` splits a question, sends parallel searchers over public sources,
   and keeps facts and uncertainty apart in the answer. It stops at logins and paywalls.
 - **Slides, reports and Korean prose.** Ask for slides or a report and end the prompt with `lit`: you get an

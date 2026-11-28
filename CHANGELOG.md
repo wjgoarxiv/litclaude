@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- A plan says who runs each row. A plan the main session runs alone keeps the one line `Orchestration: single lane`. A plan whose rows share a wave, or go to a subagent, a Workflow fan-out, lit-team, a herdr pane or the user, carries a dependency matrix (what each row waits for, what it shares, what runs with it, who else must act) and a `## Orchestration` section: executors with a fallback, isolation, concurrency, hand-back files, a watchdog, courier rows and guard notes.
+- `scaffold-plan.mjs --check` enforces it. A delegating plan without the matrix or a part of the section fails, and so do rows that share a checkout or a real host yet are set to run together, a delegated row with no fallback, and an executor the host does not have. The plan skeleton starts with the matrix header and the single-lane line.
+- A courier row covers work Claude cannot reach (another app's assistant, another machine, a signed-in screen): the plan names the exact question, where to ask it, the answer file, the rows that go on meanwhile and the default when no answer comes.
+- lit-plan writes this section, and lit-crucible's packet hands it two new lines, "Dependencies" and "Who could run what".
+- Plan review has a sixth audit, orchestration, and work review checks that a run followed its plan: hand-back files exist, no lane committed, courier rows are answered or carried forward with a date, and a row the orchestrator took over says so.
+- `review-plan plans/<slug>.md` is a route of its own, with `$review-plan`, `/litclaude:review-plan`, `lit review plan`, `lit plan review` and `lit 계획 리뷰`. It opens review-work with the plan mode forced, reads only, and returns `PASS`, `ITERATE` or `NEEDS-CONTEXT`. lit-plan offers it under the approval question.
+
 ## 1.0.70 - 2026-11-28
 
 - The start-work inbox lists only the steps an answer can run, numbered, up to 8 per tier, with the folder shown when it differs from the project root. Steps the check cannot read are counted on one line with their reason, and their full text stays in `.litclaude/boulder.json`. The answers come one per line under "Answer with one of:".

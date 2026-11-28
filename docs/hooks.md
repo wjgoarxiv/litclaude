@@ -961,6 +961,7 @@ lit plan
 lit review
 lit review plan
 lit review work
+review-plan
 lit research
 lit search
 lit query
@@ -1002,6 +1003,7 @@ $ultra-brainstorm
 $lit-hijack
 $lit-loop
 $review-work
+$review-plan
 $litgoal
 $start-work
 autoresearch <mode>
@@ -1289,6 +1291,26 @@ the skill asks). `lit review plan` or `lit review work` forces the mode, and the
 adds `Review mode forced by the user: plan review.` (or `work review.`). Without a forced
 mode and with a plan on disk, it adds `Review-mode signals:` with that plan's ticked and open
 row counts.
+
+The plan review is also a route of its own. `review-plan plans/<slug>.md` at the start of a
+prompt, `$review-plan`, `lit review plan`, `lit plan review`, `lit 계획 리뷰` (or `플랜 검토`)
+and the typed `/litclaude:review-plan` command all open review-work with the plan mode forced;
+`litclaude-ai why` names the rule `natural:review-plan` for the `lit` phrases. It is read-only
+and returns `PASS`, `ITERATE` or `NEEDS-CONTEXT`. The plan review has six audits: scope,
+objective achievability, checklist atomicity, acceptance and evidence, decision/failure/cleanup
+gates, and orchestration. The sixth runs `scaffold-plan.mjs --check` and then reads what a
+checker cannot judge. A plan the main session runs alone carries the one line
+`Orchestration: single lane`. A plan whose rows share a wave, or go to a subagent, a Workflow
+fan-out, lit-team, a herdr pane or the user, carries a dependency matrix
+(`Row | Needs first | Same lane as | Runs with | Who must act besides Claude`) and a
+`## Orchestration` section with seven parts: Executors (with a fallback for every delegated
+row), Isolation, Concurrency, Hand-back, Watchdog, Courier rows and Guard notes. The checker
+fails a delegating plan without them, and fails rows that share a lane yet are set to run
+together. A courier row is work Claude cannot reach (another app's assistant, another
+machine, a signed-in screen): the plan names the exact question, where to ask it, the answer
+file, the rows that go on meanwhile and the default with no answer. Work review then checks
+that the run followed its plan: hand-back files exist, no lane committed, courier rows are
+answered or carried forward with a date, and a row the orchestrator took over says so.
 
 litgoal sets and keeps the finish line; lit-loop and start-work run toward it. `/litgoal` and `$litgoal` load
 `/litclaude:litgoal` / `Skill(litgoal)` for durable local goal state and

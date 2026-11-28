@@ -171,6 +171,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `lit`, `litwork` | 근거를 남기며 테스트부터 쓰는 실행 루프입니다. `$lit-loop`, `/lit-loop`, `/litclaude:lit-loop`도 됩니다. |
 | `lit plan <what>` | 계획만 씁니다. `$lit-plan`, `/lit-plan`도 됩니다. |
 | `lit review <scope>` | 계획(계획 검토)이나 끝낸 작업(작업 검토)을 있는 것에 맞춰 골라 검토합니다. `lit review plan`, `lit review work`로 직접 고를 수 있고, `$review-work`, `/review-work`도 됩니다. |
+| `review-plan plans/<slug>.md` | `yes`라고 답하기 전에 계획을 검토합니다. 읽기만 하는 여섯 가지 점검이고, 마지막은 줄마다 누가 맡는지(의존성 표와 오케스트레이션 절)를 봅니다. `$review-plan`, `/litclaude:review-plan`, `lit 계획 리뷰`도 됩니다. |
 | `lit research <question>` | 출처를 밝히는 공개 자료 조사입니다. `$litresearch`, `/litclaude:litresearch`도 됩니다. |
 | `lit search <question>` | 공개 자료를 찾아 옵니다. |
 | `lit query <question>` | 프로젝트에 남긴 기록에서 근거를 찾습니다. |
@@ -799,7 +800,7 @@ flowchart LR
     H5 --> LEDGER
     H6 --> LEDGER
     H7 --> LEDGER
-    LC --> S["40 skills · 20 commands · 11 agents"]
+    LC --> S["40 skills · 21 commands · 11 agents"]
 ```
 
 새로 설치한 컴퓨터에서도 모든 핵심 스킬이 작동하는 것은 패키지가 스킬마다 필요한 것을 함께 싣기
