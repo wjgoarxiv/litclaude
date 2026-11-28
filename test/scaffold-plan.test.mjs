@@ -765,7 +765,7 @@ describe("scaffold-plan — a plan that delegates says who runs what", () => {
     "### Guard notes",
     "Lanes never commit, push or print the environment.",
   ].join("\n");
-  const twoLanes = `${row(1, "Wave 1")}\n${row(2, "Wave 1")}`;
+  const twoLanes = `${row(1, "Wave 1")}\n${row(2, "Wave 1 (Sonnet subagent)")}`;
   const delegating = (parts = `${matrix}\n\n${orchestration}\n`) => base(twoLanes, parts);
   const problemsOf = (text) => checkPlanOrchestration(text).problems;
 
@@ -780,7 +780,28 @@ describe("scaffold-plan — a plan that delegates says who runs what", () => {
     assert.deepEqual(problemsOf(base(`${row(1, "Wave 1")}\n${row(2, "Wave 2")}`)), []);
   });
 
-  it("fails rows that share a wave when the matrix and the section are missing, and names both", () => {
+  it("a wave label is no sign of delegation: a template-shaped plan the main session runs alone passes", () => {
+    const fiveRows = [1, 2, 3, 4, 5].map((number) => row(number, "Wave 1")).join("\n");
+    const withLine = base(fiveRows, `${SINGLE_LANE_LINE}\n`);
+    assert.deepEqual(problemsOf(withLine), []);
+    assert.equal(checkPlanOrchestration(withLine).delegates, false);
+    assert.deepEqual(problemsOf(base(fiveRows)), [], "and an older plan with shared waves and no line keeps passing");
+  });
+
+  it("reads row ranges and real executor names, and checks the fallback too", () => {
+    const threeRows = `${row(1, "Wave 1")}\n${row(2, "Wave 1 (Sonnet subagent)")}\n${row(3, "Wave 2")}`;
+    const wideMatrix = `${matrix}\n| 3 | 1, 2 | app checkout | none | none |`;
+    const ranged = orchestration
+      .replace("| 2 | Sonnet subagent | separate files | main session |", "| 2 | general-purpose subagent | separate files | the main session runs the row |")
+      .replace(/\| 1 \| main session \|([^\n]*)\n/u, "| 1 | main session (Opus) |$1\n| rows 3 to 3 | main session | last | none |\n");
+    assert.deepEqual(problemsOf(base(threeRows, `${wideMatrix}\n\n${ranged}\n`)), []);
+    const badFallback = delegating(`${matrix}\n\n${orchestration.replace("| separate files | main session |", "| separate files | swarm of drones |")}\n`);
+    assert.ok(problemsOf(badFallback).some((problem) => /falls back to "swarm of drones"/u.test(problem)), problemsOf(badFallback).join("\n"));
+    const huge = delegating(`${matrix.replace("| 2 | none |", "| 2-99999999 | none |")}\n\n${orchestration}\n`);
+    assert.ok(problemsOf(huge).some((problem) => /no line for row\(s\) 2/u.test(problem)), "an absurd range is ignored, not walked");
+  });
+
+  it("fails a delegating plan when the matrix and the section are missing, and names both", () => {
     const problems = problemsOf(delegating(""));
     assert.ok(problems.some((problem) => /missing "Dependency matrix"/u.test(problem)), problems.join("\n"));
     assert.ok(problems.some((problem) => /missing section: ## Orchestration/u.test(problem)), problems.join("\n"));
@@ -838,13 +859,17 @@ describe("scaffold-plan — a plan that delegates says who runs what", () => {
     assert.deepEqual(problemsOf(full), []);
     const partial = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", courier("| 2 | Which plan are we on? | the vendor's billing page |  | row 1 | none |"))}\n`);
     assert.ok(problemsOf(partial).some((problem) => /courier row 2 lacks Answer file, If no answer/u.test(problem)), problemsOf(partial).join("\n"));
+    const meanwhileNone = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", courier("| 2 | Which plan are we on? | the vendor's billing page | answers/billing.md | none | assume the free plan |"))}\n`);
+    assert.deepEqual(problemsOf(meanwhileNone), [], "nothing may be able to go on meanwhile");
+    const dodged = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", `### Courier rows\nnone yet; see the table\n\n${courier("| 2 | Which plan are we on? |  |  | row 1 |  |").replace("### Courier rows\n", "")}`)}\n`);
+    assert.ok(problemsOf(dodged).some((problem) => /courier row 2 lacks/u.test(problem)), problemsOf(dodged).join("\n"));
     const prose = delegating(`${matrix}\n\n${orchestration.replace("### Courier rows\nnone", "### Courier rows\nask someone")}\n`);
     assert.ok(problemsOf(prose).some((problem) => /"### Courier rows" is "none" or a table/u.test(problem)));
   });
 
-  it("the single line cannot sit beside shared waves or beside the section", () => {
+  it("the single line cannot sit beside a named delegate or beside the section", () => {
     const both = base(twoLanes, `${SINGLE_LANE_LINE}\n`);
-    assert.ok(problemsOf(both).some((problem) => /rows share a wave or name a delegate/u.test(problem)));
+    assert.ok(problemsOf(both).some((problem) => /Parallelization line names a delegate/u.test(problem)));
     const twice = base(row(1, "Wave 1"), `${SINGLE_LANE_LINE}\n\n${orchestration}\n`);
     assert.ok(problemsOf(twice).some((problem) => /keep one/u.test(problem)));
   });

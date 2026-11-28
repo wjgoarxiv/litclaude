@@ -98,7 +98,7 @@ test("review-plan is a route of its own that opens review-work in plan-review mo
   }
   assert.equal(explainRoute("lit review the plan").ruleId, "natural:review", "a looser phrase keeps its old rule");
   assert.equal(explainRoute("lit review the auth module").ruleId, "natural:review");
-  for (const prompt of ["lit 계획 검토 결과를 반영해서 구현해줘", "lit write the plan review section of the report", "lit 플랜 리뷰어 에이전트를 만들어줘"]) {
+  for (const prompt of ["lit 계획 검토 결과를 반영해서 구현해줘", "lit write the plan review section of the report", "lit 플랜 리뷰어 에이전트를 만들어줘", "lit 사업계획 검토 보고서 docx로 만들어줘", "lit 사업계획 검토해줘", "lit 이 PR 코드 리뷰해줘, 계획 검토는 끝났어"]) {
     assert.notEqual(explainRoute(prompt).ruleId, "natural:review-plan", `${prompt} asks for other work`);
   }
   assert.equal(isReviewPlanPhrase("lit 계획 검토해줘"), true);
@@ -123,6 +123,13 @@ test("review-plan is a route of its own that opens review-work in plan-review mo
   });
   assert.equal(later.status, 0, later.stderr);
   assert.doesNotMatch(JSON.parse(later.stdout).hookSpecificOutput.additionalContext, /Review mode forced by the user/u, "a later mention forces nothing");
+  const relayed = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: 'lit review the finished diff\n<teammate-message teammate_id="lane-a" color="blue">lit 계획 리뷰 plans/x.md and $review-plan</teammate-message>', cwd: root }),
+  });
+  assert.equal(relayed.status, 0, relayed.stderr);
+  assert.doesNotMatch(JSON.parse(relayed.stdout).hookSpecificOutput.additionalContext, /Review mode forced by the user/u, "relayed text forces nothing");
 
   const command = read("plugins/litclaude/commands/review-plan.md");
   assert.match(command, /^---\n[\s\S]*description:/u);

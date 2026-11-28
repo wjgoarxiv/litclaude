@@ -15,8 +15,8 @@ export const ORCHESTRATION_PARTS = ["Executors", "Isolation", "Concurrency", "Ha
 // The executors a Claude Code plan may name. Each entry: what the cell must look like, whether it is
 // a delegate (needs a fallback), and what else its row has to say.
 const EXECUTORS = [
-  { name: "main session", pattern: /^main session$/iu, delegate: false },
-  { name: "subagent", pattern: /^(?:[a-z]+ )?subagent\b|^litclaude:[a-z-]+\b/iu, delegate: true },
+  { name: "main session", pattern: /^(?:the )?main session\b/iu, delegate: false },
+  { name: "subagent", pattern: /\bsubagent\b|^litclaude:[a-z-]+\b/iu, delegate: true },
   { name: "Workflow", pattern: /^workflow\b/iu, delegate: true, needs: [/opt-in/iu, "says it needs the user's own opt-in word"] },
   { name: "lit-team", pattern: /^lit[- ]team\b/iu, delegate: true },
   { name: "herdr pane", pattern: /^herdr pane\b/iu, delegate: true, needs: [/HERDR_ENV|herdr is on/iu, "says it applies only when herdr is on (HERDR_ENV=1)"] },
@@ -59,26 +59,28 @@ const firstTable = (block) => {
 };
 
 const missingColumns = (table, columns) => columns.filter((column) => !table.header.includes(column));
-// "1", "F1", "2, 3" and "4 to 6" all name rows.
+// "1", "F1", "2, 3", "rows 4 to 6" and "F1–F4" all name rows. A range wider than a plan can be is ignored.
+const MAX_ROW_SPAN = 200;
 const rowIds = (cell) => {
   const ids = new Set();
-  for (const part of cell.split(/,|\band\b/u)) {
-    const range = /^\s*(\d+)\s*(?:to|-|–)\s*(\d+)\s*$/u.exec(part);
-    if (range) for (let n = Number(range[1]); n <= Number(range[2]); n += 1) ids.add(String(n));
-    else if (/^\s*F?\d+\s*$/u.test(part)) ids.add(part.trim());
+  for (const raw of cell.split(/,|\band\b/u)) {
+    const part = raw.trim().replace(/^rows?\s+/iu, "");
+    const range = /^(F?)(\d+)\s*(?:to|-|–)\s*F?(\d+)$/iu.exec(part);
+    if (range) {
+      const [first, last] = [Number(range[2]), Number(range[3])];
+      if (last - first <= MAX_ROW_SPAN) for (let n = first; n <= last; n += 1) ids.add(`${range[1].toUpperCase()}${n}`);
+    } else if (/^F?\d+$/iu.test(part)) ids.add(part.toUpperCase());
   }
   return [...ids];
 };
 
-// Whether the rows themselves show that more than one lane runs: two rows share a wave, or a
-// row's Parallelization line names a delegate.
+// Whether the plan shows that someone besides the main session runs a row: it has the section, or a
+// row's Parallelization line names a delegate. A wave label orders the work and is no such sign: the
+// main session may run every row of a wave itself, one after another.
 export const planDelegates = (text) => {
   const visible = planLinesOutsideFences(text).map(({ line }) => line);
   if (visible.some((line) => /^## Orchestration\s*$/u.test(line))) return true;
-  const lanes = visible.filter((line) => /^\s+Parallelization:/u.test(line));
-  if (lanes.some((line) => EXECUTOR_WORD.test(line))) return true;
-  const waves = lanes.map((line) => /Parallelization:\s*(Wave\s+[A-Za-z0-9]+)/iu.exec(line)?.[1].toLowerCase()).filter(Boolean);
-  return waves.some((wave, index) => waves.indexOf(wave) !== index);
+  return visible.filter((line) => /^\s+Parallelization:/u.test(line)).some((line) => EXECUTOR_WORD.test(line));
 };
 
 export function checkPlanOrchestration(text) {
@@ -91,7 +93,7 @@ export function checkPlanOrchestration(text) {
 
   if (singleLane) {
     if (hasSection) problems.push(`orchestration: the plan says "${SINGLE_LANE_LINE}" and also has a ## Orchestration section; keep one`);
-    else if (delegates) problems.push(`orchestration: the plan says "${SINGLE_LANE_LINE}" but its rows share a wave or name a delegate; write the ## Orchestration section instead`);
+    else if (delegates) problems.push(`orchestration: the plan says "${SINGLE_LANE_LINE}" but a row's Parallelization line names a delegate; write the ## Orchestration section instead`);
     return { ok: problems.length === 0, problems, delegates };
   }
   if (!delegates) return { ok: true, problems, delegates };
@@ -129,7 +131,7 @@ export function checkPlanOrchestration(text) {
     problems.push(`orchestration: missing section: ## Orchestration (parts: ${ORCHESTRATION_PARTS.join(", ")}), or the single line "${SINGLE_LANE_LINE}" for a plan nobody else works on`);
     return { ok: false, problems, delegates };
   }
-  const section = sectionLines(visibleEntries, "Orchestration");
+  const section = sectionLines(visibleEntries, "Orchestration", visible.findIndex((line) => /^## Orchestration\s*$/u.test(line)));
   const sectionEntries = section.map((line) => ({ line }));
   const part = (title) => sectionLines(sectionEntries, title);
   for (const title of ORCHESTRATION_PARTS) {
@@ -156,21 +158,25 @@ export function checkPlanOrchestration(text) {
         }
         if (EMPTY_CELL.test(row.Why)) problems.push(`orchestration: row ${row.Row} gives no reason for its executor`);
         if (kind.delegate && EMPTY_CELL.test(row.Fallback)) problems.push(`orchestration: row ${row.Row} is delegated to ${kind.name} with no fallback executor`);
+        else if (kind.delegate && !EXECUTORS.some(({ pattern }) => pattern.test(row.Fallback))) {
+          problems.push(`orchestration: row ${row.Row} falls back to "${row.Fallback}", which names no executor Claude Code has; start it with one of: ${EXECUTORS.map(({ name }) => name).join(", ")}`);
+        }
         if (kind.needs && !kind.needs[0].test(`${row.Executor} ${row.Why}`)) problems.push(`orchestration: row ${row.Row} uses ${kind.name}; its line ${kind.needs[1]}`);
       }
     }
   }
 
   const courier = part("Courier rows");
-  if (courier && courier.some((line) => line.trim() !== "") && !/^\s*none\b/iu.test(courier.find((line) => line.trim() !== ""))) {
-    const table = firstTable(courier);
+  const courierTable = courier && firstTable(courier);
+  if (courier && courier.some((line) => line.trim() !== "") && (courierTable || !/^\s*none\b/iu.test(courier.find((line) => line.trim() !== "")))) {
+    const table = courierTable;
     if (!table || table.rows.length === 0) problems.push(`orchestration: "### Courier rows" is "none" or a table with the columns ${COURIER_COLUMNS.join(" | ")}`);
     else {
       const missing = missingColumns(table, COURIER_COLUMNS);
       if (missing.length > 0) problems.push(`orchestration: the courier table lacks the column(s) ${missing.join(", ")}`);
       else {
         for (const row of table.rows) {
-          const empty = COURIER_COLUMNS.filter((column) => EMPTY_CELL.test(row[column]));
+          const empty = COURIER_COLUMNS.filter((column) => (column === "Meanwhile" ? row[column].trim() === "" : EMPTY_CELL.test(row[column])));
           if (empty.length > 0) problems.push(`orchestration: courier row ${row.Row || "?"} lacks ${empty.join(", ")}`);
         }
       }

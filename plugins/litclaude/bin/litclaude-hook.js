@@ -593,7 +593,7 @@ const forcedReviewModePattern = /(?:^|\s)\$?(?:lit(?:work)?\s+review|review-work
 const reviewPlanTokenPattern = /^\s*\/?(?:litclaude:)?review-plan(?=$|[^\w-])|(?:^|\s)\$review-plan(?=$|[^\w-])/u;
 const reviewModeContext = (discipline, prompt, cwd) => {
   if (discipline !== "review-work") return [];
-  const text = withoutCode(typeof prompt === "string" ? prompt : "");
+  const text = withoutCode(withoutHostNotifications(typeof prompt === "string" ? prompt : ""));
   const forced = forcedReviewModePattern.exec(text);
   if (forced) return [`Review mode forced by the user: ${forced[1]} review.`];
   if (reviewPlanTokenPattern.test(text) || isReviewPlanPhrase(text)) return ["Review mode forced by the user: plan review."];

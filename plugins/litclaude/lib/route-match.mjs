@@ -352,7 +352,7 @@ const koreanPlanWord = /계획\s?(?:을\s?)?(?:세워|세우|짜|부터|먼저)|
 // "review plan" and "plan review" count only as an adjacent pair after `lit`, so "lit review the plan" and
 // "lit review plans/x.md" keep the artifact-picked review. The Korean pair counts when the request ends there,
 // asks (해, 좀, 부탁) or names a path, so "계획 검토 결과를 반영해서 구현해줘" stays ordinary work.
-const isReviewPlanPhrase = (text) => /(?:^|\s)lit(?:work)?\s+(?:review\s+plan|plan\s+review)(?=$|[^\w-])|(?:계획|플랜)\s?(?:리뷰|검토)(?=\s*(?:$|해|좀|부탁|[A-Za-z0-9./~_-]))/u.test(typeof text === "string" ? text : "");
+const isReviewPlanPhrase = (text) => /(?:^|\s)lit(?:work)?\s+(?:review\s+plan|plan\s+review)(?=$|[^\w-])|(?:^|\s)(?:계획|플랜)\s?(?:리뷰|검토)(?=\s*(?:$|해|좀|부탁|[A-Za-z0-9./~_-]))/u.test(typeof text === "string" ? text : "");
 const koreanReviewWord =/리뷰\s?(?:해|좀|부탁)|코드\s?리뷰|검토해\s?줘/u;
 const koreanDebugWord = /디버깅|디버그/u;
 const hasExplicitTeamRoute = (normalized) => /\blit(?:work)?\s+(?:team(?:\s+mode)?|teammates)\b/u.test(normalized);

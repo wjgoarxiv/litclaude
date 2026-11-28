@@ -1300,7 +1300,7 @@ and returns `PASS`, `ITERATE` or `NEEDS-CONTEXT`. The plan review has six audits
 objective achievability, checklist atomicity, acceptance and evidence, decision/failure/cleanup
 gates, and orchestration. The sixth runs `scaffold-plan.mjs --check` and then reads what a
 checker cannot judge. A plan the main session runs alone carries the one line
-`Orchestration: single lane`. A plan whose rows share a wave, or go to a subagent, a Workflow
+`Orchestration: single lane`. A plan whose rows run at the same time, or go to a subagent, a Workflow
 fan-out, lit-team, a herdr pane or the user, carries a dependency matrix
 (`Row | Needs first | Same lane as | Runs with | Who must act besides Claude`) and a
 `## Orchestration` section with seven parts: Executors (with a fallback for every delegated

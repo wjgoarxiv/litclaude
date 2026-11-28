@@ -354,7 +354,8 @@ and Dynamic worktree instructions:
 
 - prefer current `ultracode` or explicit “run a workflow” / “use a workflow” wording
 - report `CLAUDE_CODE_DISABLE_WORKFLOWS=1` as a setup gate when present
-- call `Workflow` when Claude Code exposes it
+- name `Workflow` as a row's executor only together with the user's own opt-in word; the plan
+  names it and never launches it
 - for native teams, require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, user-approved roles,
   acceptance criteria, wait, and synthesis; otherwise fall back to subagents/workflows
 - call `EnterWorktree` for isolated model-facing edit lanes when available
@@ -385,8 +386,10 @@ enforces this section, so write it in the shapes below.
 **One lane.** When the main session does every row itself, one after another, write the single line
 `Orchestration: single lane` (the scaffold already holds it) and nothing more.
 
-**More than one lane.** As soon as two rows share a wave, or any row goes to a subagent, a Workflow
-fan-out, lit-team, a herdr pane or the user, delete that line and write both of these.
+**More than one lane.** As soon as any row goes to a subagent, a Workflow fan-out, lit-team, a
+herdr pane or the user, or two rows run at the same time, delete that line and write both of
+these. A shared wave label alone changes nothing: the main session may run a wave's rows itself,
+one after another.
 
 1. The dependency matrix, one line per row:
 
@@ -565,7 +568,10 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold-plan.mjs" --check plans/<slug>.md
 out-of-order canonical section; no column-zero implementation row; no
 final-verifier row; an **indented** task row that `start-work` would silently
 skip; duplicate todo numbers; an implementation row missing `What to do`,
-`References`, `Acceptance criteria`, `QA scenarios`, or `Commit:`; and any
+`References`, `Acceptance criteria`, `QA scenarios`, or `Commit:`; a plan that
+delegates without its dependency matrix or a part of `## Orchestration`, with
+an executor or fallback outside Claude Code's list, or with the single-lane
+line beside a named delegate; and any
 remaining `<fill ...>` placeholder — a plan still carrying one is not
 decision-complete. Fix what it names and re-run; do not hand off a red check.
 

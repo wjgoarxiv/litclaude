@@ -102,7 +102,7 @@ The plan must include Claude Code-native bootstrap steps:
   the exact words. A plan without a `goal: native` line gets `yes` (start, no goal) and `yes goal` (start and
   set the goal shown); never tell the user to edit the plan for a goal. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
 - Say who runs each row. A plan the main session runs alone keeps the line `Orchestration: single lane`.
-  A plan where rows share a wave or go to a subagent, a Workflow fan-out, lit-team, a herdr pane or the user
+  A plan where rows run at the same time or go to a subagent, a Workflow fan-out, lit-team, a herdr pane or the user
   writes the dependency matrix and a `## Orchestration` section (executors with a fallback, isolation,
   concurrency, hand-back files, watchdog, courier rows, guard notes) as the lit-plan skill describes;
   `scaffold-plan.mjs --check` fails a delegating plan without them.

@@ -168,7 +168,7 @@ Audit these dimensions proportionately:
    read its `orchestration:` lines first; then read what a checker cannot judge.
    A plan the main session runs alone carries the line
    `Orchestration: single lane` and passes this audit as it is. A plan whose
-   rows share a wave or go to anyone else carries the dependency matrix and a
+   rows go to anyone else or run at the same time carries the dependency matrix and a
    `## Orchestration` section with its seven parts (executors, isolation,
    concurrency, hand-back, watchdog, courier rows, guard notes). Check that:
    - no two rows that share a checkout or a real host are set to run together;
@@ -322,7 +322,9 @@ summary:
   evidence timestamps do not overlap.
 
 A plan with the line `Orchestration: single lane` needs none of this; a lane or
-a delegated row in a run that claimed a single lane is a finding.
+a delegated row in a run that claimed a single lane is a finding. The final
+verification rows (F1 and the rest) are exempt: their reviewers always run side
+by side.
 
 ### Lane 1: Scope/Diff Verification
 
