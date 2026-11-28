@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.71 - 2026-11-29
 
 - A plan says who runs each row. A plan the main session runs alone keeps the one line `Orchestration: single lane`. A plan whose rows run at the same time, or go to a subagent, a Workflow fan-out, lit-team, a herdr pane or the user, carries a dependency matrix (what each row waits for, what it shares, what runs with it, who else must act) and a `## Orchestration` section: executors with a fallback, isolation, concurrency, hand-back files, a watchdog, courier rows and guard notes.
 - `scaffold-plan.mjs --check` enforces it. A delegating plan without the matrix or a part of the section fails, and so do rows that share a checkout or a real host yet are set to run together, a delegated row with no fallback, and an executor or fallback outside Claude Code's list. A shared wave label alone is not delegation, so a plan the main session runs row by row keeps its one line. The plan skeleton starts with the matrix header and the single-lane line.
