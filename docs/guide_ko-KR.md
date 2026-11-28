@@ -186,7 +186,7 @@ Claude에게 그 파일을 읽고 현재 상태와 다음 행동을 확인해 �
 | `handoff`, `/litclaude:lit-handoff` | 확인을 거친 이어가기 파일을 씁니다. |
 | `lit-handoff auto on <퍼센트>`, `auto off`, `auto status` | [자동 핸드오프](#자동-핸드오프)를 정한 퍼센트에서 켜거나 끄고, 상태를 보여 줍니다. |
 | `lit invite @<github-id>`, `lit invite` | 누가 초대했는지 남깁니다. 프롬프트 전체로 입력해야 합니다. Claude 턴 없이 바로 답하고, 아이디를 이 컴퓨터의 `~/.litclaude/invite.json`에만 저장하고, 쉬고 있는 카드를 클럽 룩으로 바꿉니다(`config club off`로 끕니다). 아이디 없이 입력하면 친구에게 보낼 문장을 보여 줍니다. `litclaude-ai invite`도 같습니다. |
-| `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. 이 스킬은 이제 wjgoarxiv-skills의 `figures` 플러그인에서 `/figures:lit-scientific-visualization`으로 실행하고, LitClaude의 같은 이름 안내 스킬이 설치 명령을 알려 줍니다. |
+| `lit-scientific-visualization` | 논문에 넣을 그림을 준비합니다. `/litclaude:lit-scientific-visualization`도 됩니다. 이 스킬은 이제 wjgoarxiv-skills의 `figures` 플러그인에 있습니다. 설치돼 있으면 LitClaude의 같은 이름 안내 스킬이 `figures:lit-scientific-visualization`을 불러오고(`/figures:lit-scientific-visualization`을 직접 입력해도 됩니다), 없으면 설치 명령을 알려 줍니다. |
 | `/litclaude:lit-diagram-drawer <요청>` | 개념 다이어그램을 그리고 검사한 뒤 내보냅니다. `lit-diagram-drawer`와 `$lit-diagram-drawer`도 지원합니다. 이 스킬은 이제 wjgoarxiv-skills의 `figures` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `lit <P&ID 그려줘 …>`, `/litclaude:lit-schematic <요청>` | 실제 장비의 P&ID, PFD, 실험 장치 그림, 아이소메트릭 컷어웨이를 그립니다. `lit-schematic`과 `$lit-schematic`도 지원합니다. 이 스킬은 이제 wjgoarxiv-skills의 `figures` 플러그인에 있고, LitClaude의 같은 이름 안내 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |
 | `<발표자료 만들어줘 …> lit`, `/litclaude:lit-pptx` | 요청이나 자료로 `.pptx` 발표자료를 만듭니다. `lit-pptx`와 `$lit-pptx`도 지원합니다. 스킬 본체는 wjgoarxiv-skills의 `decks` 플러그인으로 옮겼고, LitClaude의 같은 이름 스킬이 그쪽으로 보내거나 설치 명령을 알려 줍니다. |

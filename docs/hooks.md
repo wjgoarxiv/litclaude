@@ -1116,15 +1116,19 @@ Scientific visualization has one exact-bare UserPromptSubmit route: only the
 complete prompt `lit-scientific-visualization` after outer whitespace activates
 `Skill(lit-scientific-visualization)`, injects the same-name stub's mode contract and
 its installed `SKILL.md` path (the adapter, its canonical source and doctor moved to the
-`figures` plugin of wjgoarxiv-skills, where the user runs `/figures:lit-scientific-visualization`),
+`figures` plugin of wjgoarxiv-skills; the contract tells Claude to load
+`Skill(figures:lit-scientific-visualization)` when the session lists it, to give the update lines
+when only a figures 0.1.0 copy is installed, and the install lines otherwise;
+`/figures:lit-scientific-visualization` still runs it by hand),
 and shows `🔥 LIT IGNITED · lit-scientific-visualization 🔥` in its system
 message. The model begins with exactly one `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥` probe line.
 Generic visualization, plot, chart, figure, and scientific visualization prose,
 mentions, quoted or fenced text, mixed prompts and near misses do not activate the
 prompt hook. A prompt that starts with the typed `/litclaude:lit-scientific-visualization`
-command gets the same stub context: the stub is
-`disable-model-invocation`, so the command's `Skill(lit-scientific-visualization)` step
-would only reopen the command. The arguments stay with the command and are never echoed.
+command gets the same stub context: the command and the stub share one name, so the hook
+supplies the mode contract itself and does not depend on which of the two a
+`Skill(lit-scientific-visualization)` call opens. The arguments stay with the command and are
+never echoed.
 
 LitClaude sets a native goal only on the user's exact `yes`. lit-plan runs
 `scripts/goal-propose.mjs plans/<slug>.md`, which compiles the plan's `## Done when` check

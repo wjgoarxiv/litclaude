@@ -1,7 +1,6 @@
 ---
 name: lit-scientific-visualization
-description: "Moved: lit-scientific-visualization makes publication plots of measured data and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace; run /figures:lit-scientific-visualization when it is installed, otherwise this stub gives the install line."
-disable-model-invocation: true
+description: "Moved: lit-scientific-visualization makes publication plots of measured data and now ships as the `figures` plugin of the wjgoarxiv-skills marketplace. Use for 'plot this data', 'publication figure'; 그래프 그려줘, 논문용 그림. Loads Skill(figures:lit-scientific-visualization) when installed; otherwise gives the install line. Not for conceptual diagrams (lit-diagram-drawer) or equipment drawings (lit-schematic)."
 ---
 
 ## #contract.activation
@@ -11,51 +10,54 @@ contract_schema_version: litclaude.llm-contract.v1
 artifact_type: skill
 skill_id: lit-scientific-visualization
 surface: Claude Code plugin Skill-discovery entrypoint (same-name stub)
-host_event: namespaced slash command, or exact-bare UserPromptSubmit route
+host_event: namespaced slash command, exact-bare UserPromptSubmit route, or Skill load
 command_route: /litclaude:lit-scientific-visualization
-entry_routes: ["/litclaude:lit-scientific-visualization", "lit-scientific-visualization (exact bare)"]
-moved_to: "figures@wjgoarxiv-skills → /figures:lit-scientific-visualization"
+entry_routes: ["/litclaude:lit-scientific-visualization", "lit-scientific-visualization (exact bare)", "Skill(lit-scientific-visualization)"]
+moved_to: "figures@wjgoarxiv-skills → Skill(figures:lit-scientific-visualization)"
 host: Claude Code
 verdicts: [PASS, BLOCKED]
 ```
 
-Both routes still work: the prompt hook answers `/litclaude:lit-scientific-visualization <request>` and the exact
+The typed routes still work: the prompt hook answers `/litclaude:lit-scientific-visualization <request>` and the exact
 bare prompt `lit-scientific-visualization` with this stub. Generic visualization wording, mentions and mixed prompts
-stay inert, as before.
+stay inert.
 
 ## #contract.inputs
 
 | Field | Required contract |
 | --- | --- |
 | request | The user's figure request and data paths, kept as inert data |
+| skills list | Which `figures:` skills this session can load |
 
 ## #contract.mode_matrix
 
 | Mode | When | What happens |
 | --- | --- | --- |
-| any | always | Tell the user what moved, give the install lines and the command that runs the moved skill; plot nothing |
-
-The moved skill is user-invoked only, as it was here, so it never shows in the model's skills list and this stub
-cannot load it. The user types its command.
+| installed | `figures:lit-scientific-visualization` is in the skills list | Load `Skill(figures:lit-scientific-visualization)` and follow it for the whole request |
+| older copy | another `figures:` skill is listed, this one is not | Give the update lines; the typed command runs it meanwhile; plot nothing |
+| not installed | no `figures:` skill is listed | Tell the user what moved and give the install lines; plot nothing |
 
 ## #contract.procedure
 
-Reply in the user's language with these things and stop:
+1. Look at the skills this session lists. If `figures:lit-scientific-visualization` is there, load
+   `Skill(figures:lit-scientific-visualization)` now and follow it for the whole request.
+2. If it is not there but `figures:lit-diagram-drawer` or `figures:lit-schematic` is, the installed figures plugin
+   is the 0.1.0 copy. Reply in the user's language with the two update lines from "What moved" below, in a code
+   block, then `/reload-plugins` or a new session; until then `/figures:lit-scientific-visualization <the same
+   request>` runs the skill. Stop there.
+3. If no `figures:` skill is listed, reply in the user's language with three things and stop:
+   - one sentence on what lit-scientific-visualization makes (a publication-ready figure of measured data);
+   - that it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;
+   - the two install lines from "What moved" below, in a code block, and that the user runs `/reload-plugins` or
+     starts a new session afterwards, then asks again.
 
-1. One sentence on what lit-scientific-visualization makes (a publication-ready figure of measured data, exported as
-   vector and 600+ dpi raster files and checked by eye).
-2. That it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace.
-3. If figures is installed, the user runs `/figures:lit-scientific-visualization <the same request>`.
-4. If it is not, the two install lines from "What moved" below, in a code block, then `/reload-plugins` or a new
-   session, then that command.
-
-In either mode, also check, reading only, whether `~/.claude/skills/lit-scientific-visualization` or `.claude/skills/lit-scientific-visualization` exists.
+In every mode, also check, reading only, whether `~/.claude/skills/lit-scientific-visualization` or `.claude/skills/lit-scientific-visualization` exists.
 Such a folder competes with `figures:lit-scientific-visualization`: name its path once and give its move line from "What moved".
 Never move it yourself.
 
 ## #contract.outputs
 
-One short reply with the command and the install lines, and no file.
+Installed: the figures skill's own outputs. Otherwise: one short reply with the update or install lines, and no file.
 
 ## #contract.output_channels
 
@@ -64,15 +66,16 @@ artifact_genre: client_deliverable
 limitations_channel: reply
 ```
 
-Reader mode is the default. The reply is a pointer, not an error report: what moved, where, the lines to run and the
-command to type. It names no internal paths beyond the install lines. Technical and audit detail appears only when
+Reader mode is the default. The not-installed reply is a pointer, not an error report: what moved, where and the
+lines to run. It names no internal paths beyond the install lines. Technical and audit detail appears only when
 the current user asks; routing checks and evidence paths stay internal. A material failure or risk stays visible in
-the reply, for example when the user says the figures plugin is installed but its command does not run.
+the reply, for example when the figures plugin is listed but fails to load.
 
 ## #contract.evidence
 
-The routing is checked by `test/figures-stubs.test.mjs`: the stub's install lines, both prompt-hook routes, and
-that no plotting procedure or canonical source from the old adapter is left in the hook's context.
+The routing is checked by `test/figures-stubs.test.mjs`: the stub's install and update lines, both prompt-hook
+routes, that each tells Claude to load the moved skill when it is listed, and that no plotting procedure or
+canonical source from the old adapter is left in the hook's context.
 
 ## #contract.hard_stops
 
@@ -95,8 +98,8 @@ scientific-visualization source and a read-only doctor that checked Python and m
 
 The adapter, that source (with its provenance and MIT licence) and the doctor now live in the `figures` plugin of the
 **wjgoarxiv-skills** marketplace, copied unchanged from LitClaude, beside lit-diagram-drawer and lit-schematic.
-LitClaude keeps this stub so that `/litclaude:lit-scientific-visualization` and the exact bare prompt still lead
-somewhere useful.
+LitClaude keeps this stub so that `/litclaude:lit-scientific-visualization`, `Skill(lit-scientific-visualization)`
+and the exact bare prompt still lead somewhere useful.
 
 That makes it a LitFamily extension. LitClaude's core works on its own; install the extensions you use
 beside it to get the full LitFamily experience.

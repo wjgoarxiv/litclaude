@@ -97,4 +97,32 @@ describe("the figures skills are same-name stubs for the figures extras plugin",
     assert.match(command, /\/figures:lit-scientific-visualization/u);
     assert.doesNotMatch(command, /bundled LitClaude scientific visualization capability/u);
   });
+
+  // figures 0.1.1 dropped `disable-model-invocation` from the moved skill, so the stub loads it like its two siblings.
+  it("the lit-scientific-visualization stub loads the moved skill when the session lists it", () => {
+    const md = stub("lit-scientific-visualization");
+    const command = readFileSync(join(pluginRoot, "commands", "lit-scientific-visualization.md"), "utf8");
+    assert.doesNotMatch(md, /^disable-model-invocation:/mu, "the stub is model-invocable");
+    assert.match(md, /moved_to: "figures@wjgoarxiv-skills → Skill\(figures:lit-scientific-visualization\)"/u);
+    assert.match(md, /^description: .*Loads Skill\(figures:lit-scientific-visualization\) when installed/mu);
+    assert.match(command, /^description: .*Loads Skill\(figures:lit-scientific-visualization\) when installed/mu, "the command shares the stub's name, so its description is the one the host lists");
+    for (const [name, text] of [["stub", md], ["command", command]]) {
+      assert.match(text, /load\s+`Skill\(figures:lit-scientific-visualization\)`/u, `${name} loads the moved skill`);
+      assert.match(text, /claude plugin update figures@wjgoarxiv-skills/u, `${name} names the update for a figures 0.1.0 copy`);
+      assert.match(text, /claude plugin install figures@wjgoarxiv-skills/u, `${name} keeps the install line`);
+      assert.doesNotMatch(text, /user-invoked only|cannot load it|\| any \| always \|/u, `${name} no longer calls the skill typed-only`);
+    }
+    assert.doesNotMatch(readFileSync(hookPath, "utf8"), /user-invoked only|sci-vis adapter below|The adapter is disable-model-invocation/u);
+  });
+
+  it("both lit-scientific-visualization routes tell Claude to load the moved skill, and keep the fallbacks", () => {
+    for (const prompt of ["lit-scientific-visualization", "/litclaude:lit-scientific-visualization plot the isotherm in data.csv"]) {
+      const context = hook(prompt);
+      assert.match(context, /load Skill\(figures:lit-scientific-visualization\) and follow it for the whole figure/u, prompt);
+      assert.match(context, /claude plugin update figures@wjgoarxiv-skills/u, prompt);
+      assert.match(context, /claude plugin install figures@wjgoarxiv-skills/u, prompt);
+      assert.match(context, /\/figures:lit-scientific-visualization/u, prompt);
+      assert.doesNotMatch(context, /user-invoked only|cannot be loaded from here/u, prompt);
+    }
+  });
 });

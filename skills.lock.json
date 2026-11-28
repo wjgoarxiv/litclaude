@@ -531,12 +531,12 @@
     },
     "lit-scientific-visualization": {
       "skillMd": {
-        "bytes": 7004,
-        "sha256": "75ebfac2273027c1a2d6ced8d161ea619fc9e091192e92615d786e6de52d5835"
+        "bytes": 7992,
+        "sha256": "2bd0e7272d2ba3d32e7140e55e3557a8553b6b09e0de59dce79abf1d8769af2f"
       },
       "files": 1,
-      "bytes": 7004,
-      "sha256": "9a7cc9443e14ef6283e9071e7560b7160742aeb84ffc7d074727fb56c0d9f6b3"
+      "bytes": 7992,
+      "sha256": "27f293bbd4e9b1ce15f041dcc5204199e8b3e7b541578d4f8253b2ac54f305a7"
     },
     "lit-team": {
       "skillMd": {
