@@ -163,6 +163,23 @@ Audit these dimensions proportionately:
 5. **Decision, failure, and cleanup gates** — material unknowns are resolved or
    gated; failure changes the branch explicitly; rollback, stop conditions, and
    temporary-resource cleanup exist where relevant.
+6. **Orchestration** — the plan says who runs each row. Run
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold-plan.mjs" --check <plan>` and
+   read its `orchestration:` lines first; then read what a checker cannot judge.
+   A plan the main session runs alone carries the line
+   `Orchestration: single lane` and passes this audit as it is. A plan whose
+   rows share a wave or go to anyone else carries the dependency matrix and a
+   `## Orchestration` section with its seven parts (executors, isolation,
+   concurrency, hand-back, watchdog, courier rows, guard notes). Check that:
+   - no two rows that share a checkout or a real host are set to run together;
+   - every delegated row names a fallback executor, and its reason is a reason;
+   - every courier row has its exact question, where to ask it, the answer
+     file, the rows that continue meanwhile, and what happens with no answer;
+   - no row names an executor this host lacks (a Workflow line says it needs
+     the user's own opt-in word; a herdr pane only with `HERDR_ENV=1`);
+   - each hand-back is a file, the watchdog gives one wake-up and then a
+     takeover, and the guard notes list every row that needs the user's yes.
+   A missing part returns `ITERATE`, with the smallest text that closes it.
 
 Use adaptive pressure. A one-file reversible task does not need an SDD-sized
 matrix. Scientific validation, migration, security, irreversible state, or
@@ -180,7 +197,7 @@ Return exactly one plan verdict from `PASS | ITERATE | NEEDS-CONTEXT`:
   not guess.
 
 The plan-review output contains findings ordered by severity, a compact audit
-table for the five dimensions, the verdict, and—only for `ITERATE`—a minimally
+table for the six dimensions, the verdict, and—only for `ITERATE`—a minimally
 revised plan or patch. Never implement from plan-review mode. The completed-work
 five-lane review below remains unchanged for diffs and DoneClaims.
 
@@ -198,6 +215,14 @@ approval. If a lane has a missing deliverable, only acknowledges, or reports
 `BLOCKED:`, send one targeted follow-up and then use a smaller fallback
 assignment. Reviewer fallback must preserve a reviewer role and is not a generic
 worker; it must be treated as not a generic worker lane.
+
+The five lanes follow the rules a plan's `## Orchestration` section sets for any
+lane. Each lane writes its findings to a named file under the review's evidence
+folder and replies with that path; a chat reply alone is not a hand-back,
+because long replies are cut off. A lane silent past its expected time gets one
+wake-up message; after that the orchestrating reviewer takes the lane over,
+runs it itself, and says so in the report. Review lanes never commit, push or
+print the environment, and each works in its own scratch folder.
 
 ## Review Order
 
@@ -276,6 +301,28 @@ or trusted repository procedure.
 Run all five lanes. For small changes one reviewer may execute every lane; for
 larger changes, split lanes across available Claude Code worktrees or workflow
 tasks. Either way, preserve lane ownership and evidence.
+
+### The run followed its plan
+
+When the reviewed work ran from a plan that has a `## Orchestration` section,
+Lane 1 also checks the run against it, from files and git and never from a
+summary:
+
+- Each delegated row's hand-back file exists at the path the plan names, and
+  the row's evidence cites it.
+- No lane committed: every commit on the work's branch was made by the owner
+  session, and `git log` shows no commit from a lane's worktree.
+- Each courier row is answered or carried forward with a date. Answered means
+  its answer file exists and the row uses it; carried forward names the default
+  the plan gave.
+- A row the orchestrator took over says so under its row, with the wake-up it
+  sent first. A row done by another executor than the plan named, with no such
+  note, is a finding.
+- Rows that share a checkout or a real host did not run together: their
+  evidence timestamps do not overlap.
+
+A plan with the line `Orchestration: single lane` needs none of this; a lane or
+a delegated row in a run that claimed a single lane is a finding.
 
 ### Lane 1: Scope/Diff Verification
 

@@ -90,12 +90,19 @@ plan|work` or the same word after this command), and a forced mode wins.
 
 - **plan-review mode** (Plan review) for a draft plan, planning brief, or request to make a
   checklist objective-achievable. Audit scope, objective achievability,
-  checklist atomicity, acceptance/evidence, and decision/failure/cleanup gates.
+  checklist atomicity, acceptance/evidence, decision/failure/cleanup gates, and
+  orchestration: run `scaffold-plan.mjs --check` on the plan, then check that a plan
+  with more than one lane has its dependency matrix and `## Orchestration` section,
+  that rows sharing a checkout or a real host never run together, and that every
+  delegated row has a fallback and every courier row its question, answer file and default.
   Return `PASS | ITERATE | NEEDS-CONTEXT`; revise only when needed and only the
   deficient sections. This mode must not implement, run the plan, edit product
   files, or mark checklist items complete.
 - **completed-work mode** (Work review) for a diff, implementation, DoneClaim, or release
-  readiness claim. Run the existing 5-lane contract below.
+  readiness claim. Run the existing 5-lane contract below. When the work ran from a plan
+  with a `## Orchestration` section, the scope lane also checks that the run followed its plan:
+  hand-back files exist and are cited, no lane committed, courier rows are answered or
+  carried forward with a date, and a row the orchestrator took over says so.
 
 Plan review is the mode that follows lit-plan and precedes start-work; work review
 follows lit-loop or start-work. When the forced or picked mode has nothing to review,

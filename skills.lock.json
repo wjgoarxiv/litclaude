@@ -630,12 +630,12 @@
     },
     "review-work": {
       "skillMd": {
-        "bytes": 39392,
-        "sha256": "b0e6204333c320e6b936ef0df1130fe92aac790021f9cebf804813ee2cf51598"
+        "bytes": 42252,
+        "sha256": "a09d9981c6efcdbc9f699c03dc8b43b427a8c30a4b09960e0107e082c1aa9483"
       },
       "files": 1,
-      "bytes": 39392,
-      "sha256": "d934eeab61b9d79276cd0b03c511e75842cee84491a6d2fd6a3639d6ae48206d"
+      "bytes": 42252,
+      "sha256": "35f4103429485297415179d9967f725bd891fe2d5bcf190837a148fc9b5cae0e"
     },
     "rules": {
       "skillMd": {

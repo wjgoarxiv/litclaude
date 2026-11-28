@@ -51,6 +51,40 @@ test("review-work distinguishes draft-plan review from completed-work review", (
   }
 });
 
+test("plan review audits orchestration, and work review checks the run followed its plan", () => {
+  const skill = read("plugins/litclaude/skills/review-work/SKILL.md");
+  const command = read("plugins/litclaude/commands/review-work.md");
+  const planReview = skill.slice(skill.indexOf("## Plan-Review Mode"), skill.indexOf("## Subagent Assignment Contract"));
+
+  for (const contract of [
+    /6\. \*\*Orchestration\*\*/u,
+    /Orchestration: single lane/u,
+    /scaffold-plan\.mjs" --check/u,
+    /share a checkout or a real host/i,
+    /fallback/i,
+    /courier row/i,
+    /executor this host lacks/i,
+    /a missing part (?:is|returns) `ITERATE`/iu,
+    /six dimensions/u,
+  ]) {
+    assert.match(planReview, contract);
+  }
+  assert.doesNotMatch(skill, /five dimensions/u, "the audit table has six rows now");
+
+  const followed = skill.slice(skill.indexOf("### The run followed its plan"));
+  assert.ok(skill.includes("### The run followed its plan"));
+  for (const contract of [/hand-back file exists/i, /no lane committed/i, /answered or carried forward with a date/i, /row the orchestrator took over says so/i]) {
+    assert.match(followed, contract);
+  }
+  const lanes = skill.slice(skill.indexOf("## Subagent Assignment Contract"), skill.indexOf("## Review Order"));
+  assert.match(lanes, /writes\s+its\s+findings\s+to\s+a\s+named\s+file/iu);
+  assert.match(lanes, /one\s+wake-up/iu);
+  assert.match(lanes, /takes\s+the\s+lane\s+over/iu);
+  assert.match(skill, /Run all five lanes/u, "the five lanes stay");
+  assert.match(command, /orchestration/iu);
+  assert.match(command, /followed its plan/iu);
+});
+
 test("UserPromptSubmit injects the artifact-selective review-work contract", () => {
   const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
   assert.match(readFileSync(hookPath, "utf8"), /review-work selects the mode from the reviewed artifact/u);
