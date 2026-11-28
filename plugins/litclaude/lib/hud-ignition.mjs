@@ -28,7 +28,7 @@ export function ignitionMark(discipline, { markdown = false } = {}) {
   return markdown ? `🔥 **${label}** 🔥` : `🔥 ${label} 🔥`;
 }
 
-export function writeIgnitionState({ sessionId, discipline, plan }, env = process.env, now = () => new Date()) {
+export function writeIgnitionState({ sessionId, discipline, plan, base }, env = process.env, now = () => new Date()) {
   const root = ignitionStateRoot(env);
   mkdirSync(root, { recursive: true });
   const target = ignitionStatePath(sessionId, env);
@@ -37,6 +37,8 @@ export function writeIgnitionState({ sessionId, discipline, plan }, env = proces
     discipline: typeof discipline === "string" && discipline ? discipline : null,
     // The skill plan of a bare-lit prompt (lib/skill-plan.mjs), ids only, for the card's chips.
     ...(Array.isArray(plan) && plan.length > 1 ? { plan: plan.filter((id) => typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/u.test(id)).slice(0, 4) } : {}),
+    // The route a lit-loop turn runs for the request (a `lit review` turn's review-work), for its look and stage.
+    ...(typeof base === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/u.test(base) ? { base } : {}),
     at: now().toISOString(),
   };
   const staging = `${target}.${process.pid}.tmp`;

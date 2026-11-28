@@ -62,6 +62,7 @@ import {
 import { formatResolvedPlanNotice, resolveLatestDurablePlan } from "../lib/durable-plan.mjs";
 import { clearLitPlanTurn, evaluateLitPlanStop, recordLitPlanTurn } from "../lib/lit-plan-persistence.mjs";
 import { evaluateInterfaceProbeStop, observeInterfaceProbeTool, recordInterfaceProbeTurn } from "../lib/interface-probe-gate.mjs";
+import { carrySkillPlanTurn, clearSkillPlanTurn, evaluateSkillPlanStop, recordSkillPlanTurn } from "../lib/skill-plan-gate.mjs";
 import { applyAutoHandoffRoute, autoHandoffReloadContext, evaluateAutoHandoffStop, parseAutoHandoffRoute, precompactReloadContext, savePreCompactHandoff } from "../lib/auto-handoff.mjs";
 import { collectCompactSnapshot } from "../lib/precompact-snapshot.mjs";
 import { recordRunEnd } from "../lib/shown-ledger.mjs";
@@ -69,12 +70,12 @@ import { claimParkPing } from "../lib/park-ping.mjs";
 import { clearTimerStarted, isCheckBackPrompt, takeCheckBack } from "../lib/check-back.mjs";
 import { inviteMessage, parseInvitePrompt, recordInvite, shareLine } from "../lib/invite.mjs";
 import { claimSessionExtensionsNotice } from "../lib/extensions-notice.mjs";
-import { buildSkillPlan, installedExtensionPlugins, parseSkillHatch, skillPlanContext, skillPlanIds, suggestionCatalogLine, suggestionContext } from "../lib/skill-plan.mjs";
+import { PLAN_VETOES, READ_ONLY_SKILLS, buildSkillPlan, installedExtensionPlugins, parseSkillHatch, skillPlanContext, skillPlanIds, suggestionCatalogLine, suggestionContext } from "../lib/skill-plan.mjs";
 import { GOAL_OPT_IN, GOAL_STATUS, compileCondition, conditionHash, consentAnswer, consentIsLive, goalGuidePlain, lintCondition, parseDoneWhen } from "../lib/goal-pipeline.mjs";
 import { armGoal, dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, requestGoalClear } from "../lib/goal-files.mjs";
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
-import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, naturalLitCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, suggestedSkills, withoutCode } from "../lib/route-match.mjs";
+import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, litPlanCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, suggestedSkills, triggerByToken, withoutCode } from "../lib/route-match.mjs";
 import { recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
 import { evaluateReceiptGate, readReceiptGateMode } from "../lib/receipt-gate.mjs";
 
@@ -480,7 +481,8 @@ const skillPlanFor = (trigger, prompt, hatch, input) => {
     const normalized = normalizedTriggerText(prompt);
     const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
     const installed = installedExtensionPlugins({ configDir: process.env.CLAUDE_CONFIG_DIR, cwd });
-    const plan = buildSkillPlan({ primary: trigger.skillId, companions: hatch ? [] : naturalLitCompanions(normalized), forced: hatch, normalized, installed });
+    const found = hatch ? { companions: [], mentioned: [] } : litPlanCompanions(normalized, trigger.skillId);
+    const plan = buildSkillPlan({ primary: trigger.skillId, ...found, forced: hatch, normalized, installed, loopBase: !hatch });
     return { plan, installed };
   } catch {
     return none;
@@ -691,6 +693,18 @@ The installed entrypoint ${entry(id)} is a same-name pointer stub with no engine
 </litclaude-skill-body>`),
     llmContractReference,
   ].join("\n\n");
+};
+
+// A bare-lit route that does one part of the work runs under lit-loop. The turn keeps that route's own
+// context (its stub pointer, install line, interface or review mode and byte budget); this note and the
+// lit-loop probe line are what change.
+const STUB_ROUTES = new Set(["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-schematic", "lit-pptx", "lit-docx", "lit-xlsx", "lit-typographic-motion", "readme-studio"]);
+const loopBaseNote = (base) => {
+  const ids = base.officeSkills ?? [base.discipline];
+  return [
+    `Base loop: lit-loop, the evidence-driven execution loop (/litclaude:lit-loop). This request matched ${ids.join(" and ")}; it is the plan's first companion, below.`,
+    ...(READ_ONLY_SKILLS.has(base.discipline) ? ["Read-only: edit no file, run no mutating command."] : []),
+  ].join(" ");
 };
 
 const litworkContext = ({ command, skill, skillId, discipline, softConfirm, safetyBlock, source, agentId }, input) => [
@@ -1235,6 +1249,12 @@ switch (eventName) {
       let taken = { silent: true };
       try {
         const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+        try {
+          // A report-only turn denies tools, so no skill plan can be held against it.
+          clearSkillPlanTurn(resolveProjectStateRoot(cwd), input.session_id);
+        } catch {
+          // The record is advisory; the check-back report goes out either way.
+        }
         const root = lifecycleRootFor(cwd, input.session_id);
         taken = takeCheckBack({
           cwd,
@@ -1394,16 +1414,36 @@ switch (eventName) {
     // `lit +viz +ui <task>` names the skill plan; the cascade routes the prompt without those names (S1).
     const hatch = parseSkillHatch(rawTriggerText(prompt), prompt);
     const routedPrompt = hatch ? hatch.rest : prompt;
-    const trigger = briefed || settlesBoundary || goalAnswer || exactBareHandoff || typedHandoff || exactBareScientificVisualization || typedScientificVisualization || autoHandoffRoute || isDiagnosticLiteralPrompt(prompt) ? undefined : findWorkflowTrigger(routedPrompt);
-    const skillPlan = skillPlanFor(trigger, routedPrompt, hatch, input);
-    const reentry = briefed?.reentry ?? (trustedResume ? null : reentryContext(trigger, prompt, input));
-    const effectiveDiscipline = reentry?.discipline ?? trigger?.discipline;
+    const cascadeTrigger = briefed || settlesBoundary || goalAnswer || exactBareHandoff || typedHandoff || exactBareScientificVisualization || typedScientificVisualization || autoHandoffRoute || isDiagnosticLiteralPrompt(prompt) ? undefined : findWorkflowTrigger(routedPrompt);
+    const skillPlan = skillPlanFor(cascadeTrigger, routedPrompt, hatch, input);
+    // A bare-lit plan led by lit-loop runs the turn as lit-loop. The route it runs under the loop (`baseTrigger`)
+    // is the cascade's own when the plan kept it, else the other office skill the plan kept, else the skill
+    // that took its place by veto, else none: a deliverable the prompt refused or only mentioned brings no
+    // context of its own.
+    const loopLed = Boolean(skillPlan.plan) && skillPlan.plan.entries[0].id === "lit-loop" && cascadeTrigger.skillId !== "lit-loop";
+    const planIds = skillPlanIds(skillPlan.plan);
+    const baseSkill = !loopLed ? null
+      : planIds.includes(cascadeTrigger.skillId) ? cascadeTrigger.skillId
+        : (cascadeTrigger.officeSkills ?? []).find((id) => planIds.includes(id))
+          ?? PLAN_VETOES.find(([keep, leave]) => leave === cascadeTrigger.skillId && planIds.includes(keep))?.[0]
+          ?? null;
+    const baseTrigger = baseSkill === null ? null : {
+      ...(baseSkill === cascadeTrigger.skillId ? cascadeTrigger : { ...triggerByToken[baseSkill], source: cascadeTrigger.source }),
+      ...(cascadeTrigger.officeSkills ? { officeSkills: cascadeTrigger.officeSkills.filter((id) => planIds.includes(id)) } : {}),
+    };
+    const trigger = loopLed
+      ? { ...triggerByToken["lit-loop"], source: "natural-language", ...(baseSkill ? { baseOf: baseSkill } : {}), ...(cascadeTrigger.renameFrom ? { renameFrom: cascadeTrigger.renameFrom } : {}) }
+      : cascadeTrigger;
+    // Re-entry and the activation record follow the route doing the work, as they did before lit-loop led it.
+    const reentry = briefed?.reentry ?? (trustedResume ? null : reentryContext(baseTrigger ?? trigger, prompt, input));
+    const effectiveDiscipline = trigger?.baseOf ? "lit-loop" : reentry?.discipline ?? trigger?.discipline;
     // The HUD status line reads this record back, so the visible ignition mark tracks the
     // discipline actually selected for this turn instead of anything the model chooses to draw.
     try {
       writeIgnitionState({
         sessionId: input.session_id,
-        plan: skillPlanIds(skillPlan.plan),
+        plan: planIds,
+        base: baseSkill,
         discipline: trustedResume || invoked?.approved || invoked?.started
           ? "start-work"
           : exactBareHandoff || typedHandoff
@@ -1422,14 +1462,27 @@ switch (eventName) {
       const stateRoot = resolveProjectStateRoot(cwd);
       if (effectiveDiscipline === "lit-plan" && !trigger.safetyBlock) recordLitPlanTurn(stateRoot, { sessionId: input.session_id });
       else clearLitPlanTurn(stateRoot, input.session_id);
-      recordInterfaceProbeTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.safetyBlock ? null : trigger?.discipline });
+      // Under a lit-loop base the gate arms as it did for that route alone (frontend-ui-ux yes, debugging no).
+      recordInterfaceProbeTurn(stateRoot, { sessionId: input.session_id, discipline: trigger?.safetyBlock ? null : trigger?.baseOf ? baseTrigger.discipline : trigger?.discipline });
+      // A prompt with a route re-arms or clears the skill-plan record. A plain prompt without one keeps it only
+      // as the answer to a question the last turn ended on; a prompt the hook answers itself clears it.
+      try {
+        const hookOwned = Boolean(briefed || settlesBoundary || goalAnswer || exactBareHandoff || typedHandoff || exactBareScientificVisualization || typedScientificVisualization || autoHandoffRoute || invoked || trustedResume);
+        if (skillPlan.plan || trigger) recordSkillPlanTurn(stateRoot, { sessionId: input.session_id, plan: trigger?.safetyBlock ? null : skillPlan.plan });
+        else if (hookOwned) clearSkillPlanTurn(stateRoot, input.session_id);
+        else carrySkillPlanTurn(stateRoot, input.session_id);
+      } catch {
+        // The skill-plan record is advisory; a write failure never skips the workflow stage below.
+      }
       // The session's workflow stack follows the discipline this prompt ignited: a new discipline
       // pauses the running one or succeeds it, the same skill resumes its frame, `lit new` starts
       // over, and a read-only discipline leaves it alone.
       // A typed `/litclaude:<skill>` is expanded by the host and never routes here, so its skill
       // is read off the prompt's first word.
       const typed = /^\/(?:litclaude:)?([a-z][a-z-]{0,40})(?=\s|$)/u.exec(prompt.trim())?.[1];
-      const started = invoked?.started || invoked?.running ? "start-work" : trigger?.discipline && !trigger.safetyBlock ? trigger.discipline : typed && Object.hasOwn(DISCIPLINE_ENTRY, typed) ? typed : null;
+      // Under a lit-loop base the stack records the route doing the work (review-work keeps its lanes).
+      const stageDiscipline = trigger?.baseOf ? baseTrigger.discipline : trigger?.discipline;
+      const started = invoked?.started || invoked?.running ? "start-work" : stageDiscipline && !trigger.safetyBlock ? stageDiscipline : typed && Object.hasOwn(DISCIPLINE_ENTRY, typed) ? typed : null;
       // A start-work prompt that started no work (no lifecycle work of this session, nothing on
       // the stack yet) leaves the project untouched, as a refused resume route must.
       const startsNothing = started === "start-work" && !existsSync(stackPath(cwd, input.session_id)) && !activeStartWorkSummary(lifecycleRootFor(cwd, input.session_id), input.session_id);
@@ -1492,15 +1545,23 @@ switch (eventName) {
     } else if (trigger) {
       // A repeat of an already activated discipline carries a new objective, so it asks too; a bare `lit`,
       // `lit continue` or start-work resume (stackHandled) only carries on and never asks.
-      const loopGoal = (reentry?.stackHandled ?? false) || trigger.safetyBlock ? null : offerLoopGoal(trigger.discipline, input);
+      // A route running under lit-loop keeps its own context, which carries no goal binding, so it is offered
+      // no /goal, as before lit-loop led it.
+      const loopGoal = (reentry?.stackHandled ?? false) || trigger.safetyBlock || trigger.baseOf ? null : offerLoopGoal(trigger.discipline, input);
       const systemMessage = loopGoal ? `${activationMessage(effectiveDiscipline)}\n${loopGoal.line}\n${goalGuidePlain("loopAsked")}` : activationMessage(effectiveDiscipline);
-      let context = reentry?.context ?? (["frontend-ui-ux", "visual-qa"].includes(trigger.discipline)
-        ? uiuxActivationContext({ ...trigger, uiMode: interfaceMode(normalizedTriggerText(prompt)) })
-        : ["lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"].includes(trigger.discipline)
-          ? pointerStubActivationContext(trigger)
-          : ["lit-pptx", "lit-docx", "lit-xlsx"].includes(trigger.discipline)
-            ? officeActivationContext(trigger)
-            : litworkContext(trigger, loopGoal ? { ...input, loopGoal } : input));
+      const routeTrigger = baseTrigger ?? trigger;
+      let context = reentry?.context ?? (["frontend-ui-ux", "visual-qa"].includes(routeTrigger.discipline)
+        ? uiuxActivationContext({ ...routeTrigger, uiMode: interfaceMode(normalizedTriggerText(prompt)) })
+        : ["lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"].includes(routeTrigger.discipline)
+          ? pointerStubActivationContext(routeTrigger)
+          : ["lit-pptx", "lit-docx", "lit-xlsx"].includes(routeTrigger.discipline)
+            ? officeActivationContext(routeTrigger)
+            : litworkContext(routeTrigger, loopGoal ? { ...input, loopGoal } : input));
+      if (baseTrigger) {
+        // The turn's probe line reads lit-loop in the full context and in a re-entry note alike.
+        context = context.replace(probeInstruction(baseTrigger.discipline), probeInstruction("lit-loop")).replace(reentryProbe(baseTrigger.discipline), reentryProbe("lit-loop"));
+        context = `${loopBaseNote(baseTrigger)}\n\n${context}`;
+      }
       if (skillPlan.plan) context = `${context}\n\n${skillPlanContext(skillPlan.plan, skillPlan.installed)}`;
       // A token-free route (no `lit` typed) still offers the other skills whose suggestion rule fired.
       if (trigger.source === "natural-language" && !hasLitTrigger(rawTriggerText(prompt))) {
@@ -1511,11 +1572,11 @@ switch (eventName) {
       if (reentry && loopGoal) context = `${context} ${goalBindingContext({ discipline: trigger.discipline, prompt, loopGoal })[0]}`;
       if (!reentry) {
         if (trigger.renameFrom) context = `${renameNote(trigger.renameFrom)}\n\n${context}`;
-        if (!trigger.safetyBlock && !FULL_EVERY_TIME.has(trigger.discipline)) recordActivation(input.session_id, trigger.discipline);
+        if (!trigger.safetyBlock && !FULL_EVERY_TIME.has(routeTrigger.discipline)) recordActivation(input.session_id, routeTrigger.discipline);
       }
       writeContext(withPromptRules(
         context,
-        ["frontend-ui-ux", "visual-qa", "lit-diagram-drawer", "lit-schematic", "lit-pptx", "lit-docx", "lit-xlsx", "lit-typographic-motion", "readme-studio"].includes(trigger.discipline) ? 4096 : undefined,
+        STUB_ROUTES.has(routeTrigger.discipline) ? 4096 : undefined,
       ), systemMessage);
     } else if (startWorkMissReason(prompt, parsedInvocation, input)) {
       // A host build (Claude Code 2.1.322) once sent typed start-work prompts that never started and
@@ -1841,9 +1902,27 @@ switch (eventName) {
     } catch {
       // Any error -> allow stop (no output).
     }
+    // Skill-plan check (lib/skill-plan-gate.mjs): the lowest-priority blocker, so it never displaces the receipt
+    // gate or litgoal. A planned skill neither loaded nor skipped blocks once per turn; never inside a start-work run.
+    let skillPlanBlocked = false;
+    if (decision?.action !== "block" && decision?.action !== "cap" && decision?.action !== "handoff") {
+      try {
+        const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
+        if (!activeStartWorkSummary(lifecycleRootFor(cwd, input.session_id), input.session_id)) {
+          const gate = evaluateSkillPlanStop({ cwd: resolveProjectStateRoot(cwd), sessionId: input.session_id, transcriptPath: input.transcript_path });
+          if (gate.action === "block") {
+            skillPlanBlocked = true;
+            // The stop after this block skips the gates above, so a pending receipt warning goes out with it.
+            console.log(JSON.stringify({ decision: "block", reason: gate.reason, ...(receiptNotice ? { systemMessage: receiptNotice } : {}) }));
+          }
+        }
+      } catch {
+        // Fail open: an unreadable plan record or transcript never holds a session.
+      }
+    }
     // Automatic handoff runs last, so it only takes a stop that nothing else wanted to continue.
     let handedOff = false;
-    if (decision?.action !== "block" && decision?.action !== "cap" && decision?.action !== "handoff") {
+    if (!skillPlanBlocked && decision?.action !== "block" && decision?.action !== "cap" && decision?.action !== "handoff") {
       try {
         const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
         const handoff = evaluateAutoHandoffStop({

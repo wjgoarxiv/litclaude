@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { canonicalSkillIds, canonicalSkillResourceFiles } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { LIT_SKILL_IDS } from "../plugins/litclaude/lib/mod/skills.mjs";
+import { explainRoute } from "../plugins/litclaude/lib/route-match.mjs";
 import {
   buildImplementerBrief,
   checkRun,
@@ -74,9 +75,16 @@ const runHook = (prompt, cwd = projectCwd()) => {
   return { context: parsed.hookSpecificOutput.additionalContext, message: stripAnsi(parsed.systemMessage ?? "") };
 };
 
+// The cascade's own choice, which a lit-loop base never moves.
+const cascadeOf = (prompt) => {
+  const why = explainRoute(prompt);
+  return why.cascadeRoute ?? why.route;
+};
 const routeOf = (prompt) => {
   const { context, message } = runHook(prompt);
-  return { context, route: /LIT IGNITED · ([a-z-]+)/u.exec(message)?.[1] ?? null };
+  // A route that does one part of the work runs under lit-loop and names itself in the base-loop line.
+  const matched = /This request matched ([a-z-]+)(?: and [a-z-]+)*;/u.exec(context ?? "")?.[1];
+  return { context, route: matched ?? /LIT IGNITED · ([a-z-]+)/u.exec(message)?.[1] ?? null };
 };
 
 const cli = (args, cwd = temp) => spawnSync(process.execPath, [cliPath, ...args], { cwd, encoding: "utf8", env });
@@ -162,6 +170,7 @@ describe("lit-hijack routing", () => {
       ["lit debug the session hijack in the login flow", "debugging"],
       ["lit fix the session hijack bug", "lit-loop"],
     ]) {
+      assert.equal(cascadeOf(prompt), expected, prompt);
       assert.equal(routeOf(prompt).route, expected, prompt);
     }
   });
@@ -173,6 +182,7 @@ describe("lit-hijack routing", () => {
       ["lit hijack this cutaway motion video technique into my skill", "lit-hijack"],
       ["lit draw a P&ID of the hijack test rig", "lit-schematic"],
     ]) {
+      assert.equal(cascadeOf(prompt), expected, prompt);
       assert.equal(routeOf(prompt).route, expected, prompt);
     }
   });

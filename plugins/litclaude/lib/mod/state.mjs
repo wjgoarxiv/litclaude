@@ -179,7 +179,8 @@ export const parseIgnition = (record, sessionId) => {
   if (!record || (record.sessionId !== null && record.sessionId !== sessionId)) return null;
   const discipline = str(record.discipline, 80);
   const plan = Array.isArray(record.plan) ? record.plan.map((id) => str(id, 64)).filter(Boolean).slice(0, 4) : [];
-  return discipline ? { discipline, at: time(record.at), ...(plan.length > 1 ? { plan } : {}) } : null;
+  const base = str(record.base, 64);
+  return discipline ? { discipline, at: time(record.at), ...(plan.length > 1 ? { plan } : {}), ...(base ? { base } : {}) } : null;
 };
 
 const workBelongs = (work, sessionId) =>

@@ -70,7 +70,8 @@ test("the registry names every look and maps each skill to one", () => {
 
 test("every route selects the skill's look: bare word, typed command, plugin prefix and Skill tool", () => {
   withHook((submit) => {
-    for (const [prompt, discipline, look] of [["lit adhd", "lit-adhd", "rewind"], ["/lit-adhd", "lit-adhd", "rewind"], ["/litclaude:lit-rewind", "lit-rewind", "rewind"], ["lit review", "review-work", "review"], ["/review-work", "review-work", "review"], ["/litclaude:review-work", "review-work", "review"], ["/review-work the last commit", "review-work", "review"]]) {
+    // `lit review` runs under lit-loop; review-work follows it in the plan and still brings the review look.
+    for (const [prompt, discipline, look] of [["lit adhd", "lit-adhd", "rewind"], ["/lit-adhd", "lit-adhd", "rewind"], ["/litclaude:lit-rewind", "lit-rewind", "rewind"], ["lit review", "lit-loop", "review"], ["/review-work", "review-work", "review"], ["/litclaude:review-work", "review-work", "review"], ["/review-work the last commit", "review-work", "review"]]) {
       const ignition = submit(prompt);
       assert.equal(ignition?.discipline, discipline, prompt);
       const model = buildBandModel({ snapshot: { ...idle(), ignition }, now: ignition.at + 1000, isWorking: true });

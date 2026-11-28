@@ -10,6 +10,7 @@ import { explainRoute } from "../plugins/litclaude/lib/route-match.mjs";
 // The golden routing table for `litclaude-ai why`. Each row is [prompt, the discipline the real hook
 // ignites (null = no route), kind]. The labels pin today's routing; explainRoute must agree with the
 // hook on every row, so a routing change shows up here as a label change, never as a silent drift.
+// A bare-lit route that does one part of the work runs as lit-loop; CASCADE pins the route the cascade chose.
 const root = fileURLToPath(new URL("..", import.meta.url));
 const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
 const pluginCli = join(root, "plugins", "litclaude", "bin", "litclaude-ai");
@@ -17,9 +18,9 @@ const npmCli = join(root, "bin", "litclaude-ai.js");
 
 const GOLDEN = [
   ["lit plan the login fix", "lit-plan", "single"],
-  ["lit review the auth module", "review-work", "single"],
-  ["lit debug the flaky upload test", "debugging", "single"],
-  ["lit research vector databases", "litresearch", "single"],
+  ["lit review the auth module", "lit-loop", "single"],
+  ["lit debug the flaky upload test", "lit-loop", "single"],
+  ["lit research vector databases", "lit-loop", "single"],
   ["lit set a goal for the migration", "litgoal", "single"],
   ["lit fix the null check in the parser", "lit-loop", "single"],
   ["lit workflow migrate the tests", "native-workflow", "single"],
@@ -41,15 +42,15 @@ const GOLDEN = [
   ["review-work the last commit", "review-work", "single"],
   ["lit-crucible the cache design", "lit-plan", "single"],
   ["lit start work on plans/x.md", "start-work", "single"],
-  ["lit make a slide deck for the onboarding session", "lit-pptx", "single"],
-  ["lit write a project report document", "lit-docx", "single"],
-  ["lit draw a P&ID for the reactor loop", "lit-schematic", "single"],
-  ["lit redesign the settings page", "frontend-ui-ux", "single"],
+  ["lit make a slide deck for the onboarding session", "lit-loop", "single"],
+  ["lit write a project report document", "lit-loop", "single"],
+  ["lit draw a P&ID for the reactor loop", "lit-loop", "single"],
+  ["lit redesign the settings page", "lit-loop", "single"],
   ["redesign the settings page layout", "frontend-ui-ux", "single"],
-  ["lit find every call site of parseConfig", "structural-search", "single"],
+  ["lit find every call site of parseConfig", "lit-loop", "single"],
   ["find all import statements of lodash", "structural-search", "single"],
-  ["lit render a lyric video for the chorus", "lit-typographic-motion", "single"],
-  ["최신 벡터DB 조사해줘 lit", "litresearch", "single"],
+  ["lit render a lyric video for the chorus", "lit-loop", "single"],
+  ["최신 벡터DB 조사해줘 lit", "lit-loop", "single"],
   ["lit 리캡", "lit-adhd", "single"],
   ["lit", "lit-loop", "single"],
   ["litwork tidy the logs", "litwork", "single"],
@@ -62,10 +63,10 @@ const GOLDEN = [
   ["please $start-work plans/a.md", null, "none"],
   ["how does /lit-plan work", null, "none"],
   // Two routes match; the cascade order picks the first and the second is the runner-up.
-  ["lit review the plan", "review-work", "two"],
-  ["lit debug the dashboard styling", "debugging", "two"],
+  ["lit review the plan", "lit-loop", "two"],
+  ["lit debug the dashboard styling", "lit-loop", "two"],
   ["lit plan the landing page redesign", "lit-plan", "two"],
-  ["lit research and write a report on caching", "lit-docx", "two"],
+  ["lit research and write a report on caching", "lit-loop", "two"],
   ["lit brainstorm a plan for the launch", "lit-brainstorm", "two"],
   // Fenced, backtick-quoted or host-authored text is set aside, so these route nowhere.
   ["```\nlit plan the login fix\n```", null, "inert"],
@@ -74,6 +75,61 @@ const GOLDEN = [
   ["see `lit workflow` here\n```js\nrefactor()\n```", null, "inert"],
   ["<task-notification>lit research finished</task-notification>", null, "inert"],
 ];
+
+const CASCADE = Object.fromEntries([
+  [
+    "lit review the auth module",
+    "review-work"
+  ],
+  [
+    "lit debug the flaky upload test",
+    "debugging"
+  ],
+  [
+    "lit research vector databases",
+    "litresearch"
+  ],
+  [
+    "lit make a slide deck for the onboarding session",
+    "lit-pptx"
+  ],
+  [
+    "lit write a project report document",
+    "lit-docx"
+  ],
+  [
+    "lit draw a P&ID for the reactor loop",
+    "lit-schematic"
+  ],
+  [
+    "lit redesign the settings page",
+    "frontend-ui-ux"
+  ],
+  [
+    "lit find every call site of parseConfig",
+    "structural-search"
+  ],
+  [
+    "lit render a lyric video for the chorus",
+    "lit-typographic-motion"
+  ],
+  [
+    "최신 벡터DB 조사해줘 lit",
+    "litresearch"
+  ],
+  [
+    "lit review the plan",
+    "review-work"
+  ],
+  [
+    "lit debug the dashboard styling",
+    "debugging"
+  ],
+  [
+    "lit research and write a report on caching",
+    "lit-docx"
+  ]
+]);
 
 const temp = mkdtempSync(join(tmpdir(), "litclaude-route-why-"));
 after(() => rmSync(temp, { recursive: true, force: true }));
@@ -116,6 +172,12 @@ describe("litclaude-ai why: golden routing table", () => {
       assert.equal(hook, expected, `hook route drifted on row ${index}`);
       assert.equal(explainRoute(prompt).route, hook, `explainRoute disagrees with the hook on row ${index}`);
     });
+  });
+
+  it("keeps the cascade's route for a bare-lit route that runs as lit-loop", () => {
+    for (const [prompt, route] of Object.entries(CASCADE)) assert.equal(explainRoute(prompt).cascadeRoute, route, prompt);
+    assert.equal(explainRoute("lit plan the login fix").cascadeRoute, undefined);
+    assert.equal(explainRoute("refactor the payment module").cascadeRoute, undefined);
   });
 
   it("names a rule for every routed row and a different runner-up for every two-route row", () => {
@@ -178,7 +240,15 @@ describe("litclaude-ai why: CLI", () => {
       assert.match(result.stdout, /^route\s+lit-plan$/mu);
       assert.match(result.stdout, /^rule\s+natural:plan$/mu);
       assert.match(result.stdout, /^inert\s+no$/mu);
-      assert.ok(result.stdout.trim().split("\n").length <= 6, "one short block");
+      assert.ok(result.stdout.trim().split("\n").length <= 8, "one short block");
+    });
+
+    it(`${label} shows the bare-lit skill plan with lit-loop first and its cuts`, () => {
+      const result = run(bin, ["why", "어 나는 이 데이터를 예쁜 그래프와 피피티로 표현하고 싶어~ lit"]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /^plan\s+lit-loop → lit-scientific-visualization → lit-pptx$/mu);
+      assert.match(result.stdout, /^cut\s+none$/mu);
+      assert.match(run(bin, ["why", "lit plan the login fix"]).stdout, /^plan\s+none$/mu);
     });
 
     it(`${label} reports a fenced prompt as inert`, () => {

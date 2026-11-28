@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- A `lit` prompt now runs lit-loop as its base loop and loads every other skill it needs with it. "어 나는 이 데이터를 예쁜 그래프와 피피티로 표현하고 싶어~ lit" plans lit-loop, lit-pptx and lit-scientific-visualization. A deck, report, figure, diagram, review, debugging or refactor request no longer replaces lit-loop; it joins it. Workflow routes such as `lit plan` keep their own lead.
+- The plan reads how people ask: "~하고 싶어", "~면 좋겠어" and "피피티로 표현" count as requests without a making verb, and refactoring, prose polishing, interviews, README work, debugging and research have their own cue words. A deliverable that is refused ("PPT 말고"), already made, asked about ("만들 수 있어?"), quoted or a code word ("dependency graph") is left out.
+- The three-skill limit is gone. Every matched skill joins; `lit-schematic` wins over `lit-diagram-drawer`, and only a plan of more than 8 companions or a block over 3000 bytes is cut, each cut named with its reason.
+- Planned skills are required, not suggestions. Claude loads each one or writes `SKIP <skill>: <reason>`; when a turn ends with a planned skill neither loaded nor skipped, the Stop hook blocks once and names it. A turn that ends on a question passes, and the plan carries over to your answer. It never loops, never displaces the receipt gate or litgoal, and stays out of start-work runs.
+- `node tools/routing-eval.mjs --route --lit` scores this on 247 `lit` prompts, half sealed.
+
 ## 1.0.68 - 2026-11-27
 
 - Not built yet in this round: an orchestrator still waits the 2-hour stale window before it can take over its own lane's run (the run record does not say which session launched a lane); the `## Done when` check still runs inside the Stop hook instead of in the background; the litgoal stall cap (`STALL_CHECKS`) and the auto-loop limits are unchanged. `node tools/routing-eval.mjs --model` only prints the planned session count; model-level routing is not measured yet. The prompt hook can still suggest a `figures:` skill from the install records when this session has not enabled that plugin.

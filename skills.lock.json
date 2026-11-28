@@ -949,6 +949,7 @@
     "plugins/litclaude/lib/session-liveness.mjs",
     "plugins/litclaude/lib/session-state.mjs",
     "plugins/litclaude/lib/shown-ledger.mjs",
+    "plugins/litclaude/lib/skill-plan-gate.mjs",
     "plugins/litclaude/lib/skill-plan.mjs",
     "plugins/litclaude/lib/skill-resource-integrity.mjs",
     "plugins/litclaude/lib/start-work-cli.mjs",

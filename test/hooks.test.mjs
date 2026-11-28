@@ -499,8 +499,10 @@ describe("Claude hook runner", () => {
       const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
       assert.equal(result.status, 0, result.stderr);
       const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-      if (skill) assert.match(context, new RegExp(`LIT IGNITED · ${skill}\\*\\*`, "u"), prompt);
-      else assert.doesNotMatch(context, /LIT IGNITED · litresearch/u, prompt);
+      // Research runs under lit-loop, and the base-loop line names the route it matched.
+      if (skill) assert.match(context, /LIT IGNITED · lit-loop\*\*/u, prompt);
+      if (skill) assert.match(context, new RegExp(`This request matched ${skill};`, "u"), prompt);
+      else assert.doesNotMatch(context, /LIT IGNITED · litresearch|This request matched litresearch;/u, prompt);
     }
   });
 

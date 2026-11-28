@@ -5,6 +5,7 @@
 
 import { renameAliases } from "./rename-aliases.mjs";
 import { hasInterfaceModeWord } from "./interface-mode.mjs";
+import { DELIVERABLES, LOOP_BASE, UNDER_LOOP, parseSkillHatch } from "./skill-plan.mjs";
 
 const plainWordBoundary = /^[A-Za-z0-9]$/u;
 const compoundWordBoundary = /^[A-Za-z0-9_-]$/u;
@@ -408,7 +409,7 @@ const hasUiModeIntent = (normalized) => hasInterfaceModeWord(normalized) && uiSu
 const officeVerb = /\b(?:make|making|made|create|creating|write|writing|draft|drafting|prepare|preparing|build|building|generate|generating|produce|producing|put\s+together|turn\b.*\binto|compile)\b|만들|만드|작성|써\s?줘|써\s?주|써서|써봐|쓰고|정리해|정리하|준비|초안|뽑아|짜\s?줘|구성해/u;
 const slideNoun = /\b(?:slides?|slide\s?deck|deck|presentation|pptx?|powerpoint|keynote)\b|발표|슬라이드|피피티|파워포인트|(?<![가-힣])덱(?![가-힣])|(?<![가-힣])덱을|(?<![가-힣])덱으로/u;
 const documentNoun = /\b(?:reports?|docx|doc|documents?|word\s+(?:doc(?:ument)?|file)|ms\s?word|white\s?papers?|proposals?|memos?)\b|보고서|리포트|기획서|제안서|계획서|문서|워드|백서/u;
-const codeDocumentation = /readme|changelog|contributing|api\s?(?:문서|docs?\b|reference)|docstrings?|jsdoc|javadoc|주석|\b(?:agents|claude|gemini|skill|security|code_of_conduct|license|authors|architecture|support|governance)\.md\b|\bdocs\/|\b(?:bug|test|coverage|error|crash|lint|issue|incident)\s+reports?\b|\breport\s+(?:a|the|this|that)\s+(?:bug|issue|error|problem)/u;
+const codeDocumentation = /readme|changelog|버그\s?리포트|이슈로|contributing|api\s?(?:문서|docs?\b|reference)|docstrings?|jsdoc|javadoc|주석|\b(?:agents|claude|gemini|skill|security|code_of_conduct|license|authors|architecture|support|governance)\.md\b|\bdocs\/|\b(?:bug|test|coverage|error|crash|lint|issue|incident)\s+reports?\b|\breport\s+(?:a|the|this|that)\s+(?:bug|issue|error|problem)/u;
 
 // "each document", "all documents", "these docs" spread a task over many files that already exist; one
 // Word deliverable is "a document", "the report", "a docx". A quantified mention is not a deliverable noun.
@@ -534,6 +535,93 @@ const naturalLitCompanions = (normalized) => {
   if (hasDiagramIntent(normalized)) routes.push("lit-diagram-drawer");
   if (hasStructuralSearchIntent(normalized)) routes.push("structural-search");
   return [...new Set(routes)];
+};
+
+// The bare-lit companion layer (plans/2026-11-28-lit-auto-invoke). Three steps, all on the normalized prompt:
+//   1. Set aside what is not asked for: a deliverable named only to refuse it ("PPT 말고", "no slides", "before
+//      any charts"), one that already exists or is being quoted ("예전에 만든 발표자료", "the deck I made",
+//      "as the diagram shows"), a question about ability or meaning ("피피티 만들 수 있어?", "뭐 하는 거야"),
+//      talk about a skill or the router itself, quoted text, and code words ("함수 이름", "dependency graph").
+//   2. Read the request stance in what is left. Korean asks with a desire or instrument frame as often as with a
+//      verb ("~하고 싶어", "~면 좋겠어", "피피티로 표현", "슬라이드로 바꿔"), and English with "I'd like", "need"
+//      or a bare noun phrase ("lit a 12-slide keynote"); any of these makes a deliverable noun count.
+//   3. Cue lanes for skills that have no deliverable noun: refactor, lit-humanizer, deep-interview,
+//      readme-studio, debugging and research, each a short cue list behind the same set-aside step.
+// Hangul terms are bare substrings for the reason given at the UI route.
+const quotedSpan = /"[^"\n]{1,200}"|“[^”\n]{1,200}”|'[^'\n]{3,200}'|「[^」\n]{1,200}」/gu;
+const clauseBreak = /[,.;!?\n]|\s(?:but|then|and then|now)\s|(?:고\s?나서|인데|지만)\s/u;
+const refusedMention = /(?<![^\s,.;])[^\s,.;]{0,40}(?:\s[^\s,.;]{1,40})?\s?(?:말고|빼고|없이|은\s?아니고|는\s?아니고|은\s?나중에|는\s?나중에|건드리지\s?말고|하지\s?말고|그대로\s?두고)|\b(?:no|not|without|never|before\s+any)\s+(?!chang|behaviou?r)(?:\w+\s+)?\w+(?:\s+(?:or|and)\s+\w+)?|\b(?:don'?t|do\s+not)\s+\w+(?:\s+(?:me\s+)?\w+)?|\bkeep\s+the\s+wording\b[^,.;]*/gu;
+const mentionClause = /예전에|지난번|이전에|이미\s?있|에\s?나온|적혀|어디\s?있|뭐\s?하는|뭐야|무슨\s?뜻|할\s?수\s?있어|만들\s?수\s?있어|가능해\?|라우터|스킬이|스킬\s|설치돼|\b(?:i|we)\s+made\b|\blast\s+week\b|\bwent\s+well\b|\bwas\s+accepted\b|\bas\s+the\s+[\w\s-]{1,40}?\s(?:shows|says)\b|\bthe\s+(?:report|deck|document|diagram)\s+(?:says|shows)\b|\bin\s+docs\b|\bcan\s+you\s+make\b|\bjust\s+asking\b|\brouter\b|\bexplain\s+how\b|\bwhat\s+was\b|\bis\s+outdated\b/u;
+const codeClause = /함수|변수|이름을|라이브러리|버전|데이터베이스|의존성|순환|파서|임포트|크래시|\b(?:rename|function|variable|library|version|database|dependency|dependencies|call\s+graph|chart\.js|import|imports|parser|crash|uploader|cycles?)\b|\bfrom\s+(?:that|the|this)\s+\w+\s+file\b|읽는|읽어/u;
+const requestStance = /싶어|싶다|좋겠|줬으면|주면|해\s?줘|해\s?주|해줄래|해주라|부탁|필요해|필요한|보여\s?줘|보여주|표현|바꿔|남기|뽑아|그려|만들|만드|작성|정리|준비|(?:로|으로)\s?(?:\S{1,20}\s?)?(?:줘|해|봐|보고)|\d+\s?장|\b(?:i'?d\s+like|i\s+want|we\s+want|would\s+love|i\s+need|we\s+need|need|want|please|make|create|write|draft|prepare|build|turn|plot|draw|sketch|visuali[sz]e|render|redo|restyle|put)\b|\b\d+[\s-]?slides?\b|^\s*(?:lit\s+)?(?:an?|both|some|graphs?|charts?|plots?)\b|\bas\s+(?:a|an)\s+\w+/u;
+
+const activeText = (normalized, keepCode = false) => normalized
+  .replace(quotedSpan, " ")
+  .split(clauseBreak)
+  .map((clause) => clause.replace(refusedMention, " "))
+  .filter((clause) => !mentionClause.test(clause) && (keepCode || !codeClause.test(clause)))
+  .join(" , ");
+
+const measuredData = /데이터|측정|결과|\b(?:data|dataset|csv|measure(?:d|ments?)|results?)\b/u;
+const wordNoun = /\bword\s+(?:document|file|doc)\b|워드\s?(?:파일|문서|로)|\bdocx\b/u;
+const deliverableNouns = (active) => {
+  if (!requestStance.test(active) || codeDocumentation.test(active)) return [];
+  const found = [];
+  if (slideNoun.test(active)) found.push("lit-pptx");
+  if (wordNoun.test(active) || documentNoun.test(active.replace(sheetReport, " ").replace(quantifiedDocument, " "))) found.push("lit-docx");
+  if (sheetNoun.test(active)) found.push("lit-xlsx");
+  const schematic = schematicStrongNoun.test(active);
+  // "flow chart" is a diagram, and a journal figure of an apparatus is a schematic unless measured data is named.
+  const withoutDiagrams = active.replace(new RegExp(diagramNoun.source, "gu"), " ");
+  const figureAsk = vizNoun.test(withoutDiagrams) || /\bfig(?:ure)?\.?\s?\d|그림\s?\d|범례|\blegend\b|축\s?라벨|\baspect\b|\btoo\s+tall\b/u.test(withoutDiagrams);
+  if (figureAsk && !(schematic && !measuredData.test(active))) found.push("lit-scientific-visualization");
+  if (diagramNoun.test(active)) found.push("lit-diagram-drawer");
+  return found;
+};
+
+const CUE_LANES = [
+  ["refactor", /리팩터|리팩토링|god\s?class|쪼개|(?:기능|동작)\s?(?:은|이)?\s?(?:안\s?바뀌|그대로|바뀌지\s?않)|구조(?:만|를|도)?\s?정리|중복\s?코드\s?정리|\brefactor\w*|\brestructur\w*|without\s+changing\s+(?:any\s+)?behaviou?r|no\s+behaviou?r\s+change|keep\s+the\s+api\s+the\s+same|clean\s+up\s+the\s+structure|split\s+(?:this|the)\s+[\w-]+\s+(?:file|module|class)/u],
+  ["lit-humanizer", /자연스럽게|ai\s?티|기계\s?같|사람이\s?쓴\s?것처럼|humaniz|de[-\s]?template|sound\s+less\s+like\s+ai|less\s+(?:like\s+ai|robotic)|reads?\s+naturally|polish\s+the\s+wording|(?:문장|문구)\S{0,10}\s?(?:\S{1,20}\s)?(?:다듬|고쳐)/u],
+  ["deep-interview", /질문하면서|물어봐|물어보면서|하나씩\s?물어|interview\s+me|ask\s+me\s+questions|요구사항이?\s?(?:불분명|애매)|아직\s?애매|모르겠어,?\s?(?:먼저|같이)|not\s+sure\s+what\s+(?:i\s+want|it\s+should)|스펙이\s?없|requirements\s+are\s+fuzzy/u],
+  ["readme-studio", /readme\S{0,20}\s?(?:\S{1,20}\s){0,2}?(?:커버|cover|새로|다시|제대로)|(?:redo|rewrite|write\s+a\s+proper|write)\s+(?:the\s+|a\s+proper\s+)?readme|readme\s+(?:with|for)\s+(?:a\s+)?(?:cover|the\s+launch)|공개\s?전에\s?readme/u],
+  ["debugging", /원인\s?(?:을\s?)?(?:찾|분석|파악)|root\s+cause|figure\s+out\s+why|find\s+out\s+why|재현부터|버그\s?잡|왜\s?\S{1,20}\s?(?:계속\s?)?(?:멈|실패|안\s?보|깨)|\bwhy\s+\w+\s+(?:hangs?|fails?|crash\w*)|something\s+is\s+wrong/u],
+  ["litresearch", /prior\s+work|선행\s?연구|\bsurvey\s+(?:how|what|the\s+(?:field|literature|landscape))\b|with\s+sources|리서치|조사해|조사하|\bresearch\b/u],
+];
+
+// Refactor and debugging asks name code by nature, so only talk about a skill sets them aside; the other cue
+// lanes also drop clauses about code ("the research script import bug" is not a research ask).
+const CODE_LANES = new Set(["refactor", "debugging"]);
+const cueCompanions = (normalized) => {
+  const clauses = normalized.replace(quotedSpan, " ").split(clauseBreak).map((clause) => clause.replace(refusedMention, " ")).filter((clause) => !mentionClause.test(clause));
+  const codeFree = clauses.filter((clause) => !codeClause.test(clause)).join(" , ");
+  const all = clauses.join(" , ");
+  return CUE_LANES.filter(([id, cue]) => cue.test(CODE_LANES.has(id) ? all : codeFree)).map(([id]) => id);
+};
+
+// Companion detection reads at most this many characters, so a long paste costs the prompt hook no more than
+// a short prompt does; the cascade itself still reads the whole prompt.
+export const PLAN_TEXT_CHARS = 4000;
+
+/**
+ * The companions a bare-lit prompt asks for, and the deliverable routes it only mentions. `primary` is the
+ * cascade's route; when it is a deliverable the prompt only mentions, it is returned in `mentioned` so the plan
+ * can list it as left out instead of running it.
+ */
+const litPlanCompanions = (fullText, primary = null) => {
+  // The ask often follows a long paste, so a long prompt is read as its head and its tail.
+  const half = PLAN_TEXT_CHARS / 2;
+  const normalized = fullText.length <= PLAN_TEXT_CHARS ? fullText : `${fullText.slice(0, half)} , ${fullText.slice(-half)}`;
+  const active = activeText(normalized);
+  let found = [...new Set([...naturalLitCompanions(active), ...deliverableNouns(active), ...cueCompanions(normalized)])];
+  if (found.includes("lit-schematic") && !measuredData.test(active)) found = found.filter((id) => id !== "lit-scientific-visualization");
+  // The cascade read the whole prompt; when this read was cut, its route may sit in the part not read here,
+  // so it is never called a mere mention.
+  const cut = fullText.length > PLAN_TEXT_CHARS;
+  // The code-word filter keeps false companions out; it never demotes the cascade's own route. That route is
+  // a mere mention only when it is gone once refusals, quotes and mention clauses alone are set aside.
+  const stillAsked = DELIVERABLES.has(primary) && naturalLitCompanions(activeText(normalized, true)).includes(primary);
+  const mentioned = !cut && DELIVERABLES.has(primary) && !found.includes(primary) && !stillAsked ? [primary] : [];
+  return { companions: found, mentioned };
 };
 
 const findNaturalLitTrigger = (prompt) => {
@@ -750,7 +838,17 @@ const ROUTE_RULES = [
 // route fired because text was set aside (a fence, inline code, a host block) or a stop rule held.
 // An exact `handoff` / `lit handoff` is reported as the hook answers it. Other routes the hook decides
 // before this cascade (a `lit +…` skill plan, start-work invocations and replies) are outside it.
+// A bare-lit route that does one part of the work runs as lit-loop, the route the cascade chose becoming the
+// plan's first companion (lib/skill-plan.mjs); `cascadeRoute` keeps that route, and ruleId still names its rule.
 export const explainRoute = (prompt) => {
+  const explained = explainCascade(prompt);
+  if (typeof prompt !== "string" || !explained.route || parseSkillHatch(rawTriggerText(prompt), prompt)) return explained;
+  const trigger = findWorkflowTrigger(prompt);
+  if (trigger?.source !== "natural-language" || trigger.safetyBlock || !hasLitTrigger(rawTriggerText(prompt)) || !UNDER_LOOP.has(trigger.skillId)) return explained;
+  return { ...explained, route: LOOP_BASE, cascadeRoute: explained.route };
+};
+
+const explainCascade = (prompt) => {
   if (typeof prompt !== "string") return { route: null, ruleId: null, runnerUp: null, inert: false };
   if (isExactBareHandoff(prompt)) return { route: "lit-handoff", ruleId: "exact:handoff", runnerUp: null, inert: false };
   const route = findWorkflowTrigger(prompt)?.discipline ?? null;
@@ -790,6 +888,7 @@ export {
   hasLitTrigger,
   hasReviewModifier,
   isExactBareHandoff,
+  litPlanCompanions,
   naturalLitCompanions,
   normalizedTriggerText,
   rawTriggerText,

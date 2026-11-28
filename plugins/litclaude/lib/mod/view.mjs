@@ -552,7 +552,10 @@ const selectLook = ({ snapshot, discipline, skills, workflow, completion, waitin
   if (completion) return "done";
   if (waiting) return "turn";
   const fired = Number.isFinite(turnStartedAt) ? skills.filter(({ id, at }) => lookOf(id) && at >= turnStartedAt) : [];
-  const ignited = lookOf(discipline) && Number.isFinite(snapshot.ignition?.at) ? [{ id: discipline, at: snapshot.ignition.at }] : [];
+  // Under lit-loop the route the prompt matched (the ignition's `base`) brings its look (lit review).
+  const matched = discipline === "lit-loop" ? snapshot.ignition?.base ?? null : null;
+  const lookId = lookOf(discipline) ? discipline : lookOf(matched) ? matched : null;
+  const ignited = lookId && Number.isFinite(snapshot.ignition?.at) ? [{ id: lookId, at: snapshot.ignition.at }] : [];
   const newest = [...fired, ...ignited].filter(({ at }) => now - at < REWIND_LINGER_MS).sort((a, b) => b.at - a.at)[0];
   const look = newest ? lookOf(newest.id) : null;
   const lanesOpen = workflow?.current >= 0 && workflow.verdicts?.length === REVIEW_LANES.length;

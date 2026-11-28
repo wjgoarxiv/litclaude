@@ -995,6 +995,68 @@ A bare `lit` prompt that asks to make a workbook (a making verb plus xlsx, excel
 `lit-pptx` and `lit-docx`; "an xlsx report" and "엑셀 보고서" count as workbooks. With the `sheets`
 plugin installed the stub loads `sheets:lit-xlsx`, and without it the stub gives the install lines.
 
+### The skill plan of a bare `lit` prompt
+
+A `lit` prompt runs lit-loop as its base loop, and every other skill the request needs joins it. The cascade
+above still picks one route. When that route does one part of the work (a deck, a document, a workbook, a
+figure, a diagram, a schematic, an interface, a film, a README, research, a review, debugging, a refactor,
+structural search or prose polishing), the hook runs the turn as lit-loop and puts that route first among the
+companions; a workflow route (lit-plan, start-work, litgoal, the brainstorms, lit-team, lit-adhd and the
+like) keeps its own lead. So does a prompt that starts with a skill name or `$name`
+(`lit-pptx 분기 보고 덱`): that is a command for that skill, and it opens it as before, even when the rest
+of the prompt is a question. `litclaude-ai why` shows the route as `lit-loop` and keeps the cascade's choice
+in `cascadeRoute`.
+
+`litPlanCompanions` in `plugins/litclaude/lib/route-match.mjs` collects the companions in three steps:
+
+1. It sets aside what the prompt does not ask for: a deliverable named only to refuse it ("PPT 말고",
+   "no slides", "before any charts"), one that already exists or is quoted ("예전에 만든 발표자료",
+   "the deck I made last week", "as the diagram shows"), a question about ability or meaning
+   ("피피티 만들 수 있어?"), talk about a skill or the router, quoted text, and code words that share a
+   deliverable noun ("dependency graph", "chart.js", "함수 이름").
+2. It reads the request stance in what is left. Korean asks with a desire or instrument frame as often as
+   with a verb ("~하고 싶어", "~면 좋겠어", "피피티로 표현"), English with "I'd like", "need" or a bare
+   noun phrase, so a deliverable noun counts without a making verb.
+3. Cue lanes reach the skills that have no deliverable noun: refactor, lit-humanizer, deep-interview,
+   readme-studio, debugging and research. They skip refusals, quotes and talk about a skill; all but
+   refactor and debugging also skip clauses about code ("the research script import bug").
+
+There is no fixed cap. Every skill whose detector fired joins the plan; `lit-schematic` takes the drawing
+from `lit-diagram-drawer` when both fire; more than 8 companions, or a plan block over 3000 bytes (its
+catalog goes first), is cut with each cut listed as `Left out: <id> (<reason>)`. A deliverable route the
+prompt only mentions is listed as left out too, never run.
+
+The route the plan kept still brings its own context: its stub pointer and install line, its mode contract,
+the interface mode of a frontend-ui-ux ask, the forced or signalled review mode, and for review-work and
+litresearch a read-only line. A base line in front names lit-loop and the route, the probe line reads
+lit-loop, and such a turn is offered no `/goal`. A deliverable the prompt refuses or only mentions brings no
+context: "PPT 말고 보고서로" runs lit-docx under the loop, and a prompt about an old deck runs as plain
+lit-loop. Re-entry notes and the workflow stack follow the route doing the work, and the HUD record names it
+as `base`, so `lit review` keeps the review look. Companion detection reads at most 4000 characters, the
+head and tail of a longer prompt, so a long paste costs the hook no more than a short prompt; a route the
+cascade found in the part not read is kept.
+
+The plan block tells Claude that every skill after the primary is required: load it with the Skill tool
+when its part starts, or write one line `SKIP <skill-id>: <reason>` (a list marker, bold marks and a dash
+in place of the colon are fine). For a plan led by lit-loop, the prompt hook stores the skills Claude can
+load itself (installed, not user-typed) for the session, and the Stop hook
+(`plugins/litclaude/lib/skill-plan-gate.mjs`) reads the assistant messages since that prompt in the
+transcript's last 4 MB. A planned skill that was neither loaded (`<id>`, `litclaude:<id>` or
+`<plugin>:<id>`) nor skipped blocks the stop once with its name; it never blocks twice for one plan. A turn
+that ends on a question to the user passes, and the record then survives the next plain prompt that starts
+no route (the answer to that question), for up to two hours; a prompt with a route replaces or clears it,
+and every other prompt (a second plain one, `handoff`, a goal answer, a check-back) clears it. The check is
+the lowest-priority blocker: it runs after the receipt gate and the litgoal loop (a pending receipt warning
+goes out with its block), never on a stop that follows a block (`stop_hook_active`), never during a
+start-work run, and anything it cannot read lets the stop pass. Two limits follow from that order: the stop
+after a skill-plan block runs no receipt check and no automatic handoff (both wait for the next turn), and a
+stub route's 4096-byte context budget now also holds the base line and the plan block, so a plan of several
+deliverables can leave no room for a project rule file that appeared mid-session.
+
+`node tools/routing-eval.mjs --route --lit [--heldout]` scores the plan on `test/fixtures/lit-invoke-eval`:
+247 `lit` prompts (57 % Korean, paraphrased from real prompt shapes), half sealed, each with the full
+expected skill set, lit-loop first.
+
 ### Suggestions without `lit`
 
 A prompt with no `lit` starts no workflow, but the hook still names the skills that might help, and the

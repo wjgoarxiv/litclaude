@@ -104,7 +104,10 @@ const fresh = (source, now) => Boolean(source) && Number.isFinite(source.at) && 
 const entryOf = ({ snapshot, skills, now }) => {
   const candidates = [];
   const ignition = snapshot.ignition;
-  if (ignition && DISCIPLINE_ENTRY[ignition.discipline]) candidates.push({ ...DISCIPLINE_ENTRY[ignition.discipline], at: ignition.at ?? 0, from: "ignition" });
+  // Under lit-loop the route the prompt matched (the ignition's `base`) is the one the stack records.
+  const matched = ignition?.discipline === "lit-loop" && DISCIPLINE_ENTRY[ignition.base] ? ignition.base : null;
+  const ignited = matched ?? ignition?.discipline;
+  if (ignition && DISCIPLINE_ENTRY[ignited]) candidates.push({ ...DISCIPLINE_ENTRY[ignited], at: ignition.at ?? 0, from: "ignition" });
   const chip = skills.find(({ id, state }) => state === "current" && DISCIPLINE_ENTRY[id]);
   if (chip) candidates.push({ ...DISCIPLINE_ENTRY[chip.id], at: chip.at ?? 0, from: "skill" });
   const record = snapshot.workflow?.record;

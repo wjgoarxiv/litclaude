@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { buildSkillPlan, parseSkillHatch, skillPlanLine } from "../plugins/litclaude/lib/skill-plan.mjs";
+import { PLAN_BACKSTOP, PLAN_CONTEXT_BYTES, buildSkillPlan, parseSkillHatch, skillPlanContext, skillPlanLine } from "../plugins/litclaude/lib/skill-plan.mjs";
 import { parseIgnition } from "../plugins/litclaude/lib/mod/state.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,12 +44,13 @@ const planOf = (context) => /<litclaude-skill-plan>\n(Skill plan: [^\n]+)/u.exec
 describe("S1 skill plan — one lit prompt, several fitting skills", () => {
   it("collects every matching route in priority order, the cascade's route first (English)", () => {
     const plan = planOf(run("lit build a landing page that shows a chart of our experiment data"));
-    assert.equal(plan, "Skill plan: 1 design:frontend-ui-ux (primary) → 2 figures:lit-scientific-visualization");
+    assert.equal(plan, "Skill plan: 1 lit-loop (primary) → 2 design:frontend-ui-ux → 3 figures:lit-scientific-visualization");
   });
 
   it("collects them from a Korean prompt too", () => {
     const plan = planOf(run("lit 실험 데이터로 그래프 그리고 다이어그램도 그려서 결과 웹페이지 만들어줘"));
-    assert.match(plan, /^Skill plan: 1 design:frontend-ui-ux \(primary\) → 2 /u);
+    assert.match(plan, /^Skill plan: 1 lit-loop \(primary\) → 2 /u);
+    assert.match(plan, /design:frontend-ui-ux/u);
     assert.match(plan, /figures:lit-scientific-visualization/u);
   });
 
@@ -71,8 +72,8 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
 
   it("an extension that is not installed is named once with its install line, never as plugin:id", () => {
     const plan = planOf(run("lit build a landing page that shows a chart of our experiment data", { plugins: [] }));
-    assert.match(plan, /1 frontend-ui-ux \(primary\) \(not installed: npx @litfamily\/litclaude extensions install design\)/u);
-    assert.match(plan, /2 lit-scientific-visualization \(not installed: npx @litfamily\/litclaude extensions install figures\)/u);
+    assert.match(plan, /2 frontend-ui-ux \(not installed: npx @litfamily\/litclaude extensions install design\)/u);
+    assert.match(plan, /3 lit-scientific-visualization \(not installed: npx @litfamily\/litclaude extensions install figures\)/u);
     assert.doesNotMatch(plan, /design:|figures:/u);
     const twice = skillPlanLine(buildSkillPlan({ primary: "lit-loop", companions: ["lit-diagram-drawer", "lit-schematic"], installed: new Set() }));
     assert.equal(twice.match(/extensions install figures/gu).length, 1, twice);
@@ -85,17 +86,27 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
     assert.match(withFigures, /Catalog \(installed here\):[^\n]*figures:lit-diagram-drawer/u);
   });
 
-  it("caps the plan at three skills and says what it left out", () => {
+  it("keeps every matched skill, lists vetoes and backstop cuts with their reason", () => {
     const plan = buildSkillPlan({ primary: "lit-loop", companions: ["lit-pptx", "lit-docx", "frontend-ui-ux", "lit-diagram-drawer"], installed: new Set(["decks", "documents", "design", "figures"]) });
-    // Four deliverables make it a large ask, so lit-crucible joins first and the tail is left out.
-    assert.deepEqual(plan.entries.map(({ id }) => id), ["lit-loop", "lit-crucible", "lit-pptx"]);
-    assert.deepEqual(plan.dropped.map(({ id }) => id), ["lit-docx", "frontend-ui-ux", "lit-diagram-drawer"]);
+    // Four deliverables make it a large ask, so lit-crucible joins first; nothing is cut.
+    assert.deepEqual(plan.entries.map(({ id }) => id), ["lit-loop", "lit-crucible", "lit-pptx", "lit-docx", "frontend-ui-ux", "lit-diagram-drawer"]);
+    assert.deepEqual(plan.dropped, []);
     const live = planOf(run("lit make a deck and a report and a landing page with a chart of the experiment data and a diagram"));
-    assert.equal(live.split(" → ").length, 3, live);
+    assert.ok(live.split(" → ").length >= 6, live);
+    const veto = buildSkillPlan({ primary: "lit-loop", companions: ["lit-schematic", "lit-diagram-drawer"], installed: new Set() });
+    assert.deepEqual(veto.entries.map(({ id }) => id), ["lit-loop", "lit-schematic"]);
+    assert.deepEqual(veto.dropped, [{ id: "lit-diagram-drawer", why: "the drawing is a physical schematic" }]);
+    const many = ["lit-pptx", "lit-docx", "lit-xlsx", "frontend-ui-ux", "lit-diagram-drawer", "lit-scientific-visualization", "refactor", "lit-humanizer", "debugging", "readme-studio"];
+    const backstop = buildSkillPlan({ primary: "lit-loop", companions: many, installed: new Set() });
+    assert.equal(backstop.entries.length, 1 + PLAN_BACKSTOP);
+    assert.ok(backstop.dropped.length >= 2 && backstop.dropped.every(({ why }) => why === "over the plan backstop"), JSON.stringify(backstop.dropped));
+    const context = skillPlanContext(backstop, new Set(["decks", "documents", "sheets", "design", "figures", "video-covers"]));
+    assert.ok(Buffer.byteLength(context, "utf8") <= PLAN_CONTEXT_BYTES, `${Buffer.byteLength(context, "utf8")} bytes`);
+    assert.match(context, /Left out: \S+ \(over the plan backstop\)/u);
   });
 
   it("lit-crucible joins as the first companion for a large or risky design ask, never instead of the primary", () => {
-    assert.equal(planOf(run("lit redesign the settings page")), "Skill plan: 1 design:frontend-ui-ux (primary) → 2 lit-crucible");
+    assert.equal(planOf(run("lit redesign the settings page")), "Skill plan: 1 lit-loop (primary) → 2 lit-crucible → 3 design:frontend-ui-ux");
     assert.equal(planOf(run("lit 결제 모듈 아키텍처 재설계해줘")), "Skill plan: 1 lit-loop (primary) → 2 lit-crucible");
     assert.equal(planOf(run("lit explain the architecture of the parser")), null);
   });
@@ -106,6 +117,18 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
     assert.ok(plan === null || !/frontend-ui-ux|lit-scientific-visualization|lit-crucible/u.test(plan), plan);
     const direct = buildSkillPlan({ primary: "litresearch", companions: ["lit-docx", "review-work"], installed: new Set() });
     assert.deepEqual(direct.entries.map(({ id }) => id), ["litresearch", "review-work"]);
+  });
+
+  it("lit-loop leads every bare-lit plan whose route does one part of the work", () => {
+    const ids = (args) => buildSkillPlan({ installed: new Set(), loopBase: true, ...args })?.entries.map(({ id }) => id) ?? null;
+    assert.deepEqual(ids({ primary: "lit-pptx", companions: ["lit-scientific-visualization"] }), ["lit-loop", "lit-pptx", "lit-scientific-visualization"]);
+    assert.deepEqual(ids({ primary: "debugging" }), ["lit-loop", "debugging"]);
+    assert.deepEqual(ids({ primary: "review-work", companions: ["frontend-ui-ux"] }), ["lit-loop", "review-work"]);
+    assert.equal(ids({ primary: "lit-loop" }), null);
+    assert.deepEqual(ids({ primary: "lit-plan", companions: ["lit-pptx"] }), ["lit-plan", "lit-pptx"]);
+    assert.deepEqual(buildSkillPlan({ primary: "lit-pptx", companions: [], installed: new Set() }), null);
+    const context = run("실험 데이터를 그래프로 그려서 발표자료 만들어줘 lit");
+    assert.match(planOf(context), /^Skill plan: 1 lit-loop \(primary\) → 2 \S*lit-pptx/u);
   });
 
   it("`lit +viz +ui +crucible <task>` forces exactly that plan and routes the task without the names", () => {
@@ -122,8 +145,8 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
     const sessionId = "skill-plan-card";
     run("lit build a landing page that shows a chart of our experiment data", { sessionId });
     const record = JSON.parse(readFileSync(join(hudRoot, `${sessionId}.json`), "utf8"));
-    assert.deepEqual(record.plan, ["frontend-ui-ux", "lit-scientific-visualization"]);
-    assert.deepEqual(parseIgnition(record, sessionId).plan, ["frontend-ui-ux", "lit-scientific-visualization"]);
+    assert.deepEqual(record.plan, ["lit-loop", "frontend-ui-ux", "lit-scientific-visualization"]);
+    assert.deepEqual(parseIgnition(record, sessionId).plan, ["lit-loop", "frontend-ui-ux", "lit-scientific-visualization"]);
     run("lit fix the login bug", { sessionId });
     assert.equal(JSON.parse(readFileSync(join(hudRoot, `${sessionId}.json`), "utf8")).plan, undefined);
   });

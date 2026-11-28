@@ -13,8 +13,17 @@ import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import { EXTENSION_SKILLS } from "./extensions-notice.mjs";
 
-export const PLAN_CAP = 3;
+// No fixed cap on a matched plan: every skill whose detector fired joins it. Two backstops remain, and each
+// cut is listed in the plan block with its reason: at most PLAN_BACKSTOP companions, and a block over
+// PLAN_CONTEXT_BYTES drops its catalog first. A `lit +…` plan the user typed keeps its own limit.
+export const PLAN_BACKSTOP = 8;
+export const PLAN_CONTEXT_BYTES = 3000;
 const FORCED_CAP = 3;
+
+// Pairs that never both join: when the first is in the plan, the second leaves with the reason given.
+export const PLAN_VETOES = Object.freeze([
+  ["lit-schematic", "lit-diagram-drawer", "the drawing is a physical schematic"],
+]);
 
 // `lit +<alias>` names. Short words a user can type without looking anything up.
 export const SKILL_ALIASES = Object.freeze({
@@ -153,7 +162,13 @@ export const parseSkillHatch = (text, prompt = text) => {
 // Large or risky design asks: lit-crucible joins as the first companion. A request to explain or describe stays out.
 const riskyDesignAsk = /\b(?:redesign(?:ing)?|re-?architect(?:ure|ing)?|architecture|migrat(?:e|ion|ing)|overhaul(?:ing)?)\b|설계|아키텍처|마이그레이션|전면\s?개편/u;
 const explainAsk = /\b(?:explain|describe|summari[sz]e|what\s+is)\b|설명|요약/u;
-const DELIVERABLES = new Set(["lit-pptx", "lit-docx", "lit-xlsx", "frontend-ui-ux", "lit-scientific-visualization", "lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"]);
+export const DELIVERABLES = new Set(["lit-pptx", "lit-docx", "lit-xlsx", "frontend-ui-ux", "lit-scientific-visualization", "lit-diagram-drawer", "lit-schematic", "lit-typographic-motion", "readme-studio"]);
+
+// Routes that do one part of the work rather than run it. Under a bare `lit` they sit after lit-loop, which
+// stays the base loop of the turn; workflow routes (lit-plan, start-work, the brainstorms, lit-adhd, ...) keep
+// their own lead because each one is the whole turn.
+export const LOOP_BASE = "lit-loop";
+export const UNDER_LOOP = Object.freeze(new Set([...DELIVERABLES, "litresearch", "review-work", "debugging", "refactor", "structural-search", "lit-humanizer", "visual-qa"]));
 
 export const wantsCrucible = (normalized, ids) => {
   if (explainAsk.test(normalized)) return false;
@@ -165,10 +180,16 @@ export const wantsCrucible = (normalized, ids) => {
  * priority order; `forced` (from parseSkillHatch) replaces the companions. Returns null when the plan is the
  * primary alone, so an ordinary prompt's context stays exactly as it was.
  */
-export const buildSkillPlan = ({ primary, companions = [], forced = null, normalized = "", installed = new Set() }) => {
+export const buildSkillPlan = ({ primary, companions = [], mentioned = [], forced = null, normalized = "", installed = new Set(), loopBase = false }) => {
   if (typeof primary !== "string" || !primary) return null;
+  // A read-only route keeps its rule under lit-loop too: a review or research ask gains no companion that writes.
   const readOnly = READ_ONLY_PRIMARIES.has(primary);
   const dropped = [];
+  if (loopBase && !forced && primary !== LOOP_BASE && UNDER_LOOP.has(primary)) {
+    if (mentioned.includes(primary)) dropped.push({ id: primary, why: "named but not asked for" });
+    companions = [...new Set([...(mentioned.includes(primary) ? [] : [primary]), ...companions])];
+    primary = LOOP_BASE;
+  }
   let picked;
   if (forced) {
     picked = forced.skills.filter((id) => id !== primary);
@@ -183,10 +204,19 @@ export const buildSkillPlan = ({ primary, companions = [], forced = null, normal
     }
     return true;
   });
-  const cap = forced ? FORCED_CAP : PLAN_CAP - 1;
-  for (const id of picked.slice(cap)) dropped.push({ id, why: "over the cap" });
+  if (!forced) {
+    const all = new Set([primary, ...picked]);
+    for (const [keep, leave, why] of PLAN_VETOES) {
+      if (all.has(keep) && picked.includes(leave)) {
+        picked = picked.filter((id) => id !== leave);
+        dropped.push({ id: leave, why });
+      }
+    }
+  }
+  const cap = forced ? FORCED_CAP : PLAN_BACKSTOP;
+  for (const id of picked.slice(cap)) dropped.push({ id, why: forced ? "over the cap" : "over the plan backstop" });
   picked = picked.slice(0, cap);
-  if (picked.length === 0 && !forced) return null;
+  if (picked.length === 0 && !forced && dropped.length === 0) return null;
   const entries = [primary, ...picked].map((id) => {
     const plugin = EXTENSION_SKILLS[id] ?? null;
     return { id, plugin, installed: plugin ? installed.has(plugin) : true, userInvoked: USER_INVOKED.has(id) };
@@ -250,15 +280,25 @@ export const suggestionContext = (ids, installed = new Set(), lead = `${NO_ACTIV
 /** The model-facing block. Fixed text around the plan; nothing from the prompt is echoed. */
 export const skillPlanContext = (plan, installed = new Set()) => {
   const lines = [skillPlanLine(plan)];
+  // lit-loop plus the one route the request matched: that route's own context already describes it, so the
+  // block only states the obligation.
+  if (!plan.forced && plan.dropped.length === 0 && plan.entries.length === 2 && plan.entries[0].id === LOOP_BASE) {
+    const { id } = plan.entries[1];
+    lines.push(`Load ${id} with the Skill tool when its part starts, or write one line \`SKIP ${id}: <reason>\`; at turn end LitClaude stops once if it was neither.`);
+    return `<litclaude-skill-plan>\n${lines.join("\n")}\n</litclaude-skill-plan>`;
+  }
   if (plan.forced) {
     lines.push("The user named this plan with `lit +…`: keep it exactly, add nothing and drop nothing.");
     if (plan.unknown.length > 0) lines.push(`Ignored unknown plan names: ${plan.unknown.map((name) => `+${name}`).join(" ")}.`);
   } else {
-    lines.push("The companions after the primary are candidates the hook matched, not orders: confirm or drop each one for this request, and add at most one skill from the catalog below when the work clearly needs it.");
+    lines.push("Every skill after the primary is required, not a suggestion: load it, or write one line `SKIP <skill-id>: <reason>` when it truly does not fit. Add one catalog skill only when the work clearly needs it.");
   }
   for (const { id, why } of plan.dropped) lines.push(`Left out: ${id} (${why}).`);
-  lines.push("State the final plan on the line right after the probe line, in the same `Skill plan: 1 … → 2 …` form. The primary is already active; load each companion with the Skill tool when its part of the work starts, never all up front. A skill marked not installed is not loaded: give its install line once and carry on without it. A skill the user types is never loaded by you: tell the user its command when its part starts.");
+  lines.push("State the final plan right after the probe line in the same `Skill plan: 1 … → 2 …` form. The primary is active; load each other skill with the Skill tool when its part starts, never all up front. Not installed: give its install line once and go on. User-typed: tell the user its command when its part starts. At turn end LitClaude stops once to name a planned skill neither loaded nor skipped.");
+  const wrap = (body) => `<litclaude-skill-plan>\n${body.join("\n")}\n</litclaude-skill-plan>`;
   const catalog = plan.forced ? [] : catalogLines(plan, installed);
-  if (catalog.length > 0) lines.push(`Catalog (installed here): ${catalog.join("; ")}.`);
-  return `<litclaude-skill-plan>\n${lines.join("\n")}\n</litclaude-skill-plan>`;
+  if (catalog.length === 0) return wrap(lines);
+  const full = wrap([...lines, `Catalog (installed here): ${catalog.join("; ")}.`]);
+  if (Buffer.byteLength(full, "utf8") <= PLAN_CONTEXT_BYTES) return full;
+  return wrap([...lines, "Catalog left out: the plan block is over its size budget."]);
 };

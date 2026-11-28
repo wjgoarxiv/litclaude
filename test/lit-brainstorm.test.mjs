@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { canonicalSkillIds, canonicalSkillResourceFiles } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
 import { LIT_SKILL_IDS } from "../plugins/litclaude/lib/mod/skills.mjs";
+import { explainRoute } from "../plugins/litclaude/lib/route-match.mjs";
 import { buildPlanSkeleton } from "../scripts/scaffold-plan.mjs";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
 import { assertNoWorkflowActivationContext } from "./helpers/hook-context.mjs";
@@ -135,7 +136,12 @@ describe("lit-brainstorm routing", () => {
       ["lit fix the idea generator crash", "lit-loop"],
       ["lit pick the ideal batch size", "lit-loop"],
     ]) {
-      assert.equal(routeOf(prompt).route, expected, prompt);
+      // A review or research ask runs under lit-loop; the cascade's own choice is what must not move.
+      const why = explainRoute(prompt);
+      assert.equal(why.cascadeRoute ?? why.route, expected, prompt);
+      const { route, context } = routeOf(prompt);
+      const matched = /This request matched ([a-z-]+)(?: and [a-z-]+)*;/u.exec(context ?? "")?.[1];
+      assert.equal(matched ?? route, expected, prompt);
     }
   });
 

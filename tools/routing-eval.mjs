@@ -4,6 +4,10 @@
 //
 //   node tools/routing-eval.mjs --route [--heldout] [--json <file>]
 //   node tools/routing-eval.mjs --model [--heldout] [--yes]
+//   node tools/routing-eval.mjs --route --lit [--heldout] [--json <file>]
+//
+// --lit scores test/fixtures/lit-invoke-eval instead: every prompt there carries `lit`, and `expect` is the full
+// skill set the plan must hold, lit-loop first for a natural-language request. It adds litLoopFirst to the report.
 //
 // --route scores the hook's own router with no model: the route `findWorkflowTrigger` picks, the skill plan
 // companions the hook adds for a bare-lit natural-language prompt, and the no-`lit` suggestion tier
@@ -14,17 +18,19 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { explainRoute, findWorkflowTrigger, hasLitTrigger, isExactBareHandoff, naturalLitCompanions, normalizedTriggerText, rawTriggerText, suggestedSkills } from "../plugins/litclaude/lib/route-match.mjs";
+import { explainRoute, findWorkflowTrigger, hasLitTrigger, isExactBareHandoff, litPlanCompanions, normalizedTriggerText, rawTriggerText, suggestedSkills } from "../plugins/litclaude/lib/route-match.mjs";
 import { buildSkillPlan, skillPlanIds } from "../plugins/litclaude/lib/skill-plan.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FIXTURES = join(ROOT, "test", "fixtures", "routing-eval");
-const USAGE = "Usage: node tools/routing-eval.mjs --route|--model [--heldout] [--json <file>] [--yes]\n";
+const FIXTURE_DIRS = { route: join(ROOT, "test", "fixtures", "routing-eval"), lit: join(ROOT, "test", "fixtures", "lit-invoke-eval") };
+const FIXTURES = FIXTURE_DIRS.route;
+const USAGE = "Usage: node tools/routing-eval.mjs --route|--model [--lit] [--heldout] [--json <file>] [--yes]\n";
 
-export const heldoutDigest = () => createHash("sha256").update(readFileSync(join(FIXTURES, "heldout.json"))).digest("hex");
-export const sealedDigest = () => readFileSync(join(FIXTURES, "heldout.sha256"), "utf8").trim().split(/\s+/u)[0];
+export const heldoutDigest = (dir = FIXTURES) => createHash("sha256").update(readFileSync(join(dir, "heldout.json"))).digest("hex");
+export const sealedDigest = (dir = FIXTURES) => readFileSync(join(dir, "heldout.sha256"), "utf8").trim().split(/\s+/u)[0];
 
-export const loadSet = (split) => JSON.parse(readFileSync(join(FIXTURES, `${split}.json`), "utf8"));
+export const loadSet = (split, dir = FIXTURES) => JSON.parse(readFileSync(join(dir, `${split}.json`), "utf8"));
+export const litFixtureDir = FIXTURE_DIRS.lit;
 
 /** The skill ids the hook would offer for this prompt, primary first. */
 export const offeredSkills = (prompt) => {
@@ -37,7 +43,7 @@ export const offeredSkills = (prompt) => {
   if (!trigger?.skillId) return [];
   if (!lit || trigger.source !== "natural-language") return [trigger.skillId];
   const normalized = normalizedTriggerText(prompt);
-  const plan = buildSkillPlan({ primary: trigger.skillId, companions: naturalLitCompanions(normalized), normalized });
+  const plan = buildSkillPlan({ primary: trigger.skillId, ...litPlanCompanions(normalized, trigger.skillId), normalized, loopBase: true });
   return plan ? skillPlanIds(plan) : [trigger.skillId];
 };
 
@@ -54,6 +60,8 @@ export const score = (items, offer = offeredSkills) => {
   let noneOffered = 0;
   let routedItems = 0;
   let exact = 0;
+  let loopItems = 0;
+  let loopFirst = 0;
   for (const item of items) {
     const offered = offer(item.prompt);
     const got = new Set(offered);
@@ -73,6 +81,10 @@ export const score = (items, offer = offeredSkills) => {
     }
     if (offered.length > 0) routedItems += 1;
     if (offered.length === item.expect.length && item.expect.every((id) => got.has(id))) exact += 1;
+    if (item.expect[0] === "lit-loop") {
+      loopItems += 1;
+      if (offered[0] === "lit-loop") loopFirst += 1;
+    }
     const { ruleId } = explainRoute(item.prompt);
     results.push({ id: item.id, lang: item.lang, expect: item.expect, near_miss_of: item.near_miss_of, offered, ruleId });
   }
@@ -89,6 +101,7 @@ export const score = (items, offer = offeredSkills) => {
     nearMissFpRate: ratio(sum("falsePositive"), sum("nearMiss")),
     noneFpRate: ratio(noneOffered, noneItems),
     exactSetRate: ratio(exact, items.length),
+    litLoopFirst: ratio(loopFirst, loopItems),
   };
   return { overall, skills, results };
 };
@@ -102,6 +115,7 @@ const printReport = (split, { overall, skills }, out) => {
     out.write(`${id.padEnd(30)} ${pct(s.recall).padStart(7)} ${`${s.hit}/${s.should}`.padStart(7)} ${pct(s.nearMissFpRate).padStart(7)} ${`${s.falsePositive}/${s.nearMiss}`.padStart(7)}\n`);
   }
   out.write(`overall recall ${pct(overall.recall)}  near-miss FP ${pct(overall.nearMissFpRate)}  none FP ${pct(overall.noneFpRate)}  exact set ${pct(overall.exactSetRate)}\n`);
+  if (overall.litLoopFirst !== null) out.write(`lit-loop first ${pct(overall.litLoopFirst)}\n`);
   out.write(`unrouted: ${overall.unroutedWithExpect} of ${overall.itemsWithExpect} prompts that expect a skill got no route; ${overall.routedItems} of ${overall.items} prompts routed at all\n`);
 };
 
@@ -114,11 +128,12 @@ export const main = (argv, out = process.stdout, err = process.stderr) => {
     return args.has("--help") ? 0 : 64;
   }
   const split = args.has("--heldout") ? "heldout" : "dev";
-  if (split === "heldout" && heldoutDigest() !== sealedDigest()) {
+  const dir = args.has("--lit") ? FIXTURE_DIRS.lit : FIXTURE_DIRS.route;
+  if (split === "heldout" && heldoutDigest(dir) !== sealedDigest(dir)) {
     err.write("routing-eval: heldout.json does not match heldout.sha256; the sealed half was edited. Refusing to score it.\n");
     return 65;
   }
-  const items = loadSet(split);
+  const items = loadSet(split, dir);
   if (args.has("--model")) {
     out.write(`routing-eval --model on ${split}: planned ${items.length} Claude Code sessions (one throwaway-home session per prompt, no lit token, scored by which Skill() calls fire).\n`);
     if (!args.has("--yes")) {
@@ -129,10 +144,10 @@ export const main = (argv, out = process.stdout, err = process.stderr) => {
     return 2;
   }
   const report = score(items);
-  printReport(split, report, out);
+  printReport(args.has("--lit") ? `lit ${split}` : split, report, out);
   if (jsonPath) {
     mkdirSync(dirname(jsonPath), { recursive: true });
-    writeFileSync(jsonPath, `${JSON.stringify({ split, mode: "route", ...report }, null, 2)}\n`);
+    writeFileSync(jsonPath, `${JSON.stringify({ split, mode: "route", set: args.has("--lit") ? "lit-invoke" : "routing", ...report }, null, 2)}\n`);
     out.write(`wrote ${jsonPath}\n`);
   }
   return 0;
