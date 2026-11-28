@@ -69,6 +69,7 @@ const activationHarness = () => {
     LITCLAUDE_NO_AUTO_UPDATE: "1",
     NO_UPDATE_NOTIFIER: "1",
     TERM: "xterm-256color",
+    COLORTERM: "truecolor",
     LC_ALL: "C.UTF-8",
     LANG: "C.UTF-8",
   };
