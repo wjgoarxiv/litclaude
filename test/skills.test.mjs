@@ -311,7 +311,8 @@ describe("Claude skills", () => {
       if (skillName !== "litgoal") {
         assert.match(text, /Dynamic workflow/u, `${skillName} should guide Claude Code Dynamic workflows`);
         assert.match(text, /Dynamic worktree/u, `${skillName} should guide worktree isolation`);
-        assert.match(text, /call `Workflow`|call the `Workflow` tool/u, `${skillName} should call Workflow when Claude Code exposes it`);
+        // lit-plan only names the executor; the run that follows the plan is what calls the tool.
+        assert.match(text, skillName === "lit-plan" ? /name `Workflow` as a row's executor only together with the user's own opt-in word/u : /call `Workflow`|call the `Workflow` tool/u, `${skillName} should say when Workflow is used`);
         assert.match(text, /EnterWorktree/u, `${skillName} should mention the model-facing worktree tool when exposed`);
         assert.match(text, /CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1|native agent teams/i, `${skillName} should gate native team mode`);
         assert.match(text, /claude --worktree/u, `${skillName} should give an actionable Dynamic worktree launch path`);
