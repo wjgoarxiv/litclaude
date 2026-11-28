@@ -590,7 +590,7 @@ const reviewGateContext = (discipline, prompt) => {
 // hook reports the one signal it can read cheaply, the tick state of the latest plan, and the model weighs it
 // with the diff it can see.
 const forcedReviewModePattern = /(?:^|\s)\$?(?:lit(?:work)?\s+review|review-work)\s+(plan|work)(?=$|[^\w-])/u;
-const reviewPlanTokenPattern = /(?:^|\s)[$/]?(?:litclaude:)?review-plan(?=$|[^\w-])/u;
+const reviewPlanTokenPattern = /^\s*\/?(?:litclaude:)?review-plan(?=$|[^\w-])|(?:^|\s)\$review-plan(?=$|[^\w-])/u;
 const reviewModeContext = (discipline, prompt, cwd) => {
   if (discipline !== "review-work") return [];
   const text = withoutCode(typeof prompt === "string" ? prompt : "");

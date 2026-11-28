@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { buildPlanSkeleton } from "../plugins/litclaude/scripts/scaffold-plan.mjs";
-import { explainRoute, findWorkflowTrigger } from "../plugins/litclaude/lib/route-match.mjs";
+import { explainRoute, findWorkflowTrigger, isReviewPlanPhrase } from "../plugins/litclaude/lib/route-match.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
@@ -98,6 +98,11 @@ test("review-plan is a route of its own that opens review-work in plan-review mo
   }
   assert.equal(explainRoute("lit review the plan").ruleId, "natural:review", "a looser phrase keeps its old rule");
   assert.equal(explainRoute("lit review the auth module").ruleId, "natural:review");
+  for (const prompt of ["lit 계획 검토 결과를 반영해서 구현해줘", "lit write the plan review section of the report", "lit 플랜 리뷰어 에이전트를 만들어줘"]) {
+    assert.notEqual(explainRoute(prompt).ruleId, "natural:review-plan", `${prompt} asks for other work`);
+  }
+  assert.equal(isReviewPlanPhrase("lit 계획 검토해줘"), true);
+  assert.equal(isReviewPlanPhrase("lit 계획 리뷰"), true);
   assert.equal(findWorkflowTrigger("what does review-plan do?"), undefined, "a mention later in a prompt stays inert");
 
   const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -110,6 +115,14 @@ test("review-plan is a route of its own that opens review-work in plan-review mo
     assert.equal(result.status, 0, result.stderr);
     assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /Review mode forced by the user: plan review\./u, prompt);
   }
+
+  const later = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+    cwd: root,
+    encoding: "utf8",
+    input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "lit review the finished work; the review-plan pass was yesterday", cwd: root }),
+  });
+  assert.equal(later.status, 0, later.stderr);
+  assert.doesNotMatch(JSON.parse(later.stdout).hookSpecificOutput.additionalContext, /Review mode forced by the user/u, "a later mention forces nothing");
 
   const command = read("plugins/litclaude/commands/review-plan.md");
   assert.match(command, /^---\n[\s\S]*description:/u);
