@@ -1562,7 +1562,7 @@ test("the bottom edge's context gauge is round in the round form, in the same fi
         const row = draw(model, columns, glyphs).rows.at(-1);
         assert.equal(rowWidth(row), rowWidth(basic), `${glyphs} ${columns} ${percent}`);
         assert.doesNotMatch(rowText(row), /[▰▱]/u);
-        if (glyphs === "round") assert.equal(rowText(row).replace(/\ue0b6 {3}\ue0b4/u, "ooooo"), rowText(basic).replace(/[▰▱]{5}/u, "ooooo"), "nothing else on the edge changes");
+        if (glyphs === "round") assert.equal(rowText(row).replace(/[▏▎▍▌▋▊▉]/gu, " ").replace(/\ue0b6 {3}\ue0b4/u, "ooooo"), rowText(basic).replace(/[▰▱]{5}/u, "ooooo"), "nothing else on the edge changes");
       }
     }
   }
@@ -1575,4 +1575,35 @@ test("the bottom edge's context gauge is round in the round form, in the same fi
   assert.deepEqual(at(0, "round"), Array(5).fill(track), "empty is one smooth track");
   assert.deepEqual(at(42, "round").map((color) => color !== track), [true, true, false, false, false], "filled cells as the square bar's");
   assert.deepEqual(at(100, "round").map((color) => color !== track), Array(5).fill(true));
+});
+
+test("the bottom edge's context gauge changes at every percent, in colour and between the caps in eighths", () => {
+  const bar = (percent, glyphs) => {
+    const row = draw(buildBandModel({ snapshot: lit(), now: NOW, usage: { ...usage, context: { percent } }, git: "main" }), 80, glyphs).rows.at(-1);
+    if (glyphs === "basic") return row.filter(({ text }) => /^[▰▱]+$/u.test(text));
+    const start = row.findIndex(({ text }) => text === "");
+    return row.slice(start, start + 5);
+  };
+  const key = (spans) => spans.map(({ text, fg, bg }) => `${text}${fg}${bg}`).join("|");
+  for (const glyphs of ["basic", "round"]) {
+    const drawn = Array.from({ length: 101 }, (_, percent) => bar(percent, glyphs));
+    assert.equal(new Set(drawn.map(key)).size, 101, `${glyphs}: one look per percent, not one per twenty`);
+    for (let percent = 1; percent <= 100; percent += 1) {
+      drawn[percent].forEach((span, i) => {
+        const before = drawn[percent - 1][i];
+        if (span.text !== before.text) assert.ok(span.fg !== before.fg || span.bg !== before.bg, `${glyphs} ${percent}%: a changed glyph changes colour too, so the region repaints it`);
+      });
+    }
+  }
+  const basic = (percent) => bar(percent, "basic").map(({ text }) => text).join("");
+  for (let percent = 0; percent <= 100; percent += 1) {
+    const solid = Math.round(percent / 20);
+    assert.equal(basic(percent), `${"▰".repeat(solid)}${"▱".repeat(5 - solid)}`, `basic ${percent}% keeps the rounded glyphs`);
+  }
+  const middle = (percent) => bar(percent, "round").slice(1, 4).map(({ text }) => text).join("");
+  assert.equal(middle(10), "   ", "10 %: the left cap fades in by colour alone");
+  assert.equal(middle(42), " ▏ ", "42 %: the cap and one middle cell full, then an eighth");
+  assert.equal(middle(50), " ▌ ", "50 %: half of the second middle cell");
+  assert.equal(middle(90), "   ", "90 %: the right cap fades in by colour alone");
+  assert.equal(new Set(Array.from({ length: 101 }, (_, percent) => middle(percent))).size, 22, "every eighth of the three middle cells appears");
 });

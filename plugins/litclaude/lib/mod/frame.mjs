@@ -828,6 +828,7 @@ const completionRow = (sample, inner) => {
 };
 
 const TRACK_EDGE = "#4a3f6b";
+const EIGHTHS = "▏▎▍▌▋▊▉";
 const levelColor = (percent) => (percent >= 90 ? HUD.red : percent >= 70 ? HUD.yellow : HUD.green);
 
 // ╰─ ctx 42% ▰▰▱▱▱ · 5h 31% · 1w 12% · git main ───╯, or a warning first when one is up. The branch goes
@@ -842,14 +843,25 @@ const bottomEdge = (model, sample, { width, glyphs, accent, edge, look, paint, r
   }
   if (context !== null) {
     segments.push(segment("ctx", 1, [span("ctx ", { fg: PALETTE.dim }), span(`${context}%`, { fg: rainbow ? rainbow(0.8) : accent, bold: Boolean(rainbow) })], " · "));
-    const filled = Math.max(0, Math.min(5, Math.round(context / 20)));
+    // The fill ends inside cell `head`, `part` of the way in. That cell lights by `part`, so the bar
+    // changes every percent, not every twenty; its colour moves with each step, so the region repaints it.
+    const exact = Math.max(0, Math.min(5, context / 20));
+    const head = Math.floor(exact);
+    const part = exact - head;
     // The rewind look turns every cell of the bar, filled or not, so even 0% shows the colour.
     const fill = (i) => (rainbow ? rainbow(i / 5) : model.ctxWarning ? PALETTE.amber : gradientAt([PALETTE.violet, accent], i / 4));
-    const cells = glyphs.capLeft
-      ? roundCells(Array.from({ length: 5 }, (_, i) => (i < filled ? fill(i) : rainbow ? lerpColor(rainbow(i / 5), HUD.empty, 0.5) : TRACK)), glyphs)
-      : rainbow
-      ? [...Array(5)].map((_, i) => span(i < filled ? "▰" : "▱", { fg: i < filled ? rainbow(i / 5) : lerpColor(rainbow(i / 5), HUD.empty, 0.5) }))
-      : [...Array.from({ length: filled }, (_, i) => span("▰", { fg: fill(i) })), span("▱".repeat(5 - filled), { fg: TRACK_EDGE })];
+    const empty = (i) => (rainbow ? lerpColor(rainbow(i / 5), HUD.empty, 0.5) : glyphs.capLeft ? TRACK : TRACK_EDGE);
+    const lit = (k) => lerpColor(empty(head), fill(head), k);
+    let cells;
+    if (glyphs.capLeft) {
+      cells = roundCells(Array.from({ length: 5 }, (_, i) => (i < head ? fill(i) : i === head && part > 0 ? lit(part) : empty(i))), glyphs);
+      // A cap glyph has no partial form, so a cap fades in by colour; between the caps the head is an
+      // eighth block on the track, as the status line draws it.
+      if (part > 0 && head > 0 && head < 4) cells[head] = span(EIGHTHS[Math.max(1, Math.min(7, Math.round(part * 8))) - 1], { fg: lit(0.55 + 0.45 * part), bg: empty(head) });
+    } else {
+      // ▰ and ▱ have no partial forms: the head turns solid past half, as the rounded bar did, and fades in colour.
+      cells = Array.from({ length: 5 }, (_, i) => (i < head ? span("▰", { fg: fill(i) }) : i === head && part > 0 ? span(part >= 0.5 ? "▰" : "▱", { fg: lit(part) }) : span("▱", { fg: empty(i) })));
+    }
     segments.push(segment("ctxbar", 2, cells, " "));
   }
   rates.forEach((rate, index) => segments.push(segment(`rate-${rate.label}`, 3 + index * 0.5, [span(`${rate.label} `, { fg: PALETTE.dim }), span(`${rate.percent}%`, { fg: levelColor(rate.percent) })], " · ")));

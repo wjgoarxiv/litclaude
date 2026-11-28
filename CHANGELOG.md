@@ -7,6 +7,7 @@
 - The three-skill limit is gone. Every matched skill joins; `lit-schematic` wins over `lit-diagram-drawer`, and only a plan of more than 8 companions or a block over 3000 bytes is cut, each cut named with its reason.
 - Planned skills are required, not suggestions. Claude loads each one or writes `SKIP <skill>: <reason>`; when a turn ends with a planned skill neither loaded nor skipped, the Stop hook blocks once and names it. A turn that ends on a question passes, and the plan carries over to your answer. It never loops, never displaces the receipt gate or litgoal, and stays out of start-work runs.
 - `node tools/routing-eval.mjs --route --lit` scores this on 247 `lit` prompts, half sealed.
+- The context gauge on the card's bottom edge (`ctx 42% ▰▰▱▱▱`) now moves at every percent. It used to change once per 20%. The cell being filled brightens step by step, and in the round form the three cells between the caps also fill in eighths of a cell. Width, glyphs and colours are the same.
 
 ## 1.0.68 - 2026-11-27
 

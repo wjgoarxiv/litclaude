@@ -372,7 +372,8 @@ status line read as one family:
 ```
 
 The brackets stand for the ends of filled pills: rounded caps where the terminal can draw
-them, with the context gauge rounded in the same five cells, and one cell of the pill's colour with `basic`. The brand is a pill from orange to pink, the
+them, with the context gauge rounded in the same five cells, and one cell of the pill's colour with `basic`. The gauge moves
+at every percent: the cell being filled brightens toward its colour, and between the round caps it also fills in eighths of a cell. The brand is a pill from orange to pink, the
 current stage runs from violet to the accent, the skills of this request are pills on the accent with dark text, and skills from earlier
 requests are muted grey pills.
 
