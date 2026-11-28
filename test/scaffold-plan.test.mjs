@@ -618,6 +618,32 @@ describe("plan machinery — lit-plan documents the grammar and the scope rule",
     assert.match(text, /column zero/iu);
   });
 
+  it("teaches the orchestration section the checker enforces, in the checker's own words", () => {
+    const text = skill();
+    assert.match(text, /^## Orchestration: who runs each row$/mu);
+    assert.ok(text.includes(SINGLE_LANE_LINE), "the one-lane line is quoted exactly");
+    assert.ok(text.includes(`| ${MATRIX_COLUMNS.join(" | ")} |`), "the matrix columns match the checker");
+    assert.ok(text.includes(`| ${EXECUTOR_COLUMNS.join(" | ")} |`), "the executor columns match the checker");
+    assert.ok(text.includes(`| ${COURIER_COLUMNS.join(" | ")} |`), "the courier columns match the checker");
+    for (const part of ORCHESTRATION_PARTS) assert.ok(text.includes(`### ${part}`), part);
+    for (const executor of ["main session", "subagent", "Workflow", "lit-team", "herdr pane", "the user"]) assert.ok(text.includes(executor), executor);
+    assert.match(text, /HERDR_ENV=1/u);
+    assert.match(text, /own opt-in word/u);
+    assert.match(text, /one wake-up/u);
+    assert.match(text, /never name an executor this host lacks/iu);
+    assert.doesNotMatch(text, /add waves or a dependency matrix only when/u, "the matrix is no longer optional for a delegating plan");
+    const command = readFileSync(join(root, "plugins", "litclaude", "commands", "lit-plan.md"), "utf8");
+    assert.ok(command.includes(SINGLE_LANE_LINE));
+    assert.match(command, /## Orchestration/u);
+  });
+
+  it("lit-crucible hands lit-plan the dependencies and who could run what", () => {
+    const crucible = readFileSync(join(root, "plugins", "litclaude", "skills", "lit-crucible", "SKILL.md"), "utf8");
+    assert.match(crucible, /^- Dependencies:/mu);
+    assert.match(crucible, /^- Who could run what:/mu);
+    assert.match(crucible, /never name an executor this host lacks/iu);
+  });
+
   it("requires the scaffold and a PLAN_STRUCTURE_PASS receipt before start-work handoff", () => {
     const text = skill();
     assert.match(text, /Do NOT hand-build the draft or the plan skeleton/iu);

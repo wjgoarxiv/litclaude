@@ -374,6 +374,69 @@ returns only acknowledgement, or reports `BLOCKED:`, the executor should use a
 targeted follow-up once, then a smaller fallback assignment. Reviewer fallback
 must keep a reviewer role and is not a generic worker.
 
+## Orchestration: who runs each row
+
+A plan says, before work starts, what each row waits for, who runs it, where, and how its result
+comes back. Parallel work is then safe, and nobody waits on a silent helper. `scaffold-plan.mjs --check`
+enforces this section, so write it in the shapes below.
+
+**One lane.** When the main session does every row itself, one after another, write the single line
+`Orchestration: single lane` (the scaffold already holds it) and nothing more.
+
+**More than one lane.** As soon as two rows share a wave, or any row goes to a subagent, a Workflow
+fan-out, lit-team, a herdr pane or the user, delete that line and write both of these.
+
+1. The dependency matrix, one line per row:
+
+   ```
+   | Row | Needs first | Same lane as | Runs with | Who must act besides Claude |
+   ```
+
+   `Needs first` lists the rows that must be ticked before this one starts. `Same lane as` names the
+   one thing the row writes to or occupies: a checkout, a real host, a signed-in account. Rows that
+   name the same lane never run together, so they may not list each other under `Runs with`: one
+   writer per checkout, one run per real host. `Who must act besides Claude` holds a yes the user has
+   to give, a screen only they can see, or `none`.
+
+2. A `## Orchestration` section with these seven parts, each under its own heading:
+
+   - `### Executors`: a table, one line per row or row range.
+
+     ```
+     | Row | Executor | Why | Fallback |
+     ```
+
+     The executors Claude Code has: `main session`; a `subagent` (give the `litclaude:*` id or the
+     model tier: Sonnet for implementation, Opus for review, judging and design); a `Workflow`
+     fan-out, which the plan may recommend and whose line must say that it needs the user's
+     own opt-in word; `lit-team`; a `herdr pane`, only when `HERDR_ENV=1`, and the line says so; and
+     `the user`. Never name an executor this host lacks, and check before writing: a tool that is
+     not callable in this session is not an executor. `Why` is one line. Every delegated row names
+     a `Fallback`, usually the main session.
+   - `### Isolation`: which rows share a checkout and which get their own worktree. A second writer
+     on the same repository always gets its own worktree, and every lane its own scratch folder.
+   - `### Concurrency`: how many rows run together and the key they queue on (repository, host).
+   - `### Hand-back`: the file each lane writes its result to. A lane replies with that path; a
+     chat reply alone is no hand-back, because long replies are cut off.
+   - `### Watchdog`: how long a lane may stay silent, then one wake-up message, then the main
+     session takes the row over and says so in the plan. The user never waits on one lane.
+   - `### Courier rows`: `none`, or a table for work Claude cannot reach (another app's assistant,
+     another machine, a signed-in screen). The user carries the question out and the answer back.
+
+     ```
+     | Row | Question | Where to ask | Answer file | Meanwhile | If no answer |
+     ```
+
+     `Question` is the exact text to ask, `Meanwhile` the rows that go on without the answer, and
+     `If no answer` the default the plan falls back to. A courier row is a normal waiting row for
+     start-work: it carries `BLOCKED: waiting on <answer file>` until the file exists.
+   - `### Guard notes`: what an active start-work run forbids for lanes (no commit, push or
+     environment dump; plain shell commands only), each lane's first step (compare its checkout
+     with `origin/main`), and every row that needs the user's yes.
+
+Give each delegated row a `TASK:` brief as described above; the Executors table says who gets it.
+The Workflow tool still needs the user's own opt-in, and a plan never launches anything itself.
+
 ## Plan Structure
 
 Use this shape:
@@ -383,8 +446,9 @@ Use this shape:
 3. Bootstrap: PIN facts to reread, dirty worktree constraints, stale state
    risks, resume ledger path, and bounded cleanup rules.
 4. Current evidence and source references.
-5. Execution order; add waves or a dependency matrix only when multiple items
-   can run independently or have non-obvious prerequisites.
+5. Execution order: `Orchestration: single lane` for a plan the main session
+   runs alone, otherwise the dependency matrix and the `## Orchestration`
+   section described above.
 6. TODOs with Action, Output, Verification, and relevant failure/decision
    branches; add a QA scenario when the task has a user-visible surface. A task
    that builds or changes a user-facing web interface names `frontend-ui-ux` in

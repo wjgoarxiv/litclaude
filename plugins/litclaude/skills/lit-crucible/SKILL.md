@@ -232,6 +232,8 @@ Write a compact packet for `/litclaude:lit-plan` with these headings:
 - Non-goals:
 - Dirty-state boundaries:
 - Surviving constraints:
+- Dependencies:
+- Who could run what:
 - Open questions with recommended defaults:
 - Required evidence:
 - Real-surface probe:
@@ -241,6 +243,15 @@ Write a compact packet for `/litclaude:lit-plan` with these headings:
 
 Only include constraints and questions that survived critique and defense. Do
 not include every brainstormed idea, discarded lane note, or speculative design.
+
+`Dependencies` lists what must finish before what, and which pieces of the work
+write to the same checkout, use the same real host or need the same signed-in
+account, so lit-plan can write its dependency matrix without rediscovering it.
+`Who could run what` names, per piece, the executors that could take it (the
+main session, a subagent and its model tier, a Workflow fan-out after the user's
+own opt-in word, lit-team, a herdr pane when `HERDR_ENV=1`, the user) and what
+only the user can do or fetch. Never name an executor this host lacks. These two
+lines are findings for the planner; the plan decides the final assignment.
 
 ## Handoff to Lit Plan
 
