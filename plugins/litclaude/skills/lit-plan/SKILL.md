@@ -90,7 +90,9 @@ This skill is **planning-only**. You must not implement, must not edit files for
 product changes, and must not run mutating commands. Do not call any start-work
 tool from inside planning mode. Close the saved plan with one step: tell the
 user to answer the approval question (an exact `yes` starts the work), or to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
-typing it approves this plan and runs it, so no second confirm reply and no `/goal` line is needed. The
+typing it approves this plan and runs it, so no second confirm reply and no `/goal` line is needed. Add one
+optional line under it: a second look first is `review-plan plans/<slug>.md`, a read-only plan review that
+changes nothing; `/litclaude:start-work plans/<slug>.md` still starts the work afterwards. The
 Stop hook saves the plan as this session's next step once the plan file is written, which is
 what lets the one word `go` start it. The hook starts the work
 with grants derived from the project; a plan that needs more names it on a line

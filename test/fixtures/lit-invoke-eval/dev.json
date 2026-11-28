@@ -122,5 +122,7 @@
 {"id":"li-241","prompt":"README 새로 쓰고 문장도 AI 티 안 나게 lit","lang":"ko","expect":["lit-loop","readme-studio","lit-humanizer"],"near_miss_of":[]},
 {"id":"li-243","prompt":"lit a spreadsheet of the costs and a word memo explaining them","lang":"en","expect":["lit-loop","lit-xlsx","lit-docx"],"near_miss_of":[]},
 {"id":"li-245","prompt":"lit a slide deck with plots of the results and a flowchart of the method","lang":"en","expect":["lit-loop","lit-pptx","lit-scientific-visualization","lit-diagram-drawer"],"near_miss_of":[]},
-{"id":"li-247","prompt":"lit I need a proposal document but I'm not sure what it should say; interview me first","lang":"en","expect":["lit-loop","deep-interview","lit-docx"],"near_miss_of":[]}
+{"id":"li-247","prompt":"lit I need a proposal document but I'm not sure what it should say; interview me first","lang":"en","expect":["lit-loop","deep-interview","lit-docx"],"near_miss_of":[]},
+{"id":"li-249","prompt":"lit review plan plans/2026-launch.md","lang":"en","expect":["lit-loop","review-work"],"near_miss_of":[]},
+{"id":"li-251","prompt":"lit 계획 리뷰 plans/2026-launch.md","lang":"ko","expect":["lit-loop","review-work"],"near_miss_of":[]}
 ]

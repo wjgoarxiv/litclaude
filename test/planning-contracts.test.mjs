@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { buildPlanSkeleton } from "../plugins/litclaude/scripts/scaffold-plan.mjs";
+import { explainRoute, findWorkflowTrigger } from "../plugins/litclaude/lib/route-match.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
@@ -83,6 +84,43 @@ test("plan review audits orchestration, and work review checks the run followed 
   assert.match(skill, /Run all five lanes/u, "the five lanes stay");
   assert.match(command, /orchestration/iu);
   assert.match(command, /followed its plan/iu);
+});
+
+test("review-plan is a route of its own that opens review-work in plan-review mode", () => {
+  const named = findWorkflowTrigger("review-plan plans/x.md");
+  assert.equal(named.command, "/litclaude:review-plan");
+  assert.equal(named.skillId, "review-work");
+  assert.equal(named.discipline, "review-work");
+  assert.equal(named.view, "plan");
+  assert.equal(findWorkflowTrigger("$review-plan plans/x.md").command, "/litclaude:review-plan");
+  for (const prompt of ["lit review plan plans/x.md", "lit 계획 리뷰 plans/x.md", "lit 플랜 검토해줘", "lit plan review plans/x.md"]) {
+    assert.equal(explainRoute(prompt).ruleId, "natural:review-plan", prompt);
+  }
+  assert.equal(explainRoute("lit review the plan").ruleId, "natural:review", "a looser phrase keeps its old rule");
+  assert.equal(explainRoute("lit review the auth module").ruleId, "natural:review");
+  assert.equal(findWorkflowTrigger("what does review-plan do?"), undefined, "a mention later in a prompt stays inert");
+
+  const hookPath = join(root, "plugins", "litclaude", "bin", "litclaude-hook.js");
+  for (const prompt of ["review-plan plans/x.md", "lit 계획 리뷰 plans/x.md"]) {
+    const result = spawnSync(process.execPath, [hookPath, "user-prompt-submit"], {
+      cwd: root,
+      encoding: "utf8",
+      input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, cwd: root }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /Review mode forced by the user: plan review\./u, prompt);
+  }
+
+  const command = read("plugins/litclaude/commands/review-plan.md");
+  assert.match(command, /^---\n[\s\S]*description:/u);
+  assert.match(command, /Use the `review-work` skill/u);
+  assert.match(command, /plan-review mode/u);
+  assert.match(command, /PASS \| ITERATE \| NEEDS-CONTEXT/u);
+  assert.match(command, /must not implement/iu);
+  assert.match(command, /orchestration/iu);
+  for (const path of ["plugins/litclaude/skills/lit-plan/SKILL.md", "plugins/litclaude/commands/lit-plan.md"]) {
+    assert.match(read(path), /`review-plan plans\/<slug>\.md`/u, `${path} offers the plan review before yes`);
+  }
 });
 
 test("UserPromptSubmit injects the artifact-selective review-work contract", () => {

@@ -504,12 +504,12 @@
     },
     "lit-plan": {
       "skillMd": {
-        "bytes": 42830,
-        "sha256": "b2e728c950e02f92882277213a3a68d352bcc8f66f6d4ddbea0e1b810b0dc856"
+        "bytes": 43036,
+        "sha256": "7b108827db2986107c46686a42230d065f69e5ff05ad21bda26de53498543ef9"
       },
       "files": 1,
-      "bytes": 42830,
-      "sha256": "7544fd5d15d2b514527e3094c5cdd9234f7e70a212f1f6913caa3da8f80a144c"
+      "bytes": 43036,
+      "sha256": "8ecebb686fffab86a3c8f3eb45d83395b7e10c0cfa0ba41779c878e4e5ce72f7"
     },
     "lit-pptx": {
       "skillMd": {
@@ -824,6 +824,7 @@
     "plugins/litclaude/commands/lit-scientific-visualization.md",
     "plugins/litclaude/commands/litgoal.md",
     "plugins/litclaude/commands/litresearch.md",
+    "plugins/litclaude/commands/review-plan.md",
     "plugins/litclaude/commands/review-work.md",
     "plugins/litclaude/commands/start-work.md",
     "plugins/litclaude/commands/ultra-brainstorm.md",

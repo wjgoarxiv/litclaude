@@ -111,6 +111,7 @@ describe("Claude plugin manifest", () => {
       "lit-scientific-visualization.md",
       "litgoal.md",
       "litresearch.md",
+      "review-plan.md",
       "review-work.md",
       "start-work.md",
       "ultra-brainstorm.md",

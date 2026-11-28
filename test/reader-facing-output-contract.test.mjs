@@ -225,7 +225,7 @@ describe("reader-facing communication contract", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => `plugins/litclaude/skills/${entry.name}/SKILL.md`)
       .sort();
-    assert.equal(commandPaths.length, 24, "cover current commands and compatibility redirects");
+    assert.equal(commandPaths.length, 25, "cover current commands and compatibility redirects");
     const redirects = commandPaths.filter((path) => /^user-invocable: false$/mu.test(read(path)));
     assert.deepEqual(redirects, [
       "plugins/litclaude/commands/init-deep.md",
@@ -233,7 +233,7 @@ describe("reader-facing communication contract", () => {
       "plugins/litclaude/commands/lit-korean.md",
     ]);
     const currentCommands = commandPaths.filter((path) => !redirects.includes(path));
-    assert.equal(currentCommands.length, 21, "cover every current first-party command prompt");
+    assert.equal(currentCommands.length, 22, "cover every current first-party command prompt");
     assert.equal(skillPaths.length, 43, "cover every active first-party skill prompt");
 
     for (const path of [...currentCommands, ...skillPaths]) {

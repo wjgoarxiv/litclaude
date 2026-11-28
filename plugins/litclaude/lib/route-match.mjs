@@ -51,6 +51,10 @@ const triggerByToken = {
   "lit-loop": { command: "/litclaude:lit-loop", skill: "Skill(lit-loop)", skillId: "lit-loop", discipline: "lit-loop" },
   "start-work": { command: "/litclaude:start-work", skill: "Skill(start-work)", skillId: "start-work", discipline: "start-work" },
   "review-work": { command: "/litclaude:review-work", skill: "Skill(review-work)", skillId: "review-work", discipline: "review-work" },
+  // The plan review as a route of its own: `review-plan <plan>` (leading token), `$review-plan`, the typed
+  // /litclaude:review-plan page and the phrases in isReviewPlanPhrase. Same skill and discipline as
+  // review-work, so the card's review look and the read-only rules key on one name; `view` forces the mode.
+  "review-plan": { command: "/litclaude:review-plan", skill: "Skill(review-work)", skillId: "review-work", discipline: "review-work", view: "plan" },
   litgoal: { command: "/litclaude:litgoal", skill: "Skill(litgoal)", skillId: "litgoal", discipline: "litgoal" },
   litresearch: { command: "/litclaude:litresearch", skill: "Skill(litresearch)", skillId: "litresearch", discipline: "litresearch" },
   // `litwork` is a documented trigger (README, docs/hooks.md) that previously had no route of its own: it fell
@@ -345,7 +349,10 @@ const hasExplicitCrucibleRoute = (normalized) => /\blit(?:work)?\s+crucible\b/u.
   || /\b(?:pressure|stress)\s?test\b[^.?!]{0,40}\b(?:plan|design|proposal|idea|spec|requirements?|architecture)\b|\bpoke\s+holes\b|\bred\s?team\b|\bdevil'?s\s+advocate\b|압박\s?테스트|허점/u.test(normalized);
 // Korean forms of the plan, review and debug words, which the English word boundaries never matched.
 const koreanPlanWord = /계획\s?(?:을\s?)?(?:세워|세우|짜|부터|먼저)|계획서\s?(?:쓰|작성)|플랜\s?(?:을\s?)?짜/u;
-const koreanReviewWord = /리뷰\s?(?:해|좀|부탁)|코드\s?리뷰|검토해\s?줘/u;
+// "review plan" and "plan review" count only as an adjacent pair after `lit`, so "lit review the plan" and
+// "lit review plans/x.md" keep the artifact-picked review; the Korean pair needs no article to separate it.
+const isReviewPlanPhrase = (text) => /(?:^|\s)lit(?:work)?\s+(?:review\s+plan|plan\s+review)(?=$|[^\w-])|(?:계획|플랜)\s?(?:리뷰|검토)/u.test(typeof text === "string" ? text : "");
+const koreanReviewWord =/리뷰\s?(?:해|좀|부탁)|코드\s?리뷰|검토해\s?줘/u;
 const koreanDebugWord = /디버깅|디버그/u;
 const hasExplicitTeamRoute = (normalized) => /\blit(?:work)?\s+(?:team(?:\s+mode)?|teammates)\b/u.test(normalized);
 // A casual one-line request ends with `lit` ("… 조사해줘 lit"), so the research verb is not next to
@@ -652,6 +659,7 @@ const findNaturalLitTrigger = (prompt) => {
   if (containsPlainWord(normalized, "plan") && hasReviewModifier(prompt)) {
     return { ...triggerByToken["lit-plan"], source: "natural-language" };
   }
+  if (isReviewPlanPhrase(normalized)) return { ...triggerByToken["review-plan"], source: "natural-language" };
   if (containsPlainWord(normalized, "review") || koreanReviewWord.test(normalized)) return { ...triggerByToken["review-work"], source: "natural-language" };
   // Above the lit-loop fallthrough: "lit debug the hang" should reach the debugging methodology rather
   // than a generic loop. Both stems are checked because the word boundary makes "debug" miss "debugging".
@@ -814,6 +822,7 @@ const ROUTE_RULES = [
   { id: "natural:deep-interview", lit: true, match: ({ normalized }) => hasExplicitInterviewRoute(normalized) && routeOf("deep-interview") },
   { id: "natural:crucible", lit: true, match: ({ normalized }) => hasExplicitCrucibleRoute(normalized) && routeOf("lit-crucible") },
   { id: "natural:plan-review-modifier", lit: true, match: ({ normalized, prompt }) => containsPlainWord(normalized, "plan") && hasReviewModifier(prompt) && routeOf("lit-plan") },
+  { id: "natural:review-plan", lit: true, match: ({ normalized }) => isReviewPlanPhrase(normalized) && routeOf("review-plan") },
   { id: "natural:review", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "review") || koreanReviewWord.test(normalized)) && routeOf("review-work") },
   { id: "natural:debug", lit: true, match: ({ normalized }) => (containsPlainWord(normalized, "debug") || containsPlainWord(normalized, "debugging") || koreanDebugWord.test(normalized)) && routeOf("debugging") },
   { id: "natural:start-work", lit: true, match: ({ normalized }) => /^\s*lit(?:work)?\s+start\s+work(?=$|[^\w-])/u.test(normalized) && routeOf("start-work") },
@@ -895,6 +904,7 @@ export {
   hasLitTrigger,
   hasReviewModifier,
   isExactBareHandoff,
+  isReviewPlanPhrase,
   litPlanCompanions,
   naturalLitCompanions,
   normalizedTriggerText,

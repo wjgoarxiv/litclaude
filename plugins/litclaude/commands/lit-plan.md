@@ -80,7 +80,9 @@ arguments.
 This command is planning-only. Do not implement, edit files for product
 changes, run mutating commands, or call start-work tooling from the planning
 surface. End with one step: tell the user to answer the approval question (an exact `yes` starts the work), or to type `go` within 30 minutes, or `/litclaude:start-work plans/<slug>.md`;
-typing it approves this plan and runs it. A plan that needs access outside the
+typing it approves this plan and runs it. Under it, offer the optional second look:
+`review-plan plans/<slug>.md` is a read-only plan review that changes nothing, and
+`/litclaude:start-work plans/<slug>.md` still starts the work afterwards. A plan that needs access outside the
 project names it on a `Scope roots: <path> (<actions>)` line. Every absolute path
 a todo names outside the project needs such a line: `scaffold-plan.mjs --check`
 and the Stop hook print the exact `Scope roots: <folder> (read)` line to paste,

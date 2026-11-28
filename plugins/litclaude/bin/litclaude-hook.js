@@ -76,7 +76,7 @@ import { GOAL_NEVER, GOAL_OPT_IN, GOAL_STATUS, conditionHash, consentAnswer, con
 import { armGoal, dropGoalFile, goalAskedSinceClose, markGoalAsked, readGoalFile, requestGoalClear } from "../lib/goal-files.mjs";
 import { archiveStaleSessions } from "../lib/session-state.mjs";
 import { detectCheck, proposeLoopGoal } from "../scripts/goal-propose.mjs";
-import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, litPlanCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, suggestedSkills, triggerByToken, withoutCode, withoutHostNotifications, withoutTeammateMessages } from "../lib/route-match.mjs";
+import { bareLitPattern, containsSlashCommandMention, findWorkflowTrigger, hasLitTrigger, hasReviewModifier, isExactBareHandoff, isReviewPlanPhrase, litPlanCompanions, normalizedTriggerText, rawTriggerText, restartLitPattern, resumeLitPattern, suggestedSkills, triggerByToken, withoutCode, withoutHostNotifications, withoutTeammateMessages } from "../lib/route-match.mjs";
 import { recordCheckRun, recordCodeEdit } from "../lib/receipts.mjs";
 import { evaluateReceiptGate, readReceiptGateMode } from "../lib/receipt-gate.mjs";
 
@@ -423,7 +423,10 @@ const isTypedScientificVisualizationCommand = (prompt) => /^\s*\/litclaude:lit-s
 // The host expands a typed `/lit-adhd`, `/lit-rewind` or `/review-work` itself, so no trigger routes
 // it, but the LIT card keys those skills' looks (lib/mod/looks.mjs) on the ignition record: the
 // record names the typed command's discipline.
-const typedLookCommand = (prompt) => /^\s*\/(?:litclaude:)?(lit-adhd|lit-rewind|review-work)(?=$|\s)/u.exec(prompt)?.[1] ?? null;
+const typedLookCommand = (prompt) => {
+  const typed = /^\s*\/(?:litclaude:)?(lit-adhd|lit-rewind|review-work|review-plan)(?=$|\s)/u.exec(prompt)?.[1] ?? null;
+  return typed === "review-plan" ? "review-work" : typed;
+};
 
 const handoffContext = ({ typed = false } = {}) => {
   let canonicalBody;
@@ -587,10 +590,13 @@ const reviewGateContext = (discipline, prompt) => {
 // hook reports the one signal it can read cheaply, the tick state of the latest plan, and the model weighs it
 // with the diff it can see.
 const forcedReviewModePattern = /(?:^|\s)\$?(?:lit(?:work)?\s+review|review-work)\s+(plan|work)(?=$|[^\w-])/u;
+const reviewPlanTokenPattern = /(?:^|\s)[$/]?(?:litclaude:)?review-plan(?=$|[^\w-])/u;
 const reviewModeContext = (discipline, prompt, cwd) => {
   if (discipline !== "review-work") return [];
-  const forced = forcedReviewModePattern.exec(withoutCode(typeof prompt === "string" ? prompt : ""));
+  const text = withoutCode(typeof prompt === "string" ? prompt : "");
+  const forced = forcedReviewModePattern.exec(text);
   if (forced) return [`Review mode forced by the user: ${forced[1]} review.`];
+  if (reviewPlanTokenPattern.test(text) || isReviewPlanPhrase(text)) return ["Review mode forced by the user: plan review."];
   try {
     const plan = resolveLatestDurablePlan(cwd);
     if (!plan) return [];
