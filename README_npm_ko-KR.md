@@ -1,14 +1,14 @@
-<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 노을빛 터미널 화면입니다. LitClaude의 모서리가 둥근 LIT 카드가 단계 지도, 작업 게이지, 스킬 알약, 레인, 컨텍스트 게이지와 함께 화면을 두르고, 가운데는 픽셀 글자 LITFAMILY와 줄무늬 해가 채우며, 일곱 제품 이름 줄에서 LITCLAUDE가 켜지고, 아래에서는 Claude Code 프롬프트에 요청이 입력됩니다." /></picture></p>
+<p align="center"><picture><source media="(prefers-reduced-motion: reduce)" srcset="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/assets/cover-motion-still.webp" /><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/assets/cover-motion.webp" width="100%" alt="LitFamily 모션 커버: 노을빛 터미널 화면입니다. LitClaude의 모서리가 둥근 LIT 카드가 단계 지도, 작업 게이지, 스킬 알약, 레인, 컨텍스트 게이지와 함께 화면을 두르고, 가운데는 픽셀 글자 LITFAMILY와 줄무늬 해가 채우며, 일곱 제품 이름 줄에서 LITCLAUDE가 켜지고, 아래에서는 Claude Code 프롬프트에 요청이 입력됩니다." /></picture></p>
 
 <h1 align="center">LitClaude</h1>
 <p align="center"><strong>Keep the work lit.</strong></p>
 <p align="center">LitClaude는 Claude Code에 붙이는 추가 기능입니다. Claude가 "다 됐어요"라고 말하기 전에 자기 작업을 직접 확인하게 하고, 다음 세션이 이어서 시작할 수 있도록 기록을 남기게 합니다.</p>
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/assets/readme/badge-version.svg" alt="1.0.68" />
-  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
+  <img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/assets/readme/badge-version.svg" alt="1.0.69" />
+  <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/LICENSE"><img src="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/assets/readme/badge-license.svg" alt="MIT license" /></a>
 </p>
 <p align="center">
-  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/README.md">English</a>
+  <a href="https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md">전체 안내와 스킬 갤러리는 GitHub에서</a> · <a href="https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/README.md">English</a>
 </p>
 
 Claude에게 기능을 하나 부탁하면 코드를 쓰고 끝났다고 말합니다. 그런데 다음 날 보니 테스트는 한 번도 돌지 않았습니다. 새 세션을 열면 프로젝트 설명을 처음부터 다시 해야 합니다.
@@ -118,7 +118,7 @@ npx @litfamily/litclaude@latest uninstall
 ## 더 보기
 
 - [전체 안내와 스킬 갤러리 (GitHub)](https://github.com/wjgoarxiv/litclaude/blob/main/README_ko-KR.md)
-- [개인정보와 네트워크 동작](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/privacy.md)
-- [이전과 소유권 충돌](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/docs/migration.md)
-- [변경 이력](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/CHANGELOG.md)
-- [MIT 라이선스](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.68/LICENSE)
+- [개인정보와 네트워크 동작](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/privacy.md)
+- [이전과 소유권 충돌](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/docs/migration.md)
+- [변경 이력](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/CHANGELOG.md)
+- [MIT 라이선스](https://cdn.jsdelivr.net/npm/@litfamily/litclaude@1.0.69/LICENSE)

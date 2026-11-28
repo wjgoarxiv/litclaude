@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.69 - 2026-11-28
 
 - A `lit` prompt now runs lit-loop as its base loop and loads every other skill it needs with it. "어 나는 이 데이터를 예쁜 그래프와 피피티로 표현하고 싶어~ lit" plans lit-loop, lit-pptx and lit-scientific-visualization. A deck, report, figure, diagram, review, debugging or refactor request no longer replaces lit-loop; it joins it. Workflow routes such as `lit plan` keep their own lead.
 - The plan reads how people ask: "~하고 싶어", "~면 좋겠어" and "피피티로 표현" count as requests without a making verb, and refactoring, prose polishing, interviews, README work, debugging and research have their own cue words. A deliverable that is refused ("PPT 말고"), already made, asked about ("만들 수 있어?"), quoted or a code word ("dependency graph") is left out.
