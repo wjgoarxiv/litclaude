@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.70 - 2026-11-28
+
+- The start-work inbox lists only the steps an answer can run, numbered, up to 8 per tier, with the folder shown when it differs from the project root. Steps the check cannot read are counted on one line with their reason, and their full text stays in `.litclaude/boulder.json`. The answers come one per line under "Answer with one of:".
+- `lit approve x` runs the steps the list showed. Old held reads used to fill the list, so an approval could run something other than what you were waiting for, and a later step could find no room. A reply now opens with "ran N of M listed [X] steps", and a list that is full says so once.
+- The closing line of a finished run is one sentence. Three or fewer set-aside steps are named; above three it gives the count and points to `.litclaude/start-work/ledger.jsonl`, where every step is kept in full.
+- Plain reads run during a start-work run: `git grep`, `git -C <dir>` with a read, and GitHub reads through `gh` (`gh api` as a GET, `gh pr list`, `gh pr view`, `gh run view`). A read outside the granted folders is refused with a hint and is left out of the parked list. A script whose file name ends in `npm` or `git` is treated as a script.
+- A run follows its owner. When the shell is inside a sub folder or a nested checkout of the project, the guard and the Stop decision still act on that run; before, a `cd` there switched the guard off.
+- A run charter covers a repository outside the project folder: `git -C <repo> add <files>` and `git -C <repo> commit` pass on the charter's branch. A commit message file (`-F`) has to lie in the repository or in the run's temp and scratch folders; a secret is refused, and any other file parks the commit with the resolved file shown in the list.
+- A guard refusal opens with "Not a crash: LitClaude's start-work guard stopped this call on purpose", so the host's "hook error" label reads as what it is.
+- Text relayed from a teammate, another session or a host notification is inert in the prompt hook: route words, `lit +skill` names and control words inside it do nothing, and a prompt that is only such text gets no skill suggestion or catalog line.
+- A finished run closes when the only set-aside steps are searches whose pattern happens to hold a word such as "version" or "tag". Real pushes, tags, publishes, releases and network calls still keep it open.
+- The Stop check for planned skills counts a moved skill as loaded only when the moved skill itself was loaded; its pointer stub alone no longer satisfies it.
+- The session-start banner and the `lit` banner draw the sunset mark the CLI already uses.
+- The LIT card keeps a running background task and a running lane above idle lanes, counts lanes once, and says "waiting on you" when a run waits for an answer.
+- `litclaude update` asks the npm registry each time it is typed and names the version it found; it used to trust a day-old answer and could reinstall the old version right after a release. It closes with one line that says whether the command on your PATH and the installed plugin match, and what to type when they differ. `doctor` says the same when it finds the two on different versions.
+- The `/litclaude:lit-scientific-visualization` page checks for a local folder of the same name before it points to the `figures` extension, and prints its banner only when the hook routed the prompt.
+- The approval question of a plan without a `goal: native` line offers the goal as a second answer: `Approve plan and start work? (yes / yes goal / no)`, with the goal on the next line. `yes` starts the work with no goal, as before; `yes goal` starts it and sets that goal, which ends by itself like every plan goal. The question used to tell you to add a line to the plan by hand.
+- A parked commit whose message file was re-pointed after you saw the list is held and stays on the list; the entry names the file the message is read from.
+
 ## 1.0.69 - 2026-11-28
 
 - A `lit` prompt now runs lit-loop as its base loop and loads every other skill it needs with it. "어 나는 이 데이터를 예쁜 그래프와 피피티로 표현하고 싶어~ lit" plans lit-loop, lit-pptx and lit-scientific-visualization. A deck, report, figure, diagram, review, debugging or refactor request no longer replaces lit-loop; it joins it. Workflow routes such as `lit plan` keep their own lead.
