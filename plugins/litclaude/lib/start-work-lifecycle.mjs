@@ -18,17 +18,18 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { lintCondition, parseDoneWhen } from "./goal-pipeline.mjs";
+import { canRunParked } from "./parked-step.mjs";
 import { charterHash, charterText, COMMIT_LINE, SCOPE_LINE } from "./plan-scope-roots.mjs";
 import { parsePlanTaskRows, planLinesOutsideFences } from "./plan-task-rows.mjs";
 import { requireStateDir, STATE_APPEND_FLAG, STATE_WRITE_FLAG } from "./project-state-root.mjs";
 import { isGoPrompt } from "./rewind/next-step.mjs";
 import { recordRunEnd } from "./shown-ledger.mjs";
 import { idleMs, isStale, lastActivityMs, START_WORK_STALE_MS } from "./start-work-peek.mjs";
-import { gitFlagIsUnsafe, isReaderFilter, parseReaders, posixDrivePath } from "./start-work-readers.mjs";
+import { gitFlagIsUnsafe, isReaderFilter, parseReaders, posixDrivePath, quoteGlobValues } from "./start-work-readers.mjs";
 import { pathIdentity, samePathIdentity } from "./secure-path-read.mjs";
 
 const SCHEMA_VERSION = 3;
@@ -1029,12 +1030,14 @@ export const startWorkStructuredContext = (root, sessionId, response = null) => 
   return `<litclaude-start-work-context>\n${json}\n</litclaude-start-work-context>`;
 };
 
-const forbiddenShellPattern = /(?:\bgit\b[^\n;&|]*\b(?:commit|push|tag|reset|clean|config)\b|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\bpublish\b|\bgh\b[^\n;&|]*\brelease\s+create\b|\bdefaults\s+write\b)/iu;
+// A manager or git name that follows a `-` or `.` is the tail of a file name (`lane-npm.mjs`, `x-git.mjs`), not
+// the program; a path to the program (`/usr/bin/npm`, `.bin/npm`) and a package folder (`node_modules/npm/`) still count.
+const forbiddenShellPattern = /(?:(?<![.-])\bgit\b[^\n;&|]*\b(?:commit|push|tag|reset|clean|config)\b|(?<![.-])\b(?:npm|pnpm|yarn)\b[^\n;&|]*\bpublish\b|\bgh\b[^\n;&|]*\brelease\s+create\b|\bdefaults\s+write\b)/iu;
 // A package manager call that names `version` is a bump unless its subcommand only reads or runs a
 // script (`npm view <pkg> version`, `npm run check:version`). That verb must be the word right after
 // the manager: any flag in front of it (`--prefix run version patch`) leaves the subcommand unknown, refused.
 // The lookahead keeps a nested call (`npm view x version $(npm version patch)`) its own match.
-const PACKAGE_MANAGER_CALL = /\b(?:npm|pnpm|yarn)\b(?=([^\n;&|]*))/giu;
+const PACKAGE_MANAGER_CALL = /(?<![.-])\b(?:npm|pnpm|yarn)\b(?=([^\n;&|]*))/giu;
 const VERSION_READ_VERB = /^[ \t]+(?:view|info|show|v|run|run-script)(?:[ \t]|$)/iu;
 const forbiddenShellCommand = (command) => forbiddenShellPattern.test(command)
   || [...command.matchAll(PACKAGE_MANAGER_CALL)].some(([, rest]) => /\b(?:version|verison)\b/iu.test(rest) && !VERSION_READ_VERB.test(rest));
@@ -1140,21 +1143,29 @@ const checkedOutBranch = (top) => {
 };
 
 // `git add <file>…` and `git commit` with a message (`-m`, `-F`, `--message=`, `--file=`) plus `-a`
-// and `-q`, nothing else: no amend, no hook skip, no pathspec, no `-c`, no `-C`. A run charter's commit
-// grant for this repository and its checked-out branch lets them run; any other form is not one of
-// these and meets the forbidden-action check like before.
+// and `-q`, nothing else: no amend, no hook skip, no pathspec (a leading `:` is pathspec magic), no `-c`.
+// One leading `-C <dir>` names the folder the call runs in. A run charter's commit grant for this
+// repository and its checked-out branch lets them run; any other form is not one of these and meets
+// the forbidden-action check like before.
 const COMMIT_SWITCH = /^-[aq]+$|^--(?:all|quiet)$/u;
 const COMMIT_MESSAGE = /^-[aq]*([mF])$/u;
 const gitIndexWords = (segment) => {
   const words = shellWords(segment)?.map(({ text }) => text);
   if (!words || words[0] !== "git") return null;
-  const [, verb, ...rest] = words;
+  let dir;
+  let at = 1;
+  if (words[1] === "-C") {
+    dir = words[2];
+    if (dir === undefined || !PLAIN_PATH_WORD.test(dir) || dir.startsWith("+")) return null;
+    at = 3;
+  }
+  const [verb, ...rest] = words.slice(at);
   if (verb === "add") {
     const files = rest[0] === "--" ? rest.slice(1) : rest;
-    return files.length && files.every((file) => file && !file.startsWith("-")) ? { verb, files } : null;
+    return files.length && files.every((file) => file && !file.startsWith("-") && !file.startsWith(":")) ? { verb, files, messageFiles: [], dir } : null;
   }
   if (verb !== "commit") return null;
-  const files = [];
+  const messageFiles = [];
   let message = false;
   for (let index = 0; index < rest.length; index += 1) {
     const word = rest[index];
@@ -1163,36 +1174,48 @@ const gitIndexWords = (segment) => {
     if (pair) {
       const value = rest[index + 1];
       if (value === undefined) return null;
-      if (pair[1] === "F") files.push(value);
+      if (pair[1] === "F") messageFiles.push(value);
       message = true;
       index += 1;
     } else if (/^--message=/u.test(word)) {
       message = true;
     } else if (/^--file=./u.test(word)) {
-      files.push(word.slice("--file=".length));
+      messageFiles.push(word.slice("--file=".length));
       message = true;
     } else {
       return null;
     }
   }
-  return message ? { verb, files } : null;
+  return message ? { verb, files: [], messageFiles, dir } : null;
 };
 const classifyGitIndexCall = (segment, cwd) => {
   const call = gitIndexWords(segment);
   if (!call) return null;
-  const top = gitToplevel(cwd);
+  let base = cwd;
+  if (call.dir !== undefined) {
+    const moved = canonicalBashTargets(cwd, [call.dir], "read");
+    const folder = moved.denied ? null : moved.targetRoots[0];
+    if (!folder || lstatSync(folder, { throwIfNoEntry: false })?.isDirectory() !== true) {
+      return call.verb === "commit" ? { denied: "forbidden authority action in Bash command (git -C must name an existing folder)" } : pathArgumentDenied;
+    }
+    base = folder;
+  }
+  const top = gitToplevel(base);
   if (!top) return { denied: "forbidden authority action in Bash command (no git repository to commit in)" };
   if (call.verb === "add" && call.files.some((file) => {
     try {
-      return lstatSync(resolve(cwd, file)).isDirectory();
+      return lstatSync(resolve(base, file)).isDirectory();
     } catch {
       return false;
     }
   })) return pathArgumentDenied;
-  const targets = canonicalBashTargets(cwd, call.files, "commit");
+  // An empty list would stand for the folder itself, so each list is read only when it has words.
+  const targets = call.files.length ? canonicalBashTargets(base, call.files, "commit") : { targetRoots: [] };
   if (targets.denied) return targets;
+  const messages = call.messageFiles.length ? canonicalBashTargets(base, call.messageFiles, "commit") : { targetRoots: [] };
+  if (messages.denied) return messages;
   const repo = canonicalTarget(top, "git repository");
-  return { action: "commit", targetRoots: [repo, ...(call.files.length ? targets.targetRoots : [])], repo, branch: checkedOutBranch(top), boundaryExpansion: false };
+  return { action: "commit", targetRoots: [repo, ...targets.targetRoots], messageFiles: messages.targetRoots, repo, branch: checkedOutBranch(top), boundaryExpansion: false };
 };
 
 // `node <script> [args]` runs the script: an execute under the working directory and the script,
@@ -1406,7 +1429,7 @@ const classifyReaders = (command, cwd) => {
     const classified = canonicalBashTargets(base, [...(segment.git ? [base] : []), ...named, ...maybe], "read");
     if (classified.denied) return null;
     if (segment.cd === undefined) {
-      chain.push({ ...classified, reader: true });
+      chain.push({ ...classified, reader: true, ...(segment.outward ? { outward: true } : {}) });
       continue;
     }
     const [to] = classified.targetRoots;
@@ -1699,12 +1722,30 @@ const commitRefusal = (work, link) => {
   const where = `${link.repo} is on ${link.branch ? `branch ${link.branch}` : "no branch (detached HEAD)"}`;
   return `the run charter does not cover this commit: ${where}, and this run's charter ${granted.length ? `allows commits only on ${granted.join("; ")}` : "grants no commits"}`;
 };
+// A commit message is read from a file, so the file must be one the commit's own repository, the
+// run's private temp folder or the session's scratchpad and memory (the folders the host tells it to
+// write notes in) holds: any other file would copy its contents into the history.
+const runScratch = (work) => {
+  try {
+    return join(realpathSync(tmpdir()), `litclaude-${work.work_id}`).normalize("NFC");
+  } catch {
+    return null;
+  }
+};
+const strayMessageFile = (work, input, projectDirs, link) => {
+  const roots = [link.repo, runScratch(work), ...harnessRoots(work, input, projectDirs).write].filter(Boolean);
+  return (link.messageFiles ?? []).find((file) => !roots.some((root) => rootCovers(root, file))) ?? null;
+};
+// The stored reason keeps only its last 120 characters, so it names the file by its own name, last; the
+// parked command shows the whole path.
+const messageFileRefusal = (file) => `commit message file is outside the repository and this run's temp folders: ${basename(file)}`;
 
 // Parked commands: a Bash call the guard does not allow is stored with its exact text and cwd, and
 // the run goes on. `lit approve` runs the B-tier ones in order in their cwd; X-tier ones (push,
 // publish, tag, bump, reset, a commit outside the charter) run only on `lit approve x`. A command
 // that names a secret, a settings file or a host tool's home is refused outright and never stored.
 const MAX_PARKED_COMMANDS = Object.freeze({ B: 32, X: 16 });
+const MAX_HELD_COMMANDS = 32;
 const MAX_PARKED_COMMAND_CHARS = 4096;
 const HOST_HOMES = [".claude", ".claude.json", ".codex", ".config", ".hermes", ".grok", ".gemini", ".ssh", ".aws", ".gnupg", ".npmrc", ".gitconfig", ".local"];
 const realHome = () => {
@@ -1888,7 +1929,7 @@ const parkedRow = (work) => {
     return {};
   }
 };
-const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason) => {
+const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason, readOnly = false, messageFile = null) => {
   const command = typeof input?.tool_input?.command === "string" ? input.tool_input.command : "";
   const tier = askedTier === "X" ? "X" : localReversibleTier(command, cwd, canonicalRoot);
   const hold = commandUncheckable(command);
@@ -1901,6 +1942,7 @@ const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason) 
   if ((work.authority.denied_commands ?? []).includes(boundaryId)) {
     return denial(`LitClaude start-work: the user denied \`${clipCommand(command)}\` for this work, so it did not run. Carry on without it; continue with the next row.`);
   }
+  if (readOnly || parseReaders(quoteGlobValues(command) ?? command)) return readNotStored(canonicalRoot, work, input, cwd, reason, command);
   const queued = work.pending_boundaries.find(({ boundary_id: id }) => id === boundaryId);
   if (queued) {
     queued.hits = (queued.hits ?? 1) + 1;
@@ -1908,8 +1950,14 @@ const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason) 
     saveState(canonicalRoot, state);
     return denial(parkedCommandMessage(queued, work));
   }
-  if (work.pending_boundaries.filter((boundary) => boundary.kind === "command" && boundary.tier === tier).length >= MAX_PARKED_COMMANDS[tier]) {
-    return denial(`LitClaude start-work (${reason}): ${MAX_PARKED_COMMANDS[tier]} commands of this kind are already parked, so \`${clipCommand(command)}\` did not run and was not stored. Continue with the next row and add a \`BLOCKED: <reason>\` line under a row that needs it.`);
+  if (hold) {
+    if (work.pending_boundaries.filter((boundary) => boundary.kind === "command" && boundary.hold_reason).length >= MAX_HELD_COMMANDS) {
+      return denial(`LitClaude start-work (${reason}): ${MAX_HELD_COMMANDS} held steps are already stored (steps the guard cannot check; they never run from the list), so \`${clipCommand(command)}\` did not run and was not stored. Do not retry it. Use an allowed form if one does the job, or add a \`BLOCKED: <reason>\` line under the row that needs it and continue.`);
+    }
+  } else if (work.pending_boundaries.filter((boundary) => boundary.kind === "command" && boundary.tier === tier && !boundary.hold_reason).length >= MAX_PARKED_COMMANDS[tier]) {
+    work.full_list_refused = { ...work.full_list_refused, [tier]: (work.full_list_refused?.[tier] ?? 0) + 1 };
+    saveState(canonicalRoot, state);
+    return denial(`LitClaude start-work (${reason}): the list of [${tier}] steps waiting for the user is full (${MAX_PARKED_COMMANDS[tier]}), so \`${clipCommand(command)}\` did not run and was not stored. Do not retry it now. Add a \`BLOCKED: <reason>\` line under the row that needs it and continue; when the run wraps up, tell the user the list was full, and that after they answer it (\`lit approve${tier === "X" ? " x" : ""}\` or \`lit deny\`) this step can be tried again.`);
   }
   const requestedAt = nowIso();
   const boundary = {
@@ -1922,6 +1970,7 @@ const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason) 
     command,
     reason: clipText(reason),
     ...(hold ? { hold_reason: hold } : {}),
+    ...(messageFile ? { message_file: messageFile } : {}),
     ...(askedTier === "X" ? { irreversible: true } : {}),
     ...parkedRow(work),
     origin_session_id: input.session_id,
@@ -1937,6 +1986,20 @@ const parkCommand = (canonicalRoot, state, work, input, cwd, askedTier, reason) 
   return { ...denial(parkedCommandMessage(boundary, work)), parked: { workId: work.work_id, boundaryId, action: boundary.action, root: cwd, command } };
 };
 const OUTSIDE_GRANT ="Bash target is outside the effective authority grant; a plan can name that folder on a `Scope roots: <path> (<actions>)` line";
+
+// A read the guard will not run is answered, never stored: a stored step replays in the user's shell,
+// so the model would never see its output, and the entry would only take a slot in the list.
+const readNotStored = (canonicalRoot, work, input, cwd, reason, command) => {
+  const rewritten = quoteGlobValues(command);
+  if (rewritten && rewritten.length <= 600 && !rewritten.includes("`")
+    && allowedRead(canonicalRoot, cwd, work, { ...input, tool_input: { command: rewritten } })) {
+    return denial(`LitClaude start-work did not run this read, and nothing was parked: the shell expands a glob typed without quotes before the tool sees it. Run \`${rewritten}\` instead.`);
+  }
+  const next = reason === OUTSIDE_GRANT
+    ? "If a row needs that folder, add a `BLOCKED: <reason>` line under it and continue with the next row; do not stop to ask."
+    : `If an allowed form does the same job, use that now; the guard verifies ${BASH_WAY_OUT}`;
+  return denial(`LitClaude start-work run ${work.work_id} (${work.plan_name}) did not run this read (${reason}), and nothing was parked: a stored read would run later in the user's shell, where its output never reaches you. ${next}`);
+};
 
 // The plugin this module ships in: reading its own skills, commands and references is never a
 // boundary. Writing there still is.
@@ -1983,7 +2046,7 @@ const sensitiveReason = (target, action) => {
 const sensitiveDenial = (classified) => {
   const links = classified.chain ? classified.chain.filter((link) => !link.control) : [classified];
   for (const link of links) {
-    for (const target of link.targetRoots ?? (link.targetRoot ? [link.targetRoot] : [])) {
+    for (const target of [...(link.targetRoots ?? (link.targetRoot ? [link.targetRoot] : [])), ...(link.messageFiles ?? [])]) {
       const reason = sensitiveReason(target, link.action);
       if (reason) {
         return denial(`LitClaude start-work: ${target} is protected for this run (${reason}); a start-work never opens or changes secrets or settings. This is not an approval prompt. If the task needs it, add a \`BLOCKED: <reason>\` line under that task in the plan and ask the user.`);
@@ -2363,6 +2426,7 @@ const otherSessionDecision = (root, work, input, now) => {
       if (protectedPath) return protectedPath;
       reads = !classified.denied && !classified.control
         && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+      reads &&= !(classified.chain ?? [classified]).some((link) => link.outward);
       // The plain readers are held to the project and this session's own folders here; a path
       // elsewhere keeps the older answer.
       const watched = [root, executionRoot, work.effective_worktree_root].filter((path) => typeof path === "string");
@@ -2443,7 +2507,8 @@ const cancelNoticeDecision = (root, state, input) => {
       const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : root, "tool cwd");
       const classified = classifyToolAuthority(executionRoot, input);
       reads = !classified.denied && !classified.control
-        && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action));
+        && (classified.chain ? classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)) : READ_ACTIONS.has(classified.action))
+        && !(classified.chain ?? [classified]).some((link) => link.outward);
     } catch {
       reads = false;
     }
@@ -2522,6 +2587,21 @@ const splitForm = (executionRoot, work, input) => {
   return parts.length ? parts : null;
 };
 
+// Whether the guard would let this exact call run as a read inside the grants, without changing any state.
+const allowedRead = (canonicalRoot, executionRoot, work, input) => {
+  let classified;
+  try {
+    classified = classifyToolAuthority(executionRoot, input);
+  } catch {
+    return false;
+  }
+  if (classified.denied || classified.control) return false;
+  const links = classified.chain ?? [classified];
+  if (links.some((link) => link.control || !READ_ACTIONS.has(link.action)) || sensitiveDenial(classified)) return false;
+  if (pluginSelfRead(classified) || (!classified.chain && harnessAccess(classified, work, input, [canonicalRoot, input.cwd]))) return true;
+  return links.every((link) => linkCovered(work.authority.grants, { ...link, targetRoots: link.targetRoots ?? [link.targetRoot] }));
+};
+
 // The owner session's verdict for one tool call, from the caller's state snapshot.
 const ownerToolDecision = (canonicalRoot, state, work, input) => {
   const executionRoot = canonicalDirectory(typeof input.cwd === "string" ? input.cwd : canonicalRoot, "tool cwd");
@@ -2544,16 +2624,20 @@ const ownerToolDecision = (canonicalRoot, state, work, input) => {
   if (classified.chain) {
     const uncommitted = classified.chain.find((link) => !link.control && link.action === "commit" && !linkCovered(work.authority.grants, link));
     if (uncommitted) return parkCommand(canonicalRoot, state, work, input, executionRoot, "X", commitRefusal(work, uncommitted));
+    const stray = classified.chain.map((link) => (!link.control && link.action === "commit" ? strayMessageFile(work, input, [canonicalRoot, input.cwd], link) : null)).find(Boolean);
+    if (stray) return parkCommand(canonicalRoot, state, work, input, executionRoot, "X", messageFileRefusal(stray), false, stray);
     const covered = classified.chain.every((link) => link.control || linkCovered(work.authority.grants, link));
-    return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : parkCommand(canonicalRoot, state, work, input, executionRoot, "B", OUTSIDE_GRANT);
+    return covered ? { decision: "allow-normal", action: "chain", root: executionRoot, roots: [executionRoot] } : parkCommand(canonicalRoot, state, work, input, executionRoot, "B", OUTSIDE_GRANT, classified.chain.every((link) => !link.control && READ_ACTIONS.has(link.action)));
   }
   const targetRoots = classified.targetRoots ?? [classified.targetRoot];
   if (linkCovered(work.authority.grants, { ...classified, targetRoots })) {
+    const stray = classified.action === "commit" ? strayMessageFile(work, input, [canonicalRoot, input.cwd], classified) : null;
+    if (stray) return parkCommand(canonicalRoot, state, work, input, executionRoot, "X", messageFileRefusal(stray), false, stray);
     return { decision: "allow-normal", action: classified.action, root: targetRoots[0], roots: targetRoots };
   }
   if (classified.action === "commit") return parkCommand(canonicalRoot, state, work, input, executionRoot, "X", commitRefusal(work, classified));
   if (classified.boundaryExpansion === false) {
-    return parkCommand(canonicalRoot, state, work, input, executionRoot, "B", OUTSIDE_GRANT);
+    return parkCommand(canonicalRoot, state, work, input, executionRoot, "B", OUTSIDE_GRANT, READ_ACTIONS.has(classified.action));
   }
   const refused = (work.authority.denied_boundaries ?? []).find((denied) => denied.action === classified.action
     && targetRoots.every((targetRoot) => rootCovers(denied.root, targetRoot)));
@@ -2784,11 +2868,101 @@ const runDoneCheck = (cwd, planPath) => {
 // Every other parked step is dropped when the run completes, and named.
 const OUTWARD_STEP = /\b(?:push|publish|unpublish|deprecate|dist-tag|tag|version|release|deploy|gh|curl|wget|ssh|scp|sftp|rsync|ftp|nc|telnet|docker|podman|aws|gcloud|az|kubectl|helm|terraform|npx)\b|\b(?:npm|pnpm|yarn|pip3?|brew|gem|cargo)[ \t]+(?:install|i|ci|add|update|upgrade)\b|\bgit\b[^\n;&|]*\b(?:fetch|pull|clone|remote|reset|clean)\b|(?:^|[\s;&|])make\b|\b(?:npm|pnpm|yarn|bun)[ \t]+(?:run|run-script|exec|x|dlx)\b/u;
 const LOCAL_GIT = new Set(["add", "commit", "status", "diff", "log", "show", "blame", "ls-files", "checkout", "switch", "branch", "stash", "restore", "mv", "rm", "merge", "rebase", "cherry-pick", "grep", "init", "rev-parse", "describe", "shortlog", "reflog", "worktree", "config", "notes", "revert", "bisect", "apply", "am", "format-patch", "archive", "gc", "fsck"]);
+// A segment that only reads (`rg -n "check:version" src`) names an outward word as data: it is left out of
+// the word test. Its program is a bare reader name and nothing in it runs other code or writes (no `&`,
+// backtick, parenthesis, backslash, `$'`, `${` or `$(`, no redirect but to /dev/null, no assignment but a
+// locale one, no `rg --pre`, no `find -exec`, `sed` only as `-n <address>p`). A variable can stand for a
+// flag or a path, so a segment that holds `$` keeps everything but its `$`-free quoted strings in the test.
+const READ_PROGRAMS = new Set(["rg", "grep", "egrep", "fgrep", "cat", "head", "tail", "ls", "wc", "cut", "nl", "stat", "diff", "find", "sed"]);
+const READ_WRAPPERS = new Set(["env", "nice", "time", "command"]);
+const LOCALE_ASSIGNMENT = /^(?:LC_[A-Z]+|LANG|LANGUAGE|NO_COLOR|TZ)=[\w.@:-]*$/u;
+const NULL_REDIRECT = /^>>?[ \t]*\/dev\/null(?=[ \t]|$)/u;
+const SED_PRINT = /^(?:(?:\d+|\$|\/[^/]*\/)(?:,(?:\d+|\$|\/[^/]*\/))?)?p$/u;
+const inertWords = (segment) => {
+  const words = [];
+  let residue = "";
+  let word = null;
+  let quote = null;
+  let opened = 0;
+  for (let at = 0; at < segment.length; at += 1) {
+    const ch = segment[at];
+    if (ch === "\\" || (ch === "$" && "'\"{".includes(segment[at + 1] ?? " "))) return null;
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+        const quoted = segment.slice(opened, at + 1);
+        residue += quoted.includes("$") ? quoted : " ";
+      } else if (quote === '"' && (ch === "`" || (ch === "$" && segment[at + 1] === "("))) return null;
+      else word.text += ch;
+    } else if (ch === " " || ch === "\t") {
+      if (word) words.push(word.text);
+      word = null;
+      residue += ch;
+    } else if (ch === ">") {
+      const sink = NULL_REDIRECT.exec(segment.slice(at));
+      if (!sink) return null;
+      at += sink[0].length - 1;
+      if (word) words.push(word.text);
+      word = null;
+    } else if (/[\s&`()]/u.test(ch) || (ch === "$" && segment[at + 1] === "(")) {
+      return null;
+    } else {
+      word ??= { text: "" };
+      if (ch === "'" || ch === '"') {
+        quote = ch;
+        opened = at;
+      } else {
+        word.text += ch;
+        residue += ch;
+      }
+    }
+  }
+  if (quote) return null;
+  if (word) words.push(word.text);
+  return { words, residue };
+};
+// null: not a plain read. Otherwise the part of the segment the word test still has to see ("" for none).
+const readResidue = (segment) => {
+  const read = inertWords(segment);
+  if (!read) return null;
+  const { words, residue } = read;
+  if (/\/dev\/(?:tcp|udp)\//u.test(words.join(" ")) || (words.join(" ").includes("<") && words.some((word) => word.includes("$")))) return null;
+  let at = 0;
+  while (at < words.length && (LOCALE_ASSIGNMENT.test(words[at]) || (READ_WRAPPERS.has(words[at]) && words[at + 1] !== undefined && !words[at + 1].startsWith("-")))) at += 1;
+  const [program, ...args] = words.slice(at);
+  if (!READ_PROGRAMS.has(program) || args.some((word) => word.startsWith("-") && word.includes("$"))) return null;
+  if (program === "find" && args.some((word) => /^-(?:exec|execdir|ok|okdir|delete|fprint\w*|fls)$/u.test(word))) return null;
+  if (program === "rg" && args.some((word) => /^--(?:pre|hostname-bin|search-zip)(?:=|$)|^-[A-Za-z]*z/u.test(word))) return null;
+  if (program === "sed" && !(args[0] === "-n" && SED_PRINT.test(args[1] ?? "") && !args.slice(2).some((word) => word.startsWith("-")))) return null;
+  return segment.includes("$") ? residue : "";
+};
+// A reader that feeds a pipe is not data: the program after the pipe runs what it reads.
+const hasPipe = (command) => {
+  let quote = null;
+  for (let at = 0; at < command.length; at += 1) {
+    const ch = command[at];
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === "|") {
+      if (command[at + 1] !== "|") return true;
+      at += 1;
+    }
+  }
+  return false;
+};
 const outwardStep = (boundary, projectRoot) => {
   if (boundary.kind !== "command") return false;
-  if (boundary.irreversible || OUTWARD_STEP.test(boundary.command) || forbiddenShellCommand(boundary.command)) return true;
+  const parts = shellSegments(boundary.command) ?? [boundary.command];
+  const residues = parts.map(readResidue);
+  const named = residues.filter((residue) => residue === null).length;
+  const wordText = named === parts.length || (named && hasPipe(boundary.command))
+    ? boundary.command
+    : parts.map((segment, at) => residues[at] ?? segment).filter((text) => text.trim()).join("\n");
+  if (boundary.irreversible || OUTWARD_STEP.test(wordText) || forbiddenShellCommand(wordText)) return true;
   let here = boundary.cwd;
-  for (const segment of shellSegments(boundary.command) ?? [boundary.command]) {
+  for (const segment of parts) {
     const words = segment.split(/\s+/u).filter(Boolean).map((word) => word.replace(/['"]/gu, ""));
     if (words[0] === "cd" && words[1]) here = resolve(here, words[1]);
     const sub = words[1] === "-C" ? words[3] : words.slice(1).find((word) => !word.startsWith("-"));
@@ -2800,9 +2974,22 @@ const outwardStep = (boundary, projectRoot) => {
   }
   return false;
 };
-const setAsideLine = (steps) => (steps.length
-  ? ` ${steps.length} set-aside step${steps.length === 1 ? " was" : "s were"} not run: ${steps.map((boundary) => (boundary.kind === "command" ? `${codeSpan(visibleText(boundary.command))} in ${visibleText(boundary.cwd)}` : `${boundary.action} ${visibleText(boundary.root)}`)).join("; ")}.`
-  : "");
+// A closing message names how many steps were set aside and where the record is; their text is printed
+// only for up to three. The ledger event carries every step in full.
+const SET_ASIDE_PRINT_MAX = 3;
+const setAsideRecord = (boundary) => (boundary.kind === "command"
+  ? { boundary_id: boundary.boundary_id, kind: "command", tier: boundary.tier, command: boundary.command, cwd: boundary.cwd, ...(boundary.hold_reason ? { hold_reason: boundary.hold_reason } : {}) }
+  : { boundary_id: boundary.boundary_id, kind: boundary.kind ?? "boundary", action: boundary.action, root: boundary.root });
+const setAsideLine = (steps, projectRoot) => {
+  if (!steps.length) return "";
+  const held = steps.filter((boundary) => !canRunParked(boundary)).length;
+  const split = held && held < steps.length ? ` (${steps.length - held} could have run, ${held} held)` : "";
+  const head = ` ${steps.length} set-aside step${steps.length === 1 ? " was" : "s were"} not run${split}`;
+  if (steps.length > SET_ASIDE_PRINT_MAX) return `${head}. Their full text is kept in .litclaude/start-work/ledger.jsonl (event work.steps_set_aside).`;
+  return `${head}: ${steps.map((boundary) => (boundary.kind === "command"
+    ? `${codeSpan(visibleText(boundary.command))}${whereText(boundary.cwd, projectRoot) ? ` (in ${whereText(boundary.cwd, projectRoot)})` : ""}`
+    : `${boundary.action} ${whereText(boundary.root, projectRoot) || "the project"}`)).join("; ")}.`;
+};
 
 // The one driver of a run is this Stop decision table:
 //   done       every row ticked, nothing parked, no lane running, the Done-when check passes: close it.
@@ -2825,54 +3012,88 @@ const codeSpan = (text) => {
   const fence = "`".repeat(Math.max(0, ...(text.match(/`+/gu) ?? []).map((run) => run.length)) + 1);
   return fence.length > 1 || text.startsWith(" ") ? `${fence} ${text} ${fence}` : `${fence}${text}${fence}`;
 };
+// A folder as the user reads it: nothing for the project root, a relative path inside the project,
+// the absolute path anywhere else. A folder named `..foo` is inside the project.
+const whereText = (cwd, projectRoot) => {
+  if (cwd === projectRoot) return "";
+  const rel = relative(projectRoot, cwd).split(sep).join("/");
+  const inside = rel !== "" && rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+  return visibleText(inside ? rel : cwd);
+};
+const stepNames = (steps) => `${steps.slice(0, 3).map(({ command }) => codeSpan(visibleText(command))).join(", ")}${steps.length > 3 ? `, and ${steps.length - 3} more` : ""}`;
+const heldClass = (reason) => {
+  if (reason.startsWith("its folder ")) return "its folder is gone, moved or outside the grants";
+  if (reason.startsWith("names ")) return "names a protected path";
+  if (reason.startsWith("is no longer a known local")) return "no longer a known local, reversible step";
+  return clipText(reason);
+};
+const answerBlock = (answers) => `Answer with one of:\n${answers.map((answer) => `  ${answer}`).join("\n")}`;
 const INBOX_COMMANDS = 8;
 // Draws the parked list and records it on the work as the only set the next `lit approve` may run.
-// Steps parked later, steps past the first INBOX_COMMANDS and held steps are not part of it.
-const showParked = (work) => {
+// The list holds the steps that can run, up to INBOX_COMMANDS per tier, numbered in the order they run;
+// steps past that, steps parked later and held steps are not part of it, and held ones are only counted.
+const showParked = (work, projectRoot) => {
   const parked = work.pending_boundaries ?? [];
   const paths = parked.filter((boundary) => boundary.kind !== "command");
   const commands = parked.filter((boundary) => boundary.kind === "command");
-  const listed = commands.slice(0, INBOX_COMMANDS);
+  const held = commands.filter((boundary) => !canRunParked(boundary));
+  const runnable = commands.filter(canRunParked);
+  const byTier = (tier) => runnable.filter((boundary) => boundary.tier === tier);
+  const listed = ["B", "X"].flatMap((tier) => byTier(tier).slice(0, INBOX_COMMANDS));
   const shownAt = nowIso();
   const snapshotId = `list-${shortHash(`${work.work_id}:${shownAt}:${listed.map(({ boundary_id: id }) => id).join(",")}`).slice(0, 8)}`;
   work.inbox_snapshot = {
     snapshot_id: snapshotId,
     shown_at: shownAt,
-    steps: listed.filter(({ hold_reason: hold }) => !hold).map(({ boundary_id: id, command, cwd, tier }) => ({ boundary_id: id, command, cwd, tier })),
+    steps: listed.map(({ boundary_id: id, command, cwd, tier }) => ({ boundary_id: id, command, cwd, tier })),
   };
+  const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
   const parts = [];
-  if (paths.length) parts.push(`Parked, not run: ${paths.map(inboxLine).join("; ")}.`);
+  if (paths.length) parts.push(`Parked, not run: ${paths.map((boundary) => `${boundary.action} ${whereText(boundary.root, projectRoot) || "the project"}`).join("; ")}.`);
   if (listed.length) {
     const entries = listed.map((boundary, index) => {
-      const note = boundary.hold_reason ? ` (held, never replayed: ${boundary.hold_reason})` : boundary.last_result ? ` (last try: ${boundary.last_result})` : "";
-      return `${index + 1}. [${boundary.tier}] in ${visibleText(boundary.cwd)}${note}:\n   ${codeSpan(visibleText(boundary.command))}`;
+      const where = whereText(boundary.cwd, projectRoot);
+      const message = boundary.message_file ? ` (its commit message is read from ${codeSpan(visibleText(boundary.message_file))})` : "";
+      return `${index + 1}. [${boundary.tier}] ${codeSpan(visibleText(boundary.command))}${where ? ` (in ${where})` : ""}${message}${boundary.last_result ? ` (last try: ${boundary.last_result})` : ""}`;
     });
-    const more = commands.length - listed.length;
-    parts.push(`Parked commands, not run (list ${snapshotId}), each in full:\n${entries.join("\n")}${more ? `\n(${more} more parked, not shown here; they are not part of this list and stay parked for the next one.)` : ""}`);
+    const overflow = ["B", "X"].map((tier) => [tier, byTier(tier).length - INBOX_COMMANDS]).filter(([, extra]) => extra > 0)
+      .map(([tier, extra]) => `(${extra} more [${tier}] step${extra === 1 ? " is" : "s are"} parked and not in this list; they stay parked for the next one.)`);
+    parts.push(`Waiting for your answer, each step in full (the folder is shown only when it is not the project root):\n${[...entries, ...overflow].join("\n")}`);
   }
+  if (held.length) {
+    const classes = new Map();
+    for (const { hold_reason: reason } of held) classes.set(heldClass(reason), (classes.get(heldClass(reason)) ?? 0) + 1);
+    parts.push(`${plural(held.length, "held step")} never run${held.length === 1 ? "s" : ""} from here (${[...classes].map(([name, count]) => `${name} x${count}`).join("; ")}). Their full text stays in .litclaude/boulder.json; \`lit deny\` drops them together with the rest.`);
+  }
+  for (const [tier, count] of Object.entries(work.full_list_refused ?? {})) {
+    parts.push(`The [${tier}] list was full, so ${plural(count, "more step")} could not be parked and ${count === 1 ? "was" : "were"} not stored; answer this list, then Claude can try ${count === 1 ? "it" : "them"} again.`);
+  }
+  delete work.full_list_refused;
+  const listedB = listed.filter(({ tier }) => tier === "B").length;
+  const listedX = listed.length - listedB;
   const answers = [];
-  const runnable = work.inbox_snapshot.steps;
-  if (paths.length || runnable.some(({ tier }) => tier === "B")) answers.push(`\`lit approve\` ${paths.length ? "grants the parked access" : ""}${paths.length && runnable.some(({ tier }) => tier === "B") ? " and " : ""}${runnable.some(({ tier }) => tier === "B") ? "runs this list's [B] steps (local and reversible) in order" : ""}`);
-  if (runnable.some(({ tier }) => tier === "X")) answers.push("`lit approve x`, typed alone as the whole prompt, runs this list's [X] steps (irreversible, outside this machine, or not known to be safe)");
-  if (listed.some(({ hold_reason: hold }) => hold)) answers.push("held steps never run from here; run one yourself if you want it");
-  if (parked.length) answers.push("`lit deny` drops every parked step");
+  if (paths.length || listedB) {
+    answers.push(`\`lit approve\`   ${[paths.length ? "grants the parked access listed above" : "", listedB ? `runs the ${listedB} [B] step${listedB === 1 ? "" : "s"} above (local, reversible), in order` : ""].filter(Boolean).join(" and ")}`);
+  }
+  if (listedX) answers.push(`\`lit approve x\`   runs the ${listedX} [X] step${listedX === 1 ? "" : "s"} above (irreversible or outside this machine); type it alone as the whole prompt`);
+  if (parked.length) answers.push("`lit deny`   drops every parked step, held ones too");
   return { text: parts.join("\n"), answers };
 };
 
-const wrapUpInbox = (work, progress, failedCheck = null) => {
+const wrapUpInbox = (work, progress, failedCheck = null, projectRoot) => {
   const plain = (text) => String(text).replace(/[\p{Cc}\p{Cf}]/gu, " ").slice(0, 120);
-  const parts = [`LitClaude start-work ${work.work_id} is waiting on you: it has done what it can without you.`];
+  const parts = ["LitClaude start-work is waiting on you: it has done what it can without you."];
   const blocked = progress.blocked_tasks.filter((task) => !progress.impossible_tasks.some(({ text }) => text === task));
   if (blocked.length) parts.push(`Waiting rows: ${blocked.slice(0, 5).map(plain).join("; ")}${blocked.length > 5 ? ` (+${blocked.length - 5} more)` : ""}.`);
   if (progress.next_task) parts.push(`Open row it could not move past (no row changed in the last stops): ${plain(progress.next_task)}.`);
   if (failedCheck) parts.push(`Every row is ticked, but the Done-when check \`${plain(failedCheck.check)}\` ${plain(failedCheck.reason)}, so the run stays open.`);
   if (progress.impossible_tasks.length) parts.push(`Impossible rows: ${progress.impossible_tasks.slice(0, 5).map(({ text, reason }) => `${plain(text)} (${plain(reason)})`).join("; ")}.`);
-  const shown = showParked(work);
+  const shown = showParked(work, projectRoot);
   if (shown.text) parts.push(shown.text);
   const answers = [...shown.answers];
-  if (progress.unchecked) answers.push("`lit skip-row` (or `lit skip-row N`) skips the waiting rows");
-  answers.push("`lit pause` stops the driving until `lit resume`");
-  parts.push(`Answer with: ${answers.join("; ")}.`);
+  if (progress.unchecked) answers.push("`lit skip-row` (or `lit skip-row N`)   skips the waiting rows and drops the steps parked under them");
+  answers.push("`lit pause`   stops the driving until `lit resume`");
+  parts.push(answerBlock(answers));
   return parts.join("\n");
 };
 
@@ -2898,6 +3119,10 @@ export const handleStartWorkStop = (root, input) => {
     const stuck = lanesActive.filter(({ started_at: startedAt }) => nowMs - (Date.parse(startedAt) || nowMs) >= STUCK_LANE_MS);
     const flagged = [...parked.map(({ boundary_id: id }) => id), ...stuck.map(({ agent_id: id }) => `lane:${id}`)];
     let fingerprint = flagged.length ? `${progress.fingerprint}:${shortHash(flagged.join(","))}` : progress.fingerprint;
+    // A store refused on a full list is news for the inbox only: it lifts the quiet check below, and the
+    // recorded fingerprint stays plain, because the inbox that prints the line also clears the count.
+    if (!parked.length) delete work.full_list_refused;
+    const refusedStores = Object.values(work.full_list_refused ?? {}).reduce((sum, count) => sum + count, 0);
 
     // done: this runs before the budget check, so a run that started already ticked closes too.
     const allTicked = progress.total > 0 && progress.unchecked === 0;
@@ -2913,12 +3138,12 @@ export const handleStartWorkStop = (root, input) => {
         const setAside = [...parked];
         work.pending_boundaries = [];
         delete work.inbox_snapshot;
-        if (setAside.length) appendEvent(state, work, "work.steps_set_aside", { boundary_ids: setAside.map(({ boundary_id: id }) => id) });
+        if (setAside.length) appendEvent(state, work, "work.steps_set_aside", { boundary_ids: setAside.map(({ boundary_id: id }) => id), steps: setAside.map(setAsideRecord) });
         work.progress = progress;
         closeWork(state, work, "complete", { source: "Stop", check: check.check ?? null });
         saveState(canonicalRoot, state);
         recordRunEnd({ stateRoot: canonicalRoot, source: "start-work", id: work.work_id, outcome: "sent" });
-        return { handled: true, output: { systemMessage: `LitClaude start-work ${work.work_id} is complete: every row is ticked${check.check ? ` and \`${check.check}\` passed` : ""}.${setAsideLine(setAside)}`, work_id: work.work_id } };
+        return { handled: true, output: { systemMessage: `LitClaude start-work ${work.work_id} is complete: every row is ticked${check.check ? ` and \`${check.check}\` passed` : ""}.${setAsideLine(setAside, canonicalRoot)}`, work_id: work.work_id } };
       }
       failedCheck = check;
       fingerprint = `${fingerprint}:${check.timedOut ? "check-timeout" : "check-failed"}`;
@@ -2944,7 +3169,8 @@ export const handleStartWorkStop = (root, input) => {
     }
     if (budgetOut) decision = "wrap-up";
     // wrap-up and impossible speak once per state, then stay quiet until something changes.
-    if (decision !== "continue" && continuation.last_inbox_fingerprint === fingerprint) return { handled: false, output: null };
+    const shownBefore = continuation.last_inbox_fingerprint === fingerprint;
+    if (decision !== "continue" && shownBefore && !(decision === "wrap-up" && refusedStores)) return { handled: false, output: null };
 
     const stuckNote = stuck.length
       ? ` ${stuck.slice(0, 5).map(({ agent_id: id, agent_type: type }) => `Lane ${clipText(id)} (${clipText(type)}) has run 30+ min with no stop; if it is finished or gone, close it with \`litclaude-ai start-work lane-finalize --work-id ${work.work_id} --lane ${clipText(id)} --session-id ${input.session_id}\`.`).join(" ")}`
@@ -2973,7 +3199,7 @@ export const handleStartWorkStop = (root, input) => {
     const output = {
       ...(decision === "continue"
         ? { decision: "block", reason: `LitClaude start-work continuation: ${next}` }
-        : { systemMessage: decision === "impossible" ? impossibleText() : wrapUpInbox(work, progress, failedCheck) }),
+        : { systemMessage: decision === "impossible" ? impossibleText() : wrapUpInbox(work, progress, failedCheck, canonicalRoot) }),
       work_id: work.work_id,
       revision: work.revision,
       stop_decision: decision,
@@ -2982,7 +3208,7 @@ export const handleStartWorkStop = (root, input) => {
     continuation.last_emitted_progress_fingerprint = fingerprint;
     if (decision !== "continue") continuation.last_inbox_fingerprint = fingerprint;
     // A budget-out inbox keeps the streak, so the same state does not start blocking again.
-    if (decision !== "continue" && !budgetOut) continuation.block_streak = 0;
+    if (decision !== "continue" && !budgetOut && !shownBefore) continuation.block_streak = 0;
     continuation.receipts ??= {};
     continuation.receipts[receiptKey] = {
       continuation_id: output.continuation_id,
@@ -3167,7 +3393,7 @@ const pendingFor = (state, sessionId) => {
 
 const isCommand = (boundary) => boundary.kind === "command";
 const parkedSummary = (boundary) => (isCommand(boundary)
-  ? { action: boundary.action, root: boundary.root, command: boundary.command, tier: boundary.tier }
+  ? { action: boundary.action, root: boundary.root, command: boundary.command, tier: boundary.tier, ...(boundary.hold_reason ? { hold_reason: boundary.hold_reason } : {}) }
   : { action: boundary.action, root: boundary.root });
 
 // The longest all replays of one `lit approve` may take, inside the prompt hook's 120 s limit.
@@ -3198,7 +3424,15 @@ const replayHoldReason = (canonicalRoot, work, boundary) => {
   if (real !== String(boundary.cwd).normalize("NFC")) return `its folder ${boundary.cwd} now leads somewhere else`;
   const roots = [canonicalRoot, ...(work.authority?.grants ?? []).map(({ root: granted }) => granted)];
   if (!roots.some((root) => typeof root === "string" && rootCovers(root, real))) return `its folder ${boundary.cwd} is outside this run's grants`;
-  if (boundary.tier === "B" && localReversibleTier(boundary.command, boundary.cwd, canonicalRoot) !== "B") return "is no longer a known local, reversible step; it needs `lit approve x`";
+  if (boundary.tier === "B" && localReversibleTier(boundary.command, boundary.cwd, canonicalRoot) !== "B") return "is no longer a known local, reversible step, so it never runs from this list; run it yourself if you want it";
+  if (boundary.message_file) {
+    // The list named the file the commit message is read from; a link re-pointed since then is not what the user approved.
+    const classified = classifyBash(boundary.command, boundary.cwd);
+    const links = classified.chain ? classified.chain.filter((link) => !link.control) : [classified];
+    const files = links.flatMap((link) => link.messageFiles ?? []);
+    if (files.some((file) => sensitiveReason(file, "commit"))) return "its commit message file now leads to a secret or settings file";
+    if (!files.includes(boundary.message_file)) return "its commit message file now leads somewhere else than the list showed";
+  }
   return null;
 };
 
@@ -3208,9 +3442,13 @@ const replayHoldReason = (canonicalRoot, work, boundary) => {
 const replayParkedCommands = (canonicalRoot, sessionId, promptId, tier) => {
   const replayed = [];
   const held = [];
+  let outOfTime = false;
   const deadline = Date.now() + replayBudget();
   for (let step = 0; step < MAX_PARKED_COMMANDS.B + MAX_PARKED_COMMANDS.X; step += 1) {
-    if (deadline - Date.now() < Math.min(5_000, replayBudget() / 2)) break;
+    if (deadline - Date.now() < Math.min(5_000, replayBudget() / 2)) {
+      outOfTime = true;
+      break;
+    }
     const next = withLock(canonicalRoot, () => {
       const state = readState(canonicalRoot);
       const work = pendingFor(state, sessionId);
@@ -3268,7 +3506,39 @@ const replayParkedCommands = (canonicalRoot, sessionId, promptId, tier) => {
     });
     if (result.status !== 0) break;
   }
-  return { replayed, held };
+  return { replayed, held, outOfTime };
+};
+
+// The first line of every answer: how many listed steps ran, which one failed or timed out, which did
+// not run and why, and which [X] steps still wait for their own `lit approve x`. The held steps are
+// counted by the list printed below it. `listedIds` is the answered list of this tier, `pending` the
+// command steps still parked afterwards, `outOfTime` whether the answer stopped on its time limit.
+const approveSummary = ({ tier, granted, replayed, pending, listedIds, outOfTime, projectRoot }) => {
+  const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  const keyOf = ({ cwd, command }) => `${cwd}\n${command}`;
+  const ran = replayed.filter(({ status, error }) => status === 0 && !error);
+  const timedOut = replayed.filter(({ error }) => error === "timed out");
+  const failed = replayed.find(({ status, error }) => status !== 0 && error !== "timed out");
+  const timedOutKeys = new Set(timedOut.map(keyOf));
+  const open = pending.filter((step) => canRunParked(step) && step.tier === tier);
+  const after = open.filter((step) => listedIds.includes(step.boundary_id) && !timedOutKeys.has(keyOf(step)));
+  const unlisted = open.filter((step) => !listedIds.includes(step.boundary_id));
+  const waitingX = tier === "B" ? pending.filter((step) => canRunParked(step) && step.tier === "X") : [];
+  const afterClause = after.length ? `; the ${after.length} listed after it did not run: ${stepNames(after)}` : "";
+  const lead = [];
+  const grantedLine = tier === "B" && granted.length ? `granted the parked access: ${granted.map(({ root }) => whereText(root, projectRoot) || "the project").join(", ")}.` : "";
+  const ranLine = listedIds.length ? `ran ${ran.length} of ${listedIds.length} listed [${tier}] step${listedIds.length === 1 ? "" : "s"}.` : "";
+  if (grantedLine) lead.push(`LitClaude start-work ${grantedLine}`, ...(ranLine ? [`It ${ranLine}`] : []));
+  else if (ranLine) lead.push(`LitClaude start-work ${ranLine}`);
+  const tail = [];
+  if (failed) tail.push(`${codeSpan(visibleText(failed.command))} exited ${failed.status ?? failed.error ?? "with an error"} and was taken off the list${afterClause}.`);
+  else if (timedOut.length) tail.push(`${stepNames(timedOut)} timed out and ${timedOut.length === 1 ? "stays" : "stay"} parked${afterClause}.`);
+  else if (after.length) tail.push(`${plural(after.length, "listed step")} did not run${outOfTime ? " before the time limit of this answer" : ""}: ${stepNames(after)}.`);
+  if (unlisted.length) tail.push(`${unlisted.length} more [${tier}] step${unlisted.length === 1 ? " was" : "s were"} not in the list you answered and did not run: ${stepNames(unlisted)}.`);
+  if (waitingX.length) tail.push(`${waitingX.length} [X] step${waitingX.length === 1 ? "" : "s"} wait${waitingX.length === 1 ? "s" : ""} for your own \`lit approve x\`: ${stepNames(waitingX)}.`);
+  const text = [...lead, ...tail].join(" ");
+  if (!text && tier === "X") return "LitClaude start-work: no [X] step is waiting, so nothing ran.";
+  return lead.length || !text ? text : `LitClaude start-work: ${text}`;
 };
 
 /**
@@ -3276,7 +3546,7 @@ const replayParkedCommands = (canonicalRoot, sessionId, promptId, tier) => {
  * then runs the B-tier commands of the list the user was last shown. `lit approve x` (tier "X") runs
  * only that list's irreversible commands. With no list shown for the tier, nothing runs: the list is
  * drawn instead. Whatever is still parked afterwards is listed again (that becomes the next list).
- * Returns `{ approved: { workId, tier, granted, replayed, held, remaining, listed, shownFirst } }`,
+ * Returns `{ approved: { workId, tier, granted, replayed, held, remaining, listed, shownFirst, summary } }`,
  * or null when nothing is parked.
  */
 export const approveStartWorkBoundary = (root, { sessionId, promptId, tier = "B" }) => {
@@ -3305,20 +3575,26 @@ export const approveStartWorkBoundary = (root, { sessionId, promptId, tier = "B"
     }
     granted.push({ action: boundary.action, root: boundary.root });
   }
-  const shownFirst = !(first.inbox_snapshot?.steps ?? []).some((entry) => entry.tier === tier)
-    && first.pending_boundaries.some((entry) => isCommand(entry) && entry.tier === tier);
-  const { replayed, held } = shownFirst ? { replayed: [], held: [] } : replayParkedCommands(canonicalRoot, sessionId, promptId, tier);
+  const listedIds = (first.inbox_snapshot?.steps ?? []).filter((entry) => entry.tier === tier).map(({ boundary_id: id }) => id);
+  const shownFirst = !listedIds.length
+    && first.pending_boundaries.some((entry) => isCommand(entry) && canRunParked(entry) && entry.tier === tier);
+  const { replayed, held, outOfTime = false } = shownFirst ? { replayed: [], held: [] } : replayParkedCommands(canonicalRoot, sessionId, promptId, tier);
+  let summary = "";
   const listed = withLock(canonicalRoot, () => {
     const state = readState(canonicalRoot);
     const work = pendingFor(state, sessionId);
-    if (!work?.pending_boundaries.some(isCommand)) return null;
-    const shown = showParked(work);
+    const pending = (work?.pending_boundaries ?? []).filter(isCommand);
+    summary = shownFirst
+      ? `LitClaude start-work${tier === "B" && granted.length ? ` granted the parked access: ${granted.map(({ root: at }) => whereText(at, canonicalRoot) || "the project").join(", ")}. No step ran yet` : ": nothing ran yet"}, because this list had not been shown to you before. Answer it to run its steps.`
+      : approveSummary({ tier, granted, replayed, pending, listedIds, outOfTime, projectRoot: canonicalRoot });
+    if (!pending.length) return null;
+    const shown = showParked(work, canonicalRoot);
     saveState(canonicalRoot, state);
-    return `LitClaude start-work ${work.work_id}: ${shownFirst ? "nothing ran yet. " : ""}these steps are parked.\n${shown.text}\nAnswer with: ${shown.answers.join("; ")}.`;
+    return `${summary ? `${summary}\n` : ""}${shown.text}\n${answerBlock(shown.answers)}`;
   });
   const left = pendingFor(readState(canonicalRoot, { optional: true }), sessionId);
   const remaining = (left?.pending_boundaries ?? []).map(parkedSummary);
-  return { approved: { workId: first.work_id, tier, granted, replayed, held, remaining, listed, shownFirst }, response };
+  return { approved: { workId: first.work_id, tier, granted, replayed, held, remaining, listed, shownFirst, summary }, response };
 };
 
 /**

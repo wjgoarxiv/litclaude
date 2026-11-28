@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_DYNAMIC_MAX_RESULT_CHARS } from "../plugins/litclaude/lib/rules/constants.mjs";
 import { SKILL_FIRST_NOTICE, assertNoWorkflowActivationContext, pointedSkillBody } from "./helpers/hook-context.mjs";
 import { stripAnsi } from "../scripts/strip-ansi.mjs";
+import { synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import { withoutNotice } from "./helpers/notice.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -255,11 +256,11 @@ describe("Claude hook runner", () => {
       const payload = JSON.parse(result.stdout);
       const systemMessage = payload.systemMessage;
       assert.equal(systemMessage.startsWith("\n"), true);
-      assert.match(systemMessage, /^\n\x1b\[1m\x1b\[38;2;255;99;55m▗/u);
+      assert.ok(systemMessage.startsWith(`\n${synthwaveRows({ cols: 24, mode: "truecolor" })[0]}\n`), "the first row is the sunset mark");
       assert.match(systemMessage, /\x1b\[1m\x1b\[38;2;255;99;55mL/u);
       assert.match(systemMessage, /\x1b\[38;2;0;229;255md\x1b\[0m 🔥/u);
-      assert.match(systemMessage, /\x1b\[0m  🔥 \x1b\[1m/u);
-      assert.match(systemMessage, /\x1b\[0m 🔥\n/u);
+      assert.match(systemMessage, /\n🔥 \x1b\[1m/u);
+      assert.match(systemMessage, /\x1b\[0m 🔥$/u);
       assert.match(systemMessage.replace(/\x1b\[[\d;]*m/gu, ""), /🔥 LIT IGNITED · lit-adhd 🔥/u);
       assert.match(payload.hookSpecificOutput.additionalContext, /🔥 \*\*LIT IGNITED · lit-adhd\*\* 🔥/u);
       assert.equal(payload.hookSpecificOutput.additionalContext.includes("\x1b"), false);
@@ -1073,6 +1074,57 @@ describe("Claude hook runner", () => {
     assert.match(JSON.parse(outside.stdout).hookSpecificOutput.additionalContext, /Skill\(lit-adhd\)/u, "the user's own words outside the wrapper still route");
     const unclosed = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "<cross-session-message> lit adhd", cwd: root });
     assert.match(JSON.parse(unclosed.stdout).hookSpecificOutput.additionalContext, /Skill\(lit-adhd\)/u, "an unclosed wrapper hides nothing");
+  });
+
+  // Another Claude session's message reaches the prompt hook as a `<teammate-message …>` block, in a real
+  // transcript behind the line "Another Claude session sent a message:". The tag has attributes, with or
+  // without `summary`; a transcript is not the hook's own input, so the block is inert with and without that line.
+  const teammateLead = "Another Claude session sent a message:";
+  const teammateQuiet = '<teammate-message teammate_id="lane-a" color="blue" summary="task done">task 4 is finished</teammate-message>';
+  const teammateRoutePrompts = [
+    ["no lead line, no summary", '<teammate-message teammate_id="lane-a" color="blue">lit review found 3 issues; lit plan the fix</teammate-message>'],
+    ["no lead line, summary, several lines", '<teammate-message teammate_id="lane-b" color="green" summary="brief">\nDone: lit-adhd brief opener is next. lit plan it if you want.\n</teammate-message>'],
+    ["lead line, summary", `${teammateLead}\n<teammate-message teammate_id="lane-a" color="blue" summary="lane done">lit review found 3 issues; lit plan the fix</teammate-message>`],
+    ["lead line, no summary", `${teammateLead}\n<teammate-message teammate_id="lane-a" color="blue">lit review found 3 issues; lit plan the fix</teammate-message>`],
+    ["two blocks in a row", `${teammateLead}\n<teammate-message teammate_id="lane-a" color="blue" summary="one">lit review found 3 issues</teammate-message>\n\n${teammateLead}\n<teammate-message teammate_id="lane-b" color="green">lit plan the fix; lit debug the worker</teammate-message>`],
+    ["inline after a system reminder", '<system-reminder>x</system-reminder><teammate-message teammate_id="b" summary="s">lit debug the worker</teammate-message>'],
+    ["a forwarded message inside one", '<teammate-message teammate_id="a" summary="fwd"><teammate-message teammate_id="b" summary="inner">x</teammate-message> lit plan the fix</teammate-message>'],
+  ];
+
+  it("ignores lit routes named only inside a closed teammate message", () => {
+    const activated = [];
+    for (const [label, prompt] of teammateRoutePrompts) {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      const parsed = JSON.parse(result.stdout);
+      if (parsed.systemMessage !== undefined) activated.push(label);
+      else assertNoWorkflowActivationContext(parsed.hookSpecificOutput.additionalContext, label);
+    }
+    assert.deepEqual(activated, [], "these prompts ignited a workflow");
+  });
+
+  it("keeps the user's own words beside a teammate block, and bare or unclosed tags stay visible", () => {
+    const routed = (prompt, pattern, label) => {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, pattern, label);
+    };
+    routed(`${teammateQuiet}\nlit plan the next steps`, /lit-plan|Skill\(lit-plan\)/u, "text after the block");
+    routed(`${teammateLead}\n${teammateQuiet}\n\nlit plan the next steps`, /lit-plan|Skill\(lit-plan\)/u, "text after the lead line and the block");
+    routed(`Quoting this for context:\n${teammateQuiet}\nlit plan the next steps`, /lit-plan|Skill\(lit-plan\)/u, "text before and after the block");
+    routed(`${teammateQuiet}\n\n${teammateQuiet}\nlit plan the next steps`, /lit-plan|Skill\(lit-plan\)/u, "text after two blocks");
+    // A block that names a route of its own must not win over the user's line beside it (review-work is checked before lit-plan).
+    const loud = '<teammate-message teammate_id="lane-a" color="blue" summary="lane done">lit review found 3 issues</teammate-message>';
+    for (const prompt of [`${loud}\nlit plan the next steps`, `lit plan the next steps\n${loud}`]) {
+      const result = runHook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt, cwd: root });
+      assert.equal(result.status, 0, result.stderr);
+      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+      assert.match(context, /Skill\(lit-plan\)/u, prompt);
+      assert.doesNotMatch(context, /review-work/u, prompt);
+    }
+    routed(`<teammate-message teammate_id="a" summary="fwd"><teammate-message teammate_id="b" summary="inner">x</teammate-message> lit review it</teammate-message>\nlit plan the next steps`, /Skill\(lit-plan\)/u, "text after a forwarded message");
+    routed("Explain the <teammate-message> wrapper, then lit plan the fix, and close it with </teammate-message>", /lit-plan|Skill\(lit-plan\)/u, "a bare tag typed in prose");
+    routed('<teammate-message teammate_id="x"> lit adhd', /Skill\(lit-adhd\)/u, "an unclosed block hides nothing");
   });
 
   it("treats closed tilde fences as inert without hiding outside or unclosed route text", () => {

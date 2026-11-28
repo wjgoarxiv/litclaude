@@ -10,6 +10,7 @@ import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFi
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
+import { canRunParked } from "../parked-step.mjs";
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { resolveProjectStateRoot } from "../project-state-root.mjs";
 import { buildBoard, renderBoard, STALE_PLAN_DAYS } from "./board.mjs";
@@ -293,7 +294,7 @@ const startWorkOf = (root, budget, redact) => {
   const parked = Array.isArray(work.pending_boundaries) ? work.pending_boundaries : [];
   const legacy = work.status === "paused" ? work.pending_boundary : null;
   const allBlocked = rows.length ? open.length > 0 && open.every((row) => row.blocked) : !work.progress?.next_task && work.progress?.unchecked > 0;
-  const waiting = legacy ?? (parked.length && allBlocked ? parked[0] : null);
+  const waiting = legacy ?? (allBlocked ? parked.find(canRunParked) ?? null : null);
   // Every row of the run's own plan ticked: the run is finished, whatever its last Stop stored (R4).
   const finished = rows.length > 0 && open.length === 0 && ["active", "paused"].includes(work.status);
   return [{

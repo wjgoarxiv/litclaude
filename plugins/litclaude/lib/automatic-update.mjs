@@ -539,6 +539,23 @@ const isNewer = (candidate, current) => {
   }
 };
 
+const fetchRegistryVersion = async ({ registryUrl, fetch = globalThis.fetch }) => {
+  if (!safeUrl(registryUrl, { allowPath: true })) throw new Error("the registry address is not usable");
+  const response = await fetch(registryUrl, {
+    headers: { accept: "application/json", "user-agent": "litclaude-ai-update-notifier" },
+    redirect: "error",
+    signal: AbortSignal.timeout(REGISTRY_REQUEST_TIMEOUT_MS),
+  });
+  if (response.status !== 200) throw new Error(`the registry answered HTTP ${response.status}`);
+  if (!/^application\/json(?:\s*;\s*charset=(?:utf-8|utf8))?$/iu.test(response.headers.get("content-type")?.trim() ?? "")) {
+    throw new Error("the registry answer is not application/json");
+  }
+  const parsed = JSON.parse(await readCappedBody(response));
+  if (parsed?.name !== PACKAGE_NAME) throw new Error("the registry answer is for another package");
+  parseStableSemver(parsed.version);
+  return parsed.version;
+};
+
 // Runs in the detached child. It writes only when the attempt it was started for still
 // owns the cache, so a newer attempt or the terminal notifier is never overwritten.
 export const refreshSessionUpdateCache = async ({
@@ -552,35 +569,63 @@ export const refreshSessionUpdateCache = async ({
   spawn = nodeSpawnSync,
 } = {}) => {
   try {
-    if (!safeUrl(registryUrl, { allowPath: true })) return false;
-    const response = await fetch(registryUrl, {
-      headers: { accept: "application/json", "user-agent": "litclaude-ai-update-notifier" },
-      redirect: "error",
-      signal: AbortSignal.timeout(REGISTRY_REQUEST_TIMEOUT_MS),
-    });
-    if (response.status !== 200) return false;
-    if (!/^application\/json(?:\s*;\s*charset=(?:utf-8|utf8))?$/iu.test(response.headers.get("content-type")?.trim() ?? "")) return false;
-    const parsed = JSON.parse(await readCappedBody(response));
-    if (parsed?.name !== PACKAGE_NAME) return false;
-    parseStableSemver(parsed.version);
+    const latestVersion = await fetchRegistryVersion({ registryUrl, fetch });
     const completedAt = canonicalNow(now);
     const previous = readCacheRecord(cachePath, completedAt);
     if (previous?.generation !== generation) return false;
     writeAtomic(cachePath, `${JSON.stringify({
       schema: 3,
       packageName: PACKAGE_NAME,
-      latestVersion: parsed.version,
+      latestVersion,
       checkedAt: new Date(completedAt).toISOString(),
       attemptedAt: previous.attemptedAt,
       generation,
     })}\n`);
-    if (isNewer(parsed.version, currentVersion)) {
-      prefetchUpdateTarball({ cachePath, generation, targetVersion: parsed.version, env, spawn });
+    if (isNewer(latestVersion, currentVersion)) {
+      prefetchUpdateTarball({ cachePath, generation, targetVersion: latestVersion, env, spawn });
     }
     return true;
   } catch {
     return false;
   }
+};
+
+const TTY_STAND_IN = Object.freeze({ isTTY: true });
+
+// A typed `update` asks the registry even in a pipe: the TTY rule only decides whether a newer
+// version may be installed unattended, and the gates are the automatic path's own.
+export const shouldAskRegistryFresh = ({ command, rest = [], dryRun = false, env = process.env, noAutoUpdate = false } = {}) =>
+  command === "update"
+  && shouldRunAutomaticUpdate({ surface: "management", command, rest, dryRun, env, noAutoUpdate, stdin: TTY_STAND_IN, stdout: TTY_STAND_IN, stderr: TTY_STAND_IN });
+
+// One fresh registry request. An answer is recorded as the notifier cache's latest, so the
+// automatic path reads it as its candidate; a cache file that is not this package's record stays.
+export const askRegistryFresh = async ({ cachePath, currentVersion, env = process.env, fetch = globalThis.fetch, now = Date.now() } = {}) => {
+  const at = canonicalNow(now);
+  try {
+    const latestVersion = await fetchRegistryVersion({ registryUrl: registryLatestUrl(env), fetch });
+    try {
+      if (readCacheRecord(cachePath, at) || !existsSync(cachePath)) {
+        const stamp = new Date(at).toISOString();
+        writeAtomic(cachePath, `${JSON.stringify({ schema: 3, packageName: PACKAGE_NAME, latestVersion, checkedAt: stamp, attemptedAt: stamp, generation: randomUUID() })}\n`);
+      }
+    } catch {
+      // The answer still serves this run; only the cache could not keep it.
+    }
+    return { answered: true, latestVersion };
+  } catch (error) {
+    const candidate = readCacheCandidate(cachePath, currentVersion, at);
+    const fromCache = candidate.status === "candidate";
+    const reason = safeDetail(error?.message).replace(/[\p{Cc}\p{Cf}]+/gu, " ");
+    return { answered: false, reason, fallbackVersion: fromCache ? candidate.version : currentVersion, fromCache };
+  }
+};
+
+// Printed once the automatic path has run: a cached version is named only when that run installed it.
+export const registryFallbackLine = ({ answer, installed, ranVersion }) => {
+  const named = installed && answer.fromCache ? answer.fallbackVersion : ranVersion;
+  const source = named === ranVersion ? "the version of this command" : "the last registry answer on record";
+  return `UPDATE_REGISTRY: the npm registry did not answer (${answer.reason}). Falling back to LitClaude ${named}, ${source}.`;
 };
 
 const spawnSessionCacheRefresh = (cachePath, generation, registryUrl, env = process.env, currentVersion = "", spawnProcess = nodeSpawn) => {
@@ -617,7 +662,7 @@ const scheduleSessionCacheRefresh = ({ cachePath, env, now, spawnRefresh, curren
   }
 };
 
-const installedPluginVersion = (claudeHome) => {
+export const installedPluginVersion = (claudeHome) => {
   try {
     const registry = JSON.parse(readFileSync(join(claudeHome, "plugins", "installed_plugins.json"), "utf8"));
     const version = registry?.plugins?.["litclaude@litclaude-ai"]?.[0]?.version;
@@ -626,6 +671,28 @@ const installedPluginVersion = (claudeHome) => {
   } catch {
     return null;
   }
+};
+
+const NPM_GLOBAL = (version) => `npm install -g ${PACKAGE_NAME}@${version}`;
+
+export const updateVersionLine = ({ ranVersion, installedVersion, latestVersion = null, latestFromCache = false }) => {
+  const latestLabel = latestFromCache ? "the last registry answer on record is" : "the registry's latest is";
+  const registryAhead = (than) => latestVersion !== null && isNewer(latestVersion, than);
+  if (installedVersion === null) {
+    return `UPDATE_VERSIONS: this command is LitClaude ${ranVersion}; the installed plugin version could not be read.`;
+  }
+  if (isNewer(installedVersion, ranVersion)) {
+    const target = registryAhead(installedVersion) ? latestVersion : installedVersion;
+    const then = target === installedVersion ? "" : ", then litclaude update --yes";
+    return `UPDATE_VERSIONS: this command is LitClaude ${ranVersion} but the installed plugin is ${installedVersion}; they differ, and the command on your PATH is the older one. Type: ${NPM_GLOBAL(target)}${then}`;
+  }
+  if (isNewer(ranVersion, installedVersion)) {
+    return `UPDATE_VERSIONS: this command is LitClaude ${ranVersion} but the installed plugin is ${installedVersion}; they differ, and the plugin is the older one. Type: litclaude update --yes`;
+  }
+  if (registryAhead(ranVersion)) {
+    return `UPDATE_VERSIONS: this command and the installed plugin are both LitClaude ${ranVersion}, but ${latestLabel} ${latestVersion}. Type: ${NPM_GLOBAL(latestVersion)}, then litclaude update --yes`;
+  }
+  return `UPDATE_VERSIONS: this command and the installed plugin are both LitClaude ${ranVersion}.`;
 };
 
 const recentlyFailed = (autoRoot, targetVersion, now) => {

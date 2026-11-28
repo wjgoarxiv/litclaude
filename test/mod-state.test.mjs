@@ -297,3 +297,25 @@ test("parseBoulder: parked steps keep the run going; it waits only when every op
   assert.equal(old.status, "paused");
   assert.equal(old.awaiting, "b0");
 });
+
+test("parseBoulder: runnable counts only steps an answer can run; held steps keep the run paused", () => {
+  const stateWith = (work) => ({ active_work_id: "w1", works: { w1: { work_id: "w1", root_session_id: "s1", active_session_id: "s1", session_ids: ["s1"], plan_name: "p.md", ...work } } });
+  const held = (id) => ({ boundary_id: id, kind: "command", tier: "X", command: "echo $X", hold_reason: "it expands a shell variable or substitution", origin_session_id: "s1" });
+  const open = { total: 2, checked: 1, unchecked: 1, next_task: null };
+
+  const heldOnly = parseBoulder(stateWith({ status: "active", pending_boundaries: [held("h1"), held("h2")], progress: open }), "s1").work;
+  assert.equal(heldOnly.status, "paused");
+  assert.equal(heldOnly.awaiting, "h1");
+  assert.equal(heldOnly.parked, 2);
+  assert.equal(heldOnly.runnable, 0);
+
+  const mixed = parseBoulder(stateWith({ status: "active", pending_boundaries: [held("h1"), held("h2"), { boundary_id: "r1", kind: "command", tier: "B", command: "touch a", origin_session_id: "s1" }], progress: open }), "s1").work;
+  assert.equal(mixed.runnable, 1);
+
+  const grant = parseBoulder(stateWith({ status: "active", pending_boundaries: [{ boundary_id: "b1", action: "read", root: "/x", origin_session_id: "s1" }], progress: open }), "s1").work;
+  assert.equal(grant.runnable, 1);
+
+  const legacy = parseBoulder(stateWith({ status: "paused", pending_boundary: { boundary_id: "b0", action: "read", root: "/x", origin_session_id: "s1" }, progress: { total: 1, checked: 0, unchecked: 1, next_task: "1. a" } }), "s1").work;
+  assert.equal(legacy.runnable, 1);
+  assert.equal(legacy.awaiting, "b0");
+});

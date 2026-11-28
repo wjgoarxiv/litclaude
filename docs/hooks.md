@@ -754,68 +754,105 @@ lines are still the ones the approval question recorded (their hash rides on the
 question, they grant nothing until the plan is approved again; `scripts/goal-propose.mjs` prints that line first in the approval question,
 and the run state records it as the work's `charter`. The guard reads the branch from `.git` `HEAD` at call
 time (a linked worktree's `.git` file included), so a commit made after a branch switch is refused. Plain
-`git add <files>` and `git commit -m`, `-F`, `-a` or `-q` pass; `--amend`, `--no-verify`, `git add -A` or
-`.`, command substitution, a commit on any other branch, push, tag, reset, publish and version bumps do not.
+`git add <files>` and `git commit -m`, `-F`, `-a` or `-q` pass, also as `git -C <dir> add <files>` and
+`git -C <dir> commit …` with one plain `-C` path, for the charter's repository even when it lies outside the
+project folder; `--amend`, `--no-verify`, `git add -A` or `.`, command substitution, a commit on any other
+branch, push, tag, reset, publish and version bumps do not. A message file (`-F <file>`) must lie in the
+commit's own repository, the run's private temp folder or the session's scratchpad or project memory: a secret
+or settings file there is refused outright and never stored, and any other file parks the commit as X. The
+inbox entry then names the resolved file ("its commit message is read from `<file>`"), and a step whose
+message file leads somewhere else when the answer comes is held and stays on the list.
 
-**Parking.** Every Bash call the guard would refuse (unverified, unclassified, outside the grants, a
-relocation) is parked as a command step with its exact text, its folder and a tier. B is an allowlist of
+**Parking.** A Bash call the guard would refuse (unverified, unclassified, outside the grants, a
+relocation) is parked as a command step with its exact text, its folder and a tier. A plain read is the
+exception: one the guard will not run, for example because it reaches outside the granted folders, is refused
+with a hint (the quoted form of an unquoted glob, or a `BLOCKED: <reason>` line for a folder the plan lacks)
+and nothing is stored, since a stored read would run later in the user's shell where its output never reaches
+the model. For the run's owner the reads include `git grep`, `git -C <dir> <read>` and GitHub reads through
+`gh`: `gh api` as a GET with no body, field or method flag, `gh pr list`, `gh pr view` and `gh run view`;
+another session, and a session after `lit cancel`, may not run the `gh` reads. B is an allowlist of
 shapes known to stay local and be undoable: `cd`, `touch`, `mkdir [-p]` and `git add`, and `cp` / `mv` onto a
 path that does not exist yet. Every path is resolved with realpath (the nearest existing parent for a new one)
 and must lie inside the project, outside `.git` and outside every protected path. Everything else is X: push,
 tag, publish, bump, reset, commits outside the charter, every package script and runner (`npm run`, `npm test`,
 `npx`, `node <file>`, `python <file>`, `make`, `bash <file>`; they run arbitrary code), and any other
-command the guard cannot show to be local (`gh`, `curl`, `ssh`, `rm -rf`, an unresolved git alias). A
-command the check cannot read is held with the reason "cannot check this command": listed, never replayed,
-not even on `lit approve x`. That covers `$`, backticks, `base64`, a nested shell, escaped bytes,
-`pushd`/`popd`, `builtin`, `command`, `exec`, `eval`, `source`, unquoted globs and braces, redirects, and
-any step its word parser does not fully read. The model is told "parked; continue
-with the next row", so the turn goes on. At most 32 B steps and 16 X steps are kept beside the 16 path
-boundaries. Secrets, settings and host tool homes, including the account's real home when `HOME` is replaced,
+command the guard cannot show to be local (any other `gh` call, `curl`, `ssh`, `rm -rf`, an unresolved git
+alias). A command the check cannot read is held with the reason "cannot check this command": it is stored
+outside the per-tier list, the inbox counts held steps by reason in one line, their full text stays in
+`.litclaude/boulder.json`, and nothing replays them, `lit approve x` included. That covers `$`, backticks,
+`base64`, a nested shell, escaped bytes, `pushd`/`popd`, `builtin`, `command`, `exec`, `eval`, `source`,
+unquoted globs and braces, redirects, and any step its word parser does not fully read. The model is told "parked; continue
+with the next row", so the turn goes on. At most 32 B steps, 16 X steps and 32 held steps are kept beside
+the 16 path boundaries. A step past a full tier is refused and not stored, the model is told to add a
+`BLOCKED: <reason>` line and try it again after the user answers, and the next inbox says once that the list
+was full. Secrets, settings and host tool homes, including the account's real home when `HOME` is replaced,
 are refused and never stored; that check follows `cd` between segments and reads the command with its
 quotes removed, and it runs again, with the tier and the folder, right before a replay. It is a backstop,
-not a sandbox: the list shows every command in full, and reading it is the real control. The user answers
-from the prompt:
+not a sandbox: the list shows every command in full, and reading it is the real control. Every refusal
+the guard decides on opens with "Not a crash: LitClaude's start-work guard stopped this call on purpose, so
+it did not run.", because the host has printed a hook-error label in front of a denied call. The fail-closed
+message for a check that itself broke (`start-work authority check failed closed: …`) keeps its own wording. The user answers from the prompt:
 
 | Prompt | What the prompt hook does |
 | --- | --- |
-| `lit approve` / `lit 승인` | Grants the parked path boundaries, then replays the B commands of the list the user was last shown, in order, each in its stored folder, within a 100 s budget (the `UserPromptSubmit` timeout is 120 s); the first failure stops the rest, and one that times out stays parked, marked "timed out". With no list shown yet it runs nothing and shows the list |
-| `lit approve x` | Only as the exact whole prompt: replays the X steps of the list last shown; nothing else ever runs them |
+| `lit approve` / `lit 승인` | Grants the parked path boundaries, then replays the B commands of the list the user was last shown, in order, each in its stored folder, within a 100 s budget (the `UserPromptSubmit` timeout is 120 s); the first failure stops the rest, and one that times out stays parked, marked "timed out". With no list shown yet it runs nothing, says which folder access it granted and shows the list |
+| `lit approve x` | Only as the exact whole prompt: replays the X steps of the list last shown; nothing else ever runs them. The reply opens with how many of them ran (`LitClaude start-work ran 1 of 3 listed [X] steps.`), then names a failed step and the listed ones after it that did not run, and the [X] steps that were not in the answered list; those appear in the next list. With no [X] step waiting the reply is `LitClaude start-work: no [X] step is waiting, so nothing ran.`; with [X] steps that no list has shown yet it runs nothing and shows the list |
 | `lit deny` / `lit 거절` | Drops the parked steps and keeps those exact commands refused |
 | `lit skip-row [N]` | Ticks the `BLOCKED` or `IMPOSSIBLE` rows (or row N) as skipped and drops their parked steps: each step remembers the row that was the next open one when it was parked, and a step parked under no row stays |
 | `lit pause` / `lit 멈춤` / `lit 일시정지` | Marks the run paused; Stop never drives a paused run |
 | `lit resume` / `lit 재개` | Clears the pause |
 
 The list is a snapshot. When the inbox (or a `lit approve` reply) is drawn, the shown commands are recorded
-with their ids, exact text, folder and tier, at most 8 of them, each printed whole with control characters
-written as escapes; more than 8 are counted as "N more" and are not part of the list. A replay runs only
-those recorded steps, so a step parked after the list was drawn, or one past the first 8, stays parked for
-the next list. Whatever is still parked after an answer is listed again.
+with their ids, exact text, folder and tier, at most 8 per tier ([B] and [X] each), under "Waiting for your
+answer, each step in full (the folder is shown only when it is not the project root):". Each is numbered and
+printed whole, with control characters written as escapes; a folder other than the project root follows as
+`(in <folder>)`, relative to the root when it lies inside the project. More than 8 in a tier add one line, "(N more [X] steps
+are parked and not in this list; they stay parked for the next one.)", and are not part of the list. Held
+steps get one line with their count grouped by reason, and a store refused on a full tier gets "The [X] list
+was full, so 1 more step could not be parked and was not stored; answer this list, then Claude can try it
+again." once. The answers follow one per line under "Answer with one of:". A replay runs only the recorded
+steps, so a step parked after the list was drawn, or one past the first 8 of its tier, stays parked for the
+next list. Whatever is still parked after an answer is listed again.
 
 Trust boundary: anything that can type into the user's own Claude Code prompt is treated as the user, the
 same trust Claude Code's own permission prompts have, so no message tells another session or a pane tool to
-answer a run's inbox, and `lit approve x` counts only as the exact whole prompt.
+answer a run's inbox, and `lit approve x` counts only as the exact whole prompt. Relayed teammate messages
+and host notifications inside a prompt are someone else's text: route words, skill hatches and control words
+in them are inert.
 
 **One Stop decision.** `handleStartWorkStop` returns one of `continue`, `wrap-up`, `done` or `impossible`
 and writes it as `stop_decision`. `continue` blocks the Stop at most twice in a row for the same plan state, and once that budget is spent the next stop shows the wrap-up inbox (with the open row it could not move past) instead of ending silently, once per state
 (the host allows eight), and a turn that ended with no row changed gets one nudge. The driver also runs on the stop that follows its
 own block (`stop_hook_active: true`), which is where a run closes, wraps up or ends impossible; the same
 budget bounds it there. `wrap-up` prints one inbox:
-the waiting rows, the rows marked `IMPOSSIBLE: <reason>`, and every parked step with its command and folder
-(X steps marked), with the answers from the table above; it speaks once per state. `done` runs the plan's
+the waiting rows, the rows marked `IMPOSSIBLE: <reason>`, the parked list described above with its held-step
+line, and the answers from the table above; it speaks once per state. `done` runs the plan's
 `## Done when` check (capped at 90 s inside the 120 s Stop timeout) and completes the run when every row is
 ticked and the check passes, so nobody types `complete`. A check that times out is not proof: the run stays
 open, the stop is blocked once with a message that says the check timed out, and the check waits for a new
-turn before it runs again. When every row is ticked and the check passes, parked local steps are set aside:
-the completion line names each one in full ("N set-aside steps were not run: ..."), and the
-`work.steps_set_aside` event records them. Outward or irreversible steps (push, publish, tag, version bumps,
-releases, deploys, network calls, deletes outside the project, plus `make`, package scripts and unknown git
-subcommands, which may do any of those) keep the run in wrap-up. A Bash self-check
-refused only for its shape (`;`, `||`, `$?`, `echo`, `2>&1`), whose parts are all readers or the Done-when
+turn before it runs again. When every row is ticked and the check passes, parked local steps are set aside
+and the `work.steps_set_aside` event in `.litclaude/start-work/ledger.jsonl` keeps every one in full. The
+completion line names up to three ("2 set-aside steps were not run: `touch a1.txt`; `touch a2.txt`.", with
+`(in <folder>)` for a step whose folder is not the project root); more than three are counted (with how
+many could have run and how many were held when both kinds are present), and the line points to the ledger: "16 set-aside steps were not
+run (1 could have run, 15 held). Their full text is kept in .litclaude/start-work/ledger.jsonl (event
+work.steps_set_aside).". Outward or irreversible steps (push, publish, tag, version bumps, releases,
+deploys, network calls, deletes outside the project, plus `make`, `npm run` and `npm exec` with their
+`pnpm`, `yarn` and `bun` forms, `npx`, `docker` and unknown git subcommands, which may do any of those)
+keep the run in wrap-up. A set-aside step that only reads, such as a
+search whose pattern contains `version` or `tag`, is judged by its program and does not hold the run. The
+guard and the Stop decision find the run through its owner: when the owner's shell is in a nested checkout
+or a sub folder of the project, or in a folder the run was granted outside it, both still act on that run.
+A Bash self-check refused only for its shape (`;`, `||`, `$?`, `echo`, `2>&1`), whose parts are all readers or the Done-when
 check, gets a refusal that names each part to run as its own call, and nothing is parked. The model is never
 told to suggest `lit cancel`.
 
-**The goal is opt-in.** start-work arms Claude Code's `/goal` only when the plan carries a `goal: native`
-line (a typed `/litclaude:start-work` of such a plan arms it too). The condition always ends with ", or the
+**The goal is opt-in.** start-work arms Claude Code's `/goal` only when the user asks for it: the plan
+carries a `goal: native` line (a typed `/litclaude:start-work` of such a plan arms it too), or the user
+answers the approval question of a plan without that line with `yes goal`. That question reads
+`Approve plan and start work? (yes / yes goal / no)` with the goal on the next line, and a plain `yes`
+sets none. Before arming on `yes goal` the hook builds the goal again from the plan and arms it only when
+it equals the one the question showed. The condition always ends with ", or the
 latest reply starts with WAITING-ON-USER:, or after 30 turns", and the continuation text tells the model to
 start a reply that waits on the user with `WAITING-ON-USER:`, so the goal cannot loop on a decision only the
 user can make.
@@ -1042,11 +1079,13 @@ when its part starts, or write one line `SKIP <skill-id>: <reason>` (a list mark
 in place of the colon are fine). For a plan led by lit-loop, the prompt hook stores the skills Claude can
 load itself (installed, not user-typed) for the session, and the Stop hook
 (`plugins/litclaude/lib/skill-plan-gate.mjs`) reads the assistant messages since that prompt in the
-transcript's last 4 MB. A planned skill that was neither loaded (`<id>`, `litclaude:<id>` or
-`<plugin>:<id>`) nor skipped blocks the stop once with its name; it never blocks twice for one plan. A turn
-that ends on a question to the user passes, and the record then survives the next plain prompt that starts
-no route (the answer to that question), for up to two hours; a prompt with a route replaces or clears it,
-and every other prompt (a second plain one, `handoff`, a goal answer, a check-back) clears it. The check is
+transcript's last 4 MB. A planned skill that was neither loaded (a core skill as `<id>` or
+`litclaude:<id>`; a skill that moved to an installed extension only as `<plugin>:<id>`, because its
+same-name stub does not count) nor skipped blocks the stop once with its name; it never blocks twice for
+one plan. A turn that ends on a question to the user passes, and the record then survives the next plain
+prompt that starts no route (the answer to that question), for up to two hours; a prompt with a route
+replaces or clears it, and every other prompt (a second plain one, `handoff`, a goal answer, a check-back)
+clears it. The check is
 the lowest-priority blocker: it runs after the receipt gate and the litgoal loop (a pending receipt warning
 goes out with its block), never on a stop that follows a block (`stop_hook_active`), never during a
 start-work run, and anything it cannot read lets the stop pass. Two limits follow from that order: the stop
@@ -1130,19 +1169,23 @@ supplies the mode contract itself and does not depend on which of the two a
 `Skill(lit-scientific-visualization)` call opens. The arguments stay with the command and are
 never echoed.
 
-LitClaude sets a native goal only on the user's exact `yes`. lit-plan runs
+LitClaude sets a native goal only on the user's own answer. For a plan with a `goal: native` line, lit-plan runs
 `scripts/goal-propose.mjs plans/<slug>.md`, which compiles the plan's `## Done when` check
 into one condition of at most 500 characters, lints it (no judgment words, no push or publish
 as success, an allowlisted test command), runs the check once to prove the goal is not already
 met, and records `.litclaude/goal/consent.json`. The plan reply then asks
 `Approve plan, start work and set goal: /goal <condition>? (yes / edit / no)`. On the next prompt the
-UserPromptSubmit hook reads only an exact `yes`, `edit` or `no`, bound to the condition's hash
-and fresh for 30 minutes. `yes` is handled as a typed `/litclaude:start-work <plan>`: the hook
+UserPromptSubmit hook reads only an exact `yes`, `yes goal`, `edit` or `no` (a listed yes word such as
+`네` or `ok` counts as `yes`), typed as the whole prompt of a real prompt event, bound to the condition's
+hash and fresh for 30 minutes. `yes` is handled as a typed `/litclaude:start-work <plan>`: the hook
 starts the code-owned start-work run with the same grants, and only when that start holds (new,
 already running here on that plan, or taken over) does it write `intent.json`. A refused start
-writes nothing and the reply is `No goal set: start-work did not start (<why>)`. A plan with no
-settable goal gets `Approve plan and start work? (yes / no)` plus its `No goal set: <reason>` line,
-and its `yes` starts the work only. When the turn ends, the LitClaude mod runs
+writes nothing and the reply is `No goal set: start-work did not start (<why>)`. A plan without the `goal: native` line gets
+`Approve plan and start work? (yes / yes goal / no)` with the goal on the next line; offering it runs no
+check, `yes` starts the work only, and `yes goal` also writes `intent.json` after the goal, built again
+from the plan, equals the one shown. A plan with no settable goal gets
+`Approve plan and start work? (yes / no)` plus its `No goal set: <reason>` line, and either yes starts
+the work only. When the turn ends, the LitClaude mod runs
 `/goal <condition>` through `$.command.run`, writes `owner.json`, and confirms the goal from the
 transcript's `goal_status` record; when it cannot confirm, it shows
 `Goal not confirmed. Paste: /goal <condition>`. The mod clears only a goal whose condition
@@ -1354,8 +1397,8 @@ Reload local plugin metadata in Claude Code after hook edits:
 
 ## LIT mark and reply probe
 
-SessionStart renders the standard 22×10 Ignition B mark and `litclaude vX.Y.Z` in
-`systemMessage`. The existing locked per-session rule state retains a separate
+SessionStart draws the sunset mark at its smallest size (B-S, 24 cells wide) and
+`litclaude vX.Y.Z` centred under it in `systemMessage`. The existing locked per-session rule state retains a separate
 ignition receipt through resume and compact resets. Missing session identity or
 unsafe/unwritable state suppresses this decoration; normal context still loads.
 Ignition uses the same discovered project root as rules and compaction, so moving
@@ -1364,8 +1407,8 @@ or symlinked cwd and missing project roots also suppress decoration; unsafe root
 state never falls back to a nested state directory.
 A compact event never repeats the session mark.
 
-Activated UserPromptSubmit routes render the plain mark
-`🔥 LIT IGNITED · <discipline> 🔥` in `systemMessage`. Inactive prompts stay silent.
+Activated UserPromptSubmit routes draw the B-S letters and sun down to the horizon,
+then `🔥 LIT IGNITED · <discipline> 🔥` on its own row, in `systemMessage`. Inactive prompts stay silent.
 `additionalContext` requires the model's reply to begin with exactly one
 `🔥 **LIT IGNITED · <discipline>** 🔥` line. The system mark and reply probe are
 separate outputs; the model must not draw ASCII art or emit a second probe.
@@ -1380,15 +1423,16 @@ still carries its canonical source inline, and `lit-scientific-visualization` no
 its stub's contract. The per-route byte budgets live in
 `test/prompt-context-budget.test.mjs`.
 
-Hook JSON uses uncolored rows. CLI output uses the 44×20 Ignition B banner and
-native product column inside the existing installer frame; `--help` and doctor
-share that mark. The micro envelope remains 16×5, with eleven active columns.
-Interactive terminals paint each symbol cell with orange `#FF6337`, lime
-`#D7F75B`, or ivory `#F2EFDF` (fixed 256-color fallback: 203/191/230). The symbol
-has no row gradient, extrusion, or forced background; product labels remain plain.
-NO_COLOR and CI presence (including empty values), non-TTY, and JSON suppress ANSI.
-A non-UTF-8 locale or TERM=dumb uses a plain `LIT` line. Functional install-step
-colors and progress behavior retain their existing policy.
+A hook cannot read the terminal width, so both hook banners take their size from a
+constant in `bin/litclaude-hook.js`, never from the column count. Colour is truecolor
+or 256 colours; `NO_COLOR` or `CI` gives the mono glyph scene with no escape code, and
+a locale that is not UTF-8 (an unset locale included) or `TERM=dumb` gives the plain
+`LIT` line. The model-visible context never carries the mark. CLI output (install,
+doctor, `--help`) draws the same sunset mark from `lib/synthwave-mark.mjs`, sized from
+the terminal width, inside the existing installer frame. NO_COLOR and CI presence
+(including empty values), non-TTY, and JSON suppress ANSI. A non-UTF-8 or unset locale
+or TERM=dumb uses a plain `LIT` line. Functional install-step colors and progress
+behavior retain their existing policy.
 
 The plugin-local `lib/lit-mark.mjs` owns all three row exports and per-cell color
 maps. The package CLI re-exports that module, and installed hooks import it from

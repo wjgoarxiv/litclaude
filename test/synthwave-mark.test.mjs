@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { CHROME_STOPS, HOST_LABEL, pickSize, synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 import { MONO_ROWS, PIXEL_ROWS, SHARED_COLOURS, SPEC_DIGEST } from "../plugins/litclaude/lib/synthwave-rows.mjs";
@@ -81,7 +85,21 @@ test("colour modes paint the chrome with the LitClaude stops", () => {
   assert.match(indexed, /[34]8;5;\d+/u);
 });
 
-test("the mark module stays out of model-visible hook code", () => {
-  const hook = readFileSync(new URL("../plugins/litclaude/bin/litclaude-hook.js", import.meta.url), "utf8");
-  assert.ok(!hook.includes("synthwave"), "hook must not import or print the synthwave mark");
+test("the hook draws the mark only in the system message, never in model-visible context", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "synthwave-hook-"));
+  mkdirSync(join(cwd, ".git"));
+  try {
+    const hook = fileURLToPath(new URL("../plugins/litclaude/bin/litclaude-hook.js", import.meta.url));
+    const env = { ...process.env, LANG: "en_US.UTF-8", LC_ALL: "en_US.UTF-8", TERM: "xterm-256color", COLORTERM: "truecolor", LITCLAUDE_NO_AUTO_UPDATE: "1" };
+    delete env.NO_COLOR;
+    delete env.CI;
+    for (const [event, input] of [["session-start", { source: "startup" }], ["user-prompt-submit", { prompt: "lit plan the update" }]]) {
+      const result = spawnSync(process.execPath, [hook, event], { cwd, env, encoding: "utf8", input: JSON.stringify({ cwd, session_id: `synthwave-hook-${process.pid}`, ...input }) });
+      assert.equal(result.status, 0, result.stderr);
+      const payload = JSON.parse(result.stdout);
+      assert.match(payload.systemMessage, /\x1b\[[\d;]*m[█▀▄]/u, `${event} draws the mark in truecolor`);
+      assert.match(payload.systemMessage, /\x1b\[(?:1;)?38;2;/u, `${event} uses truecolor escapes`);
+      assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /[█▀▄\x1b]/u, `${event} context stays text`);
+    }
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
 });

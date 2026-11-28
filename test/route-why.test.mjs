@@ -206,6 +206,17 @@ describe("litclaude-ai why: golden routing table", () => {
     assert.equal(explainRoute("how does /lit-plan work").ruleId, "stop:slash-command-mention");
   });
 
+  it("a closed teammate message is set aside; the user's line beside it still routes", () => {
+    const block = '<teammate-message teammate_id="lane-a" color="blue" summary="task done">task 4 is finished</teammate-message>';
+    const only = `Another Claude session sent a message:\n<teammate-message teammate_id="lane-a" color="blue">lit review found 3 issues; lit plan the fix</teammate-message>`;
+    const explained = explainRoute(only);
+    assert.equal(explained.route, null);
+    assert.equal(explained.inert, true);
+    assert.equal(explained.ruleId, "inert:set-aside");
+    assert.equal(hookRoute(only, "teammate-1"), null);
+    assert.equal(explainRoute(`${block}\nlit plan the next steps`).route, "lit-plan");
+  });
+
   it("treats a non-string prompt as no route", () => {
     assert.deepEqual(explainRoute(undefined), { route: null, ruleId: null, runnerUp: null, inert: false });
   });

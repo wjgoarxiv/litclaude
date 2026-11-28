@@ -220,6 +220,29 @@ test("(R4) the reader checks the exact plan the run recorded, so a same-name pla
   assert.equal(entry.status, "finished");
 });
 
+test("a run whose only parked steps are held does not wait for `lit approve`; a runnable one after them does", () => {
+  const { repo, env } = fixture();
+  mkdirSync(join(repo, "plans"));
+  writeFileSync(join(repo, "plans", "p.md"), "# P\n- [x] 1. a\n- [ ] 2. b\n  BLOCKED: needs a parked step\n");
+  mkdirSync(join(repo, ".litclaude"), { recursive: true });
+  const step = (command, extra = {}) => ({ kind: "command", tier: "X", action: "irreversible", root: join(repo, "src"), cwd: join(repo, "src"), command, ...extra });
+  const held = step("cat $V0/a", { hold_reason: "cannot check this command: it expands a shell variable or substitution" });
+  const work = (pending) => ({ work_id: "work-p", status: "active", plan_name: "p.md", root_session_id: "owner-1", pending_boundaries: pending, progress: { checked: 1, total: 2, unchecked: 1, next_task: null } });
+  const collect = (pending) => {
+    writeFileSync(join(repo, ".litclaude", "boulder.json"), JSON.stringify({ active_work_id: "work-p", works: { "work-p": work(pending) } }));
+    return collectRewind({ cwd: repo, env, now: NOW, exec: noGit, here: true, sessionId: "owner-1", record: false });
+  };
+  const onlyHeld = collect([held]);
+  assert.equal(onlyHeld.startWork[0].pendingBoundary, undefined, "a held step waits on no answer");
+  assert.equal(onlyHeld.startWork[0].status, "active");
+  assert.equal(onlyHeld.startWork[0].parked, 1, "it is still counted as parked");
+  assert.notEqual(chooseNextStep(onlyHeld, "owner-1").kind, "approve-boundary");
+  const both = collect([held, step("git tag v1", { root: join(repo, "other"), cwd: join(repo, "other") })]);
+  assert.equal(both.startWork[0].status, "paused");
+  assert.equal(both.startWork[0].pendingBoundary.root.endsWith("other"), true, "the runnable step is the one that waits");
+  assert.equal(chooseNextStep(both, "owner-1").kind, "approve-boundary");
+});
+
 test("plans, litgoal, handoffs, stacks and git all feed the brief with redacted text", () => {
   const { repo, configDir, env, home } = fixture();
   mkdirSync(join(repo, "plans"));

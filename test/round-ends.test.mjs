@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
+import { cliEnv } from "./helpers/cli-env.mjs";
 import { ICON_FONT, installIconFont, iconFontManifestPath, terminalFontHint } from "../bin/icon-font.mjs";
 import { roundEndsLine } from "../bin/round-ends.mjs";
 import { glyphSetting, glyphWord, roundCaps } from "../plugins/litclaude/lib/mod/round.mjs";
@@ -70,7 +71,7 @@ const withCli = (work) => {
     for (const file of ICON_FONT.files) text = text.replace(file.sha256, sha256(file.kind === "font" ? FONT : LICENSE));
     writeFileSync(pins, text);
     writeFileSync(join(dir, "font.zip"), ARCHIVE);
-    const env = (extra) => ({
+    const env = (extra) => cliEnv({
       PATH: "/usr/bin:/bin", HOME: home, CLAUDE_CONFIG_DIR: join(home, ".claude"), LITCLAUDE_HOME: join(home, ".litclaude"), XDG_DATA_HOME: join(home, ".local/share"),
       TMPDIR: join(home, "tmp"), LANG: "en_US.UTF-8", TERM: "xterm-256color", NO_UPDATE_NOTIFIER: "1", LITCLAUDE_NO_AUTO_UPDATE: "1",
       LITCLAUDE_ICON_FONT_SOURCE: join(dir, "font.zip"), ...extra,

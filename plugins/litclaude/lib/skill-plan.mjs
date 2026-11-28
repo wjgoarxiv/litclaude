@@ -283,8 +283,9 @@ export const skillPlanContext = (plan, installed = new Set()) => {
   // lit-loop plus the one route the request matched: that route's own context already describes it, so the
   // block only states the obligation.
   if (!plan.forced && plan.dropped.length === 0 && plan.entries.length === 2 && plan.entries[0].id === LOOP_BASE) {
-    const { id } = plan.entries[1];
-    lines.push(`Load ${id} with the Skill tool when its part starts, or write one line \`SKIP ${id}: <reason>\`; at turn end LitClaude stops once if it was neither.`);
+    const { id, plugin, installed: present, userInvoked } = plan.entries[1];
+    const name = plugin && present && !userInvoked ? `${plugin}:${id}` : id;
+    lines.push(`Load ${name} with the Skill tool when its part starts, or write one line \`SKIP ${id}: <reason>\`; at turn end LitClaude stops once if it was neither.`);
     return `<litclaude-skill-plan>\n${lines.join("\n")}\n</litclaude-skill-plan>`;
   }
   if (plan.forced) {

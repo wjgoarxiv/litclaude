@@ -173,7 +173,7 @@ native user surface, but the observed hook/skill surface cannot run another
 slash command and this session may expose no model-facing goal tools. Bind goals
 like this:
 
-- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Never clobber a different active goal without explicit replacement.
+- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Never clobber a different active goal without explicit replacement.
 - A lit-loop with no plan gets one question too. When the project has a test command (`npm test`,
   `pytest`, `cargo test`, `go test ./...`), the prompt hook shows the user
   `Set goal for this lit-loop: /goal <cond>? (yes / no)` itself at the loop's first activation; do

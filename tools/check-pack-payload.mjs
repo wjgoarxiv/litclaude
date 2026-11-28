@@ -76,6 +76,7 @@ export const MOD_PAYLOAD_PATHS = Object.freeze([
     .map((name) => `plugins/litclaude/lib/mod/${name}.mjs`),
   'plugins/litclaude/lib/rewind/gauge.mjs',
   'plugins/litclaude/lib/plan-task-rows.mjs',
+  'plugins/litclaude/lib/parked-step.mjs',
 ]);
 
 // Forbidden path segments (regex patterns tested against each file path).

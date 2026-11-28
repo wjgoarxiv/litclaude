@@ -118,7 +118,7 @@ export const turnSkillActivity = (transcriptText, promptAt) => {
   return { loaded, skipped, asked: endsWithQuestion(lastText) };
 };
 
-const isLoaded = ({ id, plugin }, loaded) => loaded.has(id) || loaded.has(`litclaude:${id}`) || (plugin !== null && loaded.has(`${plugin}:${id}`));
+const isLoaded = ({ id, plugin }, loaded) => (plugin !== null ? loaded.has(`${plugin}:${id}`) : loaded.has(id) || loaded.has(`litclaude:${id}`));
 
 export const evaluateSkillPlanStop = ({ cwd, sessionId, transcriptPath, now = Date.now() }) => {
   const turn = readTurn(cwd, sessionId);

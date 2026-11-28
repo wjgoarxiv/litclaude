@@ -4,11 +4,13 @@
 // lands; that row removes the flag in the same change.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import * as preTool from "../plugins/litclaude/lib/pre-tool-use.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const binPath = join(repoRoot, "bin", "litclaude-ai.js");
@@ -17,10 +19,13 @@ const hookPath = join(repoRoot, "plugins", "litclaude", "bin", "litclaude-hook.j
 const runCli = (root, args) => spawnSync(process.execPath, [binPath, "start-work", ...args, "--root", root, "--json"], {
   cwd: root, encoding: "utf8", maxBuffer: 10 * 1024 * 1024,
 });
-const runHook = (event, root, input = {}) => spawnSync(process.execPath, [hookPath, event], {
+const runHook = (event, root, input = {}, env = {}) => spawnSync(process.execPath, [hookPath, event], {
   cwd: root, encoding: "utf8", input: JSON.stringify({ cwd: root, hook_event_name: event, ...input }),
   // A throwaway home: the prompt hook writes HUD and routing records there, never in the real one.
-  env: { ...process.env, HOME: join(tmpdir(), "litclaude-autopilot-home"), CLAUDE_CONFIG_DIR: join(tmpdir(), "litclaude-autopilot-home", ".claude") },
+  // CLAUDE_PROJECT_DIR is dropped unless a test names it: a host that runs this suite exports its own.
+  env: Object.fromEntries(Object.entries({
+    ...process.env, HOME: join(tmpdir(), "litclaude-autopilot-home"), CLAUDE_CONFIG_DIR: join(tmpdir(), "litclaude-autopilot-home", ".claude"), ...env,
+  }).filter(([key]) => key !== "CLAUDE_PROJECT_DIR" || Object.hasOwn(env, "CLAUDE_PROJECT_DIR"))),
 });
 const parse = (result) => (result.stdout ? JSON.parse(result.stdout) : null);
 
@@ -38,9 +43,9 @@ const project = (rows = ["- [ ] 1. First", "- [ ] 2. Second"]) => {
   execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "base"], { cwd: root });
   return root;
 };
-const init = (root, extra = []) => {
+const init = (root, extra = [], workId = "work-1") => {
   const result = runCli(root, [
-    "init", "--plan", "plans/p.md", "--work-id", "work-1", "--session-id", "owner",
+    "init", "--plan", "plans/p.md", "--work-id", workId, "--session-id", "owner",
     ...[`read:${root}`, `write:${root}`, `execute:${root}`, `test:${root}`, ...extra].flatMap((grant) => ["--grant", grant]),
     "--idempotency-key", "init-1",
   ]);
@@ -59,7 +64,7 @@ const userPrompt = (root, prompt, promptId) => {
 const decisionOf = (output) => output?.hookSpecificOutput?.permissionDecision ?? "allow";
 const reasonOf = (output) => `${output?.hookSpecificOutput?.permissionDecisionReason ?? ""}${output?.reason ?? ""}${output?.systemMessage ?? ""}`;
 const stop = (root, promptId) => parse(runHook("stop", root, { session_id: "owner", prompt_id: promptId, stop_hook_active: false }));
-const status = (root) => parse(runCli(root, ["status"]))?.state?.works?.["work-1"];
+const status = (root, workId = "work-1") => parse(runCli(root, ["status"]))?.state?.works?.[workId];
 const withProject = (rows, body) => async () => {
   const root = project(rows);
   try { await body(root); } finally { rmSync(dirname(root), { recursive: true, force: true }); }
@@ -273,12 +278,13 @@ describe("native /goal is opt-in and always self-ending (row 5)", async () => {
   const plan = (extra = "") => `# P\n${extra}\n## TODOs\n\n- [ ] 1. First\n\n## Done when\n\ncheck: \`node ok.mjs\`\n`;
   const okFails = (root) => writeFileSync(join(root, "ok.mjs"), "process.exit(1);\n");
 
-  it("a plan without `goal: native` gets the start-only question", withProject(undefined, (root) => {
+  it("a plan without `goal: native` gets the start question; the goal is the second answer, never the default", withProject(undefined, (root) => {
     okFails(root);
     writeFileSync(join(root, "plans", "p.md"), plan());
     const { consent, line } = proposeGoal({ cwd: root, planArg: "plans/p.md" });
-    assert.equal(consent.condition, null);
-    assert.match(line, /goal: native/u);
+    assert.equal(consent.condition, null, "a plain yes sets no goal");
+    assert.match(line, /^Approve plan and start work\? \(yes \/ yes goal \/ no\)\n/u);
+    assert.match(consent.goal_option.condition, /, or the latest reply starts with WAITING-ON-USER:, or after \d+ turns \[lit:[0-9a-f]{8}\]$/u);
   }));
 
   it("an opted-in goal ends itself on WAITING-ON-USER: or after a turn budget", withProject(undefined, (root) => {
@@ -733,5 +739,316 @@ describe("F2 fix round 1", async () => {
     assert.equal(blocks, 0);
     assert.ok(Date.now() - started < 8000, "the timed-out check is not run again for the same state");
     assert.equal(status(root)?.status, "active", "not proven, so not closed");
+  }));
+
+  it("every start-work deny opens with the plain guard lead", withProject(undefined, (root) => {
+    assert.equal(typeof preTool.GUARD_LEAD, "string", "pre-tool-use.mjs exports GUARD_LEAD");
+    const lead = preTool.GUARD_LEAD;
+    assert.doesNotMatch(lead, /parked|approv|lit cancel|herdr|error|fail/iu);
+    assert.match(lead, /did not run/u);
+    assert.equal(init(root).status, 0);
+
+    const parkedReason = reasonOf(bash(root, "git tag v1"));
+    assert.ok(parkedReason.startsWith(`${lead} `), parkedReason);
+    assert.match(parkedReason, /parked this command, so it did not run/u);
+
+    for (const command of ["touch .env", "cp x ~/.claude/settings.json"]) {
+      const reason = reasonOf(bash(root, command));
+      assert.ok(reason.startsWith(`${lead} `), `${command}: ${reason}`);
+      assert.doesNotMatch(reason, /parked/iu, command);
+    }
+
+    for (let index = 2; index <= 16; index += 1) bash(root, `git tag t${index}`);
+    assert.equal(parkedCommands(root).length, 16);
+    const capReason = reasonOf(bash(root, "git tag t17"));
+    assert.ok(capReason.startsWith(`${lead} `), capReason);
+    assert.match(capReason, /list of \[X\] steps waiting for the user is full \(16\)/u);
+  }));
+});
+
+// 9.9: a run charter for a repository outside the project. `git -C <repo>` and a commit message file in
+// the run's temp folders or the session scratchpad were parked as irreversible; the forms that can
+// still do harm stay refused.
+describe("charter outside the project", () => {
+  const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8" });
+  let sequence = 0;
+  const hostKey = "-elsewhere-start-dir";
+  const uid = typeof process.getuid === "function" ? process.getuid() : 0;
+  const homeConfig = join(tmpdir(), "litclaude-autopilot-home", ".claude");
+
+  const outsideRepo = (root, name) => {
+    const repo = join(dirname(root), name);
+    mkdirSync(repo, { recursive: true });
+    git(repo, "init", "-q", "-b", "run-branch");
+    git(repo, "config", "user.email", "t@t");
+    git(repo, "config", "user.name", "t");
+    writeFileSync(join(repo, "a.txt"), "base\n");
+    git(repo, "add", "a.txt");
+    git(repo, "commit", "-q", "-m", "base");
+    writeFileSync(join(repo, "a.txt"), "changed\n");
+    writeFileSync(join(repo, "msg.txt"), "step\n");
+    return repo;
+  };
+
+  // The project, a chartered repository `skills`, a second repository `third` with no grant, and a
+  // run whose id is its own so the run's temp folder is not shared with another test file.
+  const withCharter = (body, rows) => withProject(rows, async (root) => {
+    sequence += 1;
+    const workId = `work-scope-${process.pid}-${sequence}`;
+    const skills = outsideRepo(root, "skills");
+    const third = outsideRepo(root, "third");
+    const temp = join(realpathSync(tmpdir()), `litclaude-${workId}`);
+    mkdirSync(temp, { recursive: true });
+    const result = init(root, [`read:${skills}`, `write:${skills}`, `commit:${skills}#run-branch`], workId);
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    let call = 0;
+    const attempt = (command, { cwd = root, input = {}, env = {} } = {}) => {
+      call += 1;
+      const output = parse(runHook("pre-tool-use", root, {
+        cwd, session_id: "owner", prompt_id: "p", stop_hook_active: false, tool_use_id: `scope-${call}`, tool_name: "Bash", tool_input: { command }, ...input,
+      }, env));
+      const boundary = (status(root, workId)?.pending_boundaries ?? []).find((entry) => entry.command === command && entry.cwd === realpathSync(cwd));
+      return { decision: decisionOf(output), reason: reasonOf(output), tier: boundary?.tier, stored: boundary?.reason, parked: Boolean(boundary) };
+    };
+    const parkedCount = () => (status(root, workId)?.pending_boundaries ?? []).length;
+    try {
+      await body({ root, skills, third, temp, workId, attempt, parkedCount });
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
+  });
+
+  it("git -C <repo> add and commit run inside the charter", withCharter(({ skills, attempt, parkedCount }) => {
+    for (const command of [
+      `git -C ${skills} add a.txt`,
+      `git -C ${skills} commit -m step`,
+      `git -C ${skills} commit -F ${skills}/msg.txt`,
+      `git -C ${skills} commit -am step`,
+    ]) assert.equal(attempt(command).decision, "allow", command);
+    assert.equal(parkedCount(), 0);
+  }));
+
+  it("a commit message file in the repository, the run's temp folder or the session scratchpad is accepted", withCharter(({ root, skills, temp, workId, attempt }) => {
+    writeFileSync(join(temp, "msg.txt"), "from the run temp folder\n");
+    assert.equal(attempt(`git -C ${skills} commit -F ${temp}/msg.txt`).decision, "allow", "run temp folder");
+    assert.equal(attempt(`git -C ${skills} commit -F ${skills}/msg.txt`).decision, "allow", "in the repository");
+
+    const hostTmp = realpathSync(mkdtempSync(join(tmpdir(), "litclaude-scope-host-")));
+    try {
+      const scratchpad = join(hostTmp, `claude-${uid}`, hostKey, "owner", "scratchpad");
+      mkdirSync(scratchpad, { recursive: true });
+      writeFileSync(join(scratchpad, "msg.txt"), "from the scratchpad\n");
+      const host = { input: { transcript_path: join(homeConfig, "projects", hostKey, "owner.jsonl") }, env: { CLAUDE_CODE_TMPDIR: hostTmp } };
+      assert.equal(attempt(`git -C ${skills} commit -F ${scratchpad}/msg.txt`, host).decision, "allow", "session scratchpad");
+      const tasks = join(hostTmp, `claude-${uid}`, hostKey, "owner", "tasks");
+      mkdirSync(tasks, { recursive: true });
+      writeFileSync(join(tasks, "x.output"), "task output\n");
+      const readOnly = attempt(`git -C ${skills} commit -F ${tasks}/x.output`, host);
+      assert.equal(readOnly.decision, "deny", "a folder the run may only read is not a message file");
+      assert.equal(readOnly.tier, "X");
+      assert.match(readOnly.stored, /x\.output$/u);
+      const results = join(homeConfig, "projects", hostKey, "owner", "tool-results", "x.txt");
+      mkdirSync(dirname(results), { recursive: true });
+      writeFileSync(results, "a spilled tool result\n");
+      const spilled = attempt(`git -C ${skills} commit -F ${results}`, host);
+      assert.equal(spilled.decision, "deny", "a spilled tool result lives in the host's config folder");
+      assert.equal(spilled.parked, false, "the host's own folder is refused outright and nothing is stored");
+      assert.match(spilled.reason, /names a host tool's home folder, which a start-work never opens or changes/u);
+    } finally {
+      rmSync(hostTmp, { recursive: true, force: true });
+    }
+
+    const stray = attempt(`git -C ${skills} commit -F ${root}/plans/p.md`);
+    assert.equal(stray.decision, "deny", "a project file is not a message file");
+    assert.equal(stray.tier, "X");
+    assert.match(stray.stored, /p\.md$/u, "the file is last: the stored reason keeps its tail");
+    const strayStep = status(root, workId).pending_boundaries.find((entry) => entry.command.endsWith("plans/p.md"));
+    assert.equal(strayStep.message_file, join(realpathSync(root), "plans", "p.md"), "the resolved file is kept for the inbox");
+    assert.match(stray.reason, /outside the repository/u);
+    assert.doesNotMatch(stray.reason, /the run charter does not cover this commit/u, "no charter reason that contradicts itself");
+  }));
+
+  it("a message file that is a secret, a link to one or git configuration is refused outright, never parked", withCharter(({ skills, attempt, parkedCount }) => {
+    writeFileSync(join(skills, ".env"), "TOKEN=1\n");
+    symlinkSync(join(skills, ".env"), join(skills, "note.txt"));
+    for (const command of [`git -C ${skills} commit -F ${skills}/note.txt`, `git -C ${skills} commit -F ${skills}/.git/config`, `git -C ${skills} commit -F ${skills}/.env`]) {
+      const result = attempt(command);
+      assert.equal(result.decision, "deny", command);
+      assert.match(result.reason, /protected for this run/u, command);
+    }
+    assert.equal(parkedCount(), 0);
+  }));
+
+  it("a parked commit whose message file is re-pointed after the list was shown does not run", withCharter(({ root, skills, workId, attempt }) => {
+    git(skills, "add", "a.txt");
+    writeFileSync(join(skills, ".env"), "TOKEN=1\n");
+    writeFileSync(join(skills, "other.txt"), "other\n");
+    const commits = () => execFileSync("git", ["rev-list", "--count", "HEAD"], { cwd: skills, encoding: "utf8" }).trim();
+    for (const [name, target, why] of [["first.txt", join(skills, ".env"), "a secret"], ["second.txt", join(skills, "other.txt"), "another file"]]) {
+      const link = join(skills, name);
+      symlinkSync(join(root, "plans", "p.md"), link);
+      const command = `git -C ${skills} commit -F ${link}`;
+      assert.equal(attempt(command).tier, "X", "characterization: parked for its message file");
+      assert.match(userPrompt(root, "lit approve x", `shown-${name}`), /its commit message is read from/u, "the list names the file");
+      assert.equal(commits(), "1", "showing the list runs nothing");
+      rmSync(link);
+      symlinkSync(target, link);
+      userPrompt(root, "lit approve x", `answer-${name}`);
+      assert.equal(commits(), "1", `${why}: no commit was made`);
+      const step = status(root, workId).pending_boundaries.find((entry) => entry.command === command);
+      assert.match(step?.hold_reason ?? "", /commit message file/u, why);
+    }
+  }));
+
+  it("the cd chain: add and commit with a message file in the temp folder run, a push after them is parked", withCharter(({ skills, temp, attempt }) => {
+    writeFileSync(join(temp, "msg.txt"), "chain\n");
+    assert.equal(attempt(`cd ${skills} && git add a.txt && git commit -F msg.txt`).decision, "allow", "characterization");
+    assert.equal(attempt(`cd ${skills} && git add a.txt && git commit -F ${temp}/msg.txt`).decision, "allow");
+    const pushed = attempt(`cd ${skills} && git add a.txt && git commit -m step && git push origin run-branch`);
+    assert.equal(pushed.decision, "deny");
+    assert.equal(pushed.tier, "X");
+    const stray = attempt(`cd ${skills} && git add a.txt && git commit -F ${temp}/../plans/p.md`);
+    assert.equal(stray.decision, "deny", "a message file climbing out of the temp folder");
+  }));
+
+  it("another branch, a detached HEAD, the project and a repository with no grant stay refused", withCharter(({ root, skills, third, attempt }) => {
+    git(skills, "checkout", "-q", "-b", "other");
+    for (const command of [`git -C ${skills} add a.txt`, `git -C ${skills} commit -m step`, `git -C ${skills} commit -F ${skills}/msg.txt`]) {
+      const result = attempt(command);
+      assert.equal(result.decision, "deny", command);
+      if (command.includes(" commit ")) assert.match(result.reason, /run-branch/u, command);
+    }
+    git(skills, "checkout", "-q", "--detach", "run-branch");
+    const detached = attempt(`git -C ${skills} commit -m step`);
+    assert.equal(detached.decision, "deny", "detached HEAD");
+    assert.equal(detached.tier, "X");
+    git(skills, "checkout", "-q", "run-branch");
+    for (const command of [`git -C ${root} commit -m x`, `git -C ${third} commit -m x`, `git -C ${third} add a.txt`]) {
+      const result = attempt(command);
+      assert.equal(result.decision, "deny", command);
+      assert.equal(result.tier, "X", command);
+    }
+  }));
+
+  it("-C forms that name no repository folder, or add anything beyond -C, are refused as irreversible", withCharter(({ skills, third, attempt }) => {
+    mkdirSync(join(skills, "sub-repo"));
+    git(join(skills, "sub-repo"), "init", "-q", "-b", "run-branch");
+    symlinkSync(skills, join(dirname(skills), "skills-link"));
+    const parkedAsX = [
+      `git -C ${skills}/missing commit -m x`,
+      `git -C ${skills}/a.txt commit -m x`,
+      `git -C ${dirname(skills)}/skills-link/.. commit -m x`,
+      "git -C '' commit -m x",
+      `git -C ${skills} -C ${skills} commit -m x`,
+      `git -C ${skills} -c core.hooksPath=/x commit -m x`,
+      `git -C ${skills} --git-dir=${skills}/.git commit -m x`,
+      `GIT_DIR=${skills}/.git git commit -m x`,
+      `git -C ${skills}/sub-repo commit -m x`,
+      `git -C ${third} commit -m x`,
+    ];
+    for (const command of parkedAsX) {
+      const result = attempt(command);
+      assert.equal(result.decision, "deny", command);
+      assert.equal(result.parked, true, `${command} is stored: ${result.reason}`);
+      assert.equal(result.tier, "X", command);
+    }
+    // These name the home folder, a glob or a variable: refused outright or parked as irreversible, never allowed.
+    for (const command of ["git -C $HOME/x commit -m x", "git -C '*' commit -m x", "git -C ~ commit -m x"]) {
+      const result = attempt(command);
+      assert.equal(result.decision, "deny", command);
+      if (result.parked) assert.equal(result.tier, "X", command);
+      else assert.match(result.reason, /never opens or changes/u, command);
+    }
+    mkdirSync(join(skills, "plain-subfolder"));
+    assert.equal(attempt(`git -C ${skills}/plain-subfolder commit -m step`).decision, "allow", "matches `cd sub && git commit` today");
+  }));
+
+  // Each chunk runs in its own run: one run keeps at most 16 irreversible steps, and a form that met that
+  // cap would be refused for the wrong reason.
+  const attackForms = [
+    "commit --amend -m x", "commit --no-verify -m x", "commit -n -m x", "commit --allow-empty -m x", "commit -s -m x", "commit -C HEAD",
+    "commit --reuse-message=HEAD", "commit -m \"$(id)\"", "commit -F - <<'EOF'\nx\nEOF", "commit", "commit -m x -- a.txt",
+    "add -A", "add -u", "add --all", "add .", "add ./", "add src", "add '*'", "add ':/'", "add ':(top)'", "add ':!x'", "add -- -A", "add ''",
+    "push", "tag v1", "reset --hard", "checkout", "config user.name x", "stash", "rebase", "remote add o x",
+    "commit -m x; git push", "commit -m x || git push",
+  ];
+  for (let from = 0; from < attackForms.length; from += 5) {
+    const forms = attackForms.slice(from, from + 5);
+    it(`the attack table ${from / 5 + 1}: ${forms.length} forms are refused as \`git -C\` and after a cd`, withCharter(({ skills, attempt }) => {
+      mkdirSync(join(skills, "src"));
+      for (const form of forms) {
+        const moved = attempt(`git -C ${skills} ${form}`);
+        assert.equal(moved.decision, "deny", `-C: ${form}`);
+        if (moved.parked) assert.equal(moved.tier, "X", `-C: ${form}`);
+        else assert.match(moved.reason, /never opens or changes/u, `-C: ${form} is refused outright, not by a full list`);
+        const after = attempt(`cd ${skills} && git ${form}`);
+        assert.equal(after.decision, "deny", `cd: ${form}`);
+        assert.doesNotMatch(after.reason, /commands of this kind are already parked/u, `cd: ${form}`);
+      }
+    }));
+  }
+
+  it("a separator or a long chain after the cd is refused", withCharter(({ skills, attempt }) => {
+    assert.equal(attempt(`cd ${skills}; git commit -m x`).decision, "deny");
+    assert.equal(attempt(`cd ${skills} && git add a.txt && git commit -m x && git add a.txt && git commit -m y`).decision, "deny", "five segments");
+  }));
+
+  it("git add with pathspec magic is not a plain file add, in the project too", withProject(undefined, (root) => {
+    assert.equal(init(root, [`commit:${root}#run-branch`]).status, 0);
+    assert.equal(decisionOf(bash(root, "git add src/a.mjs")), "allow");
+    for (const command of ["git add ':/'", "git add ':(top)'", "git add ':!src'"]) assert.equal(decisionOf(bash(root, command)), "deny", command);
+    // `:/` names the filesystem root to the protected-path check, which refuses it outright; the others are parked with their text.
+    for (const command of ["git add ':(top)'", "git add ':!src'"]) {
+      assert.ok((status(root)?.pending_boundaries ?? []).some((entry) => entry.command === command), `${command} is parked with its exact text`);
+    }
+  }));
+
+  it("the allowed forms do what the guard thinks they do", withCharter(({ root, skills, temp, attempt }) => {
+    writeFileSync(join(temp, "msg.txt"), "from the temp folder\n");
+    const head = git(root, "rev-parse", "HEAD");
+    const count = () => Number(git(skills, "rev-list", "--count", "HEAD"));
+    const before = count();
+    for (const args of [["add", "a.txt"], ["commit", "-F", `${temp}/msg.txt`]]) {
+      assert.equal(attempt(["git", "-C", skills, ...args].join(" ")).decision, "allow", args.join(" "));
+      git(root, "-C", skills, ...args);
+    }
+    assert.equal(count(), before + 1);
+    assert.equal(git(skills, "rev-parse", "--abbrev-ref", "HEAD").trim(), "run-branch");
+    assert.equal(git(skills, "show", "--name-only", "--format=", "HEAD").trim(), "a.txt");
+    assert.equal(git(root, "rev-parse", "HEAD"), head, "the project's own history did not move");
+  }));
+});
+
+// 9.20: the word `npm` inside a script's file name is not an npm call, so a `version` argument beside it was
+// refused as a version bump. The program word and what it runs keep their refusals.
+describe("the package-manager word counts at the command, not inside a script name", () => {
+  const withScript = (body) => withProject(undefined, (root) => {
+    mkdirSync(join(root, "tools"), { recursive: true });
+    writeFileSync(join(root, "tools", "lane-npm.mjs"), "process.exit(0);\n");
+    assert.equal(init(root).status, 0);
+    body(root);
+  });
+
+  it("a node script named for npm runs with `version` and `publish` words as plain arguments", withScript((root) => {
+    for (const command of [
+      "node tools/lane-npm.mjs m gen:skills-lock check:version test:all",
+      "node tools/lane-npm.mjs version-report",
+      "node tools/lane-npm.mjs m publish:dry-run",
+    ]) assert.equal(decisionOf(bash(root, command)), "allow", command);
+  }));
+
+  it("npm, a path to npm, npx, a wrapper and a shell that re-enters npm stay refused as before", withScript((root) => {
+    for (const command of [
+      "npm version patch", "npm publish", "pnpm publish", "yarn version", "npm --prefix x version patch",
+      "/usr/local/bin/npm version patch", "./node_modules/.bin/npm version patch", "env npm version patch", "npx npm version patch",
+      "sh -c \"npm version patch\"", "node /usr/lib/node_modules/npm/bin/npm-cli.js version patch", "node tools/lane-npm.mjs && npm version patch",
+    ]) {
+      const output = bash(root, command);
+      assert.equal(decisionOf(output), "deny", command);
+      assert.match(reasonOf(output), /forbidden/u, command);
+    }
+    for (const command of ["npm run check:version", "npm view @litfamily/litclaude version"]) {
+      assert.doesNotMatch(reasonOf(bash(root, command)), /forbidden/u, command);
+    }
   }));
 });

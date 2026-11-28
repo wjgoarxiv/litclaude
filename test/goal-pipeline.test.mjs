@@ -91,7 +91,7 @@ describe("goal-propose CLI", () => {
   it("without a goal it still asks to start the work, naming why no goal was set (R1)", () => {
     for (const [name, opts, reason] of [
       ["no-block", { plan: "# P\ngoal: native\n\n- [ ] 1. a\n" }, /no `## Done when` block/u],
-      ["not opted in", { plan: PLAN.replace("goal: native\n", "") }, /goal: native/u],
+      ["not opted in, no check", { plan: "# P\n\n- [ ] 1. a\n" }, /no `## Done when` block/u],
       ["true", { plan: PLAN.replace("- [ ]", "- [x]"), testExit: 0 }, /already true/u],
       ["never", { plan: `goal: never\n${PLAN}` }, /goal: never/u],
     ]) {

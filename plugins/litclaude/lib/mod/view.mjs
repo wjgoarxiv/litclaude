@@ -317,7 +317,7 @@ const laneCount = (entry, lists, name) => listProgress(entry) ?? ownedProgress(l
  * or work lanes running under its top frame, then its background tasks (`task` names the kind);
  * `others` the top frame of each other session of this project whose stack moved within
  * OTHER_SESSION_MS. At most THREAD_ROWS are kept (more under a deep chain, see PARALLEL_ROWS): the
- * active frame and its parents first, then lanes and tasks, then other sessions. `reserve` is the card's thread-row count, never below the
+ * active frame and its parents first, then lanes and tasks, idle lanes last, the first background task always kept, then other sessions. `reserve` is the card's thread-row count, never below the
  * `threadReserve` the caller carried over, so the card does not shrink while threads are live.
  */
 const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve, isWorking = true }) => {
@@ -356,7 +356,10 @@ const threadsOf = ({ snapshot, lanes, tasks, lists, now, threadReserve, isWorkin
   // A lone own thread keeps the plain card; a herdr lane or another session always gets its row.
   if (total < 2 && herdrLanes.length + others.length === 0) return null;
   const room = Math.max(PARALLEL_ROWS, THREAD_ROWS - chain.length);
-  const keptLanes = parallel.slice(0, room);
+  const ordered = [...parallel].sort((a, b) => (a.state === "idle") - (b.state === "idle"));
+  let keptLanes = ordered.slice(0, room);
+  const task = ordered.find((thread) => thread.task);
+  if (task && !keptLanes.includes(task)) keptLanes = [...keptLanes.slice(0, -1), task];
   const keptHerdr = herdrLanes.slice(0, Math.max(0, room - keptLanes.length));
   const keptOthers = others.slice(0, Math.max(0, room - keptLanes.length - keptHerdr.length));
   const fork = parallel.length >= 2 ? 1 : 0;
@@ -480,15 +483,16 @@ export const buildBandModel = ({ snapshot, agents = [], activity = EMPTY_ACTIVIT
   const boulderLanes = (snapshot.work?.lanes ?? []).filter(({ status }) => status === "active");
   const stalls = stalledLanes(agents, activity, now);
   const stalledIds = new Set(stalls.map(({ id }) => id));
+  const ordered = [...liveAgents].sort((a, b) => (a.status === "idle") - (b.status === "idle"));
   const lanes = liveAgents.length > 0
-    ? liveAgents.slice(0, 6).map((agent) => ({
+    ? ordered.map((agent) => ({
       id: agent.id,
       name: laneName(agent),
       status: stalledIds.has(agent.id) ? "stalled" : agent.status,
       // An idle teammate's clock would count time it spent waiting, so it shows none.
       elapsedMs: agent.status !== "idle" && Number.isFinite(activity.first[agent.id]) ? now - activity.first[agent.id] : null,
     }))
-    : boulderLanes.slice(0, 6).map((lane) => ({ name: lane.type, status: "running", elapsedMs: Number.isFinite(lane.startedAt) ? now - lane.startedAt : null }));
+    : boulderLanes.map((lane) => ({ name: lane.type, status: "running", elapsedMs: Number.isFinite(lane.startedAt) ? now - lane.startedAt : null }));
   const goal = snapshot.goal;
   const autoloop = goal?.autoloop && goal.status === "active" && snapshot.autoloop
     ? { n: snapshot.autoloop.blockCount, max: AUTOLOOP_LIMITS.blocks, leftMs: Math.max(0, snapshot.autoloop.firstBlockAt + AUTOLOOP_LIMITS.ms - now) }

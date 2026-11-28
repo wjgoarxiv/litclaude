@@ -16,6 +16,7 @@ import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { canonicalSkillIds } from "../plugins/litclaude/lib/canonical-skill-catalog.mjs";
+import { cliEnv } from "./helpers/cli-env.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const binPath = join(root, "bin", "litclaude-ai.js");
@@ -35,7 +36,7 @@ function runCli(args, home, claudeHome = join(home, ".claude")) {
   return spawnSync(process.execPath, [binPath, ...args], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, LITCLAUDE_HOME: home, CLAUDE_HOME: claudeHome },
+    env: cliEnv({ ...process.env, LITCLAUDE_HOME: home, CLAUDE_HOME: claudeHome, CLAUDE_CONFIG_DIR: claudeHome }),
   });
 }
 
@@ -43,7 +44,7 @@ function runCliWithEnv(args, home, claudeHome, env) {
   return spawnSync(process.execPath, [binPath, ...args], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, ...env, LITCLAUDE_HOME: home, CLAUDE_HOME: claudeHome },
+    env: cliEnv({ ...process.env, CLAUDE_CONFIG_DIR: claudeHome, ...env, LITCLAUDE_HOME: home, CLAUDE_HOME: claudeHome }),
   });
 }
 

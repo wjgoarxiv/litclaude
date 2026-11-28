@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { INSTALL_QUESTIONS, agentGuide, asksForAgentGuide } from "../bin/agent-guide.mjs";
+import { cliEnv } from "./helpers/cli-env.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const bin = join(root, "bin/litclaude-ai.js");
@@ -25,7 +26,7 @@ const promptOf = (path) => {
 const inHome = (work) => {
   const home = mkdtempSync(join(tmpdir(), "litclaude-agent-"));
   try {
-    const env = (extra = {}) => ({
+    const env = (extra = {}) => cliEnv({
       PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: join(home, ".claude"), LITCLAUDE_HOME: join(home, ".litclaude"),
       TMPDIR: join(home, "tmp"), LANG: "en_US.UTF-8", TERM: "xterm-256color", NO_UPDATE_NOTIFIER: "1", LITCLAUDE_NO_AUTO_UPDATE: "1", ...extra,
     });

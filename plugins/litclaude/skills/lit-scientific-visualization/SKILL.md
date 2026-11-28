@@ -41,10 +41,10 @@ stay inert.
 
 1. Look at the skills this session lists. If `figures:lit-scientific-visualization` is there, load
    `Skill(figures:lit-scientific-visualization)` now and follow it for the whole request.
-2. If it is not there but `figures:lit-diagram-drawer` or `figures:lit-schematic` is, the installed figures plugin
-   is the 0.1.0 copy. Reply in the user's language with the two update lines from "What moved" below, in a code
-   block, then `/reload-plugins` or a new session; until then `/figures:lit-scientific-visualization <the same
-   request>` runs the skill. Stop there.
+2. If another `figures:` skill is listed but this one is not, the figures plugin is the 0.1.0 copy: plot nothing.
+   Reply in the user's language with the two update lines from "What moved" below, in a code block, then
+   `/reload-plugins` or a new session; the typed `/figures:lit-scientific-visualization <the same request>` runs it
+   meanwhile. Stop there.
 3. If no `figures:` skill is listed, reply in the user's language with three things and stop:
    - one sentence on what lit-scientific-visualization makes (a publication-ready figure of measured data);
    - that it is now a LitFamily extension: it moved out of LitClaude into the `figures` plugin of the wjgoarxiv-skills marketplace;

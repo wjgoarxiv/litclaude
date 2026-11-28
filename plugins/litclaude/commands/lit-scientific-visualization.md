@@ -18,7 +18,7 @@ verdicts: [PASS, BLOCKED]
 
 | Field | Obligation | Evidence |
 | --- | --- | --- |
-| banner | Begin with exactly `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥`. | First visible response line. |
+| banner | Begin with exactly `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥` only when the prompt hook's context for this turn told you to; a model-made `Skill(lit-scientific-visualization)` call has no hook context, so print no banner. | First visible response line, or none. |
 | skill | Follow the `lit-scientific-visualization` stub the prompt hook injects. | Route receipt. |
 | moved skill | When `figures:lit-scientific-visualization` is in the skills list, load `Skill(figures:lit-scientific-visualization)` and follow it. | The figures skill's own outputs. |
 | pointer | When it is not listed, give the update or install lines; plot nothing. | The reply. |
@@ -32,20 +32,26 @@ verdicts: [PASS, BLOCKED]
 | Mode | Use when | Boundary |
 | --- | --- | --- |
 | installed | `figures:lit-scientific-visualization` is in the skills list | Hand the whole request to that skill. |
-| older copy | Another `figures:` skill is listed, this one is not (figures 0.1.0) | Give the update lines; `/figures:lit-scientific-visualization` runs it meanwhile. |
+| older copy | Another `figures:` skill is listed, this one is not (figures 0.1.0) | Give the update lines; the typed `/figures:lit-scientific-visualization` runs it meanwhile; plot nothing. |
 | not installed | No `figures:` skill is listed | Say what moved and give the install lines. |
 
 ## #contract.procedure
 
-1. Print the exact lit-scientific-visualization banner.
+1. Print the exact lit-scientific-visualization banner only when the prompt hook's context for this turn told you to
+   (see the banner row); otherwise go on without one.
 2. If `figures:lit-scientific-visualization` is in this session's skills list, load
    `Skill(figures:lit-scientific-visualization)` with the same arguments and follow it for the whole figure.
-3. If another `figures:` skill is listed but this one is not, the figures plugin is the 0.1.0 copy: give
+3. If another `figures:` skill is listed but this one is not, the figures plugin is the 0.1.0 copy: plot nothing, give
    `claude plugin marketplace update wjgoarxiv-skills` and `claude plugin update figures@wjgoarxiv-skills`, then
-   `/reload-plugins`, and say `/figures:lit-scientific-visualization` with the same arguments runs it meanwhile.
+   `/reload-plugins`, and say the typed `/figures:lit-scientific-visualization` with the same arguments runs it meanwhile.
 4. Otherwise follow the stub: say what moved (the skill that makes a publication-ready figure of measured data),
    give the install lines `claude plugin marketplace add wjgoarxiv/wjgoarxiv-skills` and
    `claude plugin install figures@wjgoarxiv-skills`, then `/reload-plugins`, and ask the user to send the request again.
+
+In every mode, also check, reading only, whether `~/.claude/skills/lit-scientific-visualization` or
+`.claude/skills/lit-scientific-visualization` exists. Such a folder competes with `figures:lit-scientific-visualization`:
+name its path once and say it should be moved out of the skills folder first (the stub has the line).
+Never move it yourself.
 
 ## #contract.outputs
 
@@ -72,6 +78,6 @@ and audit detail requires the current authoritative request.
 
 - Writing a matplotlib script by hand because the moved skill is not installed.
 
-The first visible response line must be exactly:
+When the prompt hook's context told you to begin with the probe line, the first visible response line must be exactly:
 
 `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥`

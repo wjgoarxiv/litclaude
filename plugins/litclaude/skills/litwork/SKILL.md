@@ -221,7 +221,7 @@ Bind the objective before editing. Claude Code's `/goal` is a user surface: this
 skill may recommend it or propose a ready-to-paste
 `claude -p "/goal <completion condition>"`, but must never auto-type or send
 slash-command text on the user's behalf, and must never claim host activation
-without observed evidence. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Without an armed goal say `BLOCKED:` once for degraded mode and keep
+without observed evidence. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Without an armed goal say `BLOCKED:` once for degraded mode and keep
 the durable `litgoal` ledger authoritative. Never invent a goal budget or limit.
 
 The criteria MUST state, upfront:

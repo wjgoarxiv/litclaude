@@ -67,7 +67,7 @@ import { runRewindCli } from "../plugins/litclaude/lib/rewind/collect.mjs";
 import { runSessionsCli } from "../plugins/litclaude/lib/session-state.mjs";
 import { runWikifyKnowledgeCli } from "../plugins/litclaude/lib/wikify-knowledge-cli.mjs";
 import { runWhyCli } from "../plugins/litclaude/lib/route-why-cli.mjs";
-import { automaticUpdateDoctorLines, automaticUpdateRoot, runAutomaticUpdate, shouldRunAutomaticUpdate } from "../plugins/litclaude/lib/automatic-update.mjs";
+import { askRegistryFresh, automaticUpdateDoctorLines, automaticUpdateRoot, installedPluginVersion, registryFallbackLine, runAutomaticUpdate, shouldAskRegistryFresh, shouldRunAutomaticUpdate, updateVersionLine } from "../plugins/litclaude/lib/automatic-update.mjs";
 import { autoHandoffDoctorLines } from "../plugins/litclaude/lib/auto-handoff.mjs";
 import { DISCUSSIONS_URL, inviteMessage, recordInvite, shareLine } from "../plugins/litclaude/lib/invite.mjs";
 import { resolveProjectStateRoot } from "../plugins/litclaude/lib/project-state-root.mjs";
@@ -1625,8 +1625,13 @@ const assertCurrentPluginDetails = (detailsOutput) => {
   }
   const skillsInventory = inventorySections.get("skills") ?? "";
 
+  let versionFix = null;
   if (!new RegExp(`\\b${escapeRegex(version)}\\b`, "u").test(detailsOutput)) {
     missing.push(`expected version ${version}`);
+    const installedVersion = /LitClaude\s*\(litclaude\)\s+v?(\d+\.\d+\.\d+)/iu.exec(detailsOutput)?.[1] ?? installedPluginVersion(claudeHome());
+    if (installedVersion && installedVersion !== version) {
+      versionFix = updateVersionLine({ ranVersion: version, installedVersion }).replace(/^UPDATE_VERSIONS: (.)/u, (_, first) => first.toUpperCase());
+    }
   }
 
   const agentsMatch = detailsOutput.match(/Agents\s+\((\d+)\)/u);
@@ -1642,7 +1647,7 @@ const assertCurrentPluginDetails = (detailsOutput) => {
   }
 
   if (missing.length > 0) {
-    fail(`Claude plugin details did not show current LitClaude agent inventory: ${missing.join("; ")}. Re-run litclaude install in the intended CLAUDE_CONFIG_DIR.`);
+    fail(`Claude plugin details did not show current LitClaude agent inventory: ${missing.join("; ")}. ${versionFix ?? "Re-run litclaude install in the intended CLAUDE_CONFIG_DIR."}`);
   }
 };
 
@@ -2400,13 +2405,27 @@ const main = async () => {
   if (!parsed.dryRun && ["install", "update", "uninstall"].includes(command)) {
     preflightInstallOwnership({ preserveModifiedSkill: ["install", "update"].includes(parsed.command) });
   }
+  let registryAnswer = null;
+  if (shouldAskRegistryFresh({ command, rest: parsed.rest, dryRun: parsed.dryRun, noAutoUpdate: parsed.noAutoUpdate })) {
+    registryAnswer = await askRegistryFresh({ cachePath: updateNotifierCachePath(), currentVersion: version });
+  }
+  const closeUpdate = () => {
+    if (!registryAnswer) return;
+    const latestFromCache = !registryAnswer.answered && registryAnswer.fromCache;
+    const latestVersion = registryAnswer.answered ? registryAnswer.latestVersion : latestFromCache ? registryAnswer.fallbackVersion : null;
+    process.stdout.write(`${updateVersionLine({ ranVersion: version, installedVersion: installedPluginVersion(claudeHome()), latestVersion, latestFromCache })}\n`);
+  };
   const automaticUpdate = runEligibleAutomaticUpdate(parsed);
+  if (registryAnswer && !registryAnswer.answered) {
+    process.stderr.write(`${registryFallbackLine({ answer: registryAnswer, installed: automaticUpdate.status === "installed", ranVersion: version })}\n`);
+  }
   if (automaticUpdate.status === "rollback-failed") {
     fail("AUTO_UPDATE_UNKNOWN_STATE: automatic update rollback failed; run `litclaude doctor` before using the install", 1);
   }
   if (automaticUpdate.status === "installed") {
     // The automatic transaction already ran the exact-version install and its
     // post-install doctor. Do not immediately re-run the old package's command.
+    closeUpdate();
     return;
   }
 
@@ -2479,6 +2498,7 @@ const main = async () => {
       fail(`Unknown command: ${command}`, 64);
   }
 
+  closeUpdate();
   if (command === "install" || command === "update" || command === "doctor") {
     runUpdateNotifier({
       ...parsed,

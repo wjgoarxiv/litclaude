@@ -945,3 +945,277 @@ describe("automatic update reaches the user", () => {
     }
   });
 });
+
+describe("an update the user typed asks the registry fresh", () => {
+  const NOW = Date.parse("2026-11-28T02:00:00.000Z");
+  const registryAnswer = (version, name = "@litfamily/litclaude") => async () =>
+    new Response(JSON.stringify({ name, version }), { status: 200, headers: { "content-type": "application/json" } });
+  const withCache = (latestVersion, ageMs) => {
+    const home = mkdtempSync(join(tmpdir(), "litclaude-fresh-"));
+    const cachePath = join(home, "lit", "update-notifier", "latest.json");
+    mkdirSync(join(home, "lit", "update-notifier"), { recursive: true });
+    const at = new Date(NOW - ageMs).toISOString();
+    writeFileSync(cachePath, `${JSON.stringify({ schema: 3, packageName: "@litfamily/litclaude", latestVersion, checkedAt: at, attemptedAt: at, generation: GENERATION })}\n`);
+    return { home, cachePath, litHome: join(home, "lit"), claudeHome: join(home, "claude") };
+  };
+
+  it("a day-old cached answer no longer decides what an update installs", async () => {
+    const { askRegistryFresh } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const { home, cachePath, litHome, claudeHome } = withCache("7.1.1", 60 * 60_000);
+    try {
+      const asked = await askRegistryFresh({ cachePath, currentVersion: "7.1.1", env: {}, fetch: registryAnswer("7.1.2"), now: NOW });
+      assert.deepEqual(asked, { answered: true, latestVersion: "7.1.2" });
+      const record = JSON.parse(readFileSync(cachePath, "utf8"));
+      assert.equal(record.latestVersion, "7.1.2");
+      assert.equal(record.checkedAt, new Date(NOW).toISOString());
+      const installs = [];
+      const result = runAutomaticUpdate({
+        surface: "management",
+        command: "update",
+        currentVersion: "7.1.1",
+        cachePath,
+        litHome,
+        claudeHome,
+        env: {},
+        stdin: tty,
+        stdout: tty,
+        stderr: tty,
+        now: NOW + 1_000,
+        spawn: (command, args) => {
+          installs.push(args);
+          return { status: 1, stdout: "", stderr: "" };
+        },
+      });
+      assert.equal(result.targetVersion, "7.1.2");
+      assert.ok(installs[0].includes("@litfamily/litclaude@7.1.2"), JSON.stringify(installs[0]));
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("the registry request is a plain, redirect-refusing read with a deadline, and a foreign cache file stays", async () => {
+    const { askRegistryFresh } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const home = mkdtempSync(join(tmpdir(), "litclaude-fresh-foreign-"));
+    const cachePath = join(home, "latest.json");
+    writeFileSync(cachePath, "{\"somebody\":\"else\"}\n");
+    const requests = [];
+    try {
+      const asked = await askRegistryFresh({
+        cachePath,
+        currentVersion: "7.1.1",
+        env: { npm_config_registry: "http://127.0.0.1:9/" },
+        fetch: async (url, init) => {
+          requests.push({ url, init });
+          return registryAnswer("7.1.2")();
+        },
+        now: NOW,
+      });
+      assert.equal(asked.latestVersion, "7.1.2");
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].url, "http://127.0.0.1:9/%40litfamily%2Flitclaude/latest");
+      assert.equal(requests[0].init.redirect, "error");
+      assert.equal(requests[0].init.signal instanceof AbortSignal, true);
+      assert.equal(readFileSync(cachePath, "utf8"), "{\"somebody\":\"else\"}\n");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("a registry that cannot be reached names the version the update falls back to", async () => {
+    const { askRegistryFresh } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const { home, cachePath } = withCache("7.1.2", 60 * 60_000);
+    try {
+      const before = readFileSync(cachePath, "utf8");
+      for (const fetch of [
+        async () => { throw new TypeError("fetch failed"); },
+        async () => new Response("{}", { status: 503, headers: { "content-type": "application/json" } }),
+        registryAnswer("7.1.3", "other-package"),
+      ]) {
+        const asked = await askRegistryFresh({ cachePath, currentVersion: "7.1.1", env: {}, fetch, now: NOW });
+        assert.equal(asked.answered, false);
+        assert.equal(asked.fallbackVersion, "7.1.2", "the cache still inside its day is the fallback");
+        assert.equal(asked.fromCache, true);
+        assert.match(asked.reason, /\S/u);
+      }
+      assert.equal(readFileSync(cachePath, "utf8"), before, "a failed ask leaves the cache alone");
+      const stale = withCache("7.1.2", 2 * CACHE_TTL_MS);
+      try {
+        const asked = await askRegistryFresh({ cachePath: stale.cachePath, currentVersion: "7.1.1", env: {}, fetch: async () => { throw new Error("offline"); }, now: NOW });
+        assert.deepEqual({ fallbackVersion: asked.fallbackVersion, fromCache: asked.fromCache }, { fallbackVersion: "7.1.1", fromCache: false }, "a stale cache is not trusted: the command's own version");
+      } finally {
+        rmSync(stale.home, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("the reason printed for a failed ask carries no terminal control characters", async () => {
+    const { askRegistryFresh } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const { home, cachePath } = withCache("7.1.2", 60 * 60_000);
+    try {
+      for (const fetch of [
+        async () => new Response("\u001b]0;pwned\u0007", { status: 200, headers: { "content-type": "application/json" } }),
+        async () => { throw new Error("offline\u001b[31m\u009b2J\u0007 now\u007f"); },
+      ]) {
+        const asked = await askRegistryFresh({ cachePath, currentVersion: "7.1.1", env: {}, fetch, now: NOW });
+        assert.equal(asked.answered, false);
+        assert.match(asked.reason, /\S/u);
+        assert.doesNotMatch(asked.reason, /[\u0000-\u001f\u007f-\u009f]/u, JSON.stringify(asked.reason));
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("the fallback line names the version the run actually ends on, not a cached one it did not install", async () => {
+    const { registryFallbackLine } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const cached = { answered: false, reason: "the registry answered HTTP 503", fallbackVersion: "7.1.2", fromCache: true };
+    const bare = { answered: false, reason: "the registry answered HTTP 503", fallbackVersion: "7.1.1", fromCache: false };
+    const head = "UPDATE_REGISTRY: the npm registry did not answer (the registry answered HTTP 503). ";
+    assert.equal(registryFallbackLine({ answer: cached, installed: false, ranVersion: "7.1.1" }), `${head}Falling back to LitClaude 7.1.1, the version of this command.`);
+    assert.equal(registryFallbackLine({ answer: cached, installed: true, ranVersion: "7.1.1" }), `${head}Falling back to LitClaude 7.1.2, the last registry answer on record.`);
+    assert.equal(registryFallbackLine({ answer: bare, installed: true, ranVersion: "7.1.1" }), `${head}Falling back to LitClaude 7.1.1, the version of this command.`);
+    assert.equal(registryFallbackLine({ answer: bare, installed: false, ranVersion: "7.1.1" }), `${head}Falling back to LitClaude 7.1.1, the version of this command.`);
+  });
+
+  it("only a typed, live update asks: not a dry run, the automatic child, --json, or an opt-out", async () => {
+    const { shouldAskRegistryFresh } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const base = { command: "update", rest: ["--yes"], dryRun: false, env: {}, noAutoUpdate: false };
+    assert.equal(shouldAskRegistryFresh(base), true);
+    assert.equal(shouldAskRegistryFresh({ ...base, command: "install" }), false);
+    assert.equal(shouldAskRegistryFresh({ ...base, command: "doctor" }), false);
+    assert.equal(shouldAskRegistryFresh({ ...base, dryRun: true }), false);
+    assert.equal(shouldAskRegistryFresh({ ...base, noAutoUpdate: true }), false);
+    assert.equal(shouldAskRegistryFresh({ ...base, rest: ["--json"] }), false);
+    for (const name of ["CI", "NO_UPDATE_NOTIFIER", "LITCLAUDE_NO_UPDATE_CHECK", "LITCLAUDE_NO_AUTO_UPDATE", "LITCLAUDE_AUTO_UPDATE_ACTIVE"]) {
+      assert.equal(shouldAskRegistryFresh({ ...base, env: { [name]: "1" } }), false, name);
+    }
+  });
+
+  it("the closing line gives both versions, says which side is older and what to type", async () => {
+    const { updateVersionLine } = await import("../plugins/litclaude/lib/automatic-update.mjs");
+    const line = (fields) => updateVersionLine({ latestVersion: null, ...fields });
+    assert.equal(
+      line({ ranVersion: "7.1.1", installedVersion: "7.1.2" }),
+      "UPDATE_VERSIONS: this command is LitClaude 7.1.1 but the installed plugin is 7.1.2; they differ, and the command on your PATH is the older one. Type: npm install -g @litfamily/litclaude@7.1.2",
+    );
+    assert.equal(
+      line({ ranVersion: "7.1.2", installedVersion: "7.1.1" }),
+      "UPDATE_VERSIONS: this command is LitClaude 7.1.2 but the installed plugin is 7.1.1; they differ, and the plugin is the older one. Type: litclaude update --yes",
+    );
+    assert.equal(
+      line({ ranVersion: "7.1.2", installedVersion: "7.1.2" }),
+      "UPDATE_VERSIONS: this command and the installed plugin are both LitClaude 7.1.2.",
+    );
+    assert.equal(
+      line({ ranVersion: "7.1.1", installedVersion: "7.1.1", latestVersion: "7.1.2" }),
+      "UPDATE_VERSIONS: this command and the installed plugin are both LitClaude 7.1.1, but the registry's latest is 7.1.2. Type: npm install -g @litfamily/litclaude@7.1.2, then litclaude update --yes",
+    );
+    assert.equal(
+      line({ ranVersion: "7.1.1", installedVersion: "7.1.2", latestVersion: "7.1.3" }),
+      "UPDATE_VERSIONS: this command is LitClaude 7.1.1 but the installed plugin is 7.1.2; they differ, and the command on your PATH is the older one. Type: npm install -g @litfamily/litclaude@7.1.3, then litclaude update --yes",
+    );
+    assert.equal(
+      line({ ranVersion: "7.1.1", installedVersion: "7.1.1", latestVersion: "7.1.2", latestFromCache: true }),
+      "UPDATE_VERSIONS: this command and the installed plugin are both LitClaude 7.1.1, but the last registry answer on record is 7.1.2. Type: npm install -g @litfamily/litclaude@7.1.2, then litclaude update --yes",
+    );
+    assert.match(line({ ranVersion: "7.1.2", installedVersion: null }), /^UPDATE_VERSIONS: this command is LitClaude 7\.1\.2; the installed plugin version could not be read\.$/u);
+  });
+
+  describe("the command line", () => {
+    const binPath = join(import.meta.dirname, "..", "bin", "litclaude-ai.js");
+    const packageVersion = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf8")).version;
+    const OPT_OUTS = ["CI", "NO_UPDATE_NOTIFIER", "LITCLAUDE_NO_UPDATE_CHECK", "LITCLAUDE_NO_AUTO_UPDATE", "LITCLAUDE_AUTO_UPDATE_ACTIVE"];
+
+    const withRegistry = async (answer, run) => {
+      const { createServer } = await import("node:http");
+      const requests = [];
+      const server = createServer((request, response) => {
+        requests.push(request.url);
+        if (answer === null) {
+          response.writeHead(503, { "content-type": "application/json" }).end("{}");
+          return;
+        }
+        response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ name: "@litfamily/litclaude", version: answer }));
+      });
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        return await run(`http://127.0.0.1:${server.address().port}/`, requests);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
+    };
+
+    const runUpdate = async (args, { registry, cachedVersion = packageVersion, extraEnv = {} }) => {
+      const { spawn } = await import("node:child_process");
+      const home = mkdtempSync(join(tmpdir(), "litclaude-fresh-cli-"));
+      const litHome = join(home, "lit");
+      const claudeHome = join(home, "claude");
+      const at = new Date(Date.now() - 60 * 60_000).toISOString();
+      mkdirSync(join(litHome, "update-notifier"), { recursive: true });
+      writeFileSync(join(litHome, "update-notifier", "latest.json"), `${JSON.stringify({ schema: 3, packageName: "@litfamily/litclaude", latestVersion: cachedVersion, checkedAt: at, attemptedAt: at, generation: GENERATION })}\n`);
+      const env = { ...process.env, HOME: home, LITCLAUDE_HOME: litHome, CLAUDE_CONFIG_DIR: claudeHome, CLAUDE_HOME: claudeHome, npm_config_registry: registry, NO_COLOR: "1", LC_ALL: "C.UTF-8", TERM: "dumb" };
+      for (const name of OPT_OUTS) delete env[name];
+      Object.assign(env, extraEnv);
+      try {
+        return await new Promise((resolve, reject) => {
+          const child = spawn(process.execPath, [binPath, ...args], { env, stdio: ["ignore", "pipe", "pipe"] });
+          let stdout = "";
+          let stderr = "";
+          child.stdout.on("data", (chunk) => { stdout += chunk; });
+          child.stderr.on("data", (chunk) => { stderr += chunk; });
+          child.once("error", reject);
+          child.once("close", (status) => resolve({ status, stdout, stderr }));
+        });
+      } finally {
+        rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      }
+    };
+
+    it("a registry ahead of the command is named, with the one command to type", async () => {
+      await withRegistry("99.0.0", async (registry, requests) => {
+        const result = await runUpdate(["update", "--yes"], { registry });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(requests.length, 1, "one fresh request");
+        assert.match(result.stdout, /INSTALL_PASS/u);
+        assert.match(result.stdout, new RegExp(`^UPDATE_VERSIONS: this command and the installed plugin are both LitClaude ${packageVersion.replaceAll(".", "\\.")}, but the registry's latest is 99\\.0\\.0\\. Type: npm install -g @litfamily/litclaude@99\\.0\\.0, then litclaude update --yes$`, "mu"));
+      });
+    });
+
+    it("an unreachable registry says so and names the version it falls back to", async () => {
+      await withRegistry(null, async (registry) => {
+        const result = await runUpdate(["update", "--yes"], { registry });
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stderr, new RegExp(`^UPDATE_REGISTRY: the npm registry did not answer \\(.+\\)\\. Falling back to LitClaude ${packageVersion.replaceAll(".", "\\.")}`, "mu"));
+        assert.match(result.stdout, new RegExp(`^UPDATE_VERSIONS: this command and the installed plugin are both LitClaude ${packageVersion.replaceAll(".", "\\.")}\\.$`, "mu"));
+      });
+    });
+
+    it("an unreachable registry with a newer cached answer, in a pipe, never claims the cached version was reached", async () => {
+      await withRegistry(null, async (registry) => {
+        const result = await runUpdate(["update", "--yes"], { registry, cachedVersion: "99.0.0" });
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, new RegExp(`^INSTALL_PASS: LitClaude ${packageVersion.replaceAll(".", "\\.")} installed`, "mu"));
+        assert.match(result.stderr, new RegExp(`^UPDATE_REGISTRY: .*Falling back to LitClaude ${packageVersion.replaceAll(".", "\\.")}, the version of this command\\.$`, "mu"));
+        assert.doesNotMatch(result.stderr, /Falling back to LitClaude 99\.0\.0/u);
+        assert.match(result.stdout, new RegExp(`^UPDATE_VERSIONS: this command and the installed plugin are both LitClaude ${packageVersion.replaceAll(".", "\\.")}, but the last registry answer on record is 99\\.0\\.0\\. Type: npm install -g @litfamily/litclaude@99\\.0\\.0, then litclaude update --yes$`, "mu"));
+      });
+    });
+
+    it("a dry run and an opt-out make no registry request and print no closing line", async () => {
+      await withRegistry("99.0.0", async (registry, requests) => {
+        const live = await runUpdate(["update", "--yes"], { registry });
+        assert.equal(live.status, 0, live.stderr);
+        assert.equal(requests.length, 1, "the same registry is asked once by a live typed update");
+        const dry = await runUpdate(["--dry-run", "update"], { registry });
+        assert.equal(dry.status, 0, dry.stderr);
+        const optedOut = await runUpdate(["update", "--yes"], { registry, extraEnv: { LITCLAUDE_NO_UPDATE_CHECK: "1" } });
+        assert.equal(optedOut.status, 0, optedOut.stderr);
+        assert.equal(requests.length, 1, "a dry run and an opt-out add no request");
+        assert.doesNotMatch(`${dry.stdout}${optedOut.stdout}`, /UPDATE_VERSIONS/u);
+        assert.doesNotMatch(`${dry.stderr}${optedOut.stderr}`, /UPDATE_REGISTRY/u);
+      });
+    });
+  });
+});

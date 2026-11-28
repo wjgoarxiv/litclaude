@@ -115,9 +115,44 @@ describe("the figures skills are same-name stubs for the figures extras plugin",
     assert.doesNotMatch(readFileSync(hookPath, "utf8"), /user-invoked only|sci-vis adapter below|The adapter is disable-model-invocation/u);
   });
 
+  it("the stub, the command page and the hook name the figures 0.1.0 case in the same words", () => {
+    const plain = (text) => text.replaceAll("`", "").replace(/\s+/gu, " ");
+    const texts = [
+      ["stub", plain(stub("lit-scientific-visualization"))],
+      ["command", plain(readFileSync(join(pluginRoot, "commands", "lit-scientific-visualization.md"), "utf8"))],
+      ["hook", plain(hook("lit-scientific-visualization"))],
+    ];
+    for (const [name, text] of texts) {
+      assert.match(text, /another figures: skill is listed but this one is not, the figures plugin is the 0\.1\.0 copy/u, name);
+      assert.match(text, /plot nothing/u, name);
+      assert.match(text, /the typed \/figures:lit-scientific-visualization[^.]*runs it meanwhile/u, name);
+    }
+    assert.doesNotMatch(texts[0][1], /figures:lit-diagram-drawer or figures:lit-schematic/u, "the stub no longer names two siblings for the 0.1.0 case");
+  });
+
+  it("the command page checks for a same-name skill folder of the user's own, like the stub", () => {
+    const command = readFileSync(join(pluginRoot, "commands", "lit-scientific-visualization.md"), "utf8");
+    assert.match(command, /~\/\.claude\/skills\/lit-scientific-visualization/u);
+    assert.match(command, /(?<!~\/)\.claude\/skills\/lit-scientific-visualization/u);
+    assert.match(command, /competes with `figures:lit-scientific-visualization`/u);
+    assert.match(command, /Never move it yourself/u);
+  });
+
+  it("the command page prints the banner only when the prompt hook's context asked for it", () => {
+    const command = readFileSync(join(pluginRoot, "commands", "lit-scientific-visualization.md"), "utf8");
+    const banner = "🔥 **LIT IGNITED · lit-scientific-visualization** 🔥";
+    const places = command.split("\n").map((line, index, lines) => ({ line, context: lines.slice(Math.max(0, index - 2), index + 1).join(" ") })).filter(({ line }) => line.includes(banner));
+    assert.ok(places.length >= 2, "the banner is still named");
+    for (const { line, context } of places) {
+      assert.match(context, /prompt hook'?s? context/u, `the banner line depends on the hook's context: ${line}`);
+    }
+    assert.match(command, /model-made `Skill\(lit-scientific-visualization\)` call[^.]*no banner/u);
+  });
+
   it("both lit-scientific-visualization routes tell Claude to load the moved skill, and keep the fallbacks", () => {
     for (const prompt of ["lit-scientific-visualization", "/litclaude:lit-scientific-visualization plot the isotherm in data.csv"]) {
       const context = hook(prompt);
+      assert.ok(context.includes("Begin your reply with the exact probe line `🔥 **LIT IGNITED · lit-scientific-visualization** 🔥`"), `${prompt}: the typed route still asks for the banner the command page waits for`);
       assert.match(context, /load Skill\(figures:lit-scientific-visualization\) and follow it for the whole figure/u, prompt);
       assert.match(context, /claude plugin update figures@wjgoarxiv-skills/u, prompt);
       assert.match(context, /claude plugin install figures@wjgoarxiv-skills/u, prompt);

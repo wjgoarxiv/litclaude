@@ -275,6 +275,35 @@ const jq = (args) => {
   return { targets: parsed.operands.slice(1) };
 };
 
+// gh: GitHub reads over the network. No method, field, input, header, host, URL, template or web flag
+// exists in any spec, so a call can only GET one repository's data; `outward` marks it for the caller.
+const JQ_SAFE = { test: (value) => !JQ_UNSAFE.test(value) };
+const GH_REPO = /^(?!\.{1,2}\/)[\w.-]+\/(?!\.{1,2}$)[\w.-]+$/u;
+const GH_FIELDS = /^[A-Za-z]+(?:,[A-Za-z]+)*$/u;
+const GH_STATE = /^(?:open|closed|merged|all)$/u;
+const GH_ENDPOINT = /^repos\/[\w.-]+\/[\w.-]+(?:\/[\w.@:+~,-]+)*(?:\?[\w.@:+~,=&%-]*)?$/u;
+const GH_JSON = { value: { R: GH_REPO, q: JQ_SAFE }, longValue: { repo: GH_REPO, json: GH_FIELDS, jq: JQ_SAFE } };
+const GH = {
+  api: { mixes: true, value: { q: JQ_SAFE }, longValue: { jq: JQ_SAFE } },
+  "pr list": { mixes: true, value: { ...GH_JSON.value, s: GH_STATE, L: NUM }, longValue: { ...GH_JSON.longValue, state: GH_STATE, limit: NUM } },
+  "pr view": { mixes: true, ...GH_JSON },
+  "run view": { mixes: true, ...GH_JSON, long: ["log", "log-failed"] },
+};
+const gh = (args) => {
+  const texts = args.map(({ text }) => text);
+  const key = texts[0] === "api" ? "api" : `${texts[0]} ${texts[1]}`;
+  if (!Object.hasOwn(GH, key)) return null;
+  const parsed = parseArgs(args.slice(key === "api" ? 1 : 2), GH[key]);
+  if (!parsed || parsed.operands.length > 1) return null;
+  const [operand] = parsed.operands;
+  if (key === "api" && !(operand && operand.length <= 300 && GH_ENDPOINT.test(operand)
+    && !operand.split("?")[0].split("/").some((part) => part === "." || part === ".."))) return null;
+  if (key === "pr list" && operand !== undefined) return null;
+  if (key === "pr view" && operand !== undefined && !/^(?:\d+|[A-Za-z0-9_][\w./-]*)$/u.test(operand)) return null;
+  if (key === "run view" && operand !== undefined && !/^\d+$/u.test(operand)) return null;
+  return { targets: [], outward: true };
+};
+
 // git: verbs that only read, in this checkout or in `-C <dir>`. A flag that starts a program, writes a
 // file or reads a named file is out, with every abbreviation git accepts for it.
 const GIT_PROGRAM_FLAGS = ["output", "ext-diff", "textconv", "open-files-in-pager", "exec-path", "show-signature", "no-index"];
@@ -293,6 +322,29 @@ const GIT_CLOSED = {
   branch: { short: "arvl",long: ["show-current", "all", "remotes", "list", "merged", "no-merged", "verbose"] },
   remote: { short: "v", long: ["verbose"] },
 };
+// git grep: the flags below, then a pattern, then revisions; pathspecs follow `--`. `lead` refuses a flag
+// after the pattern, as git does, and an allowlist leaves out every flag that opens a pager, reads a
+// pattern file or leaves the index (`-O`, `-f`, `--no-index`, `--untracked`, `--recurse-submodules`).
+const GIT_GREP = { lead: true, short: "inwvEFlc", value: { e: ANY, A: NUM, B: NUM, C: NUM }, long: ["cached"] };
+const gitGrep = (dir, words) => {
+  const cut = words.indexOf("--");
+  const before = cut < 0 ? words : words.slice(0, cut);
+  const paths = cut < 0 ? [] : words.slice(cut + 1);
+  const parsed = parseArgs(before.map((text) => ({ text })), GIT_GREP);
+  if (!parsed) return null;
+  // `git grep -- K .env` takes K as the pattern and reads .env, so a pattern must come before the first `--`.
+  const given = parsed.seen.has("e");
+  if (!given && parsed.operands.length === 0) return null;
+  const revs = given ? parsed.operands : parsed.operands.slice(1);
+  if (revs.some((word) => !GIT_OPERAND.test(word) || /^:[/:^]/u.test(word))) return null;
+  if (paths.some((word) => !GIT_OPERAND.test(word) || word.startsWith(":"))) return null;
+  const found = { git: true, dir, targets: [...paths], maybe: [] };
+  for (const word of revs) {
+    found.maybe.push(word);
+    if (word.includes(":")) found.targets.push(word.slice(word.lastIndexOf(":") + 1) || ".");
+  }
+  return found;
+};
 const git = (args) => {
   let rest = args.map(({ text }) => text);
   let dir = null;
@@ -304,6 +356,7 @@ const git = (args) => {
     } else break;
   }
   const [verb, ...words] = rest;
+  if (verb === "grep") return gitGrep(dir, words);
   if (words.some((word) => !word.startsWith("-") && !GIT_OPERAND.test(word))) return null;
   // `:/x` and `::x`, and after `--` any `:` word, name another file than they spell.
   const ended = words.includes("--") ? words.indexOf("--") : words.length;
@@ -394,6 +447,7 @@ const TOOLS = {
   gawk: awk,
   jq,
   git,
+  gh,
   which: (args) => (args.length > 0 && args.every(({ text }) => /^(?:-a|[A-Za-z][\w.+-]*)$/u.test(text)) ? { targets: [] } : null),
   command: (args) => (args.length === 2 && args[0].text === "-v" && /^[A-Za-z][\w.+-]*$/u.test(args[1].text) ? { targets: [] } : null),
   test: (args) => (args.length === 2 && /^-[fdersxLhw]$/u.test(args[0].text) && !args[1].text.startsWith("-") ? { targets: [args[1].text] } : null),
@@ -442,6 +496,72 @@ export const parseReaders = (command) => {
     segments.push(first);
   }
   return segments;
+};
+
+const GLOB_SEARCHES = new Set(["grep", "egrep", "fgrep", "rg"]);
+const GLOB_INLINE = { grep: /^(--(?:include|exclude|exclude-dir))=(.*)$/su, rg: /^(--(?:glob|iglob))=(.*)$/su };
+// No brace: the shell would split it into several words, and quoting it would change the meaning.
+const isGlobValue = (value) => /^[\w.*?[\]!\/,-]+$/u.test(value) && /[*?[]/u.test(value);
+
+/**
+ * A grep or rg command with the unquoted glob in `--include=`, `--exclude=`, `--exclude-dir=`, `--glob=`,
+ * `--iglob=` and `--glob <g>` / `-g <g>` put in single quotes, or null when there is no such glob or the
+ * text is not plain enough to rewrite. Pure text: the result is a suggestion the caller must judge again.
+ */
+export const quoteGlobValues = (command) => {
+  if (typeof command !== "string" || UNSAFE_ANYWHERE.test(command)) return null;
+  const words = [];
+  let start = -1;
+  let plain = true;
+  let quote = null;
+  const close = (end) => {
+    if (start >= 0) words.push({ start, end, text: command.slice(start, end), plain });
+    start = -1;
+    plain = true;
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const ch = command[index];
+    if (quote) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === " " || ch === "\t") {
+      close(index);
+      continue;
+    }
+    if (start < 0) start = index;
+    if (ch === "'" || ch === "\"") {
+      quote = ch;
+      plain = false;
+    } else if (ch === "\\") {
+      plain = false;
+    }
+  }
+  if (quote) return null;
+  close(command.length);
+  if (!words[0]?.plain || !GLOB_SEARCHES.has(words[0].text)) return null;
+  const rg = words[0].text === "rg";
+  const edits = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index];
+    if (!word.plain) continue;
+    if (word.text === "--") break;
+    const inline = GLOB_INLINE[rg ? "rg" : "grep"].exec(word.text);
+    if (inline) {
+      if (isGlobValue(inline[2])) edits.push([word.start + inline[1].length + 1, word.end]);
+    } else if (rg && ["--glob", "--iglob", "-g"].includes(word.text) && words[index + 1]?.plain && isGlobValue(words[index + 1].text)) {
+      index += 1;
+      edits.push([words[index].start, words[index].end]);
+    }
+  }
+  if (edits.length === 0) return null;
+  let out = "";
+  let at = 0;
+  for (const [from, to] of edits) {
+    out += `${command.slice(at, from)}'${command.slice(from, to)}'`;
+    at = to;
+  }
+  return out + command.slice(at);
 };
 
 /** Whether one pipe part only reads its standard input and prints. */

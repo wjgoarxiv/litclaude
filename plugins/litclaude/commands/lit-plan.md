@@ -96,8 +96,9 @@ The plan must include Claude Code-native bootstrap steps:
   run `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" plans/<slug>.md`, and
   add the one line it prints to the approval question. Under it, render the answer guide the script
   prints (a quoted `**▶ Answer: …**` block with a `| Type | What happens |` table, one row per answer,
-  ending `Type the word alone.`) in the user's language, keeping `yes` / `edit` / `no` as the exact
-  words. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
+  ending `Type the word alone.`) in the user's language, keeping `yes` / `yes goal` / `edit` / `no` as
+  the exact words. A plan without a `goal: native` line gets `yes` (start, no goal) and `yes goal` (start and
+  set the goal shown); never tell the user to edit the plan for a goal. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set.
 - Add no `/goal` step to the plan itself: start-work's Stop
   continuation and the ledger carry the run, and `/goal` stays the user's option.
 - For independent, risky, parallel, or long-running work, include when Claude

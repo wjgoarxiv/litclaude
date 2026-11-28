@@ -15,17 +15,25 @@ const lifecyclePath = new URL("../plugins/litclaude/lib/start-work-lifecycle.mjs
 const fixtureRoot = () => mkdtempSync(join(tmpdir(), "litclaude-host-hooks-"));
 const parse = (result) => JSON.parse(result.stdout);
 
+// The suite may itself run under a host that exports CLAUDE_PROJECT_DIR; a child only sees it when a test names it.
+const childEnv = (env = {}) => {
+  const merged = { ...process.env, ...env };
+  if (!Object.hasOwn(env, "CLAUDE_PROJECT_DIR")) delete merged.CLAUDE_PROJECT_DIR;
+  return merged;
+};
+
 const runCli = (root, args, options = {}) => spawnSync(process.execPath, [binPath, "start-work", ...args, "--root", root, "--json"], {
   cwd: root,
   encoding: "utf8",
   maxBuffer: 10 * 1024 * 1024,
-  env: { ...process.env, ...options.env },
+  env: childEnv(options.env),
 });
 
-const runHook = (event, root, input = {}) => spawnSync(process.execPath, [hookPath, event], {
+const runHook = (event, root, input = {}, env = {}) => spawnSync(process.execPath, [hookPath, event], {
   cwd: root,
   encoding: "utf8",
   input: JSON.stringify({ cwd: root, hook_event_name: event, ...input }),
+  env: childEnv(env),
 });
 
 const writePlan = (root, checked = false) => {
@@ -46,7 +54,7 @@ const initialize = (root, extraGrants = []) => {
   return parse(result);
 };
 
-const preTool = (root, toolName, toolInput, overrides = {}) => runHook("pre-tool-use", root, {
+const preTool = (root, toolName, toolInput, { env, ...overrides } = {}) => runHook("pre-tool-use", root, {
   session_id: "session-root",
   prompt_id: "prompt-tool",
   stop_hook_active: false,
@@ -54,7 +62,7 @@ const preTool = (root, toolName, toolInput, overrides = {}) => runHook("pre-tool
   tool_name: toolName,
   tool_input: toolInput,
   ...overrides,
-});
+}, env);
 
 // The exact 5-ID resume route, built from the first parked boundary; the deny text never prints it.
 const resumeRouteFor = (root) => {
@@ -762,6 +770,239 @@ describe("Claude-native bounded-authority host hooks", () => {
     }
   });
 
+  describe("run scope: the owner's run follows it into a nested checkout or a granted folder", () => {
+    const calmHome = () => {
+      const home = realpathSync(fixtureRoot());
+      return { HOME: home, CLAUDE_CONFIG_DIR: join(home, ".claude") };
+    };
+    const workOf = (root) => parse(runCli(root, ["status"])).state.works["work-1"];
+    const verdict = (result) => {
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim() ? parse(result).hookSpecificOutput?.permissionDecision ?? "allow" : "allow";
+    };
+    let counter = 0;
+    const bashAt = (root, cwd, command, { sessionId = "session-root", env = {} } = {}) => preTool(root, "Bash", { command }, {
+      cwd, session_id: sessionId, prompt_id: `prompt-scope-${counter += 1}`, tool_use_id: `tool-scope-${counter}`, env,
+    });
+    const typedAt = (root, cwd, prompt, sessionId, env) => {
+      const result = runHook("user-prompt-submit", root, { cwd, session_id: sessionId, prompt_id: `typed-scope-${counter += 1}`, prompt }, env);
+      assert.equal(result.status, 0, result.stderr);
+      return result;
+    };
+    const shownOf = (result) => {
+      const output = result.stdout.trim() ? parse(result) : {};
+      return `${output.hookSpecificOutput?.additionalContext ?? ""}\n${output.systemMessage ?? ""}`;
+    };
+    const cleanUp = (...paths) => {
+      for (const path of paths) rmSync(path, { recursive: true, force: true });
+    };
+
+    it("the owner stays guarded after a cd into a nested checkout under the project", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        assert.equal(verdict(bashAt(umbrella, worktree, "git push origin main", { env })), "deny");
+        const parked = workOf(umbrella).pending_boundaries;
+        assert.equal(parked.length, 1);
+        assert.deepEqual([parked[0].command, parked[0].tier, parked[0].cwd], ["git push origin main", "X", realpathSync(worktree)]);
+        assert.equal(existsSync(join(worktree, ".litclaude", "boulder.json")), false, "the nested checkout got no run of its own");
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("the owner's reads from the nested checkout still pass", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        for (const command of ["ls", "git status"]) assert.equal(verdict(bashAt(umbrella, worktree, command, { env })), "allow", command);
+        assert.deepEqual(workOf(umbrella).pending_boundaries, []);
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("another session in the nested checkout is not governed, with or without CLAUDE_PROJECT_DIR", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const home = calmHome();
+      try {
+        for (const env of [home, { ...home, CLAUDE_PROJECT_DIR: umbrella }]) {
+          assert.equal(verdict(bashAt(umbrella, worktree, "git push origin main", { sessionId: "session-lane", env })), "allow");
+        }
+        assert.deepEqual(workOf(umbrella).pending_boundaries, []);
+      } finally {
+        cleanUp(umbrella, main, home.HOME);
+      }
+    });
+
+    it("a live run of another session in the nested checkout keeps governing it", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        writePlan(worktree);
+        const started = runCli(worktree, [
+          "init", "--plan", "plans/approved.md", "--work-id", "work-1", "--session-id", "session-lane",
+          "--grant", `read:${worktree}`, "--grant", `write:${worktree}`, "--grant", `execute:${worktree}`, "--grant", `test:${worktree}`,
+          "--idempotency-key", "init-lane",
+        ]);
+        assert.equal(started.status, 0, started.stderr);
+        const result = preTool(umbrella, "Write", { file_path: join(worktree, "change.txt"), content: "data" }, { cwd: worktree, env });
+        assert.equal(verdict(result), "deny");
+        assert.match(parse(result).hookSpecificOutput.permissionDecisionReason, /belongs to another session/u);
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("lit deny typed from the nested checkout settles the owner's parked step", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        assert.equal(verdict(bashAt(umbrella, worktree, "git push origin main", { env })), "deny");
+        const [boundary] = workOf(umbrella).pending_boundaries;
+        const shown = shownOf(typedAt(umbrella, worktree, "lit deny", "session-root", env));
+        assert.doesNotMatch(shown, /had nothing to approve|Nothing in this session's start-work is parked/u);
+        const after = workOf(umbrella);
+        assert.deepEqual(after.pending_boundaries, []);
+        assert.ok(after.authority.denied_commands.includes(boundary.boundary_id));
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("Stop from the nested checkout gives the same verdict as Stop from the project root", () => {
+      const nested = nestedLane();
+      const flat = nestedLane();
+      const env = calmHome();
+      const scrub = (text, { umbrella, worktree }) => [[realpathSync(worktree), "<TREE>"], [worktree, "<TREE>"], [realpathSync(umbrella), "<ROOT>"], [umbrella, "<ROOT>"]]
+        .reduce((out, [from, to]) => out.replaceAll(from, to), text);
+      const stopAt = (fixture, cwd) => {
+        const result = runHook("stop", fixture.umbrella, { cwd, session_id: "session-root", prompt_id: "stop-scope-1", stop_hook_active: false }, env);
+        assert.equal(result.status, 0, result.stderr);
+        return scrub(result.stdout, fixture);
+      };
+      try {
+        const fromRoot = stopAt(flat, flat.umbrella);
+        const fromNested = stopAt(nested, nested.worktree);
+        assert.equal(JSON.parse(fromRoot).decision, "block");
+        assert.notEqual(fromNested, "", "the nested checkout's Stop sees the run");
+        assert.deepEqual(JSON.parse(fromNested), JSON.parse(fromRoot));
+      } finally {
+        cleanUp(nested.umbrella, nested.main, flat.umbrella, flat.main, env.HOME);
+      }
+    });
+
+    it("a typed start-work from the nested checkout still starts there, even for the umbrella owner", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        const result = typedAt(umbrella, worktree, "/litclaude:start-work plans/lane.md", "session-root", env);
+        assert.doesNotMatch(result.stdout, /does not exist|did not start/u);
+        const lane = JSON.parse(readFileSync(join(worktree, ".litclaude", "boulder.json"), "utf8"));
+        assert.equal(lane.works[lane.active_work_id].plan_name, "lane.md");
+        assert.deepEqual(Object.keys(parse(runCli(umbrella, ["status"])).state.works), ["work-1"]);
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("a granted folder outside the project is governed for the owner when CLAUDE_PROJECT_DIR names the project", () => {
+      const umbrella = realpathSync(fixtureRoot());
+      const other = realpathSync(fixtureRoot());
+      const third = realpathSync(fixtureRoot());
+      const home = calmHome();
+      try {
+        initialize(umbrella, [`read:${other}`, `write:${other}`]);
+        const named = { ...home, CLAUDE_PROJECT_DIR: umbrella };
+        assert.equal(verdict(bashAt(umbrella, other, "git push origin main", { env: named })), "deny");
+        const [parked] = workOf(umbrella).pending_boundaries;
+        assert.deepEqual([parked.command, parked.tier, parked.cwd], ["git push origin main", "X", other]);
+        assert.equal(verdict(bashAt(umbrella, other, "git push origin main", { sessionId: "session-lane", env: named })), "allow", "another session");
+        assert.equal(verdict(bashAt(umbrella, other, "git push origin other", { env: home })), "allow", "no CLAUDE_PROJECT_DIR");
+        assert.equal(verdict(bashAt(umbrella, third, "git push origin third", { env: named })), "allow", "a folder no grant covers");
+        assert.equal(workOf(umbrella).pending_boundaries.length, 1);
+      } finally {
+        cleanUp(umbrella, other, third, home.HOME);
+      }
+    });
+
+    it("a cancel notice follows the owner into the nested checkout", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        typedAt(umbrella, umbrella, "lit cancel", "session-other", env);
+        assert.equal(workOf(umbrella).status, "cancelled");
+        const write = preTool(umbrella, "Write", { file_path: join(worktree, "x.txt"), content: "x" }, { cwd: worktree, env });
+        assert.equal(verdict(write), "deny");
+        assert.match(parse(write).hookSpecificOutput.permissionDecisionReason, /typed `lit cancel`/u);
+        assert.equal(verdict(preTool(umbrella, "Read", { file_path: join(worktree, "plans", "lane.md") }, { cwd: worktree, env, tool_use_id: "tool-scope-read" })), "allow");
+        typedAt(umbrella, worktree, "hello", "session-root", env);
+        const notices = JSON.parse(readFileSync(join(umbrella, ".litclaude", "boulder.json"), "utf8")).cancel_notices ?? {};
+        assert.equal(notices["session-root"], undefined, "the next prompt in the nested checkout lifts the notice");
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+    });
+
+    it("a finished run no longer routes the owner", () => {
+      const { umbrella, main, worktree } = nestedLane();
+      const env = calmHome();
+      try {
+        typedAt(umbrella, umbrella, "lit cancel", "session-root", env);
+        assert.equal(workOf(umbrella).status, "cancelled");
+        assert.equal(verdict(bashAt(umbrella, worktree, "git push origin main", { env })), "allow", "cancelled by the owner");
+      } finally {
+        cleanUp(umbrella, main, env.HOME);
+      }
+      const again = nestedLane();
+      try {
+        typedAt(again.umbrella, again.umbrella, "lit cancel", "session-other", env);
+        typedAt(again.umbrella, again.worktree, "hello", "session-root", env);
+        assert.equal(verdict(bashAt(again.umbrella, again.worktree, "git push origin main", { env })), "allow", "notice lifted");
+      } finally {
+        cleanUp(again.umbrella, again.main, env.HOME);
+      }
+    });
+
+    it("a nested record that is not a version 3 lifecycle keeps the owner at the nested folder, like the guard's own peek", async () => {
+      const { lifecycleRootFor } = await import("../plugins/litclaude/lib/lifecycle-root.mjs");
+      const { umbrella, main, worktree } = nestedLane();
+      const previous = process.env.CLAUDE_PROJECT_DIR;
+      delete process.env.CLAUDE_PROJECT_DIR;
+      try {
+        mkdirSync(join(worktree, ".litclaude"), { recursive: true });
+        for (const record of ["{}", JSON.stringify({ schema_version: 2, works: {} }), JSON.stringify({ schema_version: 3 }), "[]", "null"]) {
+          writeFileSync(join(worktree, ".litclaude", "boulder.json"), record);
+          assert.equal(lifecycleRootFor(worktree, "session-root"), worktree, record);
+        }
+      } finally {
+        if (previous === undefined) delete process.env.CLAUDE_PROJECT_DIR; else process.env.CLAUDE_PROJECT_DIR = previous;
+        cleanUp(umbrella, main);
+      }
+    });
+
+    it("lifecycleRootFor and sessionOwnsRun answer for the owner only", async () => {
+      const { lifecycleRootFor, sessionOwnsRun } = await import("../plugins/litclaude/lib/lifecycle-root.mjs");
+      const { umbrella, main, worktree } = nestedLane();
+      const legacy = fixtureRoot();
+      const previous = process.env.CLAUDE_PROJECT_DIR;
+      delete process.env.CLAUDE_PROJECT_DIR;
+      try {
+        assert.equal(lifecycleRootFor(worktree, "session-root"), umbrella);
+        assert.equal(lifecycleRootFor(worktree, "session-lane"), worktree);
+        assert.equal(lifecycleRootFor(worktree, null), worktree);
+        assert.equal(sessionOwnsRun(umbrella, "session-root"), true);
+        assert.equal(sessionOwnsRun(umbrella, "session-lane"), false);
+        mkdirSync(join(legacy, ".litclaude"), { recursive: true });
+        writeFileSync(join(legacy, ".litclaude", "boulder.json"), JSON.stringify({ schema_version: 3, active_work_id: "w", works: { w: { status: "active", active_session_id: "session-root" } } }));
+        assert.equal(sessionOwnsRun(legacy, "session-root"), false, "a record with only active_session_id names no owner");
+      } finally {
+        if (previous === undefined) delete process.env.CLAUDE_PROJECT_DIR; else process.env.CLAUDE_PROJECT_DIR = previous;
+        cleanUp(umbrella, main, legacy);
+      }
+    });
+  });
+
   it("uses nonce/PID lock ownership and prevents a stale predecessor from removing its successor", async () => {
     const root = fixtureRoot();
     try {
@@ -829,6 +1070,35 @@ describe("Claude-native bounded-authority host hooks", () => {
       } finally {
         rmSync(root, { recursive: true, force: true });
       }
+    }
+  });
+
+  it("the PreToolUse hook lets `git -C <checkout> grep`, `gh pr view` and `gh pr list` through during a run, and answers an unquoted glob", () => {
+    const root = fixtureRoot();
+    try {
+      initialize(root);
+      mkdirSync(join(root, "wt"), { recursive: true });
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(join(root, "src", "a.mjs"), "x\n");
+      let n = 0;
+      const run = (command) => {
+        n += 1;
+        return preTool(root, "Bash", { command }, { prompt_id: `prompt-9-15-${n}`, tool_use_id: `tool-9-15-${n}` });
+      };
+      for (const command of [`git -C ${join(root, "wt")} grep -n x`, "gh pr view 1 --json state", "gh pr list --state open"]) {
+        const result = run(command);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(result.stdout, "", `a read must keep normal permissions: ${command}`);
+      }
+      const opens = parse(run(`git -C ${join(root, "wt")} grep -O vim x`));
+      assert.equal(opens.hookSpecificOutput.permissionDecision, "deny");
+      const glob = parse(run("grep -rn x src --include=*.mjs"));
+      assert.equal(glob.hookSpecificOutput.permissionDecision, "deny");
+      assert.ok(glob.hookSpecificOutput.permissionDecisionReason.includes("`grep -rn x src --include='*.mjs'`"));
+      const parked = parse(runCli(root, ["status"])).state.works["work-1"].pending_boundaries;
+      assert.equal(parked.some(({ command }) => command.includes("--include=*.mjs")), false, "the glob answer stores nothing");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

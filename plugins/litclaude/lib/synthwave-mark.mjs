@@ -1,4 +1,4 @@
-// Synthwave mark for human-facing CLI output (install, doctor, help). Never for model-visible text.
+// Synthwave mark for human-facing output (the CLI's install, doctor and help, and the hook's systemMessage). Never for model-visible text.
 import { MONO_ROWS, PIXEL_ROWS, SHARED_COLOURS } from "./synthwave-rows.mjs";
 
 export const HOST_LABEL = "claude code";

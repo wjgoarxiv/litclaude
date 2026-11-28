@@ -4,15 +4,16 @@
 // block into one `/goal` condition, lints it, runs the check once to prove the condition is false
 // now, and records the question in the session's `.litclaude/sessions/<id>/goal/consent.json` (the
 // legacy shared `.litclaude/goal/consent.json` without a session id). It prints the consent question
-// (yes starts the work and arms the goal), or, when no goal can be set for a readable plan, the
+// (yes starts the work and arms the goal). A plan without a `goal: native` line gets the start question
+// with the goal as a second answer (`yes goal`), and a plan no goal can be built for gets the
 // start-only question and the `No goal set: <reason>` line. It never sets a goal or starts work
-// itself; only the user's exact `yes` on the next prompt does, through the prompt hook.
+// itself; only the user's exact `yes` (or `yes goal`) on the next prompt does, through the prompt hook.
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { goalWritePath } from "../lib/goal-files.mjs";
-import { GOAL_OPT_IN, GOAL_STATUS, compileCondition, goalGuideMarkdown, compileLoopCondition, conditionHash, falsify, falsifyLoop, lintCondition, parseDoneWhen, startOnlyHash } from "../lib/goal-pipeline.mjs";
+import { GOAL_NEVER, GOAL_OPT_IN, GOAL_STATUS, goalGuideMarkdown, compileLoopCondition, conditionHash, falsify, falsifyLoop, hasOpenRows, lintCondition, planGoal, startOnlyHash } from "../lib/goal-pipeline.mjs";
 import { normalizeGoalObjective } from "../lib/native-goal-binding.mjs";
 import { charterHash, describeCharter, planCharter } from "../lib/plan-scope-roots.mjs";
 import { prepareStateDir, STATE_WRITE_FLAG } from "../lib/project-state-root.mjs";
@@ -45,15 +46,18 @@ export const proposeGoal = ({ cwd, planArg, sessionId = null, now = Date.now(), 
     record(cwd, sessionId, consent);
     return { line: `${GOAL_STATUS.startOnly}\n${GOAL_STATUS.skipped(reason)}`, guide: goalGuideMarkdown("startOnly"), consent, charter };
   };
-  if (/^goal:\s*never\s*$/mu.test(planText)) return startOnly("this plan is marked goal: never");
-  if (!GOAL_OPT_IN.test(planText)) return startOnly("a native /goal is opt-in: add a `goal: native` line to the plan for one; start-work drives the run either way");
-  const done = parseDoneWhen(planText);
-  if (!done.ok) return startOnly(done.reason);
-  const built = compileCondition({ plan, check: done.check });
+  if (GOAL_NEVER.test(planText)) return startOnly("this plan is marked goal: never");
+  const built = planGoal({ plan, planText });
   if (!built.ok) return startOnly(built.reason);
-  const lint = lintCondition(built.condition, done.check);
-  if (!lint.ok) return startOnly(lint.reasons.join("; "));
-  const dry = falsify({ cwd, plan, planText, check: done.check, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) });
+  if (!GOAL_OPT_IN.test(planText)) {
+    // No opt-in line: start-work drives the run either way, and `yes goal` adds the goal. Open rows keep
+    // the condition false, so offering it runs no check; the hook rebuilds it from the plan before arming.
+    if (!hasOpenRows(planText)) return startOnly(`${plan} has no open row`);
+    const consent = { version: 1, condition: null, hash: startOnlyHash(plan), id: null, plan, askedAt, charter_hash: charterHash(planText), goal_option: { condition: built.condition, id: built.id } };
+    record(cwd, sessionId, consent);
+    return { line: `${GOAL_STATUS.startOrGoal}\n${GOAL_STATUS.optional(built.condition)}`, guide: goalGuideMarkdown("startOrGoal"), consent, charter };
+  }
+  const dry = falsify({ cwd, plan, planText, check: built.check, ...(timeoutMs ? { timeoutMs } : {}), ...(run ? { run } : {}) });
   if (!dry.ok) return startOnly(dry.reason);
   const consent = { version: 1, condition: built.condition, hash: conditionHash(built.condition), id: built.id, plan, askedAt, charter_hash: charterHash(planText) };
   record(cwd, sessionId, consent);

@@ -141,7 +141,7 @@ Represent every litgoal run as:
 
 ### Binding the native Claude Code goal
 
-Claude Code's `/goal` (v2.1.139+) is the native user surface. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Avoid
+Claude Code's `/goal` (v2.1.139+) is the native user surface. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Avoid
 clobbering a different active goal without explicit replacement. Without an armed
 goal, report explicit `BLOCKED:` / degraded mode, derive the objective into a crisp completion condition, and
 **offer the user a ready-to-paste `/goal <completion condition>`** or

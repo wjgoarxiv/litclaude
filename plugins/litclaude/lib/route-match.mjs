@@ -142,15 +142,22 @@ const withoutCode = (text) => withoutClosedCodeFences(text).replace(/`[^`]*`/gu,
 // A `<cross-session-message>` block (another session's message relayed into this one, observed
 // 2026-10-27 firing the lit-adhd route on test names it mentioned) is someone else's text too;
 // its opening tag may carry attributes.
+// A `<teammate-message …>` block (another agent's message relayed into this session) is someone else's text
+// too; its opening tag must carry attributes, so a bare tag typed in prose stays visible.
 // A prompt that OPENS with an unclosed `<task-notification>` (a hand-back cut off by the host) or
 // with the host's `[SYSTEM NOTIFICATION - NOT USER INPUT]` banner is host text from its first
 // character, so the whole prompt is inert (observed 2026-11-15 firing lit-adhd and frontend-ui-ux).
 // A tag mentioned later in a typed prompt is still left alone.
 const HOST_NOTIFICATION_OPENING = /^\s*(?:\[SYSTEM NOTIFICATION - NOT USER INPUT\]|<task-notification>(?![\s\S]*<\/task-notification>))/u;
-const withoutHostNotifications = (text) => HOST_NOTIFICATION_OPENING.test(text) ? " " : text
+// A forwarded message nests one block in another; the innermost closes first, so repeat until none is left.
+const withoutTeammateMessages = (text) => {
+  const stripped = text.replace(/<teammate-message\s[^>]*>(?:(?!<teammate-message\s)[\s\S])*?<\/teammate-message>/gu, " ");
+  return stripped === text ? text : withoutTeammateMessages(stripped);
+};
+const withoutHostNotifications = (text) => HOST_NOTIFICATION_OPENING.test(text) ? " " : withoutTeammateMessages(text
   .replace(/<task-notification>[\s\S]*?<\/task-notification>/gu, " ")
   .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gu, " ")
-  .replace(/<cross-session-message(?:\s[^>]*)?>[\s\S]*?<\/cross-session-message>/gu, " ");
+  .replace(/<cross-session-message(?:\s[^>]*)?>[\s\S]*?<\/cross-session-message>/gu, " "));
 const rawTriggerText = (text) => withoutCode(withoutHostNotifications(text)).toLowerCase();
 const normalizedTriggerText = (text) => rawTriggerText(text).replace(/[_-]+/gu, " ");
 
@@ -897,4 +904,6 @@ export {
   suggestedSkills,
   triggerByToken,
   withoutCode,
+  withoutHostNotifications,
+  withoutTeammateMessages,
 };

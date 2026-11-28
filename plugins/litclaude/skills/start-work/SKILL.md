@@ -256,7 +256,7 @@ Before the first checkbox, attempt native goal binding honestly. Claude Code's
 surface cannot run another slash command and model-facing goal tools may be
 unavailable:
 
-- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Avoid clobbering a different active goal without explicit replacement.
+- LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. Avoid clobbering a different active goal without explicit replacement.
 - Without an armed goal, carry on with the Boulder/ledger discipline:
   `/goal` is optional. The start-work Stop continuation already drives the run to
   its last checkbox, so do not ask the user to set a goal before executing.

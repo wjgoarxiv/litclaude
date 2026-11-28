@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { cliEnv } from "./helpers/cli-env.mjs";
 // In a pipe the Synthwave mark shrinks to its one plain line, so agents never read rows of art.
 const assertSynthwaveBanner = (stdout) => {
   assert.ok(stdout.startsWith(`LIT · claude code\nlitclaude v${packageJson.version}\n`), "plain mark line missing");
@@ -36,7 +37,7 @@ const runCli = (args, home, claudeHome = join(home, ".claude")) =>
   spawnSync(process.execPath, [binPath, ...args], {
     cwd: root,
     encoding: "utf8",
-			env: {
+			env: cliEnv({
 			...process.env, LC_ALL: "C.UTF-8", TERM: "xterm-256color",
 			LITCLAUDE_HOME: home,
 			CLAUDE_HOME: claudeHome,
@@ -44,7 +45,7 @@ const runCli = (args, home, claudeHome = join(home, ".claude")) =>
 			CLAUDE_CODE_DISABLE_WORKFLOWS: "0",
 			CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "0",
 			CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY: "16",
-		},
+		}),
   });
 
 const runCliWithEnv = (args, env) => {
@@ -53,12 +54,12 @@ const runCliWithEnv = (args, env) => {
   return spawnSync(process.execPath, [binPath, ...args], {
     cwd: root,
     encoding: "utf8",
-    env: childEnv,
+    env: cliEnv(childEnv),
   });
 };
 
 const runCliAsTty = (args, env) => {
-  const childEnv = { ...process.env, LC_ALL: "C.UTF-8", TERM: "xterm-256color", ...env };
+  const childEnv = { ...process.env, LC_ALL: "C.UTF-8", TERM: "xterm-256color", npm_config_registry: "http://127.0.0.1:9/", ...env };
   if (!Object.hasOwn(env, "NO_COLOR")) delete childEnv.NO_COLOR;
   for (const name of ["CI", "NO_UPDATE_NOTIFIER", "LITCLAUDE_NO_UPDATE_CHECK"]) delete childEnv[name];
   const source = `

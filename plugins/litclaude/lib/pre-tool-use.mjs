@@ -66,6 +66,9 @@ const mayBePipedCheck = (input) => {
 const print = (output) => console.log(JSON.stringify(output));
 const preToolUse = (fields) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", ...fields } });
 
+// The host prints `PreToolUse:Bash hook error:` before a deny's reason; this says what follows is the guard working.
+export const GUARD_LEAD = "Not a crash: LitClaude's start-work guard stopped this call on purpose, so it did not run.";
+
 // A turn a check-back timer started only reports: everything but reading is denied.
 const checkBackReason = (input) => {
   try {
@@ -112,7 +115,7 @@ const decide = async (input) => {
     }
     print({
       ...(terminalSequence ? { terminalSequence } : {}),
-      ...preToolUse({ permissionDecision: "deny", permissionDecisionReason: decision.reason, ...fallbackContext }),
+      ...preToolUse({ permissionDecision: "deny", permissionDecisionReason: `${GUARD_LEAD} ${decision.reason}`, ...fallbackContext }),
     });
     return;
   }

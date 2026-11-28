@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { it } from "node:test";
-import * as mark from "../bin/litfamily-banner.mjs";
 import { synthwaveRows } from "../plugins/litclaude/lib/synthwave-mark.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -29,12 +28,12 @@ it("help prints only the plain mark line and version without ANSI in a pipe", ()
   assert.doesNotMatch(result.stdout, /\x1b|██╗/u);
 });
 
-it("SessionStart renders a standard mark once across repeat, resume and compact", () => {
+it("SessionStart renders the sunset mark once across repeat, resume and compact", () => {
   const cwd = mkdtempSync(join(tmpdir(), "lit-mark-session-"));
   mkdirSync(join(cwd, ".git"));
   try {
     const first = hook(cwd, "session-start", { source: "startup" });
-    assert.ok(first.systemMessage?.startsWith("\n" + mark.standard.join("\n") + "\n"), "standard mark missing");
+    assert.ok(first.systemMessage?.startsWith("\n" + synthwaveRows({ cols: 24, mode: "mono" }).join("\n") + "\n"), "sunset mark missing");
     assert.ok(first.systemMessage.endsWith(`litclaude v${version}`));
     for (const source of ["startup", "resume", "compact", "resume"]) {
       assert.equal(hook(cwd, "session-start", { source }).systemMessage, undefined, source);
@@ -47,8 +46,7 @@ it("activation separates the plain harness mark from the model probe line", () =
   const cwd = mkdtempSync(join(tmpdir(), "lit-mark-activation-"));
   try {
     const payload = hook(cwd, "user-prompt-submit", { prompt: "lit plan the update" });
-    assert.equal(payload.systemMessage, `\n${mark.micro.map((row, index) => index === 2
-      ? `${row}  🔥 LIT IGNITED · lit-plan 🔥` : row).join("\n")}`);
+    assert.equal(payload.systemMessage, `\n${[...synthwaveRows({ cols: 24, mode: "mono" }).slice(0, 6), "🔥 LIT IGNITED · lit-plan 🔥"].join("\n")}`);
     assert.doesNotMatch(payload.systemMessage, /\x1b/u);
     assert.match(payload.hookSpecificOutput.additionalContext, /begin your reply with the exact probe line `🔥 \*\*LIT IGNITED · lit-plan\*\* 🔥`/iu);
     assert.match(payload.systemMessage, /🔥 LIT IGNITED · lit-plan 🔥/u);

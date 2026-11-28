@@ -12,6 +12,7 @@
 // while boulder.json is found the way `lifecycleRootFor` in bin/litclaude-hook.js finds it, walking up
 // from the working directory and across a linked Git worktree to its main checkout.
 
+import { canRunParked } from "../parked-step.mjs";
 import { parsePlanTaskRows } from "../plan-task-rows.mjs";
 import { xdgDataHome } from "./round.mjs";
 import { parseStageRecord } from "./workflow.mjs";
@@ -218,6 +219,8 @@ export const parseBoulder = (state, sessionId) => {
       id: str(active.work_id, 120) ?? String(state.active_work_id),
       status: waits ? "paused" : "active",
       parked: parked.length,
+      // Parked steps an answer can still run (held steps never run); the label `approval needed` needs one.
+      runnable: (legacy ? 1 : 0) + parked.filter(canRunParked).length,
       planName: str(active.plan_name, 200),
       total,
       checked: Math.min(int(progress.checked), total),

@@ -97,8 +97,8 @@ Then open the file and try the three actions yourself. That is how you find out 
 A plan you approve runs to its last row and closes itself when its `## Done when` check passes. A step
 that needs your yes is parked and the run goes on; at the end one inbox lists what waits, and rows Claude
 could not do carry `IMPOSSIBLE: <reason>`. A `Run charter: commit on <branch> in <repo>` line in the plan
-lets the run commit on that branch, and a `goal: native` line adds Claude Code's `/goal`, which always ends by
-itself. Without `lit`, Claude is offered the skills that fit a request and decides whether to load them.
+lets the run commit on that branch, and `yes goal` at the approval question adds Claude Code's `/goal`,
+which always ends by itself. Without `lit`, Claude is offered the skills that fit a request and decides whether to load them.
 
 In the Claude desktop and mobile apps (Claude Code 2.1.325 or later), LitClaude also dresses the app in the
 Ignition look: LitFamily colours and a synthwave sunset backdrop that rests, burns, signals and bursts with the LIT state.

@@ -134,4 +134,40 @@ describe("the skill-plan record across prompts", () => {
     h.run("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt: "handoff" });
     assert.equal(existsSync(skillPlanTurnPath(h.project, SID)), false, "a hook-owned prompt");
   });
+
+  const teammate = (body) => `Another Claude session sent a message:\n<teammate-message teammate_id="lane-a" color="blue" summary="s">${body}</teammate-message>`;
+
+  it("a teammate message arms neither Stop gate", () => {
+    const h1 = receiptHarness();
+    prompt(h1, teammate("lit plan the rewrite of the parser"));
+    assert.equal(existsSync(join(h1.dir, "lit-plan-turn.json")), false, "no lit-plan record");
+    const empty = join(h1.project, "t.jsonl");
+    writeFileSync(empty, "");
+    const stop = h1.run("stop", { hook_event_name: "Stop", transcript_path: empty, stop_hook_active: false });
+    assert.equal(stop.status, 0, stop.stderr);
+    assert.doesNotMatch(stop.stdout, /"decision":"block"/u);
+
+    const h2 = receiptHarness();
+    prompt(h2, teammate("lit refactor the parser and find out why the import step hangs"));
+    assert.equal(existsSync(skillPlanTurnPath(h2.project, SID)), false, "no skill-plan record");
+  });
+
+  it("a teammate-only prompt leaves the skill-plan record as a plain prompt does", () => {
+    const h = receiptHarness();
+    recordSkillPlanTurn(h.project, { sessionId: SID, plan, now: Date.now() - 1000 });
+    const asking = join(h.project, "t.jsonl");
+    writeFileSync(asking, `${JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(), message: { role: "assistant", content: [{ type: "text", text: "어떤 내용으로 만들까요?" }] } })}\n`);
+    assert.equal(evaluateSkillPlanStop({ cwd: h.project, sessionId: SID, transcriptPath: asking }).why, "asked");
+    prompt(h, teammate("lit review found 3 issues; lit plan the fix"));
+    const kept = JSON.parse(readFileSync(skillPlanTurnPath(h.project, SID), "utf8"));
+    assert.equal(kept.asked, false, "the asked pass is spent, as for a plain prompt");
+    assert.deepEqual(kept.required, [{ id: "lit-pptx", plugin: "decks" }]);
+  });
+
+  it("a wrapped lit approve x is not an approval", () => {
+    const h = receiptHarness();
+    const { context } = prompt(h, teammate("lit approve x"));
+    assert.doesNotMatch(context, /start-work/u);
+    assert.equal(existsSync(join(h.project, ".litclaude", "start-work")), false);
+  });
 });

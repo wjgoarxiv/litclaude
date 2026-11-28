@@ -76,14 +76,85 @@ describe("skill-plan turn-end check", () => {
     assert.equal(evaluateSkillPlanStop({ cwd, sessionId: "s1", transcriptPath: path, now: 2000 }).action, "allow");
   });
 
-  it("passes when each planned skill was loaded (plugin, litclaude stub or bare id) or skipped", () => {
+  it("passes when each planned skill was loaded (plugin id for a moved skill; bare or litclaude: id for a core skill) or skipped", () => {
     const cwd = project();
     recordSkillPlanTurn(cwd, { sessionId: "s2", plan: planOf(["lit-scientific-visualization", "refactor"]), now: 1000 });
     const path = transcript(cwd, [
-      assistant(1100, [{ type: "tool_use", name: "Skill", input: { skill: "litclaude:lit-pptx" } }]),
+      assistant(1100, [{ type: "tool_use", name: "Skill", input: { skill: "decks:lit-pptx" } }]),
       assistant(1200, [{ type: "tool_use", name: "Skill", input: { skill: "refactor" } }, { type: "text", text: "**SKIP lit-scientific-visualization**: no data was given" }]),
     ]);
     assert.deepEqual(evaluateSkillPlanStop({ cwd, sessionId: "s2", transcriptPath: path, now: 2000 }), { action: "allow", why: "settled" });
+  });
+
+  const vizPlan = () => buildSkillPlan({ primary: "lit-scientific-visualization", companions: [], installed: new Set(["figures"]), loopBase: true });
+  const skillCall = (ms, skill) => assistant(ms, [{ type: "tool_use", name: "Skill", input: { skill } }]);
+
+  it("a moved skill counts only as <plugin>:<id>: the stub alone blocks", () => {
+    for (const [sessionId, skill] of [["m1", "litclaude:lit-scientific-visualization"], ["m2", "lit-scientific-visualization"]]) {
+      const cwd = project();
+      recordSkillPlanTurn(cwd, { sessionId, plan: vizPlan(), now: 1000 });
+      const stop = evaluateSkillPlanStop({ cwd, sessionId, transcriptPath: transcript(cwd, [skillCall(1500, skill)]), now: 2000 });
+      assert.equal(stop.action, "block", skill);
+      assert.deepEqual(stop.missing, ["figures:lit-scientific-visualization"], skill);
+      assert.match(stop.reason, /figures:lit-scientific-visualization/u, skill);
+    }
+  });
+
+  it("figures 0.1.0 copy: the stub alone blocks once, the stub plus a SKIP line settles", () => {
+    const cwd = project();
+    recordSkillPlanTurn(cwd, { sessionId: "c1", plan: vizPlan(), now: 1000 });
+    const stubOnly = transcript(cwd, [skillCall(1500, "litclaude:lit-scientific-visualization")]);
+    assert.equal(evaluateSkillPlanStop({ cwd, sessionId: "c1", transcriptPath: stubOnly, now: 2000 }).action, "block");
+    assert.deepEqual(evaluateSkillPlanStop({ cwd, sessionId: "c1", transcriptPath: stubOnly, now: 2000 }), { action: "allow", why: "reminded" });
+    recordSkillPlanTurn(cwd, { sessionId: "c2", plan: vizPlan(), now: 1000 });
+    const skipped = transcript(cwd, [assistant(1500, [
+      { type: "tool_use", name: "Skill", input: { skill: "litclaude:lit-scientific-visualization" } },
+      { type: "text", text: "SKIP lit-scientific-visualization: figures is the 0.1.0 copy" },
+    ])]);
+    assert.deepEqual(evaluateSkillPlanStop({ cwd, sessionId: "c2", transcriptPath: skipped, now: 2000 }), { action: "allow", why: "settled" });
+  });
+
+  it("stub then extension, a slashed extension id, an uninstalled extension, and a core skill keep today's result", () => {
+    const cwd = project();
+    recordSkillPlanTurn(cwd, { sessionId: "k0", plan: vizPlan(), now: 1000 });
+    assert.equal(evaluateSkillPlanStop({ cwd, sessionId: "k0", transcriptPath: transcript(cwd, [skillCall(1500, "litclaude:lit-scientific-visualization")]), now: 2000 }).action, "block", "the stub before the extension is not enough on its own");
+    for (const [sessionId, lines] of [
+      ["k1", [skillCall(1500, "litclaude:lit-scientific-visualization"), skillCall(1600, "figures:lit-scientific-visualization")]],
+      ["k2", [skillCall(1500, "/figures:lit-scientific-visualization")]],
+    ]) {
+      recordSkillPlanTurn(cwd, { sessionId, plan: vizPlan(), now: 1000 });
+      assert.deepEqual(evaluateSkillPlanStop({ cwd, sessionId, transcriptPath: transcript(cwd, lines), now: 2000 }), { action: "allow", why: "settled" }, sessionId);
+    }
+    const bare = buildSkillPlan({ primary: "lit-scientific-visualization", companions: [], installed: new Set(), loopBase: true });
+    assert.deepEqual(requiredPlanSkills(bare), []);
+    assert.equal(recordSkillPlanTurn(cwd, { sessionId: "k3", plan: bare, now: 1000 }), null);
+    assert.equal(evaluateSkillPlanStop({ cwd, sessionId: "k3", transcriptPath: transcript(cwd, []), now: 2000 }).why, "no-plan");
+    const core = buildSkillPlan({ primary: "refactor", companions: [], installed: new Set(), loopBase: true });
+    for (const [sessionId, skill] of [["k4", "refactor"], ["k5", "litclaude:refactor"]]) {
+      recordSkillPlanTurn(cwd, { sessionId, plan: core, now: 1000 });
+      assert.deepEqual(evaluateSkillPlanStop({ cwd, sessionId, transcriptPath: transcript(cwd, [skillCall(1500, skill)]), now: 2000 }), { action: "allow", why: "settled" }, skill);
+    }
+  });
+
+  it("the real hook: a deck plan settles only after decks:lit-pptx", () => {
+    const config = join(scratch, `claude-decks-${++n}`);
+    const installPath = join(config, "plugins", "cache", "wjgoarxiv-skills", "decks", "0.1.0");
+    mkdirSync(installPath, { recursive: true });
+    writeFileSync(join(config, "plugins", "installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "decks@wjgoarxiv-skills": [{ scope: "user", installPath, version: "0.1.0" }] } }));
+    const env = { PATH: process.env.PATH, HOME: join(scratch, "home"), LITCLAUDE_HOME: join(scratch, "lit-home"), CLAUDE_CONFIG_DIR: config, LITCLAUDE_HUD_STATE_ROOT: join(scratch, "hud"), LITCLAUDE_NO_UPDATE_CHECK: "1", LITCLAUDE_NO_AUTO_UPDATE: "1", NO_COLOR: "1" };
+    const session = (sessionId, skills) => {
+      const cwd = project();
+      const hook = (event, input) => spawnSync(process.execPath, [hookPath, event], { cwd, env, encoding: "utf8", input: JSON.stringify({ session_id: sessionId, cwd, ...input }) });
+      const prompt = hook("user-prompt-submit", { hook_event_name: "UserPromptSubmit", prompt_id: "p1", prompt: "lit make a deck about the Q3 roadmap" });
+      assert.equal(prompt.status, 0, prompt.stderr);
+      const path = transcript(cwd, skills.map((skill, index) => skillCall(Date.now() + 5 + index, skill)));
+      return { prompt: prompt.stdout, stop: hook("stop", { hook_event_name: "Stop", transcript_path: path, stop_hook_active: false }).stdout };
+    };
+    const stubOnly = session("deck-s1", ["lit-pptx"]);
+    assert.match(stubOnly.prompt, /Load decks:lit-pptx with the Skill tool/u);
+    assert.match(stubOnly.stop, /"decision":"block"/u);
+    assert.match(stubOnly.stop, /decks:lit-pptx/u);
+    assert.doesNotMatch(session("deck-s2", ["lit-pptx", "decks:lit-pptx"]).stop, /skill plan/iu);
   });
 
   it("allows with no plan, no transcript, an unsafe session id, or a cleared turn", () => {

@@ -203,7 +203,7 @@ export const buildWorkflow = ({ snapshot, skills = [], completion = null, now })
       if (work && (work.total > 0 || counted)) {
         countOf = counted ? { done: Math.min(counted.n ?? 0, counted.total), total: counted.total, unit: "task" } : { done: work.checked, total: work.total, unit: "task" };
         next = countOf.done === work.checked ? plainText(work.nextTask) : null;
-        if (work.awaiting) items.push("paused · approval needed");
+        if (work.awaiting) items.push(work.runnable > 0 ? "paused · approval needed" : "paused · waiting on you");
         else if (work.parked > 0) items.push(`${work.parked} parked`);
       } else if (goalIsOpen(goal) && goal.criteria.length > 0) {
         countOf = { done: goal.criteria.filter(({ status }) => status === "pass").length, total: goal.criteria.length, unit: "criterion" };

@@ -495,21 +495,21 @@
     },
     "lit-loop": {
       "skillMd": {
-        "bytes": 24853,
-        "sha256": "583a33353ffea930892b42a515138d2768a7c96262401a73de5fb554004a8a67"
+        "bytes": 24945,
+        "sha256": "0fe9c92fab40c2e74d1f955406f835468eccb18cbdec4ab5c96e2529bf675e9c"
       },
       "files": 1,
-      "bytes": 24853,
-      "sha256": "681dea3195549c94526b4eed1caf7555675ac6d86e1143b8f6f205f5dd36d693"
+      "bytes": 24945,
+      "sha256": "5a4592dffa19d8cbe44b5ee3df3d31c21905fad98299e951654a0d901060bcec"
     },
     "lit-plan": {
       "skillMd": {
-        "bytes": 38433,
-        "sha256": "5ef7e72200fc6d4716ea3608f0400593645259aa08a2e9356a1238e72663349b"
+        "bytes": 39015,
+        "sha256": "6e0e0dd7072051e8cd8e995788b6ea0844214c749c8850b7c65831f7c044bb84"
       },
       "files": 1,
-      "bytes": 38433,
-      "sha256": "f95f7bdf6f79762047a697f089bd537cc18bb6ce37a19300e8bfd289709f97da"
+      "bytes": 39015,
+      "sha256": "55af684a77dda03260dff90fb866ffeb16d655991ea23fdd39133e0ca51abe6f"
     },
     "lit-pptx": {
       "skillMd": {
@@ -531,12 +531,12 @@
     },
     "lit-scientific-visualization": {
       "skillMd": {
-        "bytes": 7992,
-        "sha256": "2bd0e7272d2ba3d32e7140e55e3557a8553b6b09e0de59dce79abf1d8769af2f"
+        "bytes": 7974,
+        "sha256": "4b1a32d09edc31e164e1dbe1442a046ec0d849f5b35b82e62b4d12cfea6b69dc"
       },
       "files": 1,
-      "bytes": 7992,
-      "sha256": "27f293bbd4e9b1ce15f041dcc5204199e8b3e7b541578d4f8253b2ac54f305a7"
+      "bytes": 7974,
+      "sha256": "c3e308c43cfa47eeb287f536bd6d5c0fc139f8987f317dc947fad793d9045f95"
     },
     "lit-team": {
       "skillMd": {
@@ -567,12 +567,12 @@
     },
     "litgoal": {
       "skillMd": {
-        "bytes": 21784,
-        "sha256": "51254edd0aa91012effec016001685908a2cefaa96be42fc0a0242aba710d1b1"
+        "bytes": 21876,
+        "sha256": "3042beb70b82affbd23e3726ca6a5712b903dc288ad40eafdb14c5fd7fa3528e"
       },
       "files": 1,
-      "bytes": 21784,
-      "sha256": "383b4863dc10d79c385d7c0a72cb3f302034a7db016f2b82585f8a94fd1244cb"
+      "bytes": 21876,
+      "sha256": "9243d034fb8a1ec5ad6ab637a4d19bb569ea15631e4d74a6cba2dea5c973f80b"
     },
     "litresearch": {
       "skillMd": {
@@ -585,12 +585,12 @@
     },
     "litwork": {
       "skillMd": {
-        "bytes": 35567,
-        "sha256": "3476b654bd2a8cdb7ce754a4697ac0bc0d14d3b94d32ec0e455deb34b03ddb47"
+        "bytes": 35659,
+        "sha256": "0906640d8e0998e1dd0d0084a6b75edd3e6bd6a27e417c2bdf46d2d2cfe81181"
       },
       "files": 1,
-      "bytes": 35567,
-      "sha256": "b04031a2dea513b358ea41468c76f19d2a344c247e679cdd20a7468909af42fe"
+      "bytes": 35659,
+      "sha256": "ad0814d197b665eb1ee1a5e43544cefbed6b1aff6af087560feb2c626c73d4ec"
     },
     "lsp": {
       "skillMd": {
@@ -648,12 +648,12 @@
     },
     "start-work": {
       "skillMd": {
-        "bytes": 31687,
-        "sha256": "7e6c0966375efce74e693855cb948ad86ca7d37bfab55d9a536b8ce2d5cdca1f"
+        "bytes": 31779,
+        "sha256": "8b4c55c60f8c5e799a53818b5089dfa9b267f5069391189fab440abfb9a245fb"
       },
       "files": 1,
-      "bytes": 31687,
-      "sha256": "2d008740db4a12e2b06f3555124969ca58c734784e4a01b4a4bfe9d0953b7963"
+      "bytes": 31779,
+      "sha256": "c56f18d0650fed71d44c10aa5c137f20d8027e08cb404a28e9d2d0cd0ee5abac"
     },
     "structural-search": {
       "skillMd": {
@@ -902,6 +902,7 @@
     "plugins/litclaude/lib/output_mark.py",
     "plugins/litclaude/lib/owner-lock.mjs",
     "plugins/litclaude/lib/park-ping.mjs",
+    "plugins/litclaude/lib/parked-step.mjs",
     "plugins/litclaude/lib/plan-scope-roots.mjs",
     "plugins/litclaude/lib/plan-task-rows.mjs",
     "plugins/litclaude/lib/pre-tool-use.mjs",

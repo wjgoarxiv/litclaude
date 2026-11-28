@@ -229,10 +229,13 @@ look-alikes, on a held-out half of the test prompts it was not tuned on.
 
 A plan you approve runs row by row until every row is ticked and the plan's `## Done when` check
 passes, and then start-work closes the run itself. You type nothing to finish it, and no message tells
-Claude to suggest `lit cancel`. Parked local steps do not hold a finished run open: the closing line
-names each one it set aside, and only push, publish, tag, bumps, deploys, network calls and deletes outside
-the project keep the run in wrap-up. The run is built for the hours you are away, so a step that needs you
-does not stop it.
+Claude to suggest `lit cancel`. Parked local steps and searches do not hold a finished run open: the
+closing line names up to three steps it set aside, or counts them and points to
+`.litclaude/start-work/ledger.jsonl`, where every one is kept in full. Push, publish, tag, bumps, deploys,
+network calls, deletes outside the project and other steps that may reach outside this machine keep the
+run in wrap-up. The run is built for the
+hours you are away, so a step that needs you does not stop it, and it keeps following you when you `cd`
+into a nested checkout or a sub folder of the project.
 
 **Commits, if the plan allows them.** Put a line like this in the plan:
 
@@ -241,26 +244,36 @@ Run charter: commit on feat/csv-export in /path/to/your/repo
 ```
 
 The approval question shows it first, and your `yes` lets the run commit on that branch of that
-repository by itself, with `git add` of named files and `git commit -m`. Amend, other branches, push,
-tag, publish and version bumps are not covered.
+repository by itself, with `git add` of named files and `git commit -m` (also as `git -C <repo> …`, so the
+repository may sit outside the project). A message file given with `-F` must be in that repository or in
+Claude's own scratch folders. Amend, other branches, push, tag, publish and version bumps are not covered.
 
 **Parking.** A command the run may not do by itself is set aside with its folder, and Claude moves on
-to the next row. A row that cannot be done at all gets `IMPOSSIBLE: <reason>` in the plan. Secrets and
-your real home folders are refused outright and never parked.
+to the next row. Reads run as usual, `git grep` and GitHub reads such as `gh pr view` included; a read the
+run may not do is refused with a hint and not set aside, since its output would never reach Claude. A row
+that cannot be done at all gets `IMPOSSIBLE: <reason>` in the plan. Secrets and your real home folders are
+refused outright and never parked. When the guard decides to stop a call, its message starts with
+"Not a crash", so a refusal is easy to tell from an error.
 
 **One inbox at the end.** When the rows are done or nothing else can move, the run lists what waits: the
-open rows, the `IMPOSSIBLE` rows and every parked command with its folder. Answer it with one prompt:
+open rows, the `IMPOSSIBLE` rows and the parked commands, numbered, up to eight [B] and eight [X] steps, with the folder
+only when it is not the project root. A command the guard could not read is held: the inbox only counts
+held steps, their full text stays in `.litclaude/boulder.json`, and nothing runs them. Answer it with one
+prompt:
 
 | Type | What happens |
 | --- | --- |
 | `lit approve` | Runs the [B] steps of the list you were shown (local and undoable: `cd`, `mkdir`, `touch`, `git add`, and `cp` or `mv` onto a new path, all inside the project and outside `.git`; a package script or any program is X) in order, each in its folder; the first failure stops the rest |
-| `lit approve x` | Typed alone as the whole prompt, runs the list's [X] steps: push, publish, tag, bumps and every other command not known to be local and undoable |
+| `lit approve x` | Typed alone as the whole prompt, runs the list's [X] steps: push, publish, tag, bumps and every other command not known to be local and undoable. The reply starts by saying how many of them ran, or that nothing ran when no [X] step was waiting or the list had not been shown yet; a step parked after you saw the list waits for the next one |
 | `lit deny` | Drops the parked steps and keeps those commands refused |
 | `lit skip-row`, `lit skip-row 3` | Skips the waiting rows, or row 3, and drops their parked steps |
 | `lit pause`, `lit resume` | Holds the run where it is, then lets it go on (`lit 멈춤`, `lit 재개`) |
 
-The first time a step parks, a terminal notification names it; turn that off with the `park_ping`
-option. Claude Code's `/goal` joins only when the plan has a `goal: native` line, and then it ends by
+If the stored [B] or [X] steps reach their limit (32 and 16), the next step is refused instead of stored,
+and the inbox says so once; answer the list and Claude can try it again. The first time a step parks, a terminal notification
+names it; turn that off with the `park_ping`
+option. Claude Code's `/goal` joins only when you ask for it, with `yes goal` at the approval question or
+a `goal: native` line in the plan, and then it ends by
 itself after a reply that starts with `WAITING-ON-USER:` or after 30 turns. The hook details are in
 [the hooks reference](./hooks.md#long-runs-that-finish-themselves).
 
@@ -883,9 +896,10 @@ waits for you: it proposes a native `Workflow` and calls it only after you opt i
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` to turn that route off. When Claude Code gives the model
 a worktree tool, use `EnterWorktree`.
 
-Goals follow one rule: LitClaude sets a native goal only when the plan asks for one with a
-`goal: native` line and you say yes. Without that line the approval question is
-`Approve plan and start work? (yes / no)`, and start-work drives the run to its last row on its own.
+Goals follow one rule: LitClaude sets a native goal only when you ask for one. Without a `goal: native`
+line the approval question is `Approve plan and start work? (yes / yes goal / no)` with the goal shown on
+the next line: `yes` starts the work and start-work drives the run to its last row on its own, and
+`yes goal` starts it and sets that goal as well.
 When the plan carries a `Run charter: commit on <branch> in <repo>` line, the question shows it first
 (see [Long runs that finish themselves](#long-runs-that-finish-themselves)). With `goal: native`, `lit plan`
 turns the plan's `## Done when` check into one condition, always ending with ", or the latest reply starts

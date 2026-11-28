@@ -321,20 +321,25 @@ unavailable:
   `node --test …`, `pytest`, `make check`, `bash scripts/<check>.sh`). No judgment
   words ("works", "looks good", "잘 동작"), never a push or publish.
 - A native `/goal` is opt-in: write a `goal: native` line near the top of the plan only when the user
-  asks for one. Without it start-work's own Stop hook drives the run and the question offers only the start.
-  An opted-in goal always ends itself: its condition closes with "or the latest reply starts with
+  asks for one. Without it start-work's own Stop hook drives the run, and the question offers the goal as a
+  second answer: `yes` starts the work with no goal, `yes goal` starts it and sets the goal shown under the
+  question. Never tell the user to edit the plan to get a goal.
+  A goal set either way always ends itself: its condition closes with "or the latest reply starts with
   WAITING-ON-USER:, or after 30 turns".
 - After writing the plan, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/goal-propose.mjs" plans/<slug>.md`
   once and add the one line it prints to the approval question, unchanged: either
-  `Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`, or, when no goal can
+  `Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)` for a plan with a
+  `goal: native` line; `Approve plan and start work? (yes / yes goal / no)` followed by
+  `Optional goal, set only by \`yes goal\`: /goal <cond>` for a plan without one; or, when no goal can
   be set, `Approve plan and start work? (yes / no)` followed by `No goal set: <reason>`. A start
   that is refused (another run active, plan gone) arms no goal and prints
   `No goal set: start-work did not start (<why>)`.
 - Under the question, render the answer guide the script prints after a blank line: a quoted block
   headed `**▶ Answer: …**`, the `/goal` line when there is one, a `| Type | What happens |` table
-  with one row per answer (`yes` / `edit` / `no`, or `yes` / `no` for a start-only question) and
-  `Type the word alone.` Translate the descriptions into the user's language but keep the answer
-  words exactly `yes`, `edit` and `no`; the question line above it stays unchanged. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. If a `ProposeGoal` tool is in your live tool
+  with one row per answer (`yes` / `edit` / `no`, `yes` / `yes goal` / `no`, or `yes` / `no` for a
+  start-only question) and the closing line it prints (`Type the word alone.`, or `Type the answer alone.`
+  when `yes goal` is offered). Translate the descriptions into the user's language but
+  keep the answer words exactly `yes`, `yes goal`, `edit` and `no`; the question line above it stays unchanged. LitClaude sets the native goal itself: lit-plan asks once (`Approve plan, start work and set goal: /goal <cond>? (yes / edit / no)`), and only the user's exact `yes` (or `yes goal`, where a plan without `goal: native` is offered the goal as a second answer) starts start-work on that plan, with the grants a typed `/litclaude:start-work <plan>` gets, and lets the LitClaude mod run `/goal <cond>` when that turn ends; it clears only the goal it set. If a `ProposeGoal` tool is in your live tool
   list, you may call it with `ask_user=true` instead of printing the line; never
   otherwise. Avoid clobbering a different active goal without explicit replacement.
 - Write no `/goal` line into the plan: start-work's

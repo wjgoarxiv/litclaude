@@ -619,9 +619,11 @@ setting, and the doctor shows what is in force:
 
 A plan you approve with `yes` runs row by row until every row is ticked and the plan's `## Done when` check
 passes, and then the run closes itself. You do not type `complete`, and nothing tells you to type
-`lit cancel` to get out of a stuck step. Parked local steps do not hold a finished run open: the closing
-line names each one it set aside, and only push, publish, tag, bumps, deploys, network calls and deletes
-outside the project keep the run waiting for you. Three things keep the run moving while you are not there.
+`lit cancel` to get out of a stuck step. Parked local steps and searches do not hold a finished run open:
+the closing line names up to three steps it set aside, or counts them and points to
+`.litclaude/start-work/ledger.jsonl`, where every one is kept in full. Push, publish, tag, bumps, deploys,
+network calls, deletes outside the project and other steps that may reach outside this machine keep the
+run waiting for you. Three things keep the run moving while you are not there.
 
 The plan can allow commits. When a plan carries a line like the one below, the approval question shows it
 first, and your `yes` lets the run make local commits on that branch of that repository with plain `git add`
@@ -638,7 +640,9 @@ real home folders are never parked; those calls stay refused. A row Claude canno
 `IMPOSSIBLE: <reason>` in the plan, and the run moves past it.
 
 When the rows are done, or nothing else can move, the run wraps up with one inbox: the rows still waiting, the
-`IMPOSSIBLE` rows, and every parked command with its folder. You answer it in one prompt:
+`IMPOSSIBLE` rows, and the parked steps an answer can run, numbered, up to eight per list, with the folder
+when it differs from the project root. Steps the guard could not read are counted on one line and stay
+where they are. You answer it in one prompt:
 
 | Type | What happens |
 | --- | --- |
@@ -648,8 +652,8 @@ When the rows are done, or nothing else can move, the run wraps up with one inbo
 | `lit skip-row` or `lit skip-row 3` | Skips every waiting row, or row 3, and drops its parked steps |
 | `lit pause`, then `lit resume` | Holds the run where it is, then lets it go on |
 
-Claude Code's own `/goal` stays out of it unless the plan asks for it with a `goal: native` line. Even then
-the goal ends by itself: its condition always closes with "or the latest reply starts with
+Claude Code's own `/goal` stays out of it unless you ask for it: answer the approval question with
+`yes goal`, or put a `goal: native` line in the plan. Even then the goal ends by itself: its condition always closes with "or the latest reply starts with
 WAITING-ON-USER:, or after 30 turns".
 
 [The run guard, step by step](./docs/hooks.md#long-runs-that-finish-themselves).

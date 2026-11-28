@@ -7,7 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { composeBand, forkLabel, rowText, rowWidth } from "../plugins/litclaude/lib/mod/frame.mjs";
-import { countPlanTasks, parseWorkflowStack, readLitSnapshot } from "../plugins/litclaude/lib/mod/state.mjs";
+import { countPlanTasks, parseBoulder, parseWorkflowStack, readLitSnapshot } from "../plugins/litclaude/lib/mod/state.mjs";
 import { SVG_CARD, THREAD_ROW_H, composeSvgCard } from "../plugins/litclaude/lib/mod/svg-card.mjs";
 import { settledSample } from "../plugins/litclaude/lib/mod/timeline.mjs";
 import { EMPTY_LISTS, EMPTY_TASKS, TASK_STALE_MS, buildBandModel, endedTaskIds, listProgress, noteBackgroundTask, noteLoopCall } from "../plugins/litclaude/lib/mod/view.mjs";
@@ -392,16 +392,102 @@ test("background tasks are threads beside the lanes, under one fork line that co
 });
 
 // Seen in the real QA run: a paused lit-loop under start-work left room for two of three lanes.
-test("a chain of frames never squeezes parallel lanes below three rows; tasks fold first", () => {
+test("a chain of frames never squeezes parallel lanes below three rows; the first task keeps a row", () => {
   const frames = [frame("lit-loop", "loop", "GREEN", { status: "paused", n: 10, total: 10 }), frame("start-work", "main", "work", { role: "side", n: 10, total: 10 })];
   const tasks = noteBackgroundTask(EMPTY_TASKS, { id: "b1", kind: "shell", name: "sleep", at: NOW });
   const model = buildBandModel({ snapshot: snapshotWith(frames), now: NOW, isWorking: true, agents: agents(["alpha", "beta", "gamma"]), tasks });
-  assert.deepEqual(model.threads.lanes.map(({ name }) => name), ["alpha", "beta", "gamma"]);
+  assert.deepEqual(model.threads.lanes.map(({ name }) => name), ["alpha", "beta", "sleep"]);
   assert.equal(model.threads.more, 1);
   const rows = threadRows(draw(model));
   assert.equal(rows.length, 2 + 1 + 3);
   assert.match(rows[2], /┬ 3 lanes · 1 task in parallel/u);
-  assert.match(rows.at(-1), /└─ ● gamma .*\+1 more │$/u);
+  assert.match(rows.at(-1), /└─ \$ sleep .*\+1 more │$/u);
+});
+
+const idleCrew = () => ["i1", "i2", "i3", "i4", "i5", "i6"].map((id, i) => ({ id, name: `idle-${i + 1}`, type: "teammate", status: "idle" }));
+
+test("a running background task keeps a row beside six idle lanes", () => {
+  const frames = [frame("lit-loop", "loop", "RED", { n: 1, total: 4 })];
+  const tasks = noteBackgroundTask(EMPTY_TASKS, { id: "gate1", kind: "shell", name: "gates suite", at: NOW - 240_000 });
+  const model = buildBandModel({ snapshot: snapshotWith(frames), now: NOW, isWorking: true, agents: idleCrew(), tasks });
+  assert.deepEqual(model.threads.lanes.map(({ name }) => name), ["gates suite", "idle-1", "idle-2"]);
+  assert.equal(model.threads.more, 4);
+  const rows = threadRows(draw(model));
+  assert.equal(rows.length, 5);
+  assert.match(rows[1], /┬ 6 lanes · 1 task in parallel/u);
+  assert.match(rows[2], /├─ \$ gates suite +shell +━{5} running 4m/u);
+});
+
+test("a running agent is not cut by six idle ones", () => {
+  const crew = [...idleCrew(), { id: "r1", name: "runner", type: "executor", status: "running" }];
+  const model = buildBandModel({ snapshot: { ...idle(), ignition: { discipline: "lit-loop", at: NOW - 1000 } }, now: NOW, isWorking: true, agents: crew });
+  assert.equal(model.lanes.list[0].name, "runner");
+  assert.deepEqual(model.threads.lanes.map(({ state }) => state), ["running", "idle", "idle", "idle"]);
+  assert.equal(model.threads.more, 3);
+  const rows = threadRows(draw(model));
+  assert.equal(rows.length, 5);
+  assert.match(rows[0], /┬ 7 lanes in parallel/u);
+  assert.match(rows[1], /├─ ● runner/u);
+});
+
+test("the lane count and the folded +N more count every live lane, not the first six", () => {
+  const bare = { ...idle(), ignition: { discipline: "lit-loop", at: NOW - 1000 } };
+  const crew = (idleCount) => [{ id: "r1", name: "runner", type: "executor", status: "running" }, ...Array.from({ length: idleCount }, (_, i) => ({ id: `i${i}`, name: `idle-${i + 1}`, type: "teammate", status: "idle" }))];
+  for (const live of [7, 10]) {
+    const model = buildBandModel({ snapshot: bare, now: NOW, isWorking: true, agents: crew(live - 1) });
+    const card = draw(model);
+    assert.equal(model.lanes.count, live, "the header's number");
+    assert.equal(model.threads.laneCount, live, "the fork line's number");
+    assert.equal(model.threads.more, live - model.threads.lanes.length, "folded rows are live minus shown");
+    assert.match(threadRows(card)[0], new RegExp(`┬ ${live} lanes in parallel`, "u"));
+    assert.match(texts(card).join("\n"), new RegExp(`${live} lanes`, "u"), "the header segment");
+    assert.match(threadRows(card).at(-1), new RegExp(`\\+${live - model.threads.lanes.length} more │$`, "u"));
+  }
+});
+
+test("a start-work run with seven active lanes and no agents counts seven", () => {
+  const lanes = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`l${i}`, { agent_id: `l${i}`, agent_type: `executor-${i}`, status: "active", started_at: iso(NOW - 60_000) }]));
+  const work = parkedRun({ status: "active", lanes, progress: { total: 2, checked: 1, unchecked: 1, next_task: "x" } });
+  const model = buildBandModel({ snapshot: snapshotWith([frame("start-work", "main", "work", { n: 1, total: 3 })], { work }), now: NOW, isWorking: true });
+  assert.equal(model.lanes.count, 7);
+  assert.equal(model.threads.laneCount, 7);
+});
+
+test("a forced task row never hides a stall warning", () => {
+  const frames = [frame("start-work", "main", "work", { n: 1, total: 3 })];
+  const tasks = noteBackgroundTask(EMPTY_TASKS, { id: "b1", kind: "shell", name: "sleep", at: NOW });
+  const crew = agents(["alpha", "beta", "gamma"]);
+  const activity = { first: { "agent-0": NOW - 3_600_000, "agent-1": NOW - 3_600_000, "agent-2": NOW - 3_600_000 }, last: { "agent-0": NOW, "agent-1": NOW, "agent-2": NOW - 3_600_000 } };
+  const model = buildBandModel({ snapshot: snapshotWith(frames), now: NOW, isWorking: true, agents: crew, activity, tasks });
+  assert.ok(model.threads.lanes.some(({ task }) => task), "the task kept a row");
+  const stalledRow = model.threads.lanes.some(({ name }) => name === "gamma");
+  const stalledWarning = model.warnings.some(({ subject, text }) => subject === "gamma" && /quiet for/u.test(text));
+  assert.deepEqual({ stalledRow, stalledWarning }, { stalledRow: false, stalledWarning: true }, "the stalled lane lost its row to the task but still warns");
+});
+
+const parkedRun = (work) => parseBoulder({ active_work_id: "w1", works: { w1: { work_id: "w1", root_session_id: SID, active_session_id: SID, session_ids: [SID], plan_name: "p.md", ...work } } }, SID).work;
+const heldStep = (id) => ({ boundary_id: id, kind: "command", tier: "X", command: "echo $X", hold_reason: "it expands a shell variable or substitution", origin_session_id: SID });
+const blockedProgress = { total: 2, checked: 1, unchecked: 1, next_task: null };
+const startWorkModel = (work, extra = {}) => buildBandModel({ snapshot: snapshotWith([frame("start-work", "main", "work", { n: 1, total: 3 })], { work }), now: NOW, isWorking: true, ...extra });
+
+test("approval needed shows only while a step that can run waits", () => {
+  const heldOnly = startWorkModel(parkedRun({ status: "active", pending_boundaries: [heldStep("h1"), heldStep("h2")], progress: blockedProgress }));
+  assert.ok(heldOnly.workflow.items.includes("paused · waiting on you"), heldOnly.workflow.items.join(" | "));
+  assert.ok(heldOnly.workflow.items.every((item) => !/approval needed/u.test(item)), heldOnly.workflow.items.join(" | "));
+
+  const withRunnable = startWorkModel(parkedRun({ status: "active", pending_boundaries: [heldStep("h1"), { boundary_id: "r1", kind: "command", tier: "B", command: "touch a", origin_session_id: SID }], progress: blockedProgress }));
+  assert.ok(withRunnable.workflow.items.includes("paused · approval needed"), withRunnable.workflow.items.join(" | "));
+
+  const legacy = startWorkModel(parkedRun({ status: "paused", pending_boundary: { boundary_id: "b0", action: "read", root: "/x", origin_session_id: SID }, progress: { total: 1, checked: 0, unchecked: 1, next_task: "1. a" } }));
+  assert.ok(legacy.workflow.items.includes("paused · approval needed"), legacy.workflow.items.join(" | "));
+});
+
+test("a held-only blocked run still draws its start-work frame blocked", () => {
+  const work = parkedRun({ status: "active", pending_boundaries: [heldStep("h1"), heldStep("h2")], progress: blockedProgress });
+  assert.equal(work.status, "paused");
+  const model = startWorkModel(work, { agents: agents(["executor"]) });
+  assert.equal(model.threads.chain[0].state, "blocked");
+  assert.ok(model.workflow.items.includes("paused · waiting on you"), model.workflow.items.join(" | "));
 });
 
 test("a wide card keeps lane names that differ only at the end apart", () => {
@@ -414,13 +500,14 @@ test("a wide card keeps lane names that differ only at the end apart", () => {
   assert.match(source, />Sleep drill agent 3</u);
 });
 
-test("a teammate waiting for a message reads idle, not running", () => {
+test("a teammate waiting for a message reads idle and sorts below running", () => {
   const frames = [frame("start-work", "main", "work", { n: 1, total: 3 })];
   const crew = [{ id: "t1", name: "alpha", type: "teammate", status: "idle" }, { id: "t2", name: "beta", type: "teammate", status: "running" }];
   const model = buildBandModel({ snapshot: snapshotWith(frames), now: NOW, isWorking: true, agents: crew });
-  assert.deepEqual(model.threads.lanes.map(({ state }) => state), ["idle", "running"]);
+  assert.deepEqual(model.threads.lanes.map(({ state }) => state), ["running", "idle"]);
   const rows = threadRows(draw(model));
-  assert.match(rows[2], /├─ - alpha .* idle/u);
+  assert.match(rows[2], /├─ ● beta/u);
+  assert.match(rows[3], /└─ - alpha .* idle/u);
   assert.match(composeSvgCard(model, { motion: "off" }).alt, /alpha idle/u);
 });
 

@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { GUARD_LEAD } from "../../plugins/litclaude/lib/pre-tool-use.mjs";
+
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const binPath = join(repoRoot, "bin", "litclaude-ai.js");
 const hookPath = join(repoRoot, "plugins", "litclaude", "bin", "litclaude-hook.js");
@@ -103,7 +105,11 @@ export const verdict = (root, sessionId, command, world) => {
   assert.equal(run.status, 0, run.stderr);
   const output = run.stdout.trim() ? JSON.parse(run.stdout).hookSpecificOutput ?? {} : {};
   const tidy = (text) => text?.replaceAll(root, "<root>").replaceAll(world, "<world>");
-  return output.permissionDecision === "deny"
-    ? { decision: "deny", reason: tidy(output.permissionDecisionReason) }
-    : { decision: "allow", context: tidy(output.additionalContext) ?? null };
+  if (output.permissionDecision === "deny") {
+    const raw = output.permissionDecisionReason;
+    if (raw.startsWith("start-work authority check failed closed")) return { decision: "deny", reason: tidy(raw) };
+    assert.ok(raw.startsWith(`${GUARD_LEAD} `), raw);
+    return { decision: "deny", reason: tidy(raw.slice(GUARD_LEAD.length + 1)) };
+  }
+  return { decision: "allow", context: tidy(output.additionalContext) ?? null };
 };

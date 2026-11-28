@@ -12,15 +12,18 @@ export const sessionGoalDir = (sessionId) => (typeof sessionId === "string" && S
 export const GOAL_ANSWERS = Object.freeze({
   asked: [["yes", "starts the work now and sets this goal when this reply ends"], ["edit", "change the goal's check first"], ["no", "nothing starts"]],
   startOnly: [["yes", "starts the work now, with no goal"], ["no", "nothing starts"]],
+  startOrGoal: [["yes", "starts the work now, with no goal"], ["yes goal", "starts the work now and sets the goal above when this reply ends"], ["no", "nothing starts"]],
   loopAsked: [["yes", "set this goal when this turn ends"], ["no", "keep working without a goal"]],
 });
-const GUIDE_TITLES = Object.freeze({ asked: "approve plan · start work · set goal", startOnly: "approve plan · start work", loopAsked: "set goal for this lit-loop" });
+const GUIDE_TITLES = Object.freeze({ asked: "approve plan · start work · set goal", startOnly: "approve plan · start work", startOrGoal: "approve plan · start work", loopAsked: "set goal for this lit-loop" });
+// The closing line of a guide; an answer of two words is not "the word".
+const guideClose = (kind) => (GOAL_ANSWERS[kind].some(([word]) => word.includes(" ")) ? "Type the answer alone." : "Type the word alone.");
 const answerTail = (kind) => `(${GOAL_ANSWERS[kind].map(([word]) => word).join(" / ")})`;
 
 /** The guide for plain terminal text (hook systemMessage): aligned lines, no Markdown. */
 export const goalGuidePlain = (kind) => {
   const width = Math.max(...GOAL_ANSWERS[kind].map(([word]) => word.length));
-  return [...GOAL_ANSWERS[kind].map(([word, does]) => `  ${word.padEnd(width)}  → ${does}`), "  Type the word alone."].join("\n");
+  return [...GOAL_ANSWERS[kind].map(([word, does]) => `  ${word.padEnd(width)}  → ${does}`), `  ${guideClose(kind)}`].join("\n");
 };
 
 /** The guide for a model-written reply: a quoted Markdown table the model renders under the question. */
@@ -32,13 +35,15 @@ export const goalGuideMarkdown = (kind, cond = null) => [
   "|---|---|",
   ...GOAL_ANSWERS[kind].map(([word, does]) => `| **\`${word}\`** | ${does[0].toUpperCase()}${does.slice(1)} |`),
   "",
-  "Type the word alone.",
+  guideClose(kind),
 ].map((line) => (line ? `> ${line}` : ">")).join("\n");
 
 // Fixed status lines, one per outcome. The mod and the CLI print these and nothing else.
 export const GOAL_STATUS = Object.freeze({
   asked: (cond) => `Approve plan, start work and set goal: /goal ${cond}? ${answerTail("asked")}`,
   startOnly: `Approve plan and start work? ${answerTail("startOnly")}`,
+  startOrGoal: `Approve plan and start work? ${answerTail("startOrGoal")}`,
+  optional: (cond) => `Optional goal, set only by \`yes goal\`: /goal ${cond}`,
   loopAsked: (cond) => `Set goal for this lit-loop: /goal ${cond}? ${answerTail("loopAsked")}`,
   skipped: (reason) => `No goal set: ${reason}`,
   notStarted: (why) => `No goal set: start-work did not start (${why})`,

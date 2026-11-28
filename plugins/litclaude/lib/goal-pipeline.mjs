@@ -62,8 +62,10 @@ export const parseDoneWhen = (planText) => {
 // A plan goal always ends itself: Claude Code's /goal also stops when the model replies WAITING-ON-USER:
 // (the Stop inbox asks for that) or after a turn budget, so it never keeps a run going on its own.
 export const GOAL_MAX_TURNS = 30;
-// A plan opts in to a native /goal with a `goal: native` line; without it start-work drives the run alone.
+// A plan opts in to a native /goal with a `goal: native` line; without it start-work drives the run alone,
+// and the approval question offers the same goal as the answer `yes goal`.
 export const GOAL_OPT_IN = /^goal:[ \t]*native[ \t]*$/mu;
+export const GOAL_NEVER = /^goal:\s*never\s*$/mu;
 
 /** `Every row in plans/<f>.md is ticked and \`<cmd>\` exits 0, or …WAITING-ON-USER:, or after N turns [lit:<id>]`, or why not. */
 export const compileCondition = ({ plan, check }) => {
@@ -72,6 +74,18 @@ export const compileCondition = ({ plan, check }) => {
   if (condition.length > GOAL_MAX_CHARS) return { ok: false, reason: `the condition is over ${GOAL_MAX_CHARS} characters; point the check at one script` };
   return { ok: true, condition, id };
 };
+
+/** The goal a plan's own `## Done when` block gives, linted; `{ ok: false, reason }` when it gives none. */
+export const planGoal = ({ plan, planText }) => {
+  const done = parseDoneWhen(planText);
+  if (!done.ok) return done;
+  const built = compileCondition({ plan, check: done.check });
+  if (!built.ok) return built;
+  const lint = lintCondition(built.condition, done.check);
+  return lint.ok ? { ...built, check: done.check } : { ok: false, reason: lint.reasons.join("; ") };
+};
+/** Open rows keep a plan goal false without running its check. */
+export const hasOpenRows = (planText) => parsePlanTaskRows(planText).some((row) => !row.checked);
 
 /** A lit-loop's condition: its check exits 0 and its objective is done. No plan, so no rows. */
 export const compileLoopCondition = ({ objective, check }) => {
@@ -123,10 +137,12 @@ export const falsifyLoop = ({ cwd, check, timeoutMs = FALSIFY_TIMEOUT_MS, run = 
 // Whole-prompt words that mean yes; `네`, `ㅇㅇ` and `ok` are what people type in practice.
 const YES_WORDS = new Set(["yes", "네", "예", "ㅇㅇ", "ok", "okay"]);
 
-/** `yes` (or a listed yes word, any case) arms; `edit` and `no` are answers too; anything else is no answer. */
+/** `yes` (or a listed yes word, any case) arms; `yes goal` also asks for the offered goal; `edit` and `no` are answers too; anything else is no answer. */
 export const consentAnswer = (prompt) => {
   const text = String(prompt ?? "").trim().toLowerCase();
   if (YES_WORDS.has(text)) return "yes";
+  const words = text.split(/\s+/u);
+  if (words.length === 2 && YES_WORDS.has(words[0]) && words[1] === "goal") return "yes goal";
   return ["edit", "no"].includes(text) ? text : null;
 };
 

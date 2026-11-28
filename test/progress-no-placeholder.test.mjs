@@ -101,7 +101,7 @@ test("parent's task for a lane: a task the main loop gave the lane by owner coun
 
 test("SVG card and its alt text: no ? run for unknown totals, the gauge for known ones", () => {
   const names = ["explore", "librarian", "verifier"];
-  const lists = noteLoopCall({}, "agent-2", { tool: "TodoWrite", todos: [{ status: "completed" }, { status: "pending" }] }, {});
+  const lists = noteLoopCall({}, "agent-0", { tool: "TodoWrite", todos: [{ status: "completed" }, { status: "pending" }] }, {});
   const snapshot = { ...idle(), ignition: { discipline: "lit-loop", at: NOW - 1000 }, workflow: { stack: stackOf([frame("lit-loop", "loop", "RED")]) } };
   const model = buildBandModel({ snapshot, now: NOW, isWorking: true, agents: agents(names), activity: activity(names, 4 * 60_000), lists, tasks: { b1: { id: "b1", kind: "shell", name: "dev server", at: NOW - 60_000, until: null } } });
   for (const motion of ["full", "off"]) {

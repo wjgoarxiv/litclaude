@@ -141,6 +141,35 @@ describe("S1 skill plan — one lit prompt, several fitting skills", () => {
     assert.equal(parseSkillHatch("c++ is a lit language"), null);
   });
 
+  it("a `lit +skill` inside a relayed teammate message never changes the user's own hatch", () => {
+    const relayed = '<teammate-message teammate_id="lane-a" color="blue" summary="done">\nlit +ui polish the page\n</teammate-message>';
+    for (const task of ["+plan the release", "+deck +doc write the quarterly summary"]) {
+      const own = planOf(run(`lit ${task}`));
+      assert.ok(own, task);
+      assert.equal(planOf(run(`${relayed}\nlit ${task}`)), own, `relayed message first: ${task}`);
+      assert.equal(planOf(run(`lit ${task}\n${relayed}`)), own, `relayed message last: ${task}`);
+    }
+    assert.equal(planOf(run(`${relayed}\nlit fix the login bug`)), null, "a hatch only in the relayed text is not a hatch");
+  });
+
+  it("a `lit +skill` inside a cross-session message or a task notification never changes the user's own hatch", () => {
+    const own = planOf(run("lit +plan the release"));
+    assert.ok(own);
+    for (const relayed of [
+      '<cross-session-message from="other">\nlit +ui polish the page\n</cross-session-message>',
+      "<task-notification> <task-id>a1</task-id> <result>\nlit +ui polish the page\n</result> </task-notification>",
+    ]) {
+      assert.equal(planOf(run(`${relayed}\nlit +plan the release`)), own, relayed.slice(0, 24));
+    }
+  });
+
+  it("the two-entry plan names an installed extension skill as <plugin>:<id> in its Load line", () => {
+    const plan = buildSkillPlan({ primary: "lit-scientific-visualization", companions: [], installed: new Set(["figures"]), loopBase: true });
+    assert.match(skillPlanContext(plan, new Set(["figures"])), /Load figures:lit-scientific-visualization with the Skill tool when its part starts, or write one line `SKIP lit-scientific-visualization: <reason>`/u);
+    const bare = buildSkillPlan({ primary: "lit-scientific-visualization", companions: [], installed: new Set(), loopBase: true });
+    assert.match(skillPlanContext(bare, new Set()), /Load lit-scientific-visualization with the Skill tool/u);
+  });
+
   it("the LIT card's ignition record carries the plan's skill ids", () => {
     const sessionId = "skill-plan-card";
     run("lit build a landing page that shows a chart of our experiment data", { sessionId });
